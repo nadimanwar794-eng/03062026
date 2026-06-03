@@ -99,13 +99,23 @@ export const LessonView: React.FC<Props> = ({
   }, [isImmersive]);
 
   // ── Reading Score Config ──────────────────────────────────────────────────
+  // userRef always has the latest user — prevents stale closure when TTS fires
+  // multiple onScoreEarned calls rapidly (each would see same old totalScore otherwise)
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  const onUpdateUserRef = useRef(onUpdateUser);
+  useEffect(() => { onUpdateUserRef.current = onUpdateUser; }, [onUpdateUser]);
+
   const handleReadingScoreEarned = useCallback((pts: number, _activity: string) => {
-    if (!user || !onUpdateUser || pts <= 0) return;
-    const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
-    onUpdateUser(updated);
+    const _user = userRef.current;
+    const _onUpdateUser = onUpdateUserRef.current;
+    if (!_user || !_onUpdateUser || pts <= 0) return;
+    const updated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
+    _onUpdateUser(updated);
     try { localStorage.setItem('nst_current_user', JSON.stringify(updated)); } catch {}
     saveUserToLive(updated);
-  }, [user, onUpdateUser]);
+  }, []);
 
   const readingScoreConfig = user?.id ? {
     userId: user.id,

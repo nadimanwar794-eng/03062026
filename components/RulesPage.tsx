@@ -66,7 +66,7 @@ export const RulesPage: React.FC<Props> = ({ onBack, settings }) => {
             "Daily Login: +10 pts every day you open the app.",
             "Redeem Code: +5 pts for every valid code you redeem.",
             "Credits Spent: +1 pt per credit you spend.",
-            "Daily Limit: Free=200 pts · Basic=250 pts · Ultra=350 pts per day.",
+            "Daily Limit: Free=1500 pts · Basic=2500 pts · Ultra=3500 pts per day.",
             "Subscription Multiplier: Free 1×, Basic 1.2×, Ultra 1.5× on all earned score.",
             "Score Boost Code: Redeem a special code to get extra % score for a limited time.",
             "Daily Limit Boost Code: Redeem to permanently increase your daily score limit by a % (stackable)."
@@ -153,7 +153,7 @@ export const RulesPage: React.FC<Props> = ({ onBack, settings }) => {
             "Daily Login: हर दिन app खोलने पर +10 pts।",
             "Redeem Code: हर valid code redeem करने पर +5 pts।",
             "Credits Spend: हर credit खर्च करने पर +1 pt।",
-            "Daily Limit: Free=200 pts · Basic=250 pts · Ultra=350 pts प्रति दिन।",
+            "Daily Limit: Free=1500 pts · Basic=2500 pts · Ultra=3500 pts प्रति दिन।",
             "Subscription Multiplier: Free 1×, Basic 1.2×, Ultra 1.5× — सभी score पर।",
             "Score Boost Code: विशेष code से कुछ समय के लिए extra % score मिलता है।",
             "Daily Limit Boost Code: code redeem करके daily score limit permanently बढ़ाएं (stack होता है)।"

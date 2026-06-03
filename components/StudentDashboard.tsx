@@ -5901,7 +5901,8 @@ export const StudentDashboard: React.FC<Props> = ({
                           boostPercent: getActiveBoost(user),
                           onScoreEarned: (pts: number, activity: string) => {
                             if (pts <= 0) return;
-                            handleUserUpdate({ ...user, totalScore: (user.totalScore || 0) + pts });
+                            const cur = userRef.current;
+                            handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts });
                             if (activity === 'READ_TTS_HIGHLIGHT') {
                               // TTS score: silently accumulate — no per-topic popup
                               lucentTtsSessionPtsRef.current += pts;
@@ -16371,7 +16372,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       boostPercent: getActiveBoost(user),
                       onScoreEarned: (pts: number, activity: string) => {
                         if (pts <= 0) return;
-                        handleUserUpdate({ ...user, totalScore: (user.totalScore || 0) + pts });
+                        const cur = userRef.current;
+                        handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts });
                         if (activity === 'READ_TTS_HIGHLIGHT') {
                           // TTS score: silently accumulate — no per-topic popup
                           lucentTtsSessionPtsRef.current += pts;
