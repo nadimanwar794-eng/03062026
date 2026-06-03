@@ -128,6 +128,7 @@ import {
   Menu,
   LayoutGrid,
   Minimize2,
+  Maximize2,
   Compass,
   User as UserIconOutline,
   MessageSquare,
@@ -2652,6 +2653,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [hwOptionsOpen, setHwOptionsOpen] = useState(false);
   const [lucentFabOpen, setLucentFabOpen] = useState(false);
   const [lucentImmersive, setLucentImmersive] = useState(false);
+  const [lucentPdfRotated, setLucentPdfRotated] = useState(false);
+  const [lucentPdfNight, setLucentPdfNight] = useState<'normal' | 'night' | 'sepia'>('normal');
   // Reset both tabs + view mode when page or note changes
   // Honours lucentInitialTabRef if set by the content-picker popup
   useEffect(() => {
@@ -16133,9 +16136,44 @@ export const StudentDashboard: React.FC<Props> = ({
                   </div>
                 );
               })()}
-              {/* Page counter + Auto: shown only outside NOTES tab */}
+              {/* Page counter + controls for non-NOTES tabs */}
               {lucentActiveTab !== 'NOTES' && (
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* PDF-specific 4 buttons */}
+                  {lucentActiveTab === 'PDF' && (
+                    <>
+                      <button
+                        onClick={() => setLucentPdfRotated(r => !r)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentPdfRotated ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                        title="Rotate PDF"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      <button
+                        onClick={() => setLucentPdfNight(m => m === 'normal' ? 'night' : m === 'night' ? 'sepia' : 'normal')}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 text-base ${lucentPdfNight !== 'normal' ? 'bg-indigo-500/30 border-indigo-400/50' : 'bg-white/15 border-white/25'}`}
+                        title="Night / Sepia Mode"
+                      >
+                        {lucentPdfNight === 'night' ? '🌙' : lucentPdfNight === 'sepia' ? '📜' : '☀️'}
+                      </button>
+                      <button
+                        onClick={() => setLucentImmersive(v => !v)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentImmersive ? 'bg-indigo-500/30 border-indigo-400/50 text-indigo-300' : 'bg-white/15 border-white/25 text-white'}`}
+                        title={lucentImmersive ? 'Exit Focus Mode' : 'Focus Mode'}
+                      >
+                        {lucentImmersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                      </button>
+                      <a
+                        href={(currentPage as any)?.pdfUrl || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                        title="Open PDF in browser"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
+                    </>
+                  )}
                   <span className="bg-white/20 px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap">
                     {safeIndex + 1}/{totalPages}
                   </span>
@@ -17113,31 +17151,49 @@ RULES:
 
             {/* PDF TAB CONTENT */}
             {lucentActiveTab === 'PDF' && (currentPage as any)?.pdfUrl && (
-              <div className="flex-1 overflow-hidden pb-[72px] flex flex-col gap-2 pt-2 px-3">
-                <div className="flex-1 rounded-2xl overflow-hidden border border-blue-200 bg-white shadow-lg relative">
-                  <iframe
-                    src={
-                      (currentPage as any).pdfUrl?.includes('drive.google.com')
-                        ? `https://drive.google.com/file/d/${((currentPage as any).pdfUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/) || [])[1]}/preview?rm=minimal`
-                        : (currentPage as any).pdfUrl
-                    }
-                    className="w-full h-full border-none"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-                    allow="autoplay"
-                    title="Lesson PDF"
-                  />
-                  {/* Drive blocker top-right corner */}
-                  {(currentPage as any).pdfUrl?.includes('drive.google.com') && (
-                    <div
-                      className="absolute top-0 right-0 bg-blue-800/80 text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg z-10 select-none"
-                      style={{ pointerEvents: 'all', cursor: 'default' }}
-                      title="App mein hi rahein"
-                    >🔒 App</div>
-                  )}
+              <div className={`flex-1 overflow-hidden flex flex-col ${lucentImmersive ? '' : 'pb-[72px] pt-2 px-3 gap-2'}`}>
+                <div className={`flex-1 overflow-hidden bg-white relative ${lucentImmersive ? '' : 'rounded-2xl border border-blue-200 shadow-lg'}`}>
+                  <div
+                    style={{
+                      filter: lucentPdfNight === 'night'
+                        ? 'invert(0.9) hue-rotate(180deg) brightness(0.85)'
+                        : lucentPdfNight === 'sepia'
+                        ? 'sepia(0.8) brightness(0.9) contrast(0.9)'
+                        : 'none',
+                      ...(lucentPdfRotated
+                        ? {
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            width: '100vh',
+                            height: '100vw',
+                            transform: 'translate(-50%, -50%) rotate(90deg)',
+                            transformOrigin: 'center center',
+                          }
+                        : { position: 'absolute', inset: 0, width: '100%', height: '100%' }),
+                    }}
+                  >
+                    <iframe
+                      src={
+                        (currentPage as any).pdfUrl?.includes('drive.google.com')
+                          ? `https://drive.google.com/file/d/${((currentPage as any).pdfUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/) || [])[1]}/preview?rm=minimal`
+                          : (currentPage as any).pdfUrl
+                      }
+                      className="w-full h-full border-none"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                      allow="autoplay"
+                      title="Lesson PDF"
+                    />
+                    {/* Drive blocker top-right corner */}
+                    {(currentPage as any).pdfUrl?.includes('drive.google.com') && (
+                      <div
+                        className="absolute top-0 right-0 bg-blue-800/80 text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg z-10 select-none"
+                        style={{ pointerEvents: 'all', cursor: 'default' }}
+                        title="App mein hi rahein"
+                      >🔒 App</div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-400 text-center shrink-0">
-                  📄 Google Drive PDF — kisi ka Gmail login nahi maangega (share: &quot;Anyone with link&quot;)
-                </p>
               </div>
             )}
 
