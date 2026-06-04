@@ -5162,7 +5162,7 @@ export const StudentDashboard: React.FC<Props> = ({
           {/* Header */}
           <div className={`shrink-0 flex items-center gap-3 px-4 py-3 border-b ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
             <button
-              onClick={() => setClass612SubjectView(null)}
+              onClick={() => { setClass612SubjectView(null); setSyllabusMode('SCHOOL'); }}
               className={`p-2 rounded-full ${isDarkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               <ArrowLeft size={20} />
@@ -7678,6 +7678,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 setActiveSessionBoard(_board);
                 setContentViewStep('SUBJECTS');
                 setInitialParentSubject(null);
+                setClass612SubjectView(null);
+                setHomeworkSubjectView(null);
+                setLucentCategoryView(false);
                 onTabChange('COURSES');
               };
 
@@ -7745,7 +7748,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <span className="flex-1 h-px bg-slate-100" />
                       </div>
                       <button
-                        onClick={() => { hapticStrong(); setSyllabusMode('COMPETITION'); setActiveSessionClass('COMPETITION'); setActiveSessionBoard(_board); setContentViewStep('SUBJECTS'); setInitialParentSubject(null); onTabChange('COURSES'); }}
+                        onClick={() => { hapticStrong(); setSyllabusMode('COMPETITION'); setActiveSessionClass('COMPETITION'); setActiveSessionBoard(_board); setContentViewStep('SUBJECTS'); setInitialParentSubject(null); setClass612SubjectView(null); setHomeworkSubjectView(null); setLucentCategoryView(false); onTabChange('COURSES'); }}
                         className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm"
                         style={{ background: _cmpBg, border: `2px solid ${_cmpBdr}` }}
                       >
