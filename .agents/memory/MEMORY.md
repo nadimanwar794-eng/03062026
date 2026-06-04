@@ -1,0 +1,1 @@
+- [MCQ click bug pattern](mcq-click-bug.md) — trackDailyMcqAnswer returning undefined (not true) blocks all MCQ clicks silently

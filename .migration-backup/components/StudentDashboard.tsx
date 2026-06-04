@@ -1189,14 +1189,14 @@ export const StudentDashboard: React.FC<Props> = ({
       // Check if prize should be triggered
       const minMcq = settings?.mcqDailyMinimum ?? 50;
       const mcqRules = (settings?.mcqRewardRules || []).filter((r: any) => r.enabled);
-      if (total < minMcq || mcqRules.length === 0) return;
+      if (total < minMcq || mcqRules.length === 0) return true;
       const rewardKey = `nst_mcq_prize_triggered_${today}_${freshUser.id}`;
-      if (localStorage.getItem(rewardKey)) return;
+      if (localStorage.getItem(rewardKey)) return true;
       const pct = total > 0 ? (correct / total) * 100 : 0;
       const applicableRule = mcqRules
         .filter((r: any) => pct >= r.minPercentage)
         .sort((a: any, b: any) => b.minPercentage - a.minPercentage)[0];
-      if (!applicableRule) return;
+      if (!applicableRule) return true;
       localStorage.setItem(rewardKey, '1');
       const expiryHours = settings?.rewardExpiryHours ?? 12;
       const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
