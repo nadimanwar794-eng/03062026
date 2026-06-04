@@ -8,7 +8,7 @@ import {
   Package, Wallet, X
 } from 'lucide-react';
 import { saveUserToLive } from '../firebase';
-import { getLevelInfo, getScoreDiscountFromScore } from '../utils/levelSystem';
+import { getLevelInfo, getScoreDiscountFromScore, getNextLevelInfo, getLevelProgress } from '../utils/levelSystem';
 import { addSubscription } from '../utils/subscriptionUtils';
 import { recordCreditTx } from '../utils/creditHistory';
 
@@ -887,11 +887,18 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
 
                       const rows = [];
 
+                      const score = user.totalScore || 0;
+                      const nextLvl = getNextLevelInfo(score);
+                      const lvlProgress = getLevelProgress(score);
+                      const ptsNeeded = nextLvl ? nextLvl.minScore - score : 0;
+
                       rows.push({
-                        icon: '⭐',
-                        label: `Level ${levelInfo.level}  ·  ${(user.totalScore || 0).toLocaleString('en-IN')} pts`,
-                        value: scoreDiscount > 0 ? `+${scoreDiscount}%` : levelInfo.name,
-                        vc: scoreDiscount > 0 ? C.gold : ac.color,
+                        icon: levelInfo.emoji,
+                        label: `Level ${levelInfo.level} ${levelInfo.label}`,
+                        pts: score.toLocaleString('en-IN'),
+                        value: scoreDiscount > 0 ? `${scoreDiscount}% OFF` : null,
+                        vc: levelInfo.color,
+                        extra: nextLvl ? { progress: lvlProgress, ptsNeeded, nextLvl } : null,
                       });
 
                       if (activeEvent) {
@@ -929,15 +936,42 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                         <div className="mt-4 rounded-2xl overflow-hidden"
                           style={{ border: `1.5px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
                           {rows.map((row, i) => (
-                            <div key={i} className="flex items-center justify-between px-4 py-3.5"
-                              style={{ borderBottom: `1.5px solid rgba(255,255,255,0.07)` }}>
-                              <span className="text-[12px] font-semibold flex items-center gap-2 whitespace-nowrap" style={{ color: C.textMuted }}>
-                                <span className="text-[15px] leading-none">{row.icon}</span> {row.label}
-                              </span>
-                              <span className="text-[13px] font-black whitespace-nowrap ml-3 shrink-0"
-                                style={{ color: row.vc, fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
-                                {row.value}
-                              </span>
+                            <div key={i} style={{ borderBottom: `1.5px solid rgba(255,255,255,0.07)` }}>
+                              <div className="flex items-center justify-between px-4 py-3.5">
+                                <span className="text-[12px] font-semibold flex items-center gap-2 min-w-0" style={{ color: C.textMuted }}>
+                                  <span className="text-[15px] leading-none shrink-0">{row.icon}</span>
+                                  <span className="font-bold whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: row.pts ? C.text : C.textMuted }}>
+                                    {row.label}
+                                  </span>
+                                  {row.pts && (
+                                    <span className="text-[11px] font-semibold whitespace-nowrap shrink-0" style={{ color: C.textMuted }}>
+                                      {row.pts} pts
+                                    </span>
+                                  )}
+                                </span>
+                                {row.value && (
+                                  <span className="text-[11px] font-black whitespace-nowrap ml-3 shrink-0 px-2 py-0.5 rounded-full"
+                                    style={{ color: row.pts ? '#0f172a' : row.vc, background: row.pts ? row.vc : 'transparent', fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
+                                    {row.value}
+                                  </span>
+                                )}
+                                {!row.value && !row.pts && (
+                                  <span className="text-[13px] font-black whitespace-nowrap ml-3 shrink-0"
+                                    style={{ color: row.vc, fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
+                                    {row.value}
+                                  </span>
+                                )}
+                              </div>
+                              {row.extra && (
+                                <div className="px-4 pb-3.5 -mt-1">
+                                  <div className="h-1.5 rounded-full mb-2 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${row.extra.progress}%`, background: `linear-gradient(90deg, ${levelInfo.color}99, ${levelInfo.color})` }} />
+                                  </div>
+                                  <div className="text-[11px] font-semibold" style={{ color: C.textDim }}>
+                                    {row.extra.ptsNeeded.toLocaleString('en-IN')} aur → Level {row.extra.nextLvl.level} {row.extra.nextLvl.emoji} ({row.extra.nextLvl.discount}% OFF)
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                           <div className="flex items-center justify-between px-4 py-3.5"
