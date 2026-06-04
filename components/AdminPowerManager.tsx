@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const AdminPowerManager: React.FC<Props> = ({ settings, onUpdate }) => {
-    const [activeTab, setActiveTab] = useState<'PRICING' | 'DAILY_LIMITS' | 'LEVEL_LIMITS' | 'VISIBILITY' | 'TOPBAR' | 'BOTTOMNAV' | 'HOMEGRID'>('PRICING');
+    const [activeTab, setActiveTab] = useState<'PRICING' | 'DAILY_LIMITS' | 'LEVEL_LIMITS' | 'VISIBILITY' | 'TOPBAR' | 'BOTTOMNAV' | 'HOMEGRID' | 'SCORE_THRESHOLDS'>('PRICING');
     const [selectedLevel, setSelectedLevel] = useState<number>(1);
     const [localSettings, setLocalSettings] = useState<SystemSettings>(settings);
 
@@ -61,6 +61,7 @@ export const AdminPowerManager: React.FC<Props> = ({ settings, onUpdate }) => {
                     { id: 'TOPBAR', icon: Crown, label: 'Top Bar' },
                     { id: 'BOTTOMNAV', icon: Navigation, label: 'Bottom Nav' },
                     { id: 'HOMEGRID', icon: HomeIcon, label: 'Home Grid' },
+                    { id: 'SCORE_THRESHOLDS', icon: Star, label: 'Score Thresholds' },
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -548,6 +549,88 @@ export const AdminPowerManager: React.FC<Props> = ({ settings, onUpdate }) => {
                         <p className="text-[10px] text-slate-500 mt-3 italic">
                             Tip: Aap pre-existing "Hidden Features" list ka bhi use kar sakte hain (yeh dono respect kiye jaate hain).
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {/* TAB: SCORE THRESHOLDS */}
+            {activeTab === 'SCORE_THRESHOLDS' && (
+                <div className="space-y-3">
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-200 space-y-4">
+                        <div>
+                            <h4 className="font-black text-amber-900 flex items-center gap-2 text-sm">
+                                <Star size={16} className="text-amber-600" /> Level Score Thresholds
+                            </h4>
+                            <p className="text-[11px] text-amber-700 mt-0.5">Har level ke liye minimum score set karo. Khali chhodo = default system value use hogi.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 max-h-[420px] overflow-y-auto pr-1">
+                            {[
+                                {level:1,label:'Beginner',emoji:'🌱',def:0},
+                                {level:2,label:'Apprentice',emoji:'🌿',def:200},
+                                {level:3,label:'Explorer',emoji:'🔍',def:500},
+                                {level:4,label:'Scholar',emoji:'✨',def:1000},
+                                {level:5,label:'Expert',emoji:'⚡',def:5000},
+                                {level:6,label:'Veteran',emoji:'🔥',def:10000},
+                                {level:7,label:'Master',emoji:'💫',def:20000},
+                                {level:8,label:'GrandMaster',emoji:'💎',def:50000},
+                                {level:9,label:'Titan',emoji:'🌟',def:100000},
+                                {level:10,label:'Mythic',emoji:'👑',def:500000},
+                                {level:11,label:'Supreme',emoji:'🏆',def:2500000},
+                                {level:12,label:'Legend',emoji:'🔮',def:5000000},
+                                {level:13,label:'Immortal',emoji:'⚜️',def:10000000},
+                                {level:14,label:'Divine',emoji:'🌠',def:20000000},
+                                {level:15,label:'Absolute',emoji:'💠',def:50000000},
+                            ].map(({level, label, emoji, def}) => {
+                                const cur = (localSettings.levelScoreOverride as any)?.[String(level)];
+                                return (
+                                    <div key={level} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-amber-100 shadow-sm">
+                                        <span className="text-lg w-7 text-center">{emoji}</span>
+                                        <div className="w-20 shrink-0">
+                                            <p className="text-xs font-bold text-slate-700">L{level} {label}</p>
+                                            <p className="text-[10px] text-slate-400">Default: {def.toLocaleString()}</p>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={cur ?? ''}
+                                            placeholder={String(def)}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                const overrides = {...((localSettings.levelScoreOverride as any) || {})};
+                                                if (val === '' || val === undefined) {
+                                                    delete overrides[String(level)];
+                                                } else {
+                                                    overrides[String(level)] = Number(val);
+                                                }
+                                                const updated = { ...localSettings, levelScoreOverride: overrides };
+                                                setLocalSettings(updated);
+                                                onUpdate(updated);
+                                            }}
+                                            className="flex-1 p-2 border rounded-lg text-sm font-bold text-right focus:outline-none focus:border-amber-400"
+                                        />
+                                        {cur !== undefined && (
+                                            <button onClick={() => {
+                                                const overrides = {...((localSettings.levelScoreOverride as any) || {})};
+                                                delete overrides[String(level)];
+                                                const updated = { ...localSettings, levelScoreOverride: overrides };
+                                                setLocalSettings(updated);
+                                                onUpdate(updated);
+                                            }} className="text-[10px] text-red-400 hover:text-red-600 shrink-0 font-bold">Reset</button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <button
+                            onClick={() => {
+                                const updated = { ...localSettings, levelScoreOverride: {} };
+                                setLocalSettings(updated);
+                                onUpdate(updated);
+                            }}
+                            className="w-full py-2 rounded-xl border border-amber-200 text-amber-700 text-xs font-bold hover:bg-amber-50 transition-all"
+                        >
+                            Reset All Levels to Default
+                        </button>
                     </div>
                 </div>
             )}

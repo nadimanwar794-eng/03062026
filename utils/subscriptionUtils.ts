@@ -146,8 +146,30 @@ export const addSubscription = (user: User, newSub: ActiveSubscription, settings
     const updatedUser = { ...user };
     if (!updatedUser.activeSubscriptions) updatedUser.activeSubscriptions = [];
 
-    // User requested concurrent subscriptions ("Basic saath me rahega")
-    // So we simply add it to the list.
+    const now = Date.now();
+
+    // STACKING: find the furthest end date among all non-expired active subscriptions.
+    // New subscription queues AFTER existing ones (Ultra → Basic, 5x Yearly → 5 years, etc.)
+    const nonExpired = updatedUser.activeSubscriptions.filter(s => {
+        const exp = new Date(s.endDate).getTime();
+        return !isNaN(exp) && exp > now;
+    });
+
+    if (nonExpired.length > 0) {
+        const furthestEnd = Math.max(...nonExpired.map(s => new Date(s.endDate).getTime()));
+        const origStart = new Date(newSub.startDate).getTime();
+        const origEnd = new Date(newSub.endDate).getTime();
+        const duration = origEnd - origStart;
+        // Only queue if duration is calculable and there are active subscriptions to stack after
+        if (duration > 0 && furthestEnd > now) {
+            newSub = {
+                ...newSub,
+                startDate: new Date(furthestEnd).toISOString(),
+                endDate: new Date(furthestEnd + duration).toISOString(),
+            };
+        }
+    }
+
     updatedUser.activeSubscriptions.push(newSub);
 
     // Recalculate the effective status

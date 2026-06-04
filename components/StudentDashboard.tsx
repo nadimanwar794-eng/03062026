@@ -599,12 +599,16 @@ export const StudentDashboard: React.FC<Props> = ({
     }) || null;
   })();
 
+  // Admin users should not be affected by admin-controlled theme overrides
+  // (tier colors, broadcasts) when they themselves are managing those settings.
+  const _isAdminUser = (user as any).role === 'ADMIN' || (user as any).role === 'SUB_ADMIN';
+
   const tierTheme =
-    // 1. Admin broadcast (forced, temporary, targeted) — always wins
-    _adminGlobalActive && _adminGlobal && _adminGlobal.theme
+    // 1. Admin broadcast — skipped for admin users to prevent self-interference
+    (!_isAdminUser && _adminGlobalActive && _adminGlobal && _adminGlobal.theme)
       ? buildGranularTierTheme(getTierTheme(user), _adminGlobal.theme)
-      // 1.5. Scheduled library theme (admin-scheduled, time-based broadcast)
-      : _scheduledThemeActive
+      // 1.5. Scheduled library theme — also skipped for admin users
+      : (!_isAdminUser && _scheduledThemeActive)
         ? buildGranularTierTheme(getTierTheme(user), {
             id: _scheduledThemeActive.id,
             userId: 'admin',
@@ -629,19 +633,23 @@ export const StudentDashboard: React.FC<Props> = ({
       // 2. User's chosen theme from admin history (if not expired)
       : _userHistoryTheme
         ? buildGranularTierTheme(getTierTheme(user), _userHistoryTheme)
-        // 3. User's own personal theme (highest user-level priority — beats officialTierTheme)
+        // 3. User's own personal theme (FULL theme object — highest user-level priority)
         : _personalTheme
           ? buildGranularTierTheme(getTierTheme(user), _personalTheme)
-          : _customThemeActive && _customThemeRaw
-            ? buildGranularTierTheme(getTierTheme(user), _customThemeRaw)
-            // 4. Official tier theme — admin ne set kiya, fallback when user has no personal theme
-            : _officialTierTheme
-              ? buildGranularTierTheme(getTierTheme(user), _officialTierTheme)
-              // 5. Single-color override
-              : _overrideColor
-                ? buildOverrideTierTheme(getTierTheme(user), _overrideColor, getUserTier(user))
-                // 6. Default tier theme
-                : getTierTheme(user);
+          // 3b. User's personalThemeColor (single-color, also before official tier theme)
+          : (user as any).personalThemeColor
+            ? buildOverrideTierTheme(getTierTheme(user), (user as any).personalThemeColor, getUserTier(user))
+            : _customThemeActive && _customThemeRaw
+              ? buildGranularTierTheme(getTierTheme(user), _customThemeRaw)
+              // 4. Official tier theme — admin ne set kiya, fallback when user has NO personal theme
+              //    Also skipped for admin users so their own tier config changes don't affect them
+              : (!_isAdminUser && _officialTierTheme)
+                ? buildGranularTierTheme(getTierTheme(user), _officialTierTheme)
+                // 5. Single-color override (redeem/tier/global) — skipped for admin users
+                : (!_isAdminUser && _overrideColor)
+                  ? buildOverrideTierTheme(getTierTheme(user), _overrideColor, getUserTier(user))
+                  // 6. Default tier theme
+                  : getTierTheme(user);
 
   // ── App background: personalTheme bgColor → admin override → dark mode → white ──
   const _appBg = (() => {
@@ -9536,9 +9544,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 if (ms <= 0) return 'Abhi!';
                 const h = Math.floor(ms / 3600000);
                 const m = Math.floor((ms % 3600000) / 60000);
-                if (h >= 48) return `${Math.floor(h/24)}d baad`;
+                const s = Math.floor((ms % 60000) / 1000);
                 if (h >= 1) return `${h}h ${m}m`;
-                return `${m}m`;
+                return `${m}m ${s}s`;
               };
 
               return (
@@ -9638,7 +9646,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                 if (!isFinite(msLeft) || msLeft <= 0) return null;
                                 const h = Math.floor(msLeft / 3600000);
                                 const m = Math.floor((msLeft % 3600000) / 60000);
-                                return h >= 48 ? `${Math.floor(h/24)} din bacha` : h >= 1 ? `${h}h ${m}m bacha` : `${m} min bacha`;
+                                return h >= 1 ? `${h}h ${m}m bacha` : `${m}m bacha`;
                               })();
                               const isScoreBoost = ev.includes('Score Boost');
                               const isLimitBoost = ev.includes('Limit Boost');
@@ -9826,7 +9834,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                   const ms = new Date(uev.startsAt).getTime() - Date.now();
                                   const h = Math.floor(ms / 3600000);
                                   const m = Math.floor((ms % 3600000) / 60000);
-                                  const cdLabel = h >= 48 ? `${Math.floor(h/24)} din baad` : h >= 1 ? `${h}h ${m}m mein` : `${m} minute mein`;
+                                  const s = Math.floor((ms % 60000) / 1000);
+                                  const cdLabel = h >= 1 ? `${h}h ${m}m mein` : `${m}m ${s}s mein`;
                                   const endLabel = uev.endsAt ? new Date(uev.endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) + ' tak' : '';
                                   return (
                                     <div key={ui} className="flex items-center gap-3 rounded-2xl px-3 py-2.5 mb-1.5"
@@ -16188,80 +16197,6 @@ export const StudentDashboard: React.FC<Props> = ({
               )}
             </div>
             {/* Smart Search bar */}
-            {/* NOTES / MCQ / VIDEO TAB SWITCHER */}
-            {(() => {
-              const _pgHasNotes = !!(currentPage?.chunkNotes?.trim() || currentPage?.htmlNotes?.trim() || currentPage?.content?.trim());
-              const _pgHasVideo = !!(currentPage as any)?.videoUrl;
-              const _pgHasPdf   = !!(currentPage as any)?.pdfUrl;
-              const _pgHasAudio = !!(currentPage as any)?.audioUrl;
-              if (!_pgHasNotes && !_pgHasVideo && !_pgHasPdf && !_pgHasAudio) return null;
-              return (
-                <div className={`shrink-0 bg-white px-4 py-2 flex items-center gap-2 flex-wrap ${(isLandscapeUiHidden || lucentImmersive || (lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk')) ? 'hidden' : ''}`}>
-                  {_pgHasNotes && (_pgHasVideo || _pgHasAudio || _pgHasPdf) && (
-                    <button
-                      onClick={() => { setLucentActiveTab('NOTES'); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black transition-all ${
-                        lucentActiveTab === 'NOTES'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      <FileText size={13} /> Notes
-                    </button>
-                  )}
-                  {_pgHasVideo && (
-                    <button
-                      onClick={() => {
-                        if (lucentActiveTab !== 'VIDEO') {
-                          const _vk = `nst_vid_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
-                          if (!checkDailyGate('video', _vk)) return;
-                        }
-                        stopSpeech();
-                        setLucentActiveTab('VIDEO');
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black transition-all ${
-                        lucentActiveTab === 'VIDEO'
-                          ? 'bg-rose-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span className="text-[13px] leading-none">▶</span> Video
-                    </button>
-                  )}
-                  {_pgHasAudio && (
-                    <button
-                      onClick={() => { stopSpeech(); setLucentActiveTab('AUDIO'); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black transition-all ${
-                        lucentActiveTab === 'AUDIO'
-                          ? 'bg-purple-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span className="text-[13px] leading-none">🎵</span> Audio
-                    </button>
-                  )}
-                  {_pgHasPdf && (
-                    <button
-                      onClick={() => {
-                        if (lucentActiveTab !== 'PDF') {
-                          const _pk = `nst_pdf_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
-                          if (!checkDailyGate('pdf', _pk)) return;
-                        }
-                        stopSpeech();
-                        setLucentActiveTab('PDF');
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black transition-all ${
-                        lucentActiveTab === 'PDF'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span className="text-[13px] leading-none">📄</span> PDF
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
             {/* Notes scroll area */}
             <div
               ref={lucentScrollContainerRef}

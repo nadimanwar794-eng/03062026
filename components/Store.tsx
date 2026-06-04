@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { saveUserToLive } from '../firebase';
 import { getLevelInfo, getScoreDiscountFromScore } from '../utils/levelSystem';
+import { addSubscription } from '../utils/subscriptionUtils';
 
 interface Props {
   user: User;
@@ -249,6 +250,14 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
     return () => clearInterval(id);
   }, [event]);
 
+  const [headerFlip, setHeaderFlip] = useState(false);
+  useEffect(() => {
+    const isActive = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
+    if (!isActive) return;
+    const id = setInterval(() => setHeaderFlip(f => !f), 2000);
+    return () => clearInterval(id);
+  }, [user.isPremium, user.subscriptionEndDate]);
+
   const [creditPurchaseMsg, setCreditPurchaseMsg] = useState<string | null>(null);
   const [showPaymentChooser, setShowPaymentChooser] = useState(false);
   const [showCreditConfirm, setShowCreditConfirm] = useState(false);
@@ -287,15 +296,13 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
       startDate: now.toISOString(), endDate: endDate.toISOString(),
       durationHours: days * 24, price: 0, originalPrice: creditCost, isFree: false, grantSource: 'CREDITS'
     };
-    const updatedUser = {
+    const baseUser = {
       ...user,
       credits: Math.max(0, (user.credits || 0) - creditCost),
-      activeSubscriptions: [...(user.activeSubscriptions || []), newSub as any],
-      subscriptionTier: subTier, subscriptionLevel: subLevel,
-      subscriptionEndDate: endDate.toISOString(),
       isPremium: true, grantedByAdmin: false,
       subscriptionHistory: [histEntry, ...(user.subscriptionHistory || [])],
     };
+    const updatedUser = addSubscription(baseUser, newSub as any);
 
     try {
       setCreditConfirmLoading(true);
@@ -603,26 +610,37 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
               <h1 className="text-xl font-black leading-none" style={{ color: C.text }}>Premium Store</h1>
               <p className="text-[11px] mt-0.5 font-medium" style={{ color: C.textMuted }}>Sab kuch unlock karo</p>
             </div>
-            {/* Credits + Status */}
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl"
-                style={{ background: C.goldBg, border: `1.5px solid ${C.goldBorder}`, boxShadow: `0 0 10px rgba(251,191,36,0.12)` }}>
-                <span className="text-sm leading-none">🪙</span>
-                <span className="font-black text-sm leading-none" style={{ color: C.gold }}>
-                  {userCredits.toLocaleString('en-IN')}
-                </span>
-                <span className="text-[9px] font-black" style={{ color: 'rgba(251,191,36,0.55)' }}>CR</span>
-              </div>
-              {user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date() && (
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl"
-                  style={{ background: C.greenBg, border: `1px solid ${C.greenBorder}` }}>
-                  <BadgeCheck size={10} color={C.green} />
-                  <span className="text-[10px] font-black" style={{ color: C.green }}>
-                    {user.subscriptionLevel === 'ULTRA' ? 'MAX' : 'PRO'} Active
-                  </span>
+            {/* Credits / Subscription — flip every 2s */}
+            {(() => {
+              const subActive = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
+              const showSub = subActive && headerFlip;
+              return (
+                <div className="shrink-0 overflow-hidden" style={{ height: 34 }}>
+                  <div style={{
+                    transform: showSub ? 'translateY(-34px)' : 'translateY(0)',
+                    transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
+                  }}>
+                    {/* Row 1: Credits */}
+                    <div className="flex items-center gap-1.5 px-2.5 rounded-2xl" style={{ height: 34, background: C.goldBg, border: `1.5px solid ${C.goldBorder}`, boxShadow: `0 0 10px rgba(251,191,36,0.12)` }}>
+                      <span className="text-sm leading-none">🪙</span>
+                      <span className="font-black text-sm leading-none" style={{ color: C.gold }}>
+                        {userCredits.toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-[9px] font-black" style={{ color: 'rgba(251,191,36,0.55)' }}>CR</span>
+                    </div>
+                    {/* Row 2: Subscription (only rendered when subActive) */}
+                    {subActive && (
+                      <div className="flex items-center gap-1 px-2.5 rounded-2xl" style={{ height: 34, background: C.greenBg, border: `1.5px solid ${C.greenBorder}` }}>
+                        <BadgeCheck size={12} color={C.green} />
+                        <span className="text-[11px] font-black" style={{ color: C.green }}>
+                          {user.subscriptionLevel === 'ULTRA' ? 'MAX' : 'PRO'} Active
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
 
           {/* Plan type tabs + History */}
@@ -899,16 +917,37 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       ))}
                     </div>
 
-                    {/* Discount summary if any */}
-                    {totalDiscount > 0 && (
-                      <div className="mt-4 w-[60%] flex items-center gap-2 px-3 py-2 rounded-xl"
-                        style={{ background: 'rgba(0,0,0,0.25)', border: `1px solid ${ac.border}` }}>
-                        <span className="text-base">🏷️</span>
-                        <span className="text-[12px] font-black" style={{ color: C.gold }}>
-                          {totalDiscount}% total discount apply hai
-                        </span>
-                      </div>
-                    )}
+                    {/* Discount breakdown if any */}
+                    {totalDiscount > 0 && (() => {
+                      const discountRows: { label: string; value: number; icon: string }[] = [];
+                      if (scoreDiscount > 0) discountRows.push({ label: 'Level Discount', value: scoreDiscount, icon: '⭐' });
+                      if (activeStoreDiscount > 0) discountRows.push({ label: 'Special Discount', value: activeStoreDiscount, icon: '🎁' });
+                      if (activeEvent && event?.discountPercent) discountRows.push({ label: event.eventName || 'Offer', value: event.discountPercent, icon: '🔥' });
+                      if (isSubscribed) discountRows.push({ label: 'Renewal Bonus', value: 5, icon: '🔄' });
+                      if (visitDiscount > 0) discountRows.push({ label: 'Visit Bonus', value: visitDiscount, icon: '👣' });
+                      return (
+                        <div className="mt-4 rounded-xl overflow-hidden"
+                          style={{ border: `1px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
+                          {discountRows.map((row, i) => (
+                            <div key={row.label}
+                              className="flex items-center justify-between px-3 py-2"
+                              style={{ borderBottom: i < discountRows.length - 1 ? `1px solid rgba(255,255,255,0.06)` : 'none' }}>
+                              <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.textMuted }}>
+                                <span>{row.icon}</span>{row.label}
+                              </span>
+                              <span className="text-[12px] font-black" style={{ color: C.gold }}>+{row.value}%</span>
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between px-3 py-2.5"
+                            style={{ background: 'rgba(251,191,36,0.10)', borderTop: `1px solid ${C.goldBorder}` }}>
+                            <span className="text-[12px] font-black flex items-center gap-1.5" style={{ color: C.gold }}>
+                              <span>🏷️</span> Total Discount
+                            </span>
+                            <span className="text-[14px] font-black" style={{ color: C.gold }}>{totalDiscount}% OFF</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -933,19 +972,15 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                           <div className="absolute inset-0 pointer-events-none"
                             style={{ background: 'linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.03) 50%,transparent 60%)', animation: 'shimmer-sweep 2.5s linear infinite' }} />
                         )}
-                        {/* Popular badge */}
-                        {isPopular && !isSelected && (
-                          <div className="absolute top-0 right-0 text-[9px] font-black px-3 py-1.5 rounded-bl-xl rounded-tr-xl"
-                            style={{ background: C.gold, color: '#000' }}>POPULAR</div>
-                        )}
-                        {/* Selected badge */}
-                        {isSelected && (
-                          <div className="absolute top-0 right-0 text-[9px] font-black px-3 py-1.5 rounded-bl-xl rounded-tr-xl"
-                            style={{ background: ac.grad, color: '#fff' }}>✓ SELECTED</div>
-                        )}
                         <div className="flex justify-between items-center relative z-10">
                           <div className="flex-1 pr-2">
-                            <p className="text-sm font-black mb-1" style={{ color: isSelected ? ac.color : C.text }}>{plan.name}</p>
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm font-black" style={{ color: isSelected ? ac.color : C.text }}>{plan.name}</p>
+                              {isPopular && (
+                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md"
+                                  style={{ background: C.goldBg, color: C.gold, border: `1px solid ${C.goldBorder}` }}>🔥 Popular</span>
+                              )}
+                            </div>
                             <div className="flex items-baseline gap-2.5">
                               <span className="text-2xl font-black" style={{ color: C.text }}>₹{price.toLocaleString('en-IN')}</span>
                               {original > price && (
@@ -956,10 +991,19 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                               <p className="text-[11px] mt-0.5 font-medium" style={{ color: C.textMuted }}>≈ ₹{perMonth}/month</p>
                             )}
                           </div>
-                          {/* Radio indicator */}
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                            style={{ background: isSelected ? ac.bg : C.surfaceHigh, border: `2px solid ${isSelected ? ac.color : C.borderMed}` }}>
-                            {isSelected && <div className="w-2.5 h-2.5 rounded-full" style={{ background: ac.color }} />}
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            {/* Total discount badge on each slot */}
+                            {totalDiscount > 0 && (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                                style={{ background: 'rgba(251,191,36,0.15)', color: C.gold, border: `1px solid ${C.goldBorder}` }}>
+                                {totalDiscount}% OFF
+                              </span>
+                            )}
+                            {/* Radio indicator */}
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{ background: isSelected ? ac.bg : C.surfaceHigh, border: `2px solid ${isSelected ? ac.color : C.borderMed}` }}>
+                              {isSelected && <div className="w-2.5 h-2.5 rounded-full" style={{ background: ac.color }} />}
+                            </div>
                           </div>
                         </div>
                       </button>
