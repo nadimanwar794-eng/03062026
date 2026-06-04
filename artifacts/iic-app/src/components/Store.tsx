@@ -897,8 +897,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       if (activeEvent) {
                         rows.push({
                           icon: '🔥',
-                          label: `Flash Sale · ${event?.discountPercent || 0}% OFF`,
-                          value: fmtTimer(timeLeft),
+                          label: 'Flash Sale',
+                          value: `+${event?.discountPercent || 0}%  ${fmtTimer(timeLeft)}`,
                           vc: '#fb923c',
                           mono: true,
                         });
