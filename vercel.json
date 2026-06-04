@@ -1,0 +1,12 @@
+{
+  "outputDirectory": "artifacts/iic-app/dist/public",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
