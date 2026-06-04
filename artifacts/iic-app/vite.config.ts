@@ -96,6 +96,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
@@ -148,6 +149,18 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-firebase": ["firebase/app", "firebase/auth", "firebase/database", "firebase/firestore", "firebase/storage"],
+          "vendor-ai": ["@google/genai", "@google/generative-ai"],
+          "vendor-pdf": ["react-pdf", "jspdf", "html2canvas"],
+          "vendor-markdown": ["react-markdown", "remark-gfm", "katex"],
+          "vendor-ui": ["lucide-react", "framer-motion"],
+        },
+      },
+    },
   },
   server: {
     port,
