@@ -830,27 +830,22 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                 <div className="mb-5 rounded-3xl relative overflow-hidden"
                   style={{ background: ac.bg, border: `2px solid ${ac.border}`, boxShadow: `0 0 32px ${ac.glow}` }}>
                   {/* Top gradient stripe */}
-                  <div className="h-1.5 w-full" style={{ background: ac.grad }} />
+                  <div className="h-1 w-full" style={{ background: ac.grad }} />
                   {/* Glow blob */}
                   <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
-                    style={{ background: ac.glow, filter: 'blur(32px)' }} />
+                    style={{ background: ac.glow, filter: 'blur(40px)', opacity: 0.6 }} />
 
-                  <div className="relative p-5">
+                  <div className="relative">
                     {/* Header */}
-                    <div className="flex items-start justify-between mb-5">
+                    <div className="flex items-center justify-between px-5 pt-4 pb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
+                        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shrink-0"
                           style={{ background: ac.pill, border: `1.5px solid ${ac.border}` }}>
                           {ac.emoji}
                         </div>
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: ac.color }}>
-                            {ac.label} Plan
-                          </div>
-                          <p className="text-xl font-black leading-none" style={{ color: C.text }}>
-                            {isPro ? 'Pro Features' : 'Max Features'}
-                          </p>
-                        </div>
+                        <span className="text-2xl font-black tracking-tight leading-none" style={{ color: ac.color }}>
+                          {isPro ? 'PRO' : 'MAX'}
+                        </span>
                       </div>
                       {isSubscribed && (
                         <span className="text-[10px] font-black px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0"
@@ -861,14 +856,14 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                     </div>
 
                     {/* Feature list */}
-                    <div className="space-y-2.5">
+                    <div className="px-5 pb-4 grid grid-cols-2 gap-x-3 gap-y-2">
                       {featuresList.map((f, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
                             style={{ background: ac.pill, border: `1px solid ${ac.border}` }}>
-                            <Check size={12} color={ac.color} strokeWidth={3} />
+                            <Check size={10} color={ac.color} strokeWidth={3.5} />
                           </div>
-                          <span className="text-[13px] font-semibold" style={{ color: C.text }}>{f}</span>
+                          <span className="text-[11px] font-semibold leading-tight" style={{ color: C.textMuted }}>{f}</span>
                         </div>
                       ))}
                     </div>
@@ -935,8 +930,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       });
 
                       return (
-                        <div className="mt-4 rounded-2xl overflow-hidden"
-                          style={{ border: `1.5px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
+                        <>
                           <style>{`
                             @keyframes shimmer-gold {
                               0%   { background-position: -300% center; }
@@ -956,15 +950,17 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                             }
                             .timer-dot { animation: pulse-dot 1s ease-in-out infinite; }
                           `}</style>
+                          {/* top divider separating features from discount rows */}
+                          <div style={{ borderTop: `1.5px solid rgba(255,255,255,0.07)` }} />
                           {rows.map((row, i) => (
                             <div key={i} style={{ borderBottom: `1.5px solid rgba(255,255,255,0.07)` }}>
                               {row.renewalBadge && (
-                                <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-0">
+                                <div className="flex items-center gap-1.5 px-5 pt-2.5 pb-0">
                                   <span className="renewal-shimmer text-[10px] font-black tracking-widest uppercase">✦ RENEWAL BONUS</span>
                                 </div>
                               )}
                               {row.timerBadge && (
-                                <div className="flex items-center px-4 pt-2.5 pb-0">
+                                <div className="flex items-center px-5 pt-2.5 pb-0">
                                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                                     style={{
                                       background: row.timerGlow ? `rgba(251,146,60,0.12)` : 'rgba(255,255,255,0.05)',
@@ -981,7 +977,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                                   </div>
                                 </div>
                               )}
-                              <div className="flex items-center justify-between px-4 py-3.5" style={{ paddingTop: (row.renewalBadge || row.timerBadge) ? '6px' : undefined }}>
+                              <div className="flex items-center justify-between px-5 py-3.5" style={{ paddingTop: (row.renewalBadge || row.timerBadge) ? '6px' : undefined }}>
                                 <span className="text-[12px] font-semibold flex items-center gap-2 min-w-0" style={{ color: C.textMuted }}>
                                   <span className="text-[15px] leading-none shrink-0">{row.icon}</span>
                                   <span className="min-w-0">
@@ -1011,15 +1007,9 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                                     {row.value}
                                   </span>
                                 )}
-                                {!row.value && !row.pts && !row.subLabel && (
-                                  <span className="text-[13px] font-black whitespace-nowrap ml-3 shrink-0"
-                                    style={{ color: row.vc, fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
-                                    {row.value}
-                                  </span>
-                                )}
                               </div>
                               {row.extra && (
-                                <div className="px-4 pb-3.5 -mt-1">
+                                <div className="px-5 pb-3.5 -mt-1">
                                   <div className="h-1.5 rounded-full mb-2 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
                                     <div className="h-full rounded-full transition-all" style={{ width: `${row.extra.progress}%`, background: `linear-gradient(90deg, ${levelInfo.color}99, ${levelInfo.color})` }} />
                                   </div>
@@ -1030,7 +1020,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                               )}
                             </div>
                           ))}
-                          <div className="flex items-center justify-between px-4 py-3.5"
+                          <div className="flex items-center justify-between px-5 py-3.5"
                             style={{ background: 'rgba(251,191,36,0.10)', borderTop: `1.5px solid ${C.goldBorder}` }}>
                             <span className="text-[13px] font-black flex items-center gap-2 whitespace-nowrap" style={{ color: C.gold }}>
                               <span className="text-[15px] leading-none">🏷️</span> Total Discount
@@ -1039,7 +1029,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                               {totalDiscount > 0 ? `${totalDiscount}% OFF` : '0%'}
                             </span>
                           </div>
-                        </div>
+                        </>
                       );
                     })()}
                   </div>
