@@ -10089,10 +10089,13 @@ export const StudentDashboard: React.FC<Props> = ({
             {/* Credits pill */}
             {!(settings?.hiddenTopBarButtons || []).includes('CREDITS') && (
               <div className="shrink-0">
-                <span className="inline-flex items-center gap-[2px] px-2 py-[3px] rounded-full text-[8px] font-black text-white whitespace-nowrap">
+                <button
+                  onClick={() => onTabChange('STORE' as any)}
+                  className="inline-flex items-center gap-[2px] px-2 py-[3px] rounded-full text-[8px] font-black text-white whitespace-nowrap active:scale-90 transition-transform"
+                >
                   <Crown size={9} />
                   <span>{user.credits} CR</span>
-                </span>
+                </button>
               </div>
             )}
 
