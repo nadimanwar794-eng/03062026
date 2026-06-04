@@ -6,11 +6,9 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 
 const rawPort = process.env.PORT;
-const port = rawPort && !Number.isNaN(Number(rawPort)) && Number(rawPort) > 0
-  ? Number(rawPort)
-  : 3000;
+const port = rawPort ? Number(rawPort) : 8081;
 
-const basePath = process.env.BASE_PATH ?? "/";
+const basePath = process.env.BASE_PATH ?? "/__mockup";
 
 export default defineConfig({
   base: basePath,

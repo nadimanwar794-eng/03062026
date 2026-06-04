@@ -1,1 +1,1 @@
-- [MCQ click bug pattern](mcq-click-bug.md) — trackDailyMcqAnswer returning undefined (not true) blocks all MCQ clicks silently
+- [IIC App Migration](iic-app-migration.md) — App is Vite+React (not Next.js); source cloned from GitHub, all changes made, app runs at previewPath /

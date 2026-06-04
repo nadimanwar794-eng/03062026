@@ -1,5 +1,6 @@
 {
-  "buildCommand": "cd .migration-backup && pnpm install --no-frozen-lockfile --ignore-workspace && pnpm run build",
-  "outputDirectory": ".migration-backup/dist",
-  "installCommand": "pnpm install --no-frozen-lockfile"
+  "outputDirectory": "artifacts/iic-app/dist/public",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" }
+  ]
 }
