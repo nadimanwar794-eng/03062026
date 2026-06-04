@@ -209,23 +209,25 @@ export const PdfViewer: React.FC<Props> = ({
   const zoomOut = () => setZoomLevel(z => Math.max(0.5, parseFloat((z - 0.25).toFixed(2))));
   const zoomReset = () => setZoomLevel(1.0);
 
+  // For non-rotated: use actual dimension changes so container can scroll when zoomed in.
+  // For rotated: combine rotate + scale transform (rotated content sits in a swap-dims absolute box).
   const iframeWrapStyle: React.CSSProperties = rotated
     ? {
         position: 'absolute',
         top: '50%',
         left: '50%',
-        width: '100vh',
-        height: '100vw',
-        transform: `translate(-50%, -50%) rotate(90deg) scale(${zoomLevel})`,
+        width: `calc(100vh * ${zoomLevel})`,
+        height: `calc(100vw * ${zoomLevel})`,
+        transform: `translate(-50%, -50%) rotate(90deg)`,
         transformOrigin: 'center center',
       }
     : {
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        transform: zoomLevel !== 1.0 ? `scale(${zoomLevel})` : undefined,
-        transformOrigin: 'top center',
+        // position relative so it expands the scroll area; min-* ensures it fills container at zoom=1
+        position: 'relative',
+        width: `${zoomLevel * 100}%`,
+        minWidth: '100%',
+        height: `${zoomLevel * 100}%`,
+        minHeight: '100%',
       };
 
   const progressPct = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
@@ -433,8 +435,8 @@ export const PdfViewer: React.FC<Props> = ({
         </div>
       )}
 
-      {/* iframe container */}
-      <div className="flex-1 relative overflow-hidden bg-slate-800">
+      {/* iframe container — overflow-auto so zoom can scroll */}
+      <div className="flex-1 relative overflow-auto bg-slate-800">
         <div style={{ ...iframeWrapStyle, filter: nightFilter }}>
           <iframe
             ref={iframeRef}
