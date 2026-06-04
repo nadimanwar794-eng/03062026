@@ -5154,7 +5154,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const { classLevel: cv, subject: sv } = class612SubjectView;
       const _allLucent = (settings?.lucentNotes || []) as LucentNoteEntry[];
       const classLessons = _allLucent
-        .filter(n => String(n.classLevel) === String(cv) && String(n.subject) === String(sv.id) && (!n.board || n.board === _curBoard))
+        .filter(n => String(n.classLevel) === String(cv) && String(n.subject).toLowerCase().trim() === String(sv.id).toLowerCase().trim() && (!n.board || n.board === _curBoard))
         .sort((a, b) => (a.lessonTitle || '').localeCompare(b.lessonTitle || ''));
 
       return (
@@ -5382,7 +5382,7 @@ export const StudentDashboard: React.FC<Props> = ({
         return m === Infinity ? 99999 : m;
       };
       const subjectLucentLessons = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => n.subject === homeworkSubjectView && (!n.board || n.board === _curBoard))
+        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (!n.board || n.board === _curBoard))
         .sort((a, b) => _subjLucentMinPg(a) - _subjLucentMinPg(b));
       const showLucentSection = subjectLucentLessons.length > 0
         && hwYear === null && hwMonth === null && hwWeek === null && !hwActiveHwId;
@@ -6795,9 +6795,9 @@ export const StudentDashboard: React.FC<Props> = ({
         (n.pages || []).forEach(p => { const x = parseInt(p.pageNo || '', 10); if (!isNaN(x) && x < m) m = x; });
         return m === Infinity ? 99999 : m;
       };
-      // All COMPETITION-level admin notes — filtered by active board
+      // All COMPETITION-level admin notes — filtered by classLevel=COMPETITION + active board
       const competitionNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => !n.board || n.board === _curBoard);
+        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (!n.board || n.board === _curBoard));
       // Unique book names — entries with no bookName fall under 'Lucent'
       const uniqueBooks: string[] = Array.from(
         new Set(competitionNotes.map(n => (n.bookName?.trim()) || 'Lucent'))
@@ -6901,7 +6901,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 // Admin lessons for this subject under 'Lucent' book — board-filtered
                 const allLucentNotes = (settings?.lucentNotes || []) as LucentNoteEntry[];
                 const subjectEntries = allLucentNotes
-                  .filter(n => n.subject === cat.id && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (!n.board || n.board === _curBoard))
+                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (!n.board || n.board === _curBoard))
                   .sort((a, b) => _minPg(a) - _minPg(b));
 
                 // If exactly 1 lesson → skip chapters, go straight to page list
