@@ -1,5 +1,5 @@
 {
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm run build",
-  "outputDirectory": "dist"
+  "buildCommand": "cd .migration-backup && pnpm install --no-frozen-lockfile --ignore-workspace && pnpm run build",
+  "outputDirectory": ".migration-backup/dist",
+  "installCommand": "pnpm install --no-frozen-lockfile"
 }
