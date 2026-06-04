@@ -24,7 +24,8 @@
     "react-pdf": "^9.2.1",
     "react-qr-code": "^2.0.15",
     "remark-gfm": "^4.0.0",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "workbox-window": "^7.4.1"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

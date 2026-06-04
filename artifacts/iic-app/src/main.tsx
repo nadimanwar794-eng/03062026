@@ -4,6 +4,14 @@ import App from './App';
 import './index.css';
 import './app.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({
+  onNeedRefresh() {},
+  onOfflineReady() {
+    console.log('[PWA] App is ready to work offline');
+  },
+});
 
 const isNetworkLikeError = (reason: any): boolean => {
   if (!reason) return false;
