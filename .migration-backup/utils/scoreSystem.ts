@@ -41,9 +41,18 @@ export const PROGRESS_MILESTONES: { percent: number; score: number }[] = [
   { percent: 100, score: 25 },
 ];
 
+/** Returns local-timezone date string YYYY-MM-DD (not UTC) — avoids midnight IST reset issues */
+const getLocalDateStr = (offsetDays = 0): string => {
+  const d = new Date();
+  if (offsetDays) d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const getTodayKey = (userId: string) => {
-  const today = new Date().toISOString().split('T')[0];
-  return `nst_daily_score_${userId}_${today}`;
+  return `nst_daily_score_${userId}_${getLocalDateStr()}`;
 };
 
 export const getDailyScoreEarned = (userId: string): number => {
@@ -89,6 +98,7 @@ export interface ScoreLogEntry {
 
 const SCORE_LOG_KEY = (uid: string) => `nst_score_log_${uid}`;
 const MAX_LOG = 600;
+const RETENTION_DAYS = 14;
 
 export const getScoreLog = (userId: string): ScoreLogEntry[] => {
   try { return JSON.parse(localStorage.getItem(SCORE_LOG_KEY(userId)) || '[]'); } catch { return []; }
@@ -98,9 +108,14 @@ export const logScoreActivity = (userId: string, activity: string, pts: number):
   if (pts <= 0) return;
   try {
     const log = getScoreLog(userId);
-    log.push({ date: new Date().toISOString().split('T')[0], ts: Date.now(), activity, pts });
-    if (log.length > MAX_LOG) log.splice(0, log.length - MAX_LOG);
-    localStorage.setItem(SCORE_LOG_KEY(userId), JSON.stringify(log));
+    // Use local timezone date so midnight IST = new day (not 5:30 AM IST)
+    log.push({ date: getLocalDateStr(), ts: Date.now(), activity, pts });
+    // Prune entries older than 14 days — auto-delete after retention period
+    const cutoff = getLocalDateStr(-RETENTION_DAYS);
+    const pruned = log.filter(e => e.date >= cutoff);
+    // Also cap total entries as safety
+    if (pruned.length > MAX_LOG) pruned.splice(0, pruned.length - MAX_LOG);
+    localStorage.setItem(SCORE_LOG_KEY(userId), JSON.stringify(pruned));
   } catch {}
 };
 

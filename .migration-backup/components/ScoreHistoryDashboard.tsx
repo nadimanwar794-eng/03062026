@@ -33,21 +33,30 @@ const ACTIVITY_META: Record<string, { emoji: string; label: string; sublabel: st
 const getMeta = (activity: string) => ACTIVITY_META[activity] ?? ACTIVITY_META['OTHER'];
 const fmt = (n: number) => n.toLocaleString('en-IN');
 
+/** Local timezone YYYY-MM-DD — avoids UTC rollover at 5:30 AM IST */
+const getLocalDate = (offsetDays = 0): string => {
+  const d = new Date();
+  if (offsetDays) d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const today = getLocalDate();
+  const yesterday = getLocalDate(-1);
   if (dateStr === today) return 'Aaj';
   if (dateStr === yesterday) return 'Kal';
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', weekday: 'short' });
 };
 
 const getWeekRange = (weeksAgo: number) => {
-  const now = Date.now();
-  const start = now - (weeksAgo + 1) * 7 * 86400000;
   const days: string[] = [];
+  const startOffset = -(weeksAgo + 1) * 7;
   for (let i = 0; i < 7; i++) {
-    days.push(new Date(start + i * 86400000).toISOString().split('T')[0]);
+    days.push(getLocalDate(startOffset + i));
   }
   return days;
 };
@@ -77,7 +86,7 @@ export const ScoreHistoryDashboard: React.FC<Props> = ({ user, onBack }) => {
 
   const log = useMemo(() => getScoreLog(user.id), [user.id]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDate();
   const todayKey = today;
 
   const dayMap = useMemo(() => {
@@ -98,7 +107,7 @@ export const ScoreHistoryDashboard: React.FC<Props> = ({ user, onBack }) => {
   const chartDays = useMemo(() => {
     const days: { date: string; pts: number }[] = [];
     for (let i = 13; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+      const d = getLocalDate(-i);
       days.push({ date: d, pts: dayMap[d]?.total ?? 0 });
     }
     return days;
