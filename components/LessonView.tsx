@@ -113,8 +113,6 @@ export const LessonView: React.FC<Props> = ({
     if (!_user || !_onUpdateUser || pts <= 0) return;
     const updated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
     _onUpdateUser(updated);
-    try { localStorage.setItem('nst_current_user', JSON.stringify(updated)); } catch {}
-    saveUserToLive(updated);
   }, []);
 
   const readingScoreConfig = user?.id ? {
@@ -865,7 +863,7 @@ export const LessonView: React.FC<Props> = ({
               subscriptionLevel={user?.subscriptionTier || 'FREE'}
               isPremium={!!(user?.isPremium || (user?.subscriptionTier && user.subscriptionTier !== 'FREE'))}
               boostPercent={getActiveBoost(user as any)}
-              onScoreEarned={handleScoreEarned}
+              onScoreEarned={handleReadingScoreEarned}
           />
       );
   }

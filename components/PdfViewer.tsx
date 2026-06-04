@@ -12,7 +12,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Maximize, Minimize, RotateCcw, Moon, Sun,
-  ExternalLink, ChevronLeft, ChevronRight, Search, X, BookOpen, Check
+  ExternalLink, ChevronLeft, ChevronRight, Search, X, BookOpen, Check, MoreVertical
 } from 'lucide-react';
 import { tryEarnScore } from '../utils/scoreSystem';
 
@@ -83,6 +83,8 @@ export const PdfViewer: React.FC<Props> = ({
   const [awardedMilestones, setAwardedMilestones] = useState<Set<number>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(`nst_pdf_ms_${key}`) || '[]')); } catch { return new Set(); }
   });
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -142,6 +144,22 @@ export const PdfViewer: React.FC<Props> = ({
       }
     }
   }, [currentPage, totalPages, userId]);
+
+  // Close more menu on outside click
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [showMoreMenu]);
 
   // Fullscreen listener
   useEffect(() => {
@@ -337,16 +355,30 @@ export const PdfViewer: React.FC<Props> = ({
           {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
         </button>
 
-        {/* Open external */}
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 bg-white/10 rounded-xl active:bg-white/20 transition shrink-0"
-          title="Open in browser"
-        >
-          <ExternalLink size={16} />
-        </a>
+        {/* More menu */}
+        <div ref={moreMenuRef} className="relative shrink-0">
+          <button
+            onClick={() => setShowMoreMenu(m => !m)}
+            className={`p-2 rounded-xl active:scale-90 transition ${showMoreMenu ? 'bg-indigo-500 text-white' : 'bg-white/10'}`}
+            title="More options"
+          >
+            <MoreVertical size={16} />
+          </button>
+          {showMoreMenu && (
+            <div className="absolute right-0 top-full mt-2 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-150">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-4 py-3 text-sm text-white font-semibold hover:bg-white/10 active:bg-white/20 transition"
+                onClick={() => setShowMoreMenu(false)}
+              >
+                <ExternalLink size={15} className="text-indigo-400" />
+                Browser mein kholein
+              </a>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Progress bar */}

@@ -958,7 +958,6 @@ export const StudentDashboard: React.FC<Props> = ({
     // Also save to Firestore so choice persists on new devices
     const updated = { ...user, board: v };
     handleUserUpdate(updated);
-    saveUserToLive(updated);
   };
   const [showBoardPromptForClass, setShowBoardPromptForClass] = useState<
     string | null
@@ -1126,8 +1125,6 @@ export const StudentDashboard: React.FC<Props> = ({
           dailyMcqCount: total,
           totalMcqSolved: (freshUser.totalMcqSolved || 0) + 1,
         };
-        localStorage.setItem('nst_current_user', JSON.stringify(mcqUpdated));
-        saveUserToLive(mcqUpdated);
         handleUserUpdate(mcqUpdated);
       } catch {}
 
@@ -2357,7 +2354,12 @@ export const StudentDashboard: React.FC<Props> = ({
   useEffect(() => {
     const isWriteMode = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
     const isReadTab   = ['PDF', 'VIDEO', 'AUDIO'].includes(lucentActiveTab);
-    if (!lucentNoteViewer || (!isWriteMode && !isReadTab)) return;
+    if (!lucentNoteViewer) {
+      lucentReadSecsRef.current = 0;
+      lucentLastAwardedTierRef.current = 0;
+      return;
+    }
+    if (!isWriteMode && !isReadTab) return;
 
     lucentReadSecsRef.current = 0;
     lucentLastAwardedTierRef.current = 0;
@@ -2381,10 +2383,11 @@ export const StudentDashboard: React.FC<Props> = ({
       if (newTier > lucentLastAwardedTierRef.current) {
         const tiers = newTier - lucentLastAwardedTierRef.current;
         lucentLastAwardedTierRef.current = newTier;
-        const earned = tryEarnScore(user.id, tiers * basePerTick, user.subscriptionLevel, user.isPremium, getActiveBoost(user));
+        const freshU = userRef.current;
+        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getActiveBoost(freshU));
         if (earned > 0) {
-          logScoreActivity(user.id, activityType, earned);
-          handleUserUpdate({ ...user, totalScore: (user.totalScore || 0) + earned });
+          logScoreActivity(freshU.id, activityType, earned);
+          handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
           triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}`);
         }
       }
@@ -3327,7 +3330,6 @@ export const StudentDashboard: React.FC<Props> = ({
       return;
     }
     handleUserUpdate(updatedUser);
-    try { saveUserToLive(updatedUser); } catch {}
     try { localStorage.setItem(_cnDailyKey, String(used + 1)); } catch {}
     showAlert(`✅ ${CN_CREDIT_COST} CR use hoye — extra note unlock!`, 'SUCCESS');
     setLucentNoteViewer(entry);
@@ -8469,7 +8471,6 @@ export const StudentDashboard: React.FC<Props> = ({
                       if (!user.photoURL) return;
                       const updated = { ...user, avatarChoice: 'gmail' as const };
                       handleUserUpdate(updated);
-                      await saveUserToLive(updated);
                     }}
                     disabled={!user.photoURL}
                     className="px-4 py-1.5 rounded-xl text-[11px] font-bold transition-all active:scale-95 flex items-center gap-1.5"
@@ -16163,15 +16164,13 @@ export const StudentDashboard: React.FC<Props> = ({
                       >
                         {lucentImmersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                       </button>
-                      <a
-                        href={(currentPage as any)?.pdfUrl || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                        title="Open PDF in browser"
+                        title="Content Switch karein"
                       >
-                        <ExternalLink size={14} />
-                      </a>
+                        <LayoutGrid size={14} />
+                      </button>
                     </>
                   )}
                   <span className="bg-white/20 px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap">
