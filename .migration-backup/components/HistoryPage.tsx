@@ -745,7 +745,8 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                             const isEarn = tx.amount > 0;
                             const txDate = new Date(tx.at);
                             const isValid = !isNaN(txDate.getTime());
-                            const typeIcon = tx.type.includes('SPIN') ? '🎰' :
+                            const typeIcon = tx.type.includes('SUBSCRIPTION') ? '👑' :
+                                tx.type.includes('SPIN') ? '🎰' :
                                 tx.type.includes('LOGIN') || tx.type.includes('BONUS') ? '🗓️' :
                                 tx.type.includes('GIFT') || tx.type.includes('REDEEM') ? '🎁' :
                                 tx.type.includes('NOTIF') || tx.type.includes('REWARD') ? '🏆' :

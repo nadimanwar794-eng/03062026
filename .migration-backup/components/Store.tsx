@@ -9,6 +9,7 @@ import {
 import { saveUserToLive } from '../firebase';
 import { getLevelInfo, getScoreDiscountFromScore } from '../utils/levelSystem';
 import { addSubscription } from '../utils/subscriptionUtils';
+import { recordCreditTx } from '../utils/creditHistory';
 
 interface Props {
   user: User;
@@ -308,6 +309,18 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
       setCreditConfirmLoading(true);
       await saveUserToLive(updatedUser);
       onUserUpdate(updatedUser);
+      // Record in credit history so it appears in Store → History tab
+      try {
+        const planLabel = isUltra ? 'MAX (Ultra)' : 'PRO (Basic)';
+        const durLabel = days === 365 ? '1 Saal' : days === 90 ? '3 Mahine' : days === 30 ? '1 Mahina' : `${days} Din`;
+        recordCreditTx(
+          user.id,
+          -creditCost,
+          'SPEND_SUBSCRIPTION',
+          `Subscription Kharida: ${planLabel} — ${durLabel}`,
+          updatedUser.credits,
+        );
+      } catch {}
       setShowCreditConfirm(false);
       setShowPaymentChooser(false);
       setCreditPurchaseMsg(`✅ ${isUltra ? 'MAX' : 'PRO'} Plan activate! ${days} din ke liye. (${creditCost.toLocaleString('en-IN')} CR kata)`);
