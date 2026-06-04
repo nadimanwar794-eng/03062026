@@ -340,7 +340,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
       ? (purchaseItem.finalPrice !== undefined ? purchaseItem.finalPrice : (tierType === 'BASIC' ? purchaseItem.basicPrice : purchaseItem.ultraPrice))
       : purchaseItem.price;
     const features = isSub ? (tierType === 'BASIC' ? 'MCQ + Notes (Pro)' : 'PDF + Videos + AI Studio (Max)') : `${purchaseItem.credits} Credits`;
-    const msg = `Hello Admin, I want to buy:\n\nItem: ${purchaseItem.name} ${isSub ? `(${tierType === 'BASIC' ? 'PRO' : 'MAX'})` : ''}\nPrice: ₹${price}\nUser ID: ${user.id}\nDetails: ${features}\n\nPlease share payment details.`;
+    const discountNote = isSub && totalDiscount > 0 ? `\nDiscount Applied: ${totalDiscount}% OFF` : '';
+    const msg = `Hello Admin, I want to buy:\n\nItem: ${purchaseItem.name} ${isSub ? `(${tierType === 'BASIC' ? 'PRO' : 'MAX'})` : ''}\nPrice: ₹${price}${discountNote}\nUser ID: ${user.id}\nDetails: ${features}\n\nPlease share payment details.`;
     window.open(`https://wa.me/91${numEntry.number}?text=${encodeURIComponent(msg)}`, '_blank');
     setShowSupportModal(false);
   };
@@ -471,7 +472,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
           planName.includes('lifetime') ||
           planDuration.includes('lifetime') ||
           (selectedPlan as any).tier === 'LIFETIME';
-        const finalPrice = isPro ? selectedPlan.basicPrice : selectedPlan.ultraPrice;
+        const basePrice = isPro ? selectedPlan.basicPrice : selectedPlan.ultraPrice;
+        const finalPrice = totalDiscount > 0 ? Math.round(basePrice * (1 - totalDiscount / 100)) : basePrice;
         const creditCost = getCreditPrice(selectedPlan.duration || selectedPlan.name || '', !isPro);
         const hasEnoughCredits = userCredits >= creditCost;
         return (
@@ -502,7 +504,15 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl font-black"
                       style={{ background: ac.pill, color: ac.color }}>₹</div>
                     <div className="flex-1">
-                      <p className="font-black text-sm" style={{ color: C.text }}>₹{finalPrice.toLocaleString('en-IN')} se Kharido</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-black text-sm" style={{ color: C.text }}>₹{finalPrice.toLocaleString('en-IN')} se Kharido</p>
+                        {totalDiscount > 0 && (
+                          <>
+                            <span className="text-[10px] line-through" style={{ color: C.textDim }}>₹{basePrice.toLocaleString('en-IN')}</span>
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.18)', color: C.gold, border: `1px solid ${C.goldBorder}` }}>{totalDiscount}% OFF</span>
+                          </>
+                        )}
+                      </div>
                       <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>WhatsApp par payment karo — Instant activate</p>
                     </div>
                     <ChevronRight size={16} color={C.textDim} />
@@ -975,7 +985,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                     const isPopular = plan.name.toLowerCase().includes('monthly') || (subscriptionPlans.length > 1 && idx === 1);
 
                     return (
-                      <button key={plan.id} onClick={() => setSelectedPlanId(plan.id)}
+                      <button key={plan.id} onClick={() => { setSelectedPlanId(plan.id); setShowPaymentChooser(true); }}
                         className="w-full block px-4 py-2.5 rounded-2xl text-left transition-all relative overflow-hidden"
                         style={isSelected
                           ? { background: ac.bg, border: `2px solid ${ac.border}`, boxShadow: `0 0 28px ${ac.glow}` }
@@ -1036,17 +1046,6 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                   </div>
                 )}
 
-                {/* ── CTA Button ── */}
-                <button
-                  onClick={() => { if (!selectedPlan) return; setShowPaymentChooser(true); }}
-                  className="w-full py-5 rounded-2xl font-black text-base tracking-wide text-white relative overflow-hidden group mb-4 transition-all active:scale-[0.98]"
-                  style={{ background: ac.grad, boxShadow: `0 8px 28px ${ac.glow}` }}>
-                  <span className="absolute inset-0 bg-white/10 translate-x-[-100%] group-active:translate-x-[100%] transition-transform duration-500 skew-x-12 pointer-events-none" />
-                  <span className="relative flex items-center justify-center gap-2.5">
-                    <Sparkles size={17} />
-                    {isPro ? 'PRO' : 'MAX'} Plan Lo — Abhi Unlock Karo
-                  </span>
-                </button>
 
                 {/* Trust row */}
                 <div className="flex justify-center gap-8 mb-2">
