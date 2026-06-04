@@ -927,25 +927,25 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
 
                       return (
                         <div className="mt-4 rounded-2xl overflow-hidden"
-                          style={{ border: `1px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
+                          style={{ border: `1.5px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
                           {rows.map((row, i) => (
-                            <div key={i} className="flex items-center justify-between px-3 py-2.5"
-                              style={{ borderBottom: `1px solid rgba(255,255,255,0.06)` }}>
-                              <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.textMuted }}>
-                                <span>{row.icon}</span> {row.label}
+                            <div key={i} className="flex items-center justify-between px-4 py-3.5"
+                              style={{ borderBottom: `1.5px solid rgba(255,255,255,0.07)` }}>
+                              <span className="text-[12px] font-semibold flex items-center gap-2 whitespace-nowrap" style={{ color: C.textMuted }}>
+                                <span className="text-[15px] leading-none">{row.icon}</span> {row.label}
                               </span>
-                              <span className="text-[12px] font-black"
+                              <span className="text-[13px] font-black whitespace-nowrap ml-3 shrink-0"
                                 style={{ color: row.vc, fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
                                 {row.value}
                               </span>
                             </div>
                           ))}
-                          <div className="flex items-center justify-between px-3 py-2.5"
-                            style={{ background: 'rgba(251,191,36,0.10)', borderTop: `1px solid ${C.goldBorder}` }}>
-                            <span className="text-[12px] font-black flex items-center gap-1.5" style={{ color: C.gold }}>
-                              🏷️ Total Discount
+                          <div className="flex items-center justify-between px-4 py-3.5"
+                            style={{ background: 'rgba(251,191,36,0.10)', borderTop: `1.5px solid ${C.goldBorder}` }}>
+                            <span className="text-[13px] font-black flex items-center gap-2 whitespace-nowrap" style={{ color: C.gold }}>
+                              <span className="text-[15px] leading-none">🏷️</span> Total Discount
                             </span>
-                            <span className="text-[14px] font-black" style={{ color: C.gold }}>
+                            <span className="text-[15px] font-black whitespace-nowrap" style={{ color: C.gold }}>
                               {totalDiscount > 0 ? `${totalDiscount}% OFF` : '0%'}
                             </span>
                           </div>
