@@ -873,89 +873,82 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       ))}
                     </div>
 
-                    {/* Discount breakdown — always visible */}
+                    {/* ── Compact benefit info card ── */}
                     {(() => {
                       const levelInfo = getLevelInfo(user.totalScore || 0);
                       const subActive = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
                       const daysLeft = subActive && user.subscriptionEndDate
                         ? Math.max(0, Math.ceil((new Date(user.subscriptionEndDate).getTime() - Date.now()) / 86400000))
                         : 0;
-                      const discountRows: { label: string; value: number; icon: string }[] = [];
-                      if (scoreDiscount > 0) discountRows.push({ label: 'Level Discount', value: scoreDiscount, icon: '⭐' });
-                      if (activeStoreDiscount > 0) discountRows.push({ label: 'Special Discount', value: activeStoreDiscount, icon: '🎁' });
-                      if (activeEvent && event?.discountPercent) discountRows.push({ label: event.eventName || 'Offer', value: event.discountPercent, icon: '🔥' });
-                      if (isSubscribed) discountRows.push({ label: 'Renewal Bonus', value: 5, icon: '🔄' });
-                      if (visitDiscount > 0) discountRows.push({ label: 'Visit Bonus', value: visitDiscount, icon: '👣' });
+
+                      const fmtTimer = (t) => t
+                        ? `${t.days > 0 ? t.days + 'd ' : ''}${String(t.hours).padStart(2,'0')}:${String(t.minutes).padStart(2,'0')}:${String(t.seconds).padStart(2,'0')}`
+                        : '...';
+
+                      const rows = [];
+
+                      rows.push({
+                        icon: '⭐',
+                        label: `Level ${levelInfo.level}  ·  ${(user.totalScore || 0).toLocaleString('en-IN')} pts`,
+                        value: scoreDiscount > 0 ? `+${scoreDiscount}%` : levelInfo.name,
+                        vc: scoreDiscount > 0 ? C.gold : ac.color,
+                      });
+
+                      if (activeEvent) {
+                        rows.push({
+                          icon: '🔥',
+                          label: `Flash Sale · ${event?.discountPercent || 0}% OFF`,
+                          value: fmtTimer(timeLeft),
+                          vc: '#fb923c',
+                          mono: true,
+                        });
+                      } else if (inCooldown) {
+                        rows.push({
+                          icon: '⏳',
+                          label: 'Sale Jald Aayega',
+                          value: fmtTimer(timeLeft),
+                          vc: C.textMuted,
+                          mono: true,
+                        });
+                      }
+
+                      if (isSubscribed) {
+                        rows.push({ icon: '🔄', label: 'Renewal Bonus', value: '+5%', vc: C.gold });
+                      }
+
+                      rows.push({
+                        icon: '💎',
+                        label: 'Subscription',
+                        value: subActive
+                          ? `${(user as any).subscriptionLevel === 'ULTRA' ? 'MAX' : 'PRO'} · ${daysLeft}d left`
+                          : 'None',
+                        vc: subActive ? C.green : C.textDim,
+                      });
+
                       return (
-                        <div className="mt-4 rounded-xl overflow-hidden"
+                        <div className="mt-4 rounded-2xl overflow-hidden"
                           style={{ border: `1px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
-                          {/* Level / Score row */}
-                          <div className="flex items-center justify-between px-3 py-2"
-                            style={{ borderBottom: `1px solid rgba(255,255,255,0.06)` }}>
-                            <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.textMuted }}>
-                              <span>🏆</span> Level &amp; Score
-                            </span>
-                            <span className="text-[11px] font-black" style={{ color: ac.color }}>
-                              Lv.{levelInfo.level} · {(user.totalScore || 0).toLocaleString('en-IN')} pts
-                            </span>
-                          </div>
-                          {/* Subscription plan + days remaining row */}
-                          <div className="flex items-center justify-between px-3 py-2"
-                            style={{ borderBottom: discountRows.length > 0 ? `1px solid rgba(255,255,255,0.06)` : 'none' }}>
-                            <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.textMuted }}>
-                              <span>💎</span> Subscription
-                            </span>
-                            <span className="text-[11px] font-black" style={{ color: subActive ? C.green : C.textDim }}>
-                              {subActive
-                                ? `${user.subscriptionLevel === 'ULTRA' ? 'MAX' : 'PRO'} · ${daysLeft}d left`
-                                : 'None'}
-                            </span>
-                          </div>
-                          {/* Discount rows */}
-                          {discountRows.map((row, i) => (
-                            <div key={row.label}
-                              className="flex items-center justify-between px-3 py-2"
-                              style={{ borderBottom: i < discountRows.length - 1 ? `1px solid rgba(255,255,255,0.06)` : 'none' }}>
+                          {rows.map((row, i) => (
+                            <div key={i} className="flex items-center justify-between px-3 py-2.5"
+                              style={{ borderBottom: `1px solid rgba(255,255,255,0.06)` }}>
                               <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.textMuted }}>
-                                <span>{row.icon}</span>{row.label}
+                                <span>{row.icon}</span> {row.label}
                               </span>
-                              <span className="text-[12px] font-black" style={{ color: C.gold }}>+{row.value}%</span>
+                              <span className="text-[12px] font-black"
+                                style={{ color: row.vc, fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
+                                {row.value}
+                              </span>
                             </div>
                           ))}
-                          {/* Total discount row */}
                           <div className="flex items-center justify-between px-3 py-2.5"
                             style={{ background: 'rgba(251,191,36,0.10)', borderTop: `1px solid ${C.goldBorder}` }}>
                             <span className="text-[12px] font-black flex items-center gap-1.5" style={{ color: C.gold }}>
-                              <span>🏷️</span> Total Discount
+                              🏷️ Total Discount
                             </span>
                             <span className="text-[14px] font-black" style={{ color: C.gold }}>
                               {totalDiscount > 0 ? `${totalDiscount}% OFF` : '0%'}
                             </span>
                           </div>
-                          {/* Coming Soon timer (inCooldown) */}
-                          {inCooldown && timeLeft && (
-                            <div className="px-3 py-2.5 flex items-center justify-between"
-                              style={{ background: 'rgba(100,116,139,0.10)', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
-                              <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.textMuted }}>
-                                <span>⏳</span> Sale Jald Aayega
-                              </span>
-                              <span className="text-[11px] font-black font-mono" style={{ color: C.text }}>
-                                {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}{String(timeLeft.hours).padStart(2,'0')}:{String(timeLeft.minutes).padStart(2,'0')}:{String(timeLeft.seconds).padStart(2,'0')}
-                              </span>
-                            </div>
-                          )}
-                          {/* Discount Live timer (activeEvent) */}
-                          {activeEvent && timeLeft && (
-                            <div className="px-3 py-2.5 flex items-center justify-between"
-                              style={{ background: 'rgba(251,191,36,0.08)', borderTop: `1px solid ${C.goldBorder}` }}>
-                              <span className="text-[11px] font-semibold flex items-center gap-1.5" style={{ color: C.gold }}>
-                                <span>🔥</span> Discount Live
-                              </span>
-                              <span className="text-[11px] font-black font-mono" style={{ color: C.gold }}>
-                                {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}{String(timeLeft.hours).padStart(2,'0')}:{String(timeLeft.minutes).padStart(2,'0')}:{String(timeLeft.seconds).padStart(2,'0')}
-                              </span>
-                            </div>
-                          )}
                         </div>
                       );
                     })()}
