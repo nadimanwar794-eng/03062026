@@ -12,7 +12,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Maximize, Minimize, RotateCcw, Moon, Sun,
-  ExternalLink, ChevronLeft, ChevronRight, Search, X, BookOpen, Check, MoreVertical
+  ExternalLink, ChevronLeft, ChevronRight, Search, X, BookOpen, Check, MoreVertical,
+  ZoomIn, ZoomOut
 } from 'lucide-react';
 import { tryEarnScore } from '../utils/scoreSystem';
 
@@ -71,6 +72,7 @@ export const PdfViewer: React.FC<Props> = ({
   });
   const [iframeSrc, setIframeSrc] = useState(() => buildSrc(url, currentPage));
   const [rotated, setRotated] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1.0);
   const [nightMode, setNightMode] = useState<NightMode>('normal');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -203,6 +205,10 @@ export const PdfViewer: React.FC<Props> = ({
   const cycleNight = () => setNightMode(m => m === 'normal' ? 'night' : m === 'night' ? 'sepia' : 'normal');
 
   // CSS rotation — stable across all browsers
+  const zoomIn = () => setZoomLevel(z => Math.min(3.0, parseFloat((z + 0.25).toFixed(2))));
+  const zoomOut = () => setZoomLevel(z => Math.max(0.5, parseFloat((z - 0.25).toFixed(2))));
+  const zoomReset = () => setZoomLevel(1.0);
+
   const iframeWrapStyle: React.CSSProperties = rotated
     ? {
         position: 'absolute',
@@ -210,10 +216,17 @@ export const PdfViewer: React.FC<Props> = ({
         left: '50%',
         width: '100vh',
         height: '100vw',
-        transform: 'translate(-50%, -50%) rotate(90deg)',
+        transform: `translate(-50%, -50%) rotate(90deg) scale(${zoomLevel})`,
         transformOrigin: 'center center',
       }
-    : { position: 'absolute', inset: 0, width: '100%', height: '100%' };
+    : {
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        transform: zoomLevel !== 1.0 ? `scale(${zoomLevel})` : undefined,
+        transformOrigin: 'top center',
+      };
 
   const progressPct = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
 
@@ -335,6 +348,35 @@ export const PdfViewer: React.FC<Props> = ({
           title={`Mode: ${nightMode}`}
         >
           {nightLabel[nightMode]}
+        </button>
+
+        {/* Zoom Out */}
+        <button
+          onClick={zoomOut}
+          disabled={zoomLevel <= 0.5}
+          className="p-2 bg-white/10 rounded-xl active:scale-90 transition shrink-0 disabled:opacity-30"
+          title="Zoom Out"
+        >
+          <ZoomOut size={16} />
+        </button>
+
+        {/* Zoom Level */}
+        <button
+          onClick={zoomReset}
+          className="px-2 py-1 bg-white/10 rounded-lg text-[10px] font-black shrink-0 active:scale-90 transition min-w-[38px] text-center"
+          title="Reset Zoom"
+        >
+          {Math.round(zoomLevel * 100)}%
+        </button>
+
+        {/* Zoom In */}
+        <button
+          onClick={zoomIn}
+          disabled={zoomLevel >= 3.0}
+          className="p-2 bg-white/10 rounded-xl active:scale-90 transition shrink-0 disabled:opacity-30"
+          title="Zoom In"
+        >
+          <ZoomIn size={16} />
         </button>
 
         {/* Rotate */}

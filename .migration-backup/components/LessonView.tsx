@@ -1060,7 +1060,7 @@ export const LessonView: React.FC<Props> = ({
           const idx = (batchIndex * BATCH_SIZE) + localIdx;
           return acc + (mcqState[idx] !== undefined && mcqState[idx] !== null ? 1 : 0);
       }, 0);
-      const canGoNext = currentBatchAttemptedCount >= Math.min(BATCH_SIZE, currentBatchData.length);
+      const canGoNext = currentBatchAttemptedCount >= 1;
 
       const nextQuestion = () => {
           setBatchIndex(prev => prev + 1);
@@ -2182,7 +2182,7 @@ export const LessonView: React.FC<Props> = ({
                                                return (
                                                    <button
                                                        key={oIdx}
-                                                       disabled={isAnswered || showResults || isRevealed}
+                                                       disabled={isAnswered || showResults}
                                                        onClick={() => handleOptionSelect(idx, oIdx)}
                                                        className={btnClass}
                                                    >
