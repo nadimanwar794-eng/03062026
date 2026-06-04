@@ -919,43 +919,72 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                         });
                       }
 
-                      if (isSubscribed) {
-                        rows.push({ icon: '🔄', label: 'Renewal Bonus', value: '+5%', vc: C.gold });
-                      }
-
                       rows.push({
                         icon: '💎',
                         label: 'Subscription',
-                        value: subActive
+                        subLabel: subActive
                           ? `${(user as any).subscriptionLevel === 'ULTRA' ? 'MAX' : 'PRO'} · ${daysLeft}d left`
-                          : 'None',
-                        vc: subActive ? C.green : C.textDim,
+                          : null,
+                        value: isSubscribed ? '+5% OFF' : (subActive ? null : 'None'),
+                        vc: isSubscribed ? C.gold : (subActive ? C.green : C.textDim),
+                        renewalBadge: isSubscribed,
                       });
 
                       return (
                         <div className="mt-4 rounded-2xl overflow-hidden"
                           style={{ border: `1.5px solid ${ac.border}`, background: 'rgba(0,0,0,0.28)' }}>
+                          <style>{`
+                            @keyframes shimmer-gold {
+                              0%   { background-position: -300% center; }
+                              100% { background-position: 300% center; }
+                            }
+                            .renewal-shimmer {
+                              background: linear-gradient(90deg, #f59e0b 0%, #fcd34d 30%, #fffbeb 50%, #fcd34d 70%, #f59e0b 100%);
+                              background-size: 300% auto;
+                              -webkit-background-clip: text;
+                              background-clip: text;
+                              -webkit-text-fill-color: transparent;
+                              animation: shimmer-gold 2.2s linear infinite;
+                            }
+                          `}</style>
                           {rows.map((row, i) => (
                             <div key={i} style={{ borderBottom: `1.5px solid rgba(255,255,255,0.07)` }}>
-                              <div className="flex items-center justify-between px-4 py-3.5">
+                              {row.renewalBadge && (
+                                <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-0">
+                                  <span className="renewal-shimmer text-[10px] font-black tracking-widest uppercase">✦ RENEWAL BONUS</span>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between px-4 py-3.5" style={{ paddingTop: row.renewalBadge ? '6px' : undefined }}>
                                 <span className="text-[12px] font-semibold flex items-center gap-2 min-w-0" style={{ color: C.textMuted }}>
                                   <span className="text-[15px] leading-none shrink-0">{row.icon}</span>
-                                  <span className="font-bold whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: row.pts ? C.text : C.textMuted }}>
-                                    {row.label}
-                                  </span>
-                                  {row.pts && (
-                                    <span className="text-[11px] font-semibold whitespace-nowrap shrink-0" style={{ color: C.textMuted }}>
-                                      {row.pts} pts
+                                  <span className="min-w-0">
+                                    <span className="font-bold whitespace-nowrap overflow-hidden text-ellipsis block" style={{ color: row.pts ? C.text : C.textMuted }}>
+                                      {row.label}
+                                      {row.pts && (
+                                        <span className="text-[11px] font-semibold ml-1.5" style={{ color: C.textMuted }}>
+                                          {row.pts} pts
+                                        </span>
+                                      )}
                                     </span>
-                                  )}
+                                    {row.subLabel && (
+                                      <span className="text-[11px] font-semibold whitespace-nowrap block mt-0.5" style={{ color: C.green }}>
+                                        {row.subLabel}
+                                      </span>
+                                    )}
+                                  </span>
                                 </span>
                                 {row.value && (
                                   <span className="text-[11px] font-black whitespace-nowrap ml-3 shrink-0 px-2 py-0.5 rounded-full"
-                                    style={{ color: row.pts ? '#0f172a' : row.vc, background: row.pts ? row.vc : 'transparent', fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
+                                    style={{
+                                      color: row.pts ? '#0f172a' : (row.renewalBadge ? C.gold : row.vc),
+                                      background: row.pts ? row.vc : (row.renewalBadge ? 'rgba(251,191,36,0.15)' : 'transparent'),
+                                      border: row.renewalBadge ? `1px solid rgba(251,191,36,0.35)` : 'none',
+                                      fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal',
+                                    }}>
                                     {row.value}
                                   </span>
                                 )}
-                                {!row.value && !row.pts && (
+                                {!row.value && !row.pts && !row.subLabel && (
                                   <span className="text-[13px] font-black whitespace-nowrap ml-3 shrink-0"
                                     style={{ color: row.vc, fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal' }}>
                                     {row.value}
