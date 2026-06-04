@@ -905,17 +905,21 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                         rows.push({
                           icon: '🔥',
                           label: 'Flash Sale',
-                          value: `+${event?.discountPercent || 0}%  ${fmtTimer(timeLeft)}`,
+                          value: `+${event?.discountPercent || 0}% OFF`,
                           vc: '#fb923c',
-                          mono: true,
+                          timerBadge: fmtTimer(timeLeft),
+                          timerColor: '#fb923c',
+                          timerGlow: 'rgba(251,146,60,0.4)',
                         });
                       } else if (inCooldown) {
                         rows.push({
                           icon: '⏳',
                           label: 'Sale Jald Aayega',
-                          value: fmtTimer(timeLeft),
+                          value: null,
                           vc: C.textMuted,
-                          mono: true,
+                          timerBadge: fmtTimer(timeLeft),
+                          timerColor: C.textMuted,
+                          timerGlow: null,
                         });
                       }
 
@@ -946,6 +950,11 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                               -webkit-text-fill-color: transparent;
                               animation: shimmer-gold 2.2s linear infinite;
                             }
+                            @keyframes pulse-dot {
+                              0%, 100% { opacity: 1; transform: scale(1); }
+                              50%       { opacity: 0.4; transform: scale(0.7); }
+                            }
+                            .timer-dot { animation: pulse-dot 1s ease-in-out infinite; }
                           `}</style>
                           {rows.map((row, i) => (
                             <div key={i} style={{ borderBottom: `1.5px solid rgba(255,255,255,0.07)` }}>
@@ -954,7 +963,25 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                                   <span className="renewal-shimmer text-[10px] font-black tracking-widest uppercase">✦ RENEWAL BONUS</span>
                                 </div>
                               )}
-                              <div className="flex items-center justify-between px-4 py-3.5" style={{ paddingTop: row.renewalBadge ? '6px' : undefined }}>
+                              {row.timerBadge && (
+                                <div className="flex items-center px-4 pt-2.5 pb-0">
+                                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                                    style={{
+                                      background: row.timerGlow ? `rgba(251,146,60,0.12)` : 'rgba(255,255,255,0.05)',
+                                      border: `1px solid ${row.timerColor}44`,
+                                    }}>
+                                    {row.timerGlow && (
+                                      <span className="timer-dot w-1.5 h-1.5 rounded-full shrink-0 inline-block"
+                                        style={{ background: row.timerColor }} />
+                                    )}
+                                    <span className="text-[10px] font-black tabular-nums tracking-wider"
+                                      style={{ color: row.timerColor }}>
+                                      {row.timerBadge}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between px-4 py-3.5" style={{ paddingTop: (row.renewalBadge || row.timerBadge) ? '6px' : undefined }}>
                                 <span className="text-[12px] font-semibold flex items-center gap-2 min-w-0" style={{ color: C.textMuted }}>
                                   <span className="text-[15px] leading-none shrink-0">{row.icon}</span>
                                   <span className="min-w-0">
