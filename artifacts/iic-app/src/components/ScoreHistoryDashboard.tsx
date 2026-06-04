@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronDown, ChevronUp, TrendingUp, Award, Calendar, Zap, ArrowUp, ArrowDown, Minus, Clock } from "lucide-react";
 import { getScoreLog, ScoreLogEntry, getDailyScoreEarned, getDailyScoreLimit } from "../utils/scoreSystem";

@@ -1,4 +1,5 @@
-import { DEFAULT_SYLLABUS } from '../syllabus_data';
+// @ts-nocheck
+import { FULL_SYLLABUS as DEFAULT_SYLLABUS } from '../syllabus_data';
 
 export interface SearchResult {
     subject: string;

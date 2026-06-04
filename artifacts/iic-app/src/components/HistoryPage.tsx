@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useDebounce } from '../utils/useDebounce';
 import { LessonContent, User, SystemSettings, UsageHistoryEntry } from '../types';

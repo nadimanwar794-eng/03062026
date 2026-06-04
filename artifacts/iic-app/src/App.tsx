@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';

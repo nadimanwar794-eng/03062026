@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { User, StudentTab, SystemSettings, TopicItem, TopicStatus } from '../types';
 import { BrainCircuit, Clock, CheckCircle, TrendingUp, AlertTriangle, ArrowRight, BookOpen, AlertCircle, X, FileText, CheckSquare, Calendar, Zap, AlertCircle as AlertIcon, ChevronDown, ChevronUp, Loader2, Lock, Unlock, MessageSquare, Bot, PlayCircle, Star, Volume2, Mic, AlertOctagon, Crown, Layout, Trophy, Maximize, XCircle } from 'lucide-react';

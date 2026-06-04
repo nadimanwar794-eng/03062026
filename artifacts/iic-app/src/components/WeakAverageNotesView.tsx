@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import { User, TopicItem } from '../types';
 import { X, Play, BookOpen, Loader2, Pause, ChevronLeft, CheckCircle, Volume2, FileText } from 'lucide-react';

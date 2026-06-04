@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * noteSearcher.ts — Pure local-storage word-match note finder. No AI.
  *

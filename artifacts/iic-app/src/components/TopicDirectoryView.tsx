@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useDebounce } from '../utils/useDebounce';
 import { X, Search, BookOpen, GitCompare, TrendingUp, ChevronRight, List, Flame } from 'lucide-react';

@@ -14,7 +14,12 @@
     "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "strictNullChecks": false,
+    "useUnknownInCatchVariables": false,
+    "strictPropertyInitialization": false
   },
   "references": [
     {

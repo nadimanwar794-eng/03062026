@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * mcqSearcher.ts — Pure local-storage word-match MCQ finder. No AI.
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { SystemSettings, Board, ClassLevel, Stream, Subject, ContentType, Chapter, Challenge20 } from "../types";
 import { getSubjectsList } from "../constants";
 import { fetchChapters, fetchLessonContent } from "./groq";

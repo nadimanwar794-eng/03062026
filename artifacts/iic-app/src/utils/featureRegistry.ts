@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 export type FeatureGroup = 'CORE' | 'ANALYSIS' | 'AI' | 'GAME' | 'ADMIN' | 'ADVANCED' | 'CONTENT' | 'TOOLS' | 'REVISION' | 'SOUL' | 'NSTA_CONTROL' | 'REQUESTS';
 

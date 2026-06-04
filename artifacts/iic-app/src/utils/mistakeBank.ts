@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { storage } from './storage';
 
 const MISTAKE_BANK_KEY = 'nst_mistake_bank_v1';

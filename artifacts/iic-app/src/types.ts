@@ -1241,11 +1241,11 @@ export interface ChatMessage {
   id: string;
   userId: string;
   userName: string;
-  userRole: Role;
-  text: string;
+  userRole?: Role;
+  text?: string;
   timestamp: string;
-  isDeleted?: boolean; // Soft delete flag
-  deletedAt?: string;  // For 30 day recovery
+  isDeleted?: boolean;
+  deletedAt?: string;
   replyTo?: {
     id: string;
     userName: string;

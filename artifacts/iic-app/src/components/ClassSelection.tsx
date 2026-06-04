@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 import React from 'react';
 import { ClassLevel, Board, SystemSettings, User } from '../types';

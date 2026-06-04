@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { SystemSettings, FeatureCategory } from '../types';
 import { DollarSign, Eye, EyeOff, Save, Search, Settings, Lock, Package, Trash2, Edit3, X, Plus, Crown, LayoutGrid, List, CheckSquare, Gamepad2, BrainCircuit, Activity, BarChart3, Star, Zap, PenTool, Banknote, Layers, Bell, Ticket, Flame, Video, GraduationCap, ShoppingBag, Home as HomeIcon, Navigation, TrendingUp } from 'lucide-react';

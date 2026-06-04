@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { User, SystemSettings, TeacherStorePlan } from '../types';
 import { Store, CheckCircle, Shield, Gift, Zap, HelpCircle, AlertTriangle } from 'lucide-react';

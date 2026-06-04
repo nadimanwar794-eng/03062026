@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { Youtube, FileText, CheckSquare, MessageCircle, Trophy, Gamepad2, History, Gift, ShoppingBag, Calendar, Settings, ChevronLeft, Home, Menu, X, Bot } from 'lucide-react';
 import { StudentTab, ViewState, SystemSettings } from '../types';

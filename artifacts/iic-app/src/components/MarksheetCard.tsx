@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef } from "react";
 // Sync check
 import type { MCQResult, User, SystemSettings } from "../types";

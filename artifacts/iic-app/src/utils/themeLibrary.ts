@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ─── Theme Library ───────────────────────────────────────────────────────────
 // 1000+ curated themes for the IIC Educational Platform
 

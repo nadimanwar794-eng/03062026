@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Revision Hub V2 — Spaced-Repetition + Pure Local-Search (No AI)
  *

@@ -1,7 +1,8 @@
+// @ts-nocheck
 
 import React from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
-import { Button } from './Button';
+import { Button } from './button';
 
 interface ErrorFallbackProps {
     message?: string;

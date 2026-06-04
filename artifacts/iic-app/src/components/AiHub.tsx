@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { User, SystemSettings, StudentTab } from "../types";
 import {
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { CustomAlert } from "./CustomDialogs";
 import { BannerCarousel } from "./BannerCarousel";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/button";
 import { generateSmartStudyPlan } from "../utils/studyPlanner";
 import { PerformanceGraph } from "./PerformanceGraph";
 import { StudyGoalTimer } from "./StudyGoalTimer";

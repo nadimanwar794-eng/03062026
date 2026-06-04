@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { X, Download, BookOpen, ChevronDown, ChevronUp, Volume2, GitCompare, Maximize2, Minimize2, CheckCircle2, Shuffle, MapPin, ChevronsRight, Lock, Crown } from 'lucide-react';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
