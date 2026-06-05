@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff } from 'lucide-react';
+import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, ShieldCheck } from 'lucide-react';
 import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayPrefs';
 import { speakText, stopSpeech } from '../utils/textToSpeech';
 import { splitIntoTopics, NotesTopic as Topic } from '../utils/notesSplitter';
@@ -1196,28 +1196,15 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               )}
             </div>
-            {/* 🛡️ Touch Protection badge */}
+            {/* 🛡️ Touch Protection badge — icon only */}
             {readingScoreConfig && (
               <button
                 type="button"
                 onClick={openReadingActiveInfo}
-                title="Touch Protection info"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  padding: '3px 7px', borderRadius: 999,
-                  background: 'rgba(100,116,139,0.10)',
-                  border: '1px solid rgba(100,116,139,0.2)',
-                  cursor: 'pointer', flexShrink: 0,
-                  transition: 'all 0.2s',
-                }}
+                title="Touch Protection"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 active:scale-90 transition shrink-0"
               >
-                <span style={{ fontSize: 10 }}>🛡️</span>
-                <span style={{
-                  fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#94a3b8', whiteSpace: 'nowrap',
-                }}>
-                  Touch Protection
-                </span>
+                <ShieldCheck size={14} className="text-indigo-500" />
               </button>
             )}
             {/* More — content picker (only when provided) */}
