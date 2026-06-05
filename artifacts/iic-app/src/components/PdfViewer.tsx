@@ -61,7 +61,7 @@ const MILESTONE_SCORES = [
 
 export const PdfViewer: React.FC<Props> = ({
   url, title, onBack, sessionKey,
-  userId, subscriptionLevel, isPremium, boostPercent = 0, onScoreEarned,
+  userId, subscriptionLevel, isPremium, boostPercent = 0, scoreLimitBoostPercent = 0, onScoreEarned,
 }) => {
   const key = sessionKey || btoa(url).replace(/[^a-z0-9]/gi, '').slice(0, 24);
 
