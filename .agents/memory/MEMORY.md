@@ -1,0 +1,1 @@
+- [Daily score limit boost bug](daily-score-limit-boost.md) — scoreLimitBoostPercent from redeem codes must be forwarded through every tryEarnScore/awardMilestone call to take effect.
