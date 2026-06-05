@@ -1483,14 +1483,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* Full-page blur backdrop when 3-dot controls are open — placed AFTER content so DOM order puts it above content */}
-      {showControls && (
-        <div
-          className="fixed inset-0 z-[19] bg-black/10 backdrop-blur-[3px]"
-          onClick={() => setShowControls(false)}
-        />
-      )}
-
       {/* ── MERGED INFO POPUP — Reading Active + Touch Protection (single card, top) ── */}
       {showReadingActiveInfo && (
         <div
