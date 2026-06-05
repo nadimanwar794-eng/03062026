@@ -2493,14 +2493,16 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
   const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'choose'>('notes');
   const [hwImmersive, setHwImmersive] = useState(false);
+  const [hwSaved, setHwSaved] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
   const [showWMUnlockPrompt, setShowWMUnlockPrompt] = useState(false);
   const [pendingWMCallback, setPendingWMCallback] = useState<(() => void) | null>(null);
   const [wmDontShowChecked, setWmDontShowChecked] = useState(false);
-  // Reset focus mode when homework is closed
+  // Reset focus mode and save state when homework is closed or changes
   useEffect(() => {
     if (!hwActiveHwId) setHwImmersive(false);
+    setHwSaved(false);
   }, [hwActiveHwId]);
   const [hwHtmlTtsPlaying, setHwHtmlTtsPlaying] = useState(false);
   const [noteZoom, setNoteZoom] = useState<number>(1.0);
@@ -5804,6 +5806,21 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={`hw-reader-${activeHw.id}-chunk`}
                         onBack={goBack}
                         onMoreOptions={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
+                        hideInlineSearch={true}
+                        onSaveOffline={async () => {
+                          try {
+                            const title = activeHw.title || 'Notes';
+                            const subtitle = activeHw.targetSubject || (syllabusMode === 'COMPETITION' ? 'Competition' : `Class ${activeSessionClass || ''}`);
+                            const id = `hw_${activeHw.id || title.replace(/\s+/g,'_').slice(0,30)}`;
+                            const chunkSrc = (activeHw as any).chunkNotes;
+                            const htmlSrc = (activeHw as any).htmlNotes;
+                            const content = chunkSrc?.trim() || htmlSrc?.trim() || '';
+                            await saveOfflineItem({ id, type: 'NOTE', title, subtitle, data: { kind: 'HW_CHUNK', chunkNotes: content, hwId: activeHw.id, targetSubject: activeHw.targetSubject } });
+                            setHwSaved(true);
+                            try { (window as any).__toast?.({ type: 'success', message: 'Saved offline ✓' }); } catch {}
+                          } catch { }
+                        }}
+                        isSavedOffline={hwSaved}
                         isUltraUser={_isUltraUser}
                         ultraHtmlRemaining={_isUltraUser ? ultraHtmlRemaining : undefined}
                         isBasicUser={_isBasicUser}
@@ -16216,6 +16233,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     onBack={closeLucentViewer}
                     triggerControlsRef={lucentControlsRef}
                     onMoreOptions={() => setContentPickerPopup({ type: 'LUCENT', entry, pageIdx: safeIndex })}
+                    hideInlineSearch={true}
                     onSaveOffline={() => handleLucentSaveOffline(false)}
                     isSavedOffline={lucentSaved}
                     isUltraUser={_isUltraUser}

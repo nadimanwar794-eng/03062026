@@ -183,10 +183,12 @@ interface Props {
   isSavedOffline?: boolean;
   /** Reading score config — when provided, activates time-based score tracking with HUD */
   readingScoreConfig?: ReadingScoreConfig;
+  /** When true, hides the inline Search button in the controls panel and shows Save instead (use in competition/lucent/class 6-12 modes). */
+  hideInlineSearch?: boolean;
 }
 
 
-export const ChunkedNotesReader: React.FC<Props> = ({ content, className, language = 'hi-IN', topBarLabel, autoStart, onComplete, onReadingStart, hideTopBar, initialIndex, onPositionChange, noteKey, isStarred, onStarToggle, searchQuery, getStarCount, textColorOverride, preferChunkMode, onDesktopModeChange, hideDesktopToggle, suppressStickyControls, htmlContent, isUltraUser, ultraHtmlRemaining, userCredits = 0, htmlUnlockCost = 5, onSpendCredits, onHtmlOpen, onUpgradeClick, isBasicUser = false, basicHtmlRemaining = 0, onHtmlViewChange, onMoreOptions, triggerControlsRef, hideInline3dot, onBack, onSaveOffline, isSavedOffline, readingScoreConfig }) => {
+export const ChunkedNotesReader: React.FC<Props> = ({ content, className, language = 'hi-IN', topBarLabel, autoStart, onComplete, onReadingStart, hideTopBar, initialIndex, onPositionChange, noteKey, isStarred, onStarToggle, searchQuery, getStarCount, textColorOverride, preferChunkMode, onDesktopModeChange, hideDesktopToggle, suppressStickyControls, htmlContent, isUltraUser, ultraHtmlRemaining, userCredits = 0, htmlUnlockCost = 5, onSpendCredits, onHtmlOpen, onUpgradeClick, isBasicUser = false, basicHtmlRemaining = 0, onHtmlViewChange, onMoreOptions, triggerControlsRef, hideInline3dot, onBack, onSaveOffline, isSavedOffline, readingScoreConfig, hideInlineSearch }) => {
   const topics = useMemo(() => splitIntoTopics(content), [content]);
 
   // ── Strips [span_N](start_span) / [span_N](end_span) TTS markers ──
@@ -1152,7 +1154,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       )}
       {!hideTopBar && (
         <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3">
-          {/* ── Slim bar — title + READ MODE watermark ── */}
+          {/* ── Slim bar — Back · Reading Active · Touch Protection · 3-dot ── */}
           <div className="flex items-center gap-2 px-2 py-1.5">
             {onBack && (
               <button
@@ -1164,14 +1166,22 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <ChevronRight size={15} className="rotate-180" />
               </button>
             )}
-            <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
-              <span className="text-xs font-bold text-slate-700 truncate">
-                {topBarLabel || 'Notes'}
+            {/* Reading Active indicator */}
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
+              <span
+                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide border ${
+                  isReading
+                    ? 'bg-indigo-100 text-indigo-600 border-indigo-200'
+                    : 'bg-slate-100 text-slate-400 border-slate-200'
+                }`}
+              >
+                {isReading && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+                )}
+                {isReading && activeIdx !== null
+                  ? `${activeIdx + 1}/${activeTopicList.length}`
+                  : 'Reading Active'}
               </span>
-              <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-slate-300 select-none">
-                {isReading && activeIdx !== null ? `${activeIdx + 1}/${activeTopicList.length}` : 'READ MODE'}
-              </span>
-              {/* Live session score — silently updates as user reads/TTS plays */}
               {scoreState && scoreState.totalSessionScore > 0 && (
                 <span
                   className="shrink-0 text-[9px] font-black tabular-nums px-1.5 py-0.5 rounded-full"
@@ -1186,35 +1196,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               )}
             </div>
-            {onSaveOffline && (
-              <button
-                type="button"
-                onClick={onSaveOffline}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isSavedOffline ? 'bg-emerald-100 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
-                title={isSavedOffline ? 'Saved!' : 'Save Offline'}
-              >
-                <WifiOff size={13} />
-              </button>
-            )}
-            {/* 📖 Book icon button — score info popup */}
-            {readingScoreConfig && scoreState && (
-              <button
-                type="button"
-                onClick={openScoreInfo}
-                title="Reading score info"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 28, height: 28, borderRadius: 8,
-                  background: isReading ? 'rgba(99,102,241,0.15)' : 'rgba(100,116,139,0.10)',
-                  border: isReading ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid rgba(100,116,139,0.2)',
-                  cursor: 'pointer', flexShrink: 0,
-                  animation: isReading ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
-              </button>
-            )}
             {/* 🛡️ Touch Protection badge */}
             {readingScoreConfig && (
               <button
@@ -1239,58 +1220,54 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               </button>
             )}
-            {onMoreOptions && !hideInline3dot && (
-              <button
-                type="button"
-                onClick={onMoreOptions}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-500 active:scale-90 transition shrink-0"
-                title="More options"
-              >
-                <LayoutGrid size={14} />
-              </button>
-            )}
+            {/* 3-dot — opens full controls panel */}
+            <button
+              type="button"
+              onClick={() => setShowControls(s => !s)}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${showControls ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
+              title="Reading controls"
+            >
+              <MoreVertical size={14} />
+            </button>
           </div>
 
-          {/* ── 5-button compact row — hides on scroll down ── */}
-          <div className={`overflow-hidden transition-all duration-200 ${toolbarHidden ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-12 opacity-100'}`}>
-            <div className="flex items-center gap-1 px-2 pb-2">
-              {/* READ ALL */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); }
-                  else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} startFromIndex(initialIndex ?? 0); }
-                }}
-                className={`flex-1 flex items-center justify-center gap-1 h-8 rounded-xl text-[11px] font-black active:scale-95 transition ${isReading ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'}`}
-              >
-                {isReading ? <><Square size={11}/> Stop</> : <><Volume2 size={11}/> {initialIndex ? 'Resume' : 'Read All'}</>}
-              </button>
-              {/* A− */}
-              <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
-                className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
-                A−
-              </button>
-              {/* A+ */}
-              <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
-                className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
-                A+
-              </button>
-              {/* Rotate */}
-              <button type="button" onClick={handleRotate}
-                className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                <RotateCcw size={14} className="text-slate-600" />
-              </button>
-              {/* More */}
-              <button type="button" onClick={() => setShowControls(s => !s)}
-                className={`flex-1 h-8 flex items-center justify-center rounded-xl border active:scale-95 transition ${showControls ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                <MoreVertical size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* ── MORE panel — Style, Color, Search, Speed, Ultra ── */}
+          {/* ── Full controls panel — all reading tools in two rows ── */}
           {showControls && (
-            <div className="px-2 pb-2 pt-1 border-t border-slate-100 animate-in slide-in-from-top-1 duration-150">
+            <div className="px-2 pb-2 pt-1 border-t border-slate-100 animate-in slide-in-from-top-1 duration-150 space-y-1">
+
+              {/* Row 1: Read All · A− · A+ · Rotate */}
+              <div className="grid grid-cols-4 gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isReading) {
+                      try { if (navigator.vibrate) navigator.vibrate(30); } catch {}
+                      stopAll();
+                    } else {
+                      try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
+                      startFromIndex(initialIndex ?? 0);
+                    }
+                    setShowControls(false);
+                  }}
+                  className={`flex items-center justify-center gap-1 h-9 rounded-xl text-[11px] font-black active:scale-95 transition ${isReading ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'}`}
+                >
+                  {isReading ? <><Square size={11}/> Stop</> : <><Volume2 size={11}/> {initialIndex ? 'Resume' : 'Read All'}</>}
+                </button>
+                <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
+                  className="h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
+                  A−
+                </button>
+                <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
+                  className="h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
+                  A+
+                </button>
+                <button type="button" onClick={handleRotate}
+                  className="h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
+                  <RotateCcw size={14} className="text-slate-600" />
+                </button>
+              </div>
+
+              {/* Row 2: Style · Color · Search/Save · Speed · Ultra */}
               <div className="grid grid-cols-5 gap-1">
 
                 {/* Font Style */}
@@ -1342,13 +1319,22 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   </div>
                 ) : <div />}
 
-                {/* Search */}
-                <button type="button"
-                  onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${inlineSearch ? 'bg-blue-600 border-blue-600' : 'bg-slate-50 border-slate-200'}`}>
-                  <Search size={13} className={inlineSearch ? 'text-white' : 'text-slate-600'} />
-                  <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${inlineSearch ? 'text-white' : 'text-slate-400'}`}>Search</span>
-                </button>
+                {/* Search (normal) OR Save (when hideInlineSearch + onSaveOffline) */}
+                {!hideInlineSearch ? (
+                  <button type="button"
+                    onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
+                    className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${inlineSearch ? 'bg-blue-600 border-blue-600' : 'bg-slate-50 border-slate-200'}`}>
+                    <Search size={13} className={inlineSearch ? 'text-white' : 'text-slate-600'} />
+                    <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${inlineSearch ? 'text-white' : 'text-slate-400'}`}>Search</span>
+                  </button>
+                ) : onSaveOffline ? (
+                  <button type="button"
+                    onClick={() => { onSaveOffline(); setShowControls(false); }}
+                    className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${isSavedOffline ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                    <WifiOff size={13} className={isSavedOffline ? 'text-emerald-600' : 'text-slate-600'} />
+                    <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${isSavedOffline ? 'text-emerald-500' : 'text-slate-400'}`}>Save</span>
+                  </button>
+                ) : <div />}
 
                 {/* Voice Speed */}
                 <button type="button" onClick={cycleSpeed}
