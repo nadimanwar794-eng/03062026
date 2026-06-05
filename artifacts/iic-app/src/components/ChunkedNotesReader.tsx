@@ -528,8 +528,21 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   // Smart TTS suggestion — detect rapid manual tapping
   const TTS_SUGGEST_KEY = 'iic_tts_suggest_seen';
   const [showTtsSuggestPopup, setShowTtsSuggestPopup] = useState(false);
+  const [touchProtectionSecsLeft, setTouchProtectionSecsLeft] = useState(10);
   const manualTapTimestampsRef = useRef<number[]>([]);
   const ttsSuggestShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!showTtsSuggestPopup) { setTouchProtectionSecsLeft(10); return; }
+    setTouchProtectionSecsLeft(10);
+    const iv = setInterval(() => {
+      setTouchProtectionSecsLeft(s => {
+        if (s <= 1) { clearInterval(iv); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [showTtsSuggestPopup]);
 
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
@@ -1623,6 +1636,36 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
               {/* Divider */}
               <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '0 0 10px' }} />
+
+              {/* 🛡️ Touch Protection Active */}
+              <div style={{
+                background: 'rgba(99,102,241,0.08)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                borderRadius: 12, padding: '10px 12px', marginBottom: 10,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 13 }}>🛡️</span>
+                  <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 900, letterSpacing: '-0.01em' }}>Touch Protection Active</span>
+                </div>
+                <div style={{ color: '#94a3b8', fontSize: 9.5, marginBottom: 2 }}>Rapid topic switching detected.</div>
+                <div style={{ color: '#94a3b8', fontSize: 9.5, marginBottom: 8 }}>Read for 10 seconds to unlock the next reward.</div>
+                {/* Progress bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 99,
+                      background: touchProtectionSecsLeft === 0
+                        ? 'linear-gradient(90deg,#22c55e,#16a34a)'
+                        : 'linear-gradient(90deg,#6366f1,#a5b4fc)',
+                      width: `${((10 - touchProtectionSecsLeft) / 10) * 100}%`,
+                      transition: 'width 1s linear, background 0.3s',
+                    }} />
+                  </div>
+                  <span style={{ color: touchProtectionSecsLeft === 0 ? '#22c55e' : '#a5b4fc', fontSize: 9, fontWeight: 800, minWidth: 36, textAlign: 'right' }}>
+                    {touchProtectionSecsLeft === 0 ? '✓ Done!' : `${touchProtectionSecsLeft}s left`}
+                  </span>
+                </div>
+              </div>
 
               {/* Compact comparison rows */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
