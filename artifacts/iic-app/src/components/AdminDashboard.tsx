@@ -6090,6 +6090,42 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   </div>
               </div>
 
+              {/* LOGIN PAGE STYLE */}
+              <div className="mt-8 pt-8 border-t border-slate-100">
+                  <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                      <span className="w-7 h-7 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center text-sm">🎬</span>
+                      Login Page Style
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mb-4">
+                      Choose between the default white login card or a fullscreen video background. Video plays automatically and cannot be paused by users.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                      {[
+                          { value: 'default', label: 'Default Login', icon: '📋', desc: 'White card, clean UI' },
+                          { value: 'video',   label: 'Video Background', icon: '🎬', desc: 'Fullscreen loop, glassmorphism card' },
+                      ].map(opt => {
+                          const active = (localSettings.loginPageStyle ?? 'default') === opt.value;
+                          return (
+                              <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() => setLocalSettings({ ...localSettings, loginPageStyle: opt.value as 'default' | 'video' })}
+                                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${
+                                      active
+                                          ? 'bg-violet-50 border-violet-400 text-violet-700 shadow-md'
+                                          : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+                                  }`}
+                              >
+                                  <span className="text-2xl">{opt.icon}</span>
+                                  <span className="font-black text-xs">{opt.label}</span>
+                                  <span className="text-[10px] font-medium text-slate-400">{opt.desc}</span>
+                                  {active && <span className="text-[9px] font-black text-violet-500 uppercase tracking-wider">✓ Active</span>}
+                              </button>
+                          );
+                      })}
+                  </div>
+              </div>
+
               <button onClick={() => handleSaveSettings()} className="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 flex items-center justify-center gap-2">
                   <Save size={18} /> Save General Settings
               </button>
