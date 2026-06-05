@@ -29,7 +29,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
-    VitePWA({ registerType: 'autoUpdate', devOptions: { enabled: true } }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      devOptions: { enabled: true },
+      workbox: { maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 },
+    }),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
