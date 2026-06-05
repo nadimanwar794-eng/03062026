@@ -9956,7 +9956,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     {/* Backdrop — portalled to body so it escapes top-bar stacking context */}
                     {createPortal(
                       <div
-                        className="fixed inset-0 z-[99998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200"
+                        className="fixed inset-0 z-[99998]"
                         onClick={() => setShowDotsMenu(false)}
                         onTouchStart={() => setShowDotsMenu(false)}
                       />,
