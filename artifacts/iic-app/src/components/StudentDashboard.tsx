@@ -9962,8 +9962,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       />,
                       document.body
                     )}
-                    {/* Dropdown panel */}
-                    <div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
+                    {/* Dropdown panel — portalled so it escapes stacking context */}
+                    {createPortal(<div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
                       {/* Close button row */}
                       <div className="flex items-center justify-between px-4 pt-3 pb-1">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Menu</span>
@@ -10055,7 +10055,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         </div>
                       </div>
 
-                    </div>
+                    </div>, document.body)}
                   </>
                 )}
               </div>
