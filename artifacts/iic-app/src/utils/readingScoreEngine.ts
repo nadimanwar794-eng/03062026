@@ -170,6 +170,11 @@ export class ReadingScoreSession {
     }
     if (this.isWindowClosed) return;
 
+    // If Touch Protection is active (user just tapped manually), suppress TTS rewards.
+    // This prevents manual-tap → TTS-auto-fire → instant reward bypass.
+    // After the 10-sec countdown completes (+2 awarded), TTS rewards resume normally.
+    if (this.touchProtectionActive) return;
+
     const now = Date.now();
     // Rate-limit: at most +1 every 3 seconds (normal speed reads fine; 3x-speed capped)
     if (this.lastTtsHighlightRewardTime > 0 && now - this.lastTtsHighlightRewardTime < TTS_MIN_INTERVAL_MS) return;
