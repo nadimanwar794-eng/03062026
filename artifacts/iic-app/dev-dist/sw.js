@@ -78,7 +78,7 @@ define(['./workbox-21a21f74'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "index.html",
-    "revision": "0.e4fs47oh41s"
+    "revision": "0.t0s7lift3ec"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -86,6 +86,10 @@ define(['./workbox-21a21f74'], (function (workbox) { 'use strict';
   }));
   workbox.registerRoute(/^https:\/\/fonts\.googleapis\.com\/.*/i, new workbox.CacheFirst({
     "cacheName": "google-fonts-cache",
+    plugins: []
+  }), 'GET');
+  workbox.registerRoute(/splash-logo\.png$/, new workbox.CacheFirst({
+    "cacheName": "splash-cache",
     plugins: []
   }), 'GET');
 
