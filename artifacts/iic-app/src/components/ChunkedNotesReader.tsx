@@ -1554,19 +1554,18 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         >
           <div
             style={{
-              background: 'rgba(10,12,28,0.97)',
+              background: 'rgba(8,12,28,0.96)',
               border: '1px solid #6366f155',
               borderRadius: 14,
               padding: '12px 14px',
-              boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
+              boxShadow: '0 6px 28px rgba(0,0,0,0.5)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 20 }}>🛡️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>Touch Protection Active</div>
-                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Fair learning system</div>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+              <span style={{ fontSize: 16 }}>🛡️</span>
+              <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', flex: 1 }}>
+                Touch Protection
+              </span>
               <button
                 onClick={() => setShowReadingActiveInfo(false)}
                 style={{
@@ -1578,24 +1577,23 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 OK
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              {[
-                { icon: '📖', text: 'Topic open karo' },
-                { icon: '⏱️', text: '10 sec padho' },
-                { icon: '✨', text: '+2 reward' },
-              ].map(({ icon, text }) => (
-                <div key={text} style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                  background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '6px 4px',
-                  border: '1px solid rgba(99,102,241,0.12)',
-                }}>
-                  <span style={{ fontSize: 14 }}>{icon}</span>
-                  <span style={{ color: '#cbd5e1', fontSize: 9, fontWeight: 700, textAlign: 'center' }}>{text}</span>
-                </div>
-              ))}
+            <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>
+              Topic par <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span> rukne ke baad<br />
+              <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span> milega
             </div>
-            <div style={{ color: '#475569', fontSize: 9, textAlign: 'center' }}>
-              TTS auto-reading naturally exempt — score milta rahega
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ flex: 1, height: 4, background: '#1e2030', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{
+                  width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                  borderRadius: 99,
+                  transition: 'width 0.9s linear',
+                }} />
+              </div>
+              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 12, minWidth: 24, textAlign: 'right' }}>
+                {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
+              </span>
             </div>
           </div>
         </div>
