@@ -198,7 +198,7 @@ export interface User {
   scoreBoostExpiry?: string; // ISO Date when score boost expires
   personalThemeExpiry?: string; // ISO Date when user's temporary custom theme expires (set during score boost event)
   scoreLimitBoostPercent?: number; // Permanent daily score limit boost % from SCORE_LIMIT_BOOST redeem code
-  bonusCredits?: number; // Temporary credits that came with subscription (cleared on expiry)
+  bonusCredits?: number; // Permanent credits awarded with subscription (never expire)
   giftedCredits?: number; // Admin-gifted credits (separate from earned/bonus)
   giftedCreditsExpiry?: string; // ISO date when gifted credits expire
   lastLevelNotified?: number; // Last level the user was shown a level-up celebration for

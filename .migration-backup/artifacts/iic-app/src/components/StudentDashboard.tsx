@@ -8597,7 +8597,7 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className="text-[11px] mb-1.5" style={{ color: _pTxtMutedColor }}>💎</div>
               <div className="text-[22px] font-black tabular-nums leading-none mb-1" style={{ color: tierTheme.primary }}>{(user.credits ?? 0).toLocaleString('en-IN')}</div>
               {(user.bonusCredits ?? 0) > 0 && (
-                <div className="text-[8px] font-black tabular-nums mb-0.5" style={{ color: `${tierTheme.primary}80` }}>+{user.bonusCredits?.toLocaleString('en-IN')}</div>
+                <div className="text-[8px] font-black tabular-nums mb-0.5" style={{ color: `${tierTheme.primary}80` }}>✅+{user.bonusCredits?.toLocaleString('en-IN')} Perm</div>
               )}
               <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>Credits</div>
             </div>
@@ -14964,7 +14964,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Aapke Credits</p>
                             <p className="text-2xl font-black text-yellow-400">{(user.credits || 0) + (user.bonusCredits || 0) + (user.giftedCredits || 0)} CR</p>
-                            {(user.bonusCredits || 0) > 0 && <p className="text-[9px] text-emerald-400 font-bold mt-0.5">🎁 {user.bonusCredits} Bonus (Subscription)</p>}
+                            {(user.bonusCredits || 0) > 0 && <p className="text-[9px] text-emerald-400 font-bold mt-0.5">✅ {user.bonusCredits} Permanent Credits</p>}
                             {(user.giftedCredits || 0) > 0 && <p className="text-[9px] text-pink-400 font-bold mt-0.5">🎀 {user.giftedCredits} Gift Credits</p>}
                           </div>
                           <button onClick={() => { setShowInbox(false); onTabChange('STORE'); }} className="text-xs font-black bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-full active:scale-95 transition-all">
