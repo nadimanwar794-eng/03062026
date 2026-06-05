@@ -533,14 +533,16 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
-    // Show touch protection popup on every tap (2s auto-dismiss)
-    tpManualOpenRef.current = false;
-    setShowReadingActiveInfo(true);
-    if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
-    tpAutoTimerRef.current = setTimeout(() => {
-      if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
-      tpAutoTimerRef.current = null;
-    }, 2000);
+    // Show touch protection popup on manual tap only when TTS is NOT running
+    if (!isReadingRef.current) {
+      tpManualOpenRef.current = false;
+      setShowReadingActiveInfo(true);
+      if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
+      tpAutoTimerRef.current = setTimeout(() => {
+        if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
+        tpAutoTimerRef.current = null;
+      }, 2000);
+    }
 
     const now = Date.now();
     const WINDOW_MS = 10_000;          // 10-second rolling window
@@ -580,11 +582,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     prevScoreRef.current = newScore;
   }, [scoreState?.totalSessionScore]);
 
-  // Auto-show 🛡️ popup when touch protection triggers, auto-dismiss in 2s
+  // Auto-show 🛡️ popup when touch protection triggers — only when TTS is NOT running
   const prevTouchActiveRef = useRef(false);
   useEffect(() => {
     const active = scoreState?.touchProtectionActive ?? false;
-    if (active && !prevTouchActiveRef.current) {
+    if (active && !prevTouchActiveRef.current && !isReadingRef.current) {
       tpManualOpenRef.current = false;
       setShowReadingActiveInfo(true);
       if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
