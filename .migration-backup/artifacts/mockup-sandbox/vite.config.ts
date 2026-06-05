@@ -8,7 +8,7 @@ import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 const rawPort = process.env.PORT;
 const port = rawPort ? Number(rawPort) : 8081;
 
-const basePath = process.env.BASE_PATH ?? "/__mockup";
+const basePath = process.env.BASE_PATH || "/__mockup";
 
 export default defineConfig({
   base: basePath,

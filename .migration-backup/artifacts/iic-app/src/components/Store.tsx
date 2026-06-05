@@ -961,10 +961,10 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                               )}
                               {row.timerBadge && (
                                 <div className="flex items-center px-5 pt-2.5 pb-0">
-                                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
                                     style={{
-                                      background: row.timerGlow ? `rgba(251,146,60,0.12)` : 'rgba(255,255,255,0.05)',
-                                      border: `1px solid ${row.timerColor}44`,
+                                      background: row.timerGlow ? `rgba(45,25,5,0.88)` : 'rgba(20,20,20,0.7)',
+                                      border: `1px solid ${row.timerColor}66`,
                                     }}>
                                     {row.timerGlow && (
                                       <span className="timer-dot w-1.5 h-1.5 rounded-full shrink-0 inline-block"
@@ -997,11 +997,11 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                                   </span>
                                 </span>
                                 {row.value && (
-                                  <span className="text-[11px] font-black whitespace-nowrap ml-3 shrink-0 px-2 py-0.5 rounded-full"
+                                  <span className="text-[11px] font-black whitespace-nowrap ml-3 shrink-0 px-2.5 py-1 rounded-full"
                                     style={{
                                       color: row.pts ? '#0f172a' : (row.renewalBadge ? C.gold : row.vc),
-                                      background: row.pts ? row.vc : (row.renewalBadge ? 'rgba(251,191,36,0.15)' : 'transparent'),
-                                      border: row.renewalBadge ? `1px solid rgba(251,191,36,0.35)` : 'none',
+                                      background: row.pts ? row.vc : (row.renewalBadge ? 'rgba(75,56,0,0.75)' : 'transparent'),
+                                      border: row.renewalBadge ? `1px solid rgba(251,191,36,0.5)` : 'none',
                                       fontVariantNumeric: row.mono ? 'tabular-nums' : 'normal',
                                     }}>
                                     {row.value}
@@ -1010,8 +1010,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                               </div>
                               {row.extra && (
                                 <div className="px-5 pb-3.5 -mt-1">
-                                  <div className="h-1.5 rounded-full mb-2 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${row.extra.progress}%`, background: `linear-gradient(90deg, ${levelInfo.color}99, ${levelInfo.color})` }} />
+                                  <div className="h-2 rounded-full mb-2 overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${row.extra.progress}%`, background: `linear-gradient(90deg, #d97706, #fbbf24, #fde68a)` }} />
                                   </div>
                                   <div className="text-[11px] font-semibold" style={{ color: C.textDim }}>
                                     {row.extra.ptsNeeded.toLocaleString('en-IN')} aur → Level {row.extra.nextLvl.level} {row.extra.nextLvl.emoji} ({row.extra.nextLvl.discount}% OFF)

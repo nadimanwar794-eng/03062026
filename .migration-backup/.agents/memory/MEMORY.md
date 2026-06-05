@@ -1,1 +1,0 @@
-- [IIC App Migration](iic-app-migration.md) — App is Vite+React (not Next.js); source cloned from GitHub, all changes made, app runs at previewPath /

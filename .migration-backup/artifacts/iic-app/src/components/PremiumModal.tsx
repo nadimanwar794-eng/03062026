@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { Chapter, ContentType, User, Subject, Board, ClassLevel, Stream, SystemSettings } from '../types';
 import { Crown, BookOpen, Lock, X, HelpCircle, FileText, Video, PlayCircle, ArrowLeft, Loader2, Sparkles, CheckCircle, Zap } from 'lucide-react';

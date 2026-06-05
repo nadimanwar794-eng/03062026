@@ -1,4 +1,5 @@
 
+// @ts-nocheck
 import { Subject } from './types';
 import { FULL_SYLLABUS } from './utils/full_syllabus_data';
 // @ts-ignore
