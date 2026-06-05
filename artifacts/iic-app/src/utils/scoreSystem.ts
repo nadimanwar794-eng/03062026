@@ -1,17 +1,18 @@
 /**
  * Score System — daily limits, subscription multipliers, activity milestones
- * Daily score limit: 1500 pts (Free) / 2500 pts (Basic) / 3500 pts (Ultra)
+ * Daily score limit: 5000 pts (Free) / 7000 pts (Basic) / 10000 pts (Ultra)
+ * After limit is reached: score continues at 0.5× rate (not stopped)
  * Milestones: 20%=5, 40%=10, 60%=15, 80%=20, 100%=25 base pts
  * Multipliers: Free=1x, Basic=1.2x (+20%), Ultra=1.5x (+50%)
  */
 
-export const DAILY_SCORE_LIMIT = 1500;
+export const DAILY_SCORE_LIMIT = 5000;
 
-/** Fixed daily score limits by tier (Free=1500, Basic=2500, Ultra=3500) */
+/** Fixed daily score limits by tier (Free=5000, Basic=7000, Ultra=10000) */
 const DAILY_TIER_LIMITS: Record<string, number> = {
-  FREE:  1500,
-  BASIC: 2500,
-  ULTRA: 3500,
+  FREE:  5000,
+  BASIC: 7000,
+  ULTRA: 10000,
 };
 
 /** Dynamic daily score limit based on subscription + optional permanent limit boost */
@@ -127,7 +128,10 @@ export const logScoreActivity = (userId: string, activity: string, pts: number):
 
 /**
  * Attempt to earn score. Applies daily limit, multiplier, and booster.
- * Returns actual score earned (may be less than requested if near daily limit).
+ * - Within daily limit: full score, saved to daily counter in localStorage.
+ * - After daily limit is reached: 0.5× score (study is rewarded but at half rate).
+ *   The half-score is NOT added to the localStorage counter so the limit badge stays accurate.
+ * Returns actual score earned (always ≥ 0).
  */
 export const tryEarnScore = (
   userId: string,
@@ -140,8 +144,15 @@ export const tryEarnScore = (
   eventExtraPoints?: number,
 ): number => {
   const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium, scoreLimitBoostPercent, eventExtraPoints);
-  if (remaining <= 0) return 0;
   const calc = calculateScore(baseScore, subscriptionLevel, isPremium, boostPercent);
+
+  if (remaining <= 0) {
+    // Limit reached — give 0.5× score without incrementing the daily counter
+    const halfScore = Math.max(1, Math.floor(calc * 0.5));
+    if (activity) logScoreActivity(userId, activity + '_HALF', halfScore);
+    return halfScore;
+  }
+
   const actual = Math.min(calc, remaining);
   try {
     const key = getTodayKey(userId);
