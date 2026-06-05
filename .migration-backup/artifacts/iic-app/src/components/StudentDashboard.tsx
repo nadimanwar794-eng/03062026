@@ -2493,14 +2493,16 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
   const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'choose'>('notes');
   const [hwImmersive, setHwImmersive] = useState(false);
+  const [hwSaved, setHwSaved] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
   const [showWMUnlockPrompt, setShowWMUnlockPrompt] = useState(false);
   const [pendingWMCallback, setPendingWMCallback] = useState<(() => void) | null>(null);
   const [wmDontShowChecked, setWmDontShowChecked] = useState(false);
-  // Reset focus mode when homework is closed
+  // Reset focus mode and save state when homework is closed or changes
   useEffect(() => {
     if (!hwActiveHwId) setHwImmersive(false);
+    setHwSaved(false);
   }, [hwActiveHwId]);
   const [hwHtmlTtsPlaying, setHwHtmlTtsPlaying] = useState(false);
   const [noteZoom, setNoteZoom] = useState<number>(1.0);
@@ -5804,6 +5806,21 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={`hw-reader-${activeHw.id}-chunk`}
                         onBack={goBack}
                         onMoreOptions={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
+                        hideInlineSearch={true}
+                        onSaveOffline={async () => {
+                          try {
+                            const title = activeHw.title || 'Notes';
+                            const subtitle = activeHw.targetSubject || (syllabusMode === 'COMPETITION' ? 'Competition' : `Class ${activeSessionClass || ''}`);
+                            const id = `hw_${activeHw.id || title.replace(/\s+/g,'_').slice(0,30)}`;
+                            const chunkSrc = (activeHw as any).chunkNotes;
+                            const htmlSrc = (activeHw as any).htmlNotes;
+                            const content = chunkSrc?.trim() || htmlSrc?.trim() || '';
+                            await saveOfflineItem({ id, type: 'NOTE', title, subtitle, data: { kind: 'HW_CHUNK', chunkNotes: content, hwId: activeHw.id, targetSubject: activeHw.targetSubject } });
+                            setHwSaved(true);
+                            try { (window as any).__toast?.({ type: 'success', message: 'Saved offline ✓' }); } catch {}
+                          } catch { }
+                        }}
+                        isSavedOffline={hwSaved}
                         isUltraUser={_isUltraUser}
                         ultraHtmlRemaining={_isUltraUser ? ultraHtmlRemaining : undefined}
                         isBasicUser={_isBasicUser}
@@ -9936,14 +9953,17 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
                 {showDotsMenu && (
                   <>
-                    {/* Backdrop — tap anywhere outside to close */}
-                    <div
-                      className="fixed inset-0 z-[99998] bg-black/30 backdrop-blur-[2px] animate-in fade-in duration-150"
-                      onClick={() => setShowDotsMenu(false)}
-                      onTouchStart={() => setShowDotsMenu(false)}
-                    />
-                    {/* Dropdown panel */}
-                    <div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
+                    {/* Backdrop — portalled to body so it escapes top-bar stacking context */}
+                    {createPortal(
+                      <div
+                        className="fixed inset-0 z-[99998]"
+                        onClick={() => setShowDotsMenu(false)}
+                        onTouchStart={() => setShowDotsMenu(false)}
+                      />,
+                      document.body
+                    )}
+                    {/* Dropdown panel — portalled so it escapes stacking context */}
+                    {createPortal(<div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
                       {/* Close button row */}
                       <div className="flex items-center justify-between px-4 pt-3 pb-1">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Menu</span>
@@ -10035,7 +10055,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         </div>
                       </div>
 
-                    </div>
+                    </div>, document.body)}
                   </>
                 )}
               </div>
@@ -14595,7 +14615,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
         return (
           <>
-            <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
+            <div className="fixed inset-0 z-[9998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200" onClick={() => setShowSidebar(false)} />
             <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
               {/* User Profile */}
@@ -16216,6 +16236,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     onBack={closeLucentViewer}
                     triggerControlsRef={lucentControlsRef}
                     onMoreOptions={() => setContentPickerPopup({ type: 'LUCENT', entry, pageIdx: safeIndex })}
+                    hideInlineSearch={true}
                     onSaveOffline={() => handleLucentSaveOffline(false)}
                     isSavedOffline={lucentSaved}
                     isUltraUser={_isUltraUser}
