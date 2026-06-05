@@ -1567,100 +1567,121 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* ── Better Learning Tip — original design, positioned at top ── */}
+      {/* ── Better Learning Tip — compact professional card ── */}
       {showTtsSuggestPopup && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 9998,
-            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)',
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            padding: `${showReadingActiveInfo ? 130 : 12}px 16px 0`,
+            padding: `${showReadingActiveInfo ? 134 : 14}px 14px 0`,
           }}
           onClick={() => setShowTtsSuggestPopup(false)}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'rgba(10,14,32,0.98)',
-              border: '1px solid #38bdf820',
-              borderRadius: 22,
-              padding: '22px 20px 18px',
-              maxWidth: 340,
-              width: '100%',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-              animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+              background: 'linear-gradient(145deg, rgba(13,17,38,0.99), rgba(8,12,28,0.99))',
+              borderRadius: 20,
+              padding: '1.5px',
+              maxWidth: 340, width: '100%',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(56,189,248,0.08)',
+              animation: 'tp-banner-in 0.2s cubic-bezier(0.34,1.56,0.64,1)',
             }}
           >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 22 }}>💡</span>
-              <div>
-                <div style={{ color: '#7dd3fc', fontSize: 13, fontWeight: 900 }}>Better Learning Tip</div>
-                <div style={{ color: '#475569', fontSize: 10, marginTop: 1 }}>App ki taraf se suggestion</div>
-              </div>
-            </div>
+            {/* gradient border wrapper */}
+            <div style={{
+              background: 'linear-gradient(145deg, rgba(14,165,233,0.15) 0%, rgba(99,102,241,0.1) 50%, rgba(168,85,247,0.08) 100%)',
+              borderRadius: 19,
+              padding: '14px 16px 14px',
+            }}>
 
-            {/* Body */}
-            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
-              Aap bahut topics manually tap kar rahe hain.<br />
-              <span style={{ color: '#e2e8f0' }}>TTS Auto Reading</span> try karna chahoge?
-            </div>
-
-            {/* Feature comparison */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-              {[
-                { label: 'Manual Reading', icon: '📖', points: ['Apni speed', 'Full control', '+2 per topic (10s)'], color: '#34d399' },
-                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+2 per topic (auto)'], color: '#38bdf8' },
-              ].map(({ label, icon, points, color }) => (
-                <div
-                  key={label}
+              {/* Header row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                  background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(14,165,233,0.35)',
+                }}>
+                  <span style={{ fontSize: 16 }}>💡</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: '#e2e8f0', fontSize: 12.5, fontWeight: 900, letterSpacing: '-0.01em' }}>
+                    Better Learning Tip
+                  </div>
+                  <div style={{ color: '#475569', fontSize: 9.5, marginTop: 1 }}>
+                    Bahut zyada tap kar rahe ho — smarter padho
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowTtsSuggestPopup(false)}
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${color}22`,
-                    borderRadius: 12,
-                    padding: '10px 10px 8px',
+                    width: 24, height: 24, borderRadius: 8, border: 'none',
+                    background: 'rgba(255,255,255,0.07)', color: '#64748b',
+                    fontSize: 12, cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Divider */}
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '0 0 10px' }} />
+
+              {/* Compact comparison rows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                {[
+                  { icon: '📖', label: 'Manual', tag: 'Current', points: 'Apni speed · Full control · +2/topic', color: '#94a3b8', tagBg: 'rgba(148,163,184,0.12)', tagColor: '#64748b' },
+                  { icon: '🎙️', label: 'TTS Auto', tag: 'Try This', points: 'Hands-free · Auto highlight · +2/topic', color: '#38bdf8', tagBg: 'rgba(56,189,248,0.12)', tagColor: '#38bdf8' },
+                ].map(({ icon, label, tag, points, color, tagBg, tagColor }) => (
+                  <div key={label} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${color}18`,
+                    borderRadius: 10, padding: '8px 10px',
+                  }}>
+                    <span style={{ fontSize: 15, flexShrink: 0 }}>{icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <span style={{ color, fontSize: 10.5, fontWeight: 800 }}>{label}</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, padding: '1px 6px', borderRadius: 99, background: tagBg, color: tagColor, letterSpacing: '0.04em' }}>{tag}</span>
+                      </div>
+                      <div style={{ color: '#475569', fontSize: 9, lineHeight: 1.4 }}>{points}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA Buttons */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    setShowTtsSuggestPopup(false);
+                    startFromIndex(activeIdx !== null ? activeIdx : 0);
+                  }}
+                  style={{
+                    flex: 2, padding: '10px 0', borderRadius: 11,
+                    background: 'linear-gradient(90deg, #0ea5e9, #6366f1)',
+                    color: '#fff', fontWeight: 900, fontSize: 11.5, border: 'none',
+                    cursor: 'pointer', letterSpacing: '0.01em',
+                    boxShadow: '0 4px 16px rgba(14,165,233,0.3)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>{icon}</span>
-                    <span style={{ color, fontSize: 10, fontWeight: 800 }}>{label}</span>
-                  </div>
-                  {points.map(p => (
-                    <div key={p} style={{ color: '#64748b', fontSize: 9.5, lineHeight: 1.6 }}>
-                      ✓ {p}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                  🎙️ TTS Start Karo
+                </button>
+                <button
+                  onClick={() => setShowTtsSuggestPopup(false)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 11,
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#475569', fontWeight: 700, fontSize: 11,
+                    border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
+                  }}
+                >
+                  Baad Mein
+                </button>
+              </div>
 
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => {
-                  setShowTtsSuggestPopup(false);
-                  startFromIndex(activeIdx !== null ? activeIdx : 0);
-                }}
-                style={{
-                  flex: 2, padding: '11px 0', borderRadius: 12,
-                  background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)',
-                  color: '#fff', fontWeight: 900, fontSize: 12, border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                🎙️ TTS Start Karo
-              </button>
-              <button
-                onClick={() => setShowTtsSuggestPopup(false)}
-                style={{
-                  flex: 1, padding: '11px 0', borderRadius: 12,
-                  background: 'rgba(255,255,255,0.06)',
-                  color: '#64748b', fontWeight: 700, fontSize: 12,
-                  border: '1px solid #ffffff15', cursor: 'pointer',
-                }}
-              >
-                Abhi Nahi
-              </button>
             </div>
           </div>
         </div>
