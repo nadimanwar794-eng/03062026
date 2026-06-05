@@ -15,6 +15,7 @@ interface Props {
   visible: boolean;
   levelColor?: string;
   levelLabel?: string;
+  hideFloatingButton?: boolean;
 }
 
 type PopupKind = 'none' | 'info' | 'reward' | 'warning' | 'touch';
@@ -26,6 +27,7 @@ export const ReadingScoreHUD: React.FC<Props> = ({
   visible,
   levelColor = '#6366f1',
   levelLabel,
+  hideFloatingButton = false,
 }) => {
   const [popup, setPopup]         = useState<PopupKind>('none');
   const [rewardPts, setRewardPts] = useState(0);
@@ -257,8 +259,8 @@ export const ReadingScoreHUD: React.FC<Props> = ({
           </div>
         )}
 
-        {/* ── FLOATING ICON BUTTON ── */}
-        <button
+        {/* ── FLOATING ICON BUTTON — hidden when moved to top bar ── */}
+        {!hideFloatingButton && <button
           onClick={handleIconTap}
           aria-label="Reading score"
           style={{
@@ -285,7 +287,7 @@ export const ReadingScoreHUD: React.FC<Props> = ({
           }}
         >
           {modeIcon}
-        </button>
+        </button>}
       </div>
     </>
   );

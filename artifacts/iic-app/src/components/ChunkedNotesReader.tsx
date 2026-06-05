@@ -514,8 +514,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const TP_SEEN_KEY = 'iic_touch_protection_seen';
   const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
   const touchProtectionPopupShownRef = useRef(false);
-  // READING ACTIVE badge tap → info popup (non-blocking)
+  // READING ACTIVE badge tap → info popup (non-blocking, auto-dismisses in 2s)
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
+  const readingActiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openReadingActiveInfo = () => {
+    if (readingActiveTimerRef.current) clearTimeout(readingActiveTimerRef.current);
+    setShowReadingActiveInfo(true);
+    readingActiveTimerRef.current = setTimeout(() => setShowReadingActiveInfo(false), 2000);
+  };
 
   // Smart TTS suggestion — detect rapid manual tapping
   const TTS_SUGGEST_KEY = 'iic_tts_suggest_seen';
@@ -1148,11 +1154,30 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
-            {/* READING ACTIVE touch-protection badge — tappable, non-blocking */}
+            {/* 📖 Book icon button — score HUD trigger (moved from floating button) */}
+            {readingScoreConfig && scoreState && (
+              <button
+                type="button"
+                onClick={openReadingActiveInfo}
+                title="Reading score info"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 8,
+                  background: isReading ? 'rgba(99,102,241,0.15)' : 'rgba(100,116,139,0.10)',
+                  border: isReading ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid rgba(100,116,139,0.2)',
+                  cursor: 'pointer', flexShrink: 0,
+                  animation: isReading ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
+              </button>
+            )}
+            {/* 🛡️ Touch Protection badge */}
             {readingScoreConfig && (
               <button
                 type="button"
-                onClick={() => setShowReadingActiveInfo(true)}
+                onClick={openReadingActiveInfo}
                 title="Touch Protection info"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -1166,8 +1191,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <span style={{ fontSize: 10 }}>🛡️</span>
                 <span style={{
                   fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#94a3b8',
-                  whiteSpace: 'nowrap',
+                  color: '#94a3b8', whiteSpace: 'nowrap',
                 }}>
                   Touch Protection
                 </span>
@@ -1177,7 +1201,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             {readingScoreConfig && isReading && (
               <button
                 type="button"
-                onClick={() => setShowReadingActiveInfo(true)}
+                onClick={openReadingActiveInfo}
                 title="Reading chal rahi hai"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -1693,6 +1717,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             visible={true}
             levelColor={lvl.color}
             levelLabel={`${lvl.label} L${lvl.level}`}
+            hideFloatingButton={true}
           />
         );
       })()}
