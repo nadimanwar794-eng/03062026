@@ -1599,6 +1599,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   <span style={{ fontSize: 16 }}>💡</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 6, padding: '1px 6px', marginBottom: 3 }}>
+                    <span style={{ fontSize: 9 }}>⚡</span>
+                    <span style={{ color: '#fbbf24', fontSize: 9, fontWeight: 800, letterSpacing: '0.02em' }}>Fast Tapping Detected</span>
+                  </div>
                   <div style={{ color: '#e2e8f0', fontSize: 12.5, fontWeight: 900, letterSpacing: '-0.01em' }}>
                     Better Learning Tip
                   </div>
