@@ -1146,17 +1146,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
-            {/* Screen Rotation button — top bar mein READING ACTIVE ke left side */}
-            {readingScoreConfig && (
-              <button
-                type="button"
-                onClick={handleRotate}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-600 active:scale-90 transition shrink-0"
-                title="Screen rotate karo"
-              >
-                <RotateCcw size={13} />
-              </button>
-            )}
             {/* READING ACTIVE touch-protection badge — tappable, non-blocking */}
             {readingScoreConfig && (
               <button
@@ -1166,8 +1155,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
                   padding: '3px 7px', borderRadius: 999,
-                  background: isReading ? 'rgba(99,102,241,0.13)' : 'rgba(100,116,139,0.10)',
-                  border: isReading ? '1px solid rgba(99,102,241,0.35)' : '1px solid rgba(100,116,139,0.2)',
+                  background: 'rgba(100,116,139,0.10)',
+                  border: '1px solid rgba(100,116,139,0.2)',
                   cursor: 'pointer', flexShrink: 0,
                   transition: 'all 0.2s',
                 }}
@@ -1175,10 +1164,38 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <span style={{ fontSize: 10 }}>🛡️</span>
                 <span style={{
                   fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: isReading ? '#6366f1' : '#94a3b8',
+                  color: '#94a3b8',
                   whiteSpace: 'nowrap',
                 }}>
-                  {isReading ? 'Reading Active' : 'Touch Protection'}
+                  Touch Protection
+                </span>
+              </button>
+            )}
+            {/* READING ACTIVE indicator — sirf tab dikhta hai jab reading chal rahi ho */}
+            {readingScoreConfig && isReading && (
+              <button
+                type="button"
+                onClick={() => setShowReadingActiveInfo(true)}
+                title="Reading chal rahi hai"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '3px 8px', borderRadius: 999,
+                  background: 'rgba(99,102,241,0.15)',
+                  border: '1.5px solid rgba(99,102,241,0.5)',
+                  cursor: 'pointer', flexShrink: 0,
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                }}
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: '#6366f1', display: 'inline-block', flexShrink: 0,
+                  boxShadow: '0 0 0 2px rgba(99,102,241,0.3)',
+                }} />
+                <span style={{
+                  fontSize: 8, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: '#6366f1', whiteSpace: 'nowrap',
+                }}>
+                  Reading Active
                 </span>
               </button>
             )}
