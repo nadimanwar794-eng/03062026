@@ -5,117 +5,58 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
 
+const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
+
 const rawPort = process.env.PORT;
+
+if (!rawPort && !isBuild) {
+  throw new Error(
+    "PORT environment variable is required but was not provided.",
+  );
+}
+
 const port = rawPort ? Number(rawPort) : 3000;
 
-const basePath = process.env.BASE_PATH || "/";
+if (!isBuild && (Number.isNaN(port) || port <= 0)) {
+  throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+const basePath = process.env.BASE_PATH;
+
+if (!basePath && !isBuild) {
+  throw new Error(
+    "BASE_PATH environment variable is required but was not provided.",
+  );
+}
 
 export default defineConfig({
-  base: basePath,
+  base: basePath ?? "/",
   plugins: [
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [
-        "favicon.png",
-        "apple-touch-icon.png",
-        "pwa-192x192.png",
-        "pwa-512x512.png",
-      ],
-      manifest: {
-        name: "IIC – Ideal Inspiration Classes",
-        short_name: "IIC",
-        description: "Learn • Grow • Achieve — AI-powered education platform",
-        theme_color: "#0f2044",
-        background_color: "#0f2044",
-        display: "standalone",
-        orientation: "portrait",
-        scope: basePath,
-        start_url: basePath,
-        icons: [
-          {
-            src: "pwa-72x72.png",
-            sizes: "72x72",
-            type: "image/png",
-          },
-          {
-            src: "pwa-96x96.png",
-            sizes: "96x96",
-            type: "image/png",
-          },
-          {
-            src: "pwa-128x128.png",
-            sizes: "128x128",
-            type: "image/png",
-          },
-          {
-            src: "pwa-144x144.png",
-            sizes: "144x144",
-            type: "image/png",
-          },
-          {
-            src: "pwa-152x152.png",
-            sizes: "152x152",
-            type: "image/png",
-          },
-          {
-            src: "pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "pwa-384x384.png",
-            sizes: "384x384",
-            type: "image/png",
-          },
-          {
-            src: "pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
       workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,svg}", "**/*.png"],
+        globIgnores: ["**/splash-logo.png"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"],
-        navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/api\//],
-        offlineGoogleAnalytics: false,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-cache",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
+            options: { cacheName: "google-fonts-cache" },
           },
           {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            urlPattern: /splash-logo\.png$/,
             handler: "CacheFirst",
-            options: {
-              cacheName: "gstatic-fonts-cache",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "firebase-storage-cache",
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
+            options: { cacheName: "splash-cache" },
           },
         ],
       },
       devOptions: {
-        enabled: false,
+        enabled: true,
+        type: "module",
       },
     }),
     ...(process.env.NODE_ENV !== "production" &&
@@ -143,18 +84,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom"],
-          "vendor-firebase": ["firebase/app", "firebase/auth", "firebase/database", "firebase/firestore", "firebase/storage"],
-          "vendor-ai": ["@google/genai", "@google/generative-ai"],
-          "vendor-pdf": ["react-pdf", "jspdf", "html2canvas"],
-          "vendor-markdown": ["react-markdown", "remark-gfm", "katex"],
-          "vendor-ui": ["lucide-react", "framer-motion"],
-        },
-      },
-    },
   },
   server: {
     port,
@@ -162,7 +91,7 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     fs: {
-      strict: true,
+      strict: false,
     },
   },
   preview: {

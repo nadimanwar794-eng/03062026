@@ -1767,7 +1767,7 @@ const App: React.FC = () => {
 
         // 2. Check & Deduct
         if (cost > 0 && state.user.role !== 'ADMIN' && !state.originalAdmin) {
-             if (state.user.credits < cost) {
+             if (getTotalCredits(state.user) < cost) {
                  setAlertConfig({isOpen: true, message: `Insufficient Credits! You need ${cost} Credits.`});
                  return;
              }
@@ -1859,7 +1859,7 @@ const App: React.FC = () => {
         }
 
          if (state.user.role !== 'ADMIN' && !state.originalAdmin && cost > 0) {
-             if (state.user.credits < cost) {
+             if (getTotalCredits(state.user) < cost) {
                  setAlertConfig({isOpen: true, message: `Insufficient Credits! You need ${cost} Credits.`});
                  return;
              }
@@ -2078,7 +2078,7 @@ const App: React.FC = () => {
 
     // 4. Credit Deduction (Fallback)
     if (!hasAccess) {
-        if (state.user.credits >= cost) {
+        if (getTotalCredits(state.user) >= cost) {
 
             // NEW: CONFIRMATION CHECK
             { const _td = new Date().toISOString().split('T')[0]; const _sk = `nst_credit_skip_${state.user!.id}_${_td}`; if (!localStorage.getItem(_sk) && !forcePay) {
@@ -3070,7 +3070,7 @@ const App: React.FC = () => {
           <CreditConfirmationModal
               title={creditModal.title}
               cost={creditModal.cost}
-              userCredits={state.user.credits}
+              userCredits={getTotalCredits(state.user)}
               isAutoEnabledInitial={!!localStorage.getItem(`nst_credit_skip_${state.user.id}_${new Date().toISOString().split('T')[0]}`)}
               onConfirm={creditModal.onConfirm}
               onCancel={() => setCreditModal(null)}
