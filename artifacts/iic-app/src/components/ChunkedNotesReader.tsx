@@ -1146,6 +1146,17 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
+            {/* Screen Rotation button — top bar mein READING ACTIVE ke left side */}
+            {readingScoreConfig && (
+              <button
+                type="button"
+                onClick={handleRotate}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-600 active:scale-90 transition shrink-0"
+                title="Screen rotate karo"
+              >
+                <RotateCcw size={13} />
+              </button>
+            )}
             {/* READING ACTIVE touch-protection badge — tappable, non-blocking */}
             {readingScoreConfig && (
               <button
