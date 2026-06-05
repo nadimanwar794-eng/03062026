@@ -565,12 +565,12 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     return () => { session.stop(); scoreSessionRef.current = null; };
   }, [readingScoreConfig?.userId, readingScoreConfig?.userLevel]);
 
-  // Auto-show merged info popup when points are earned (score increases)
+  // Auto-show merged info popup when points are earned — only when TTS is NOT running
   const prevScoreRef = useRef(0);
   const scoreAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const newScore = scoreState?.totalSessionScore ?? 0;
-    if (newScore > prevScoreRef.current) {
+    if (newScore > prevScoreRef.current && !isReadingRef.current) {
       tpManualOpenRef.current = false;
       setShowReadingActiveInfo(true);
       if (scoreAutoTimerRef.current) clearTimeout(scoreAutoTimerRef.current);
