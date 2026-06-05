@@ -9955,7 +9955,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <>
                     {/* Backdrop — tap anywhere outside to close */}
                     <div
-                      className="fixed inset-0 z-[99998] bg-black/25 backdrop-blur-md animate-in fade-in duration-150"
+                      className="fixed inset-0 z-[99998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200"
                       onClick={() => setShowDotsMenu(false)}
                       onTouchStart={() => setShowDotsMenu(false)}
                     />
@@ -14612,7 +14612,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
         return (
           <>
-            <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
+            <div className="fixed inset-0 z-[9998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200" onClick={() => setShowSidebar(false)} />
             <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
               {/* User Profile */}
