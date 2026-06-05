@@ -531,7 +531,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const trackManualTap = useCallback(() => {
     const now = Date.now();
     const WINDOW_MS = 10_000;          // 10-second rolling window
-    const RAPID_THRESHOLD = 5;         // 5+ taps in 10 sec triggers suggestion
+    const RAPID_THRESHOLD = 10;        // 10+ taps in 10 sec triggers suggestion
     manualTapTimestampsRef.current = [
       ...manualTapTimestampsRef.current.filter(t => now - t < WINDOW_MS),
       now,
