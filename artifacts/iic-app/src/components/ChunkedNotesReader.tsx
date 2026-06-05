@@ -516,7 +516,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const touchProtectionPopupShownRef = useRef(false);
   // 🛡️ Touch Protection badge tap → touch protection info
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
-  const openReadingActiveInfo = () => setShowReadingActiveInfo(true);
+  const tpAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tpManualOpenRef = useRef(false); // true = user tapped manually (no auto-dismiss)
+  const openReadingActiveInfo = () => {
+    tpManualOpenRef.current = true;
+    if (tpAutoTimerRef.current) { clearTimeout(tpAutoTimerRef.current); tpAutoTimerRef.current = null; }
+    setShowReadingActiveInfo(true);
+  };
   // 📖 Book icon tap → reading score info
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const openScoreInfo = () => setShowScoreInfo(true);
@@ -549,6 +555,22 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     session.start();
     return () => { session.stop(); scoreSessionRef.current = null; };
   }, [readingScoreConfig?.userId, readingScoreConfig?.userLevel]);
+
+  // Auto-show 🛡️ popup when touch protection triggers, auto-dismiss in 2s
+  const prevTouchActiveRef = useRef(false);
+  useEffect(() => {
+    const active = scoreState?.touchProtectionActive ?? false;
+    if (active && !prevTouchActiveRef.current) {
+      tpManualOpenRef.current = false;
+      setShowReadingActiveInfo(true);
+      if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
+      tpAutoTimerRef.current = setTimeout(() => {
+        if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
+        tpAutoTimerRef.current = null;
+      }, 2000);
+    }
+    prevTouchActiveRef.current = active;
+  }, [scoreState?.touchProtectionActive]);
 
   // Update net-forward progress whenever activeIdx changes
   useEffect(() => {
@@ -1517,7 +1539,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         <div
           style={{
             position: 'fixed', top: 8, left: 8, zIndex: 9999,
-            width: '48%', maxWidth: 200,
+            width: 160,
             animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
           }}
         >
@@ -1572,8 +1594,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       {showScoreInfo && scoreState && (
         <div
           style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-            padding: '8px 12px 0',
+            position: 'fixed', top: 8, right: 8, zIndex: 9999,
+            width: 190,
             animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
           }}
         >
