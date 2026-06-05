@@ -529,18 +529,15 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
-    if (ttsSuggestShownRef.current) return;
-    try { if (localStorage.getItem(TTS_SUGGEST_KEY)) { ttsSuggestShownRef.current = true; return; } } catch {}
     const now = Date.now();
-    const WINDOW_MS = 60_000;          // 60-second rolling window
-    const RAPID_THRESHOLD = 15;        // 15 taps in 60 sec triggers suggestion
+    const WINDOW_MS = 10_000;          // 10-second rolling window
+    const RAPID_THRESHOLD = 5;         // 5+ taps in 10 sec triggers suggestion
     manualTapTimestampsRef.current = [
       ...manualTapTimestampsRef.current.filter(t => now - t < WINDOW_MS),
       now,
     ];
     if (manualTapTimestampsRef.current.length >= RAPID_THRESHOLD) {
-      ttsSuggestShownRef.current = true;
-      try { localStorage.setItem(TTS_SUGGEST_KEY, '1'); } catch {}
+      manualTapTimestampsRef.current = []; // reset so it can trigger again
       setShowTtsSuggestPopup(true);
     }
   }, []);
