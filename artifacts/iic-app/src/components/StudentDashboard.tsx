@@ -9953,12 +9953,15 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
                 {showDotsMenu && (
                   <>
-                    {/* Backdrop — full-page subtle blur */}
-                    <div
-                      className="fixed inset-0 z-[99998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200"
-                      onClick={() => setShowDotsMenu(false)}
-                      onTouchStart={() => setShowDotsMenu(false)}
-                    />
+                    {/* Backdrop — portalled to body so it escapes top-bar stacking context */}
+                    {createPortal(
+                      <div
+                        className="fixed inset-0 z-[99998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200"
+                        onClick={() => setShowDotsMenu(false)}
+                        onTouchStart={() => setShowDotsMenu(false)}
+                      />,
+                      document.body
+                    )}
                     {/* Dropdown panel */}
                     <div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
                       {/* Close button row */}
