@@ -1677,7 +1677,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
               {[
                 { label: 'Manual Reading', icon: '📖', points: ['Apni speed', 'Full control', '+2 per topic (10s)'], color: '#34d399' },
-                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+1 per topic (auto)'], color: '#38bdf8' },
+                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+2 per topic (auto)'], color: '#38bdf8' },
               ].map(({ label, icon, points, color }) => (
                 <div
                   key={label}

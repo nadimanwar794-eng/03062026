@@ -184,8 +184,8 @@ export const ReadingScoreHUD: React.FC<Props> = ({
           </div>
         )}
 
-        {/* ── TOUCH PROTECTION POPUP ── */}
-        {popup === 'touch' && (
+        {/* ── TOUCH PROTECTION POPUP ── hidden when floating button is hidden (top bar handles it) */}
+        {popup === 'touch' && !hideFloatingButton && (
           <div
             style={{
               ...popupBase,
