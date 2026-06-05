@@ -514,22 +514,12 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const TP_SEEN_KEY = 'iic_touch_protection_seen';
   const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
   const touchProtectionPopupShownRef = useRef(false);
-  // 🛡️ Touch Protection badge tap → touch protection info (auto-dismisses in 2s)
+  // 🛡️ Touch Protection badge tap → touch protection info
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
-  const readingActiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openReadingActiveInfo = () => {
-    if (readingActiveTimerRef.current) clearTimeout(readingActiveTimerRef.current);
-    setShowReadingActiveInfo(true);
-    readingActiveTimerRef.current = setTimeout(() => setShowReadingActiveInfo(false), 2000);
-  };
-  // 📖 Book icon tap → reading score info (auto-dismisses in 2s)
+  const openReadingActiveInfo = () => setShowReadingActiveInfo(true);
+  // 📖 Book icon tap → reading score info
   const [showScoreInfo, setShowScoreInfo] = useState(false);
-  const scoreInfoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openScoreInfo = () => {
-    if (scoreInfoTimerRef.current) clearTimeout(scoreInfoTimerRef.current);
-    setShowScoreInfo(true);
-    scoreInfoTimerRef.current = setTimeout(() => setShowScoreInfo(false), 2000);
-  };
+  const openScoreInfo = () => setShowScoreInfo(true);
 
   // Smart TTS suggestion — detect rapid manual tapping
   const TTS_SUGGEST_KEY = 'iic_tts_suggest_seen';
