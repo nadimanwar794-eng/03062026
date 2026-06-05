@@ -535,6 +535,15 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
+    // Show touch protection popup on every tap (2s auto-dismiss)
+    tpManualOpenRef.current = false;
+    setShowReadingActiveInfo(true);
+    if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
+    tpAutoTimerRef.current = setTimeout(() => {
+      if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
+      tpAutoTimerRef.current = null;
+    }, 2000);
+
     const now = Date.now();
     const WINDOW_MS = 10_000;          // 10-second rolling window
     const RAPID_THRESHOLD = 10;        // 10+ taps in 10 sec triggers suggestion
@@ -543,7 +552,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       now,
     ];
     if (manualTapTimestampsRef.current.length >= RAPID_THRESHOLD) {
-      manualTapTimestampsRef.current = []; // reset so it can trigger again
+      manualTapTimestampsRef.current = [];
       setShowTtsSuggestPopup(true);
     }
   }, []);
@@ -555,6 +564,22 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     session.start();
     return () => { session.stop(); scoreSessionRef.current = null; };
   }, [readingScoreConfig?.userId, readingScoreConfig?.userLevel]);
+
+  // Auto-show 📖 book popup when points are earned (score increases)
+  const prevScoreRef = useRef(0);
+  const scoreAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const newScore = scoreState?.totalSessionScore ?? 0;
+    if (newScore > prevScoreRef.current) {
+      setShowScoreInfo(true);
+      if (scoreAutoTimerRef.current) clearTimeout(scoreAutoTimerRef.current);
+      scoreAutoTimerRef.current = setTimeout(() => {
+        setShowScoreInfo(false);
+        scoreAutoTimerRef.current = null;
+      }, 2000);
+    }
+    prevScoreRef.current = newScore;
+  }, [scoreState?.totalSessionScore]);
 
   // Auto-show 🛡️ popup when touch protection triggers, auto-dismiss in 2s
   const prevTouchActiveRef = useRef(false);
