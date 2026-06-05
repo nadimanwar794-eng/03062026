@@ -514,13 +514,21 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const TP_SEEN_KEY = 'iic_touch_protection_seen';
   const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
   const touchProtectionPopupShownRef = useRef(false);
-  // READING ACTIVE badge tap → info popup (non-blocking, auto-dismisses in 2s)
+  // 🛡️ Touch Protection badge tap → touch protection info (auto-dismisses in 2s)
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
   const readingActiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openReadingActiveInfo = () => {
     if (readingActiveTimerRef.current) clearTimeout(readingActiveTimerRef.current);
     setShowReadingActiveInfo(true);
     readingActiveTimerRef.current = setTimeout(() => setShowReadingActiveInfo(false), 2000);
+  };
+  // 📖 Book icon tap → reading score info (auto-dismisses in 2s)
+  const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const scoreInfoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openScoreInfo = () => {
+    if (scoreInfoTimerRef.current) clearTimeout(scoreInfoTimerRef.current);
+    setShowScoreInfo(true);
+    scoreInfoTimerRef.current = setTimeout(() => setShowScoreInfo(false), 2000);
   };
 
   // Smart TTS suggestion — detect rapid manual tapping
@@ -1154,11 +1162,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
-            {/* 📖 Book icon button — score HUD trigger (moved from floating button) */}
+            {/* 📖 Book icon button — score info popup */}
             {readingScoreConfig && scoreState && (
               <button
                 type="button"
-                onClick={openReadingActiveInfo}
+                onClick={openScoreInfo}
                 title="Reading score info"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1598,6 +1606,72 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             </div>
             <div style={{ color: '#475569', fontSize: 9, textAlign: 'center' }}>
               TTS auto-reading naturally exempt — score milta rahega
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📖 Score info popup — book icon se open hota hai, auto-dismiss 2s */}
+      {showScoreInfo && scoreState && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+            padding: '8px 12px 0',
+            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(10,12,28,0.97)',
+              border: '1px solid #6366f155',
+              borderRadius: 14,
+              padding: '12px 14px',
+              boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 20 }}>📖</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>
+                  {isReading ? 'Reading Active' : 'Reading Score'}
+                </div>
+                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Session progress</div>
+              </div>
+              <button
+                onClick={() => setShowScoreInfo(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
+                  borderRadius: 8, padding: '3px 9px',
+                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                OK
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{
+                flex: 1, background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '8px 10px',
+                border: '1px solid rgba(99,102,241,0.12)',
+              }}>
+                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Score</div>
+                <div style={{ color: '#a5b4fc', fontSize: 18, fontWeight: 900 }}>+{scoreState.totalSessionScore}</div>
+              </div>
+              <div style={{
+                flex: 1, background: 'rgba(34,197,94,0.08)', borderRadius: 8, padding: '8px 10px',
+                border: '1px solid rgba(34,197,94,0.12)',
+              }}>
+                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Progress</div>
+                <div style={{ color: '#4ade80', fontSize: 18, fontWeight: 900 }}>{Math.round(scoreState.progressPercent)}%</div>
+              </div>
+              <div style={{
+                flex: 1, background: 'rgba(251,191,36,0.08)', borderRadius: 8, padding: '8px 10px',
+                border: '1px solid rgba(251,191,36,0.12)',
+              }}>
+                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Next</div>
+                <div style={{ color: '#fbbf24', fontSize: 14, fontWeight: 900 }}>
+                  {!scoreState.isPaused ? `+${isReading ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+                </div>
+              </div>
             </div>
           </div>
         </div>
