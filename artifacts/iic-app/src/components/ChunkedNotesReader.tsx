@@ -514,6 +514,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const TP_SEEN_KEY = 'iic_touch_protection_seen';
   const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
   const touchProtectionPopupShownRef = useRef(false);
+  // READING ACTIVE badge tap → info popup (non-blocking)
+  const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
 
   // Smart TTS suggestion — detect rapid manual tapping
   const TTS_SUGGEST_KEY = 'iic_tts_suggest_seen';
@@ -1144,6 +1146,31 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
+            {/* READING ACTIVE touch-protection badge — tappable, non-blocking */}
+            {readingScoreConfig && (
+              <button
+                type="button"
+                onClick={() => setShowReadingActiveInfo(true)}
+                title="Touch Protection info"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '3px 7px', borderRadius: 999,
+                  background: isReading ? 'rgba(99,102,241,0.13)' : 'rgba(100,116,139,0.10)',
+                  border: isReading ? '1px solid rgba(99,102,241,0.35)' : '1px solid rgba(100,116,139,0.2)',
+                  cursor: 'pointer', flexShrink: 0,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ fontSize: 10 }}>🛡️</span>
+                <span style={{
+                  fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: isReading ? '#6366f1' : '#94a3b8',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {isReading ? 'Reading Active' : 'Touch Protection'}
+                </span>
+              </button>
+            )}
             {onMoreOptions && !hideInline3dot && (
               <button
                 type="button"
@@ -1402,67 +1429,122 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* Touch Protection explanation popup — shown first time user taps a topic */}
+      {/* Touch Protection — non-blocking top banner (first-time auto notification) */}
       {showTouchProtectionPopup && (
         <div
           style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-            padding: '0 16px 32px',
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+            padding: '8px 12px 0',
+            pointerEvents: 'none',
+            animation: 'tp-banner-in 0.3s cubic-bezier(0.34,1.56,0.64,1)',
           }}
-          onClick={() => setShowTouchProtectionPopup(false)}
         >
           <div
-            onClick={e => e.stopPropagation()}
             style={{
-              background: 'rgba(10,12,28,0.98)',
-              border: '1px solid #6366f144',
-              borderRadius: 20,
-              padding: '24px 22px 20px',
-              maxWidth: 340,
-              width: '100%',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
-              animation: 'rshud-slide 0.25s ease',
+              background: 'rgba(10,12,28,0.97)',
+              border: '1px solid #6366f155',
+              borderRadius: 14,
+              padding: '10px 14px',
+              boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+              display: 'flex', alignItems: 'center', gap: 10,
+              pointerEvents: 'auto',
+              overflow: 'hidden', position: 'relative',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <span style={{ fontSize: 26 }}>🛡️</span>
-              <div>
-                <div style={{ color: '#a5b4fc', fontSize: 14, fontWeight: 900 }}>Touch Protection Active</div>
-                <div style={{ color: '#64748b', fontSize: 10, marginTop: 2 }}>Fair learning system</div>
+            {/* auto-scroll marquee text */}
+            <span style={{ fontSize: 18, flexShrink: 0 }}>🛡️</span>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div style={{ fontSize: 10, fontWeight: 900, color: '#a5b4fc', marginBottom: 1, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Touch Protection Active
               </div>
-            </div>
-            <div style={{ color: '#cbd5e1', fontSize: 12, lineHeight: 1.7, marginBottom: 16 }}>
-              Rapid tapping se score <span style={{ color: '#f87171', fontWeight: 700 }}>earn nahi hoga</span>.<br />
-              Reward tab milega jab:
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-              {[
-                { icon: '📖', text: 'Topic open karo' },
-                { icon: '⏱️', text: '10 sec padhte raho' },
-                { icon: '✨', text: '+2 reward automatic milega' },
-              ].map(({ icon, text }) => (
-                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(99,102,241,0.1)', borderRadius: 10, padding: '8px 12px' }}>
-                  <span style={{ fontSize: 16 }}>{icon}</span>
-                  <span style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600 }}>{text}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ color: '#475569', fontSize: 10, textAlign: 'center', marginBottom: 14 }}>
-              TTS auto-reading naturally exempt hai — score milta rahega.
+              <div style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <span style={{
+                  display: 'inline-block',
+                  fontSize: 10, color: '#94a3b8',
+                  animation: 'tp-scroll 9s linear 0.5s 1 forwards',
+                }}>
+                  📖 Topic open karo &nbsp;·&nbsp; ⏱️ 10 sec padho &nbsp;·&nbsp; ✨ +2 reward milega &nbsp;·&nbsp; TTS auto-reading always exempt hai
+                </span>
+              </div>
             </div>
             <button
               onClick={() => setShowTouchProtectionPopup(false)}
               style={{
-                width: '100%', padding: '11px 0', borderRadius: 12,
-                background: 'linear-gradient(90deg, #6366f1, #818cf8)',
-                color: '#fff', fontWeight: 900, fontSize: 13, border: 'none',
-                cursor: 'pointer', letterSpacing: '0.03em',
+                background: 'rgba(99,102,241,0.2)', border: '1px solid #6366f144',
+                borderRadius: 8, padding: '3px 8px',
+                color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
               }}
             >
-              Samajh gaya, theek hai!
+              OK
             </button>
+          </div>
+          <style>{`
+            @keyframes tp-banner-in {
+              from { transform: translateY(-100%); opacity: 0; }
+              to   { transform: translateY(0);    opacity: 1; }
+            }
+            @keyframes tp-scroll {
+              0%   { transform: translateX(0); }
+              100% { transform: translateX(-60%); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* READING ACTIVE info popup — non-blocking, triggered by tapping badge in top bar */}
+      {showReadingActiveInfo && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+            padding: '8px 12px 0',
+            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(10,12,28,0.97)',
+              border: '1px solid #6366f155',
+              borderRadius: 14,
+              padding: '12px 14px',
+              boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 20 }}>🛡️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>Touch Protection Active</div>
+                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Fair learning system</div>
+              </div>
+              <button
+                onClick={() => setShowReadingActiveInfo(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
+                  borderRadius: 8, padding: '3px 9px',
+                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                OK
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {[
+                { icon: '📖', text: 'Topic open karo' },
+                { icon: '⏱️', text: '10 sec padho' },
+                { icon: '✨', text: '+2 reward' },
+              ].map(({ icon, text }) => (
+                <div key={text} style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '6px 4px',
+                  border: '1px solid rgba(99,102,241,0.12)',
+                }}>
+                  <span style={{ fontSize: 14 }}>{icon}</span>
+                  <span style={{ color: '#cbd5e1', fontSize: 9, fontWeight: 700, textAlign: 'center' }}>{text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ color: '#475569', fontSize: 9, textAlign: 'center' }}>
+              TTS auto-reading naturally exempt — score milta rahega
+            </div>
           </div>
         </div>
       )}
