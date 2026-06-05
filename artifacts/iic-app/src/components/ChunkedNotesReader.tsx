@@ -618,7 +618,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const dwellSecsRef = useRef(0);
   const dwellTopicRef = useRef<number | null>(null);
 
-  const DWELL_REQUIRED_SEC = 5;
+  const DWELL_REQUIRED_SEC = 3;
 
   const _updateTimedProgress = useCallback(() => {
     if (!scoreSessionRef.current) return;
