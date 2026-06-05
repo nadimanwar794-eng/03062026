@@ -544,21 +544,29 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   return (
     <div className={`min-h-screen flex items-center justify-center px-4 font-sans py-10 relative ${isVideoMode ? '' : 'bg-slate-50'}`}>
       {/* ── Video background (admin-controlled) ── */}
-      {isVideoMode && (
-        <video
-          key="login-bg-video"
-          src={appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4'}
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{
-            position: 'fixed', inset: 0, width: '100%', height: '100%',
-            objectFit: 'cover', zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+      {isVideoMode && (() => {
+        const rawUrl = appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4';
+        // Convert Google Drive share link → direct streamable URL
+        const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+        const videoSrc = driveMatch
+          ? `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`
+          : rawUrl;
+        return (
+          <video
+            key={videoSrc}
+            src={videoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{
+              position: 'fixed', inset: 0, width: '100%', height: '100%',
+              objectFit: 'cover', zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        );
+      })()}
       {isVideoMode && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1,
