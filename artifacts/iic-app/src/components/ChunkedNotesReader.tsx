@@ -1149,6 +1149,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
           </button>
         </div>
       )}
+      {/* Full-page blur backdrop when 3-dot controls are open */}
+      {showControls && (
+        <div
+          className="fixed inset-0 z-[19] bg-black/10 backdrop-blur-[3px]"
+          onClick={() => setShowControls(false)}
+        />
+      )}
       {!hideTopBar && (
         <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3">
           {/* ── Slim bar — Back · Reading Active · Touch Protection · 3-dot ── */}
