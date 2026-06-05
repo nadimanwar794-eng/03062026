@@ -6124,6 +6124,19 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           );
                       })}
                   </div>
+                  {(localSettings.loginPageStyle ?? 'default') === 'video' && (
+                      <div className="mt-4">
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Login Video URL <span className="text-slate-400 font-normal">(Firebase Storage, Google Drive direct link, ya koi bhi MP4 URL)</span></label>
+                          <input
+                              type="url"
+                              value={localSettings.loginVideoUrl ?? ''}
+                              onChange={e => setLocalSettings({ ...localSettings, loginVideoUrl: e.target.value })}
+                              placeholder="https://... (MP4 link paste karein)"
+                              className="w-full p-3 border border-violet-200 rounded-xl text-sm outline-none focus:border-violet-500 bg-violet-50/40"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">⚠️ Google Drive link direct play nahi hoti. Firebase Storage ya kisi aur hosting ki direct MP4 link use karein. Agar koi URL nahi diya toh default built-in video chalega.</p>
+                      </div>
+                  )}
               </div>
 
               <button onClick={() => handleSaveSettings()} className="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 flex items-center justify-center gap-2">

@@ -514,8 +514,18 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const TP_SEEN_KEY = 'iic_touch_protection_seen';
   const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
   const touchProtectionPopupShownRef = useRef(false);
-  // READING ACTIVE badge tap → info popup (non-blocking)
+  // 🛡️ Touch Protection badge tap → touch protection info
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
+  const tpAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tpManualOpenRef = useRef(false); // true = user tapped manually (no auto-dismiss)
+  const openReadingActiveInfo = () => {
+    tpManualOpenRef.current = true;
+    if (tpAutoTimerRef.current) { clearTimeout(tpAutoTimerRef.current); tpAutoTimerRef.current = null; }
+    setShowReadingActiveInfo(true);
+  };
+  // 📖 Book icon tap → reading score info
+  const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const openScoreInfo = () => setShowScoreInfo(true);
 
   // Smart TTS suggestion — detect rapid manual tapping
   const TTS_SUGGEST_KEY = 'iic_tts_suggest_seen';
@@ -525,18 +535,24 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
-    if (ttsSuggestShownRef.current) return;
-    try { if (localStorage.getItem(TTS_SUGGEST_KEY)) { ttsSuggestShownRef.current = true; return; } } catch {}
+    // Show touch protection popup on every tap (2s auto-dismiss)
+    tpManualOpenRef.current = false;
+    setShowReadingActiveInfo(true);
+    if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
+    tpAutoTimerRef.current = setTimeout(() => {
+      if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
+      tpAutoTimerRef.current = null;
+    }, 2000);
+
     const now = Date.now();
-    const WINDOW_MS = 60_000;          // 60-second rolling window
-    const RAPID_THRESHOLD = 15;        // 15 taps in 60 sec triggers suggestion
+    const WINDOW_MS = 10_000;          // 10-second rolling window
+    const RAPID_THRESHOLD = 10;        // 10+ taps in 10 sec triggers suggestion
     manualTapTimestampsRef.current = [
       ...manualTapTimestampsRef.current.filter(t => now - t < WINDOW_MS),
       now,
     ];
     if (manualTapTimestampsRef.current.length >= RAPID_THRESHOLD) {
-      ttsSuggestShownRef.current = true;
-      try { localStorage.setItem(TTS_SUGGEST_KEY, '1'); } catch {}
+      manualTapTimestampsRef.current = [];
       setShowTtsSuggestPopup(true);
     }
   }, []);
@@ -548,6 +564,38 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     session.start();
     return () => { session.stop(); scoreSessionRef.current = null; };
   }, [readingScoreConfig?.userId, readingScoreConfig?.userLevel]);
+
+  // Auto-show 📖 book popup when points are earned (score increases)
+  const prevScoreRef = useRef(0);
+  const scoreAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const newScore = scoreState?.totalSessionScore ?? 0;
+    if (newScore > prevScoreRef.current) {
+      setShowScoreInfo(true);
+      if (scoreAutoTimerRef.current) clearTimeout(scoreAutoTimerRef.current);
+      scoreAutoTimerRef.current = setTimeout(() => {
+        setShowScoreInfo(false);
+        scoreAutoTimerRef.current = null;
+      }, 2000);
+    }
+    prevScoreRef.current = newScore;
+  }, [scoreState?.totalSessionScore]);
+
+  // Auto-show 🛡️ popup when touch protection triggers, auto-dismiss in 2s
+  const prevTouchActiveRef = useRef(false);
+  useEffect(() => {
+    const active = scoreState?.touchProtectionActive ?? false;
+    if (active && !prevTouchActiveRef.current) {
+      tpManualOpenRef.current = false;
+      setShowReadingActiveInfo(true);
+      if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
+      tpAutoTimerRef.current = setTimeout(() => {
+        if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
+        tpAutoTimerRef.current = null;
+      }, 2000);
+    }
+    prevTouchActiveRef.current = active;
+  }, [scoreState?.touchProtectionActive]);
 
   // Update net-forward progress whenever activeIdx changes
   useEffect(() => {
@@ -1061,9 +1109,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
   return (
     <div className={className || ''}>
-      {/* Rotate toast notification */}
+      {/* Rotate toast — full-width top banner, same position as app top banners */}
       {rotateToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg animate-in fade-in pointer-events-none">
+        <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold pointer-events-none animate-in slide-in-from-top-2 fade-in duration-300"
+          style={{ background: 'linear-gradient(90deg, #1e293b, #334155, #1e293b)', color: '#e2e8f0' }}>
+          <RotateCcw size={12} className="shrink-0" />
           {rotateToast}
         </div>
       )}
@@ -1146,17 +1196,36 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
-            {/* READING ACTIVE touch-protection badge — tappable, non-blocking */}
+            {/* 📖 Book icon button — score info popup */}
+            {readingScoreConfig && scoreState && (
+              <button
+                type="button"
+                onClick={openScoreInfo}
+                title="Reading score info"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 8,
+                  background: isReading ? 'rgba(99,102,241,0.15)' : 'rgba(100,116,139,0.10)',
+                  border: isReading ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid rgba(100,116,139,0.2)',
+                  cursor: 'pointer', flexShrink: 0,
+                  animation: isReading ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
+              </button>
+            )}
+            {/* 🛡️ Touch Protection badge */}
             {readingScoreConfig && (
               <button
                 type="button"
-                onClick={() => setShowReadingActiveInfo(true)}
+                onClick={openReadingActiveInfo}
                 title="Touch Protection info"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
                   padding: '3px 7px', borderRadius: 999,
-                  background: isReading ? 'rgba(99,102,241,0.13)' : 'rgba(100,116,139,0.10)',
-                  border: isReading ? '1px solid rgba(99,102,241,0.35)' : '1px solid rgba(100,116,139,0.2)',
+                  background: 'rgba(100,116,139,0.10)',
+                  border: '1px solid rgba(100,116,139,0.2)',
                   cursor: 'pointer', flexShrink: 0,
                   transition: 'all 0.2s',
                 }}
@@ -1164,10 +1233,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <span style={{ fontSize: 10 }}>🛡️</span>
                 <span style={{
                   fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: isReading ? '#6366f1' : '#94a3b8',
-                  whiteSpace: 'nowrap',
+                  color: '#94a3b8', whiteSpace: 'nowrap',
                 }}>
-                  {isReading ? 'Reading Active' : 'Touch Protection'}
+                  Touch Protection
                 </span>
               </button>
             )}
@@ -1495,8 +1563,46 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       {showReadingActiveInfo && (
         <div
           style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-            padding: '8px 12px 0',
+            position: 'fixed', top: 8, left: 8, zIndex: 9999,
+            width: 160,
+            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(8,12,28,0.96)',
+              border: '1px solid #6366f155',
+              borderRadius: 14,
+              padding: '12px 12px',
+              boxShadow: '0 6px 28px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+              <span style={{ fontSize: 13 }}>🛡️</span>
+              <span style={{ color: '#a5b4fc', fontSize: 10, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', flex: 1 }}>Touch Protection</span>
+              <button onClick={() => setShowReadingActiveInfo(false)} style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133', borderRadius: 6, padding: '2px 7px', color: '#a5b4fc', fontSize: 9, fontWeight: 800, cursor: 'pointer' }}>OK</button>
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: 9, marginBottom: 5 }}>
+              10 sec ruko → <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ flex: 1, height: 3, background: '#1e2030', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%', height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: 99, transition: 'width 0.9s linear' }} />
+              </div>
+              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 10, minWidth: 22, textAlign: 'right' }}>
+                {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📖 Score info popup — book icon se open hota hai, auto-dismiss 2s */}
+      {showScoreInfo && scoreState && (
+        <div
+          style={{
+            position: 'fixed', top: 8, right: 8, zIndex: 9999,
+            width: 190,
             animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
           }}
         >
@@ -1505,45 +1611,32 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               background: 'rgba(10,12,28,0.97)',
               border: '1px solid #6366f155',
               borderRadius: 14,
-              padding: '12px 14px',
+              padding: '8px 10px',
               boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 20 }}>🛡️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>Touch Protection Active</div>
-                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Fair learning system</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 14 }}>📖</span>
+              <span style={{ color: '#a5b4fc', fontSize: 10, fontWeight: 900, flex: 1 }}>
+                {isReading ? 'Reading Active' : 'Reading Score'}
+              </span>
+              <button onClick={() => setShowScoreInfo(false)} style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133', borderRadius: 6, padding: '2px 7px', color: '#a5b4fc', fontSize: 9, fontWeight: 800, cursor: 'pointer' }}>OK</button>
+            </div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              <div style={{ flex: 1, background: 'rgba(99,102,241,0.08)', borderRadius: 7, padding: '5px 7px', border: '1px solid rgba(99,102,241,0.12)' }}>
+                <div style={{ color: '#94a3b8', fontSize: 7, fontWeight: 700, textTransform: 'uppercase', marginBottom: 1 }}>Score</div>
+                <div style={{ color: '#a5b4fc', fontSize: 14, fontWeight: 900 }}>+{scoreState.totalSessionScore}</div>
               </div>
-              <button
-                onClick={() => setShowReadingActiveInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              {[
-                { icon: '📖', text: 'Topic open karo' },
-                { icon: '⏱️', text: '10 sec padho' },
-                { icon: '✨', text: '+2 reward' },
-              ].map(({ icon, text }) => (
-                <div key={text} style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                  background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '6px 4px',
-                  border: '1px solid rgba(99,102,241,0.12)',
-                }}>
-                  <span style={{ fontSize: 14 }}>{icon}</span>
-                  <span style={{ color: '#cbd5e1', fontSize: 9, fontWeight: 700, textAlign: 'center' }}>{text}</span>
+              <div style={{ flex: 1, background: 'rgba(34,197,94,0.08)', borderRadius: 7, padding: '5px 7px', border: '1px solid rgba(34,197,94,0.12)' }}>
+                <div style={{ color: '#94a3b8', fontSize: 7, fontWeight: 700, textTransform: 'uppercase', marginBottom: 1 }}>Progress</div>
+                <div style={{ color: '#4ade80', fontSize: 14, fontWeight: 900 }}>{Math.round(scoreState.progressPercent)}%</div>
+              </div>
+              <div style={{ flex: 1, background: 'rgba(251,191,36,0.08)', borderRadius: 7, padding: '5px 7px', border: '1px solid rgba(251,191,36,0.12)' }}>
+                <div style={{ color: '#94a3b8', fontSize: 7, fontWeight: 700, textTransform: 'uppercase', marginBottom: 1 }}>Next</div>
+                <div style={{ color: '#fbbf24', fontSize: 11, fontWeight: 900 }}>
+                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} / ${scoreState.nextRewardInSec}s` : 'Paused'}
                 </div>
-              ))}
-            </div>
-            <div style={{ color: '#475569', fontSize: 9, textAlign: 'center' }}>
-              TTS auto-reading naturally exempt — score milta rahega
+              </div>
             </div>
           </div>
         </div>
@@ -1592,7 +1685,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
               {[
                 { label: 'Manual Reading', icon: '📖', points: ['Apni speed', 'Full control', '+2 per topic (10s)'], color: '#34d399' },
-                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+1 per topic (auto)'], color: '#38bdf8' },
+                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+2 per topic (auto)'], color: '#38bdf8' },
               ].map(({ label, icon, points, color }) => (
                 <div
                   key={label}
@@ -1663,6 +1756,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             visible={true}
             levelColor={lvl.color}
             levelLabel={`${lvl.label} L${lvl.level}`}
+            hideFloatingButton={true}
           />
         );
       })()}
@@ -1722,6 +1816,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                             setShowTouchProtectionPopup(true);
                             touchProtectionPopupShownRef.current = true;
                             localStorage.setItem(TP_SEEN_KEY, '1');
+                            setTimeout(() => setShowTouchProtectionPopup(false), 2000);
                           }
                         } catch {}
                       }

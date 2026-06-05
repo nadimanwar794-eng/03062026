@@ -590,6 +590,7 @@ export interface SystemSettings {
   loadingScreenVideoUrl?: string; // NEW: Video to show before loading screen
   /** 'default' = current white card login, 'video' = fullscreen looping video bg */
   loginPageStyle?: 'default' | 'video';
+  loginVideoUrl?: string;
   dailyGk?: DailyGkItem[]; // NEW: Daily GK
   homework?: HomeworkItem[];
   lucentNotes?: LucentNoteEntry[];

@@ -544,21 +544,47 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   return (
     <div className={`min-h-screen flex items-center justify-center px-4 font-sans py-10 relative ${isVideoMode ? '' : 'bg-slate-50'}`}>
       {/* ── Video background (admin-controlled) ── */}
-      {isVideoMode && (
-        <video
-          key="login-bg-video"
-          src="/login-bg.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{
-            position: 'fixed', inset: 0, width: '100%', height: '100%',
-            objectFit: 'cover', zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+      {isVideoMode && (() => {
+        const rawUrl = appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4';
+        const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (driveMatch) {
+          // Google Drive — use iframe embed (direct video URL blocked by CORS/redirect)
+          // NOTE: File must be shared as "Anyone with the link" on Google Drive
+          const fileId = driveMatch[1];
+          const embedSrc = `https://drive.google.com/file/d/${fileId}/preview`;
+          return (
+            <iframe
+              key={embedSrc}
+              src={embedSrc}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              style={{
+                position: 'fixed',
+                top: '-10%', left: '-10%',
+                width: '120%', height: '120%',
+                border: 'none',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+              title="login-bg"
+            />
+          );
+        }
+        return (
+          <video
+            key={rawUrl}
+            src={rawUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{
+              position: 'fixed', inset: 0, width: '100%', height: '100%',
+              objectFit: 'cover', zIndex: 0, pointerEvents: 'none',
+            }}
+          />
+        );
+      })()}
       {isVideoMode && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1,
