@@ -547,7 +547,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       {isVideoMode && (
         <video
           key="login-bg-video"
-          src="/login-bg.mp4"
+          src={appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4'}
           autoPlay
           loop
           muted
