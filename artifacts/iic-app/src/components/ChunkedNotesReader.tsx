@@ -612,16 +612,69 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     prevTouchActiveRef.current = active;
   }, [scoreState?.touchProtectionActive]);
 
-  // Update net-forward progress whenever activeIdx changes
+  // Time-based progress: each topic needs 5s of dwell to count as "read"
+  const topicDwellSetRef = useRef<Set<number>>(new Set());
+  const dwellIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dwellSecsRef = useRef(0);
+  const dwellTopicRef = useRef<number | null>(null);
+
+  const DWELL_REQUIRED_SEC = 5;
+
+  const _updateTimedProgress = useCallback(() => {
+    if (!scoreSessionRef.current) return;
+    const total = Math.max(1, activeTopicList.length);
+    const pct = (topicDwellSetRef.current.size / total) * 100;
+    scoreSessionRef.current.updateProgress(pct);
+  }, [activeTopicList.length]);
+
+  // When activeIdx changes, restart the dwell timer for the new topic
   useEffect(() => {
-    if (!scoreSessionRef.current || activeIdx === null) return;
-    const total = Math.max(1, activeTopicList.length - 1);
-    const pct = (activeIdx / total) * 100;
+    if (activeIdx === null) return;
+
+    // Track max reached for other uses
     if (activeIdx > maxTopicReachedRef.current) {
       maxTopicReachedRef.current = activeIdx;
     }
-    scoreSessionRef.current.updateProgress(pct);
-  }, [activeIdx, activeTopicList.length]);
+
+    // Clear previous dwell timer
+    if (dwellIntervalRef.current) {
+      clearInterval(dwellIntervalRef.current);
+      dwellIntervalRef.current = null;
+    }
+
+    // Already read this topic? No need to time again.
+    if (topicDwellSetRef.current.has(activeIdx)) {
+      _updateTimedProgress();
+      return;
+    }
+
+    // Start fresh dwell counter for this topic
+    dwellSecsRef.current = 0;
+    dwellTopicRef.current = activeIdx;
+
+    dwellIntervalRef.current = setInterval(() => {
+      dwellSecsRef.current += 1;
+      if (dwellSecsRef.current >= DWELL_REQUIRED_SEC) {
+        const idx = dwellTopicRef.current;
+        if (idx !== null) {
+          topicDwellSetRef.current.add(idx);
+        }
+        if (dwellIntervalRef.current) {
+          clearInterval(dwellIntervalRef.current);
+          dwellIntervalRef.current = null;
+        }
+        _updateTimedProgress();
+      }
+    }, 1000);
+
+    return () => {
+      if (dwellIntervalRef.current) {
+        clearInterval(dwellIntervalRef.current);
+        dwellIntervalRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIdx]);
 
   // Voice speed control
   const [speedIdx, setSpeedIdx] = useState<number>(getStoredSpeedIdx);
