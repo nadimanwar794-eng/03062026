@@ -53,6 +53,7 @@ export interface ReadingScoreConfig {
   subscriptionLevel?: string;
   isPremium?: boolean;
   boostPercent?: number;
+  scoreLimitBoostPercent?: number;
   mode?: 'reading' | 'writing';
   /** Called whenever score is earned. Parent should update totalScore in Firebase. */
   onScoreEarned?: (pts: number, activity: string) => void;
@@ -186,6 +187,7 @@ export class ReadingScoreSession {
       this.config.isPremium,
       this.config.boostPercent,
       'READ_TTS_HIGHLIGHT',
+      this.config.scoreLimitBoostPercent,
     );
     if (pts > 0) {
       this.lastTtsHighlightRewardTime = now;
@@ -228,6 +230,7 @@ export class ReadingScoreSession {
         this.config.isPremium,
         this.config.boostPercent,
         'READ_MANUAL_TOPIC_10S',
+        this.config.scoreLimitBoostPercent,
       );
       if (pts > 0) {
         this.totalSessionScore += pts;
@@ -341,6 +344,7 @@ export class ReadingScoreSession {
           this.config.isPremium,
           this.config.boostPercent,
           activity,
+          this.config.scoreLimitBoostPercent,
         );
         if (pts > 0) {
           this.totalSessionScore += pts;

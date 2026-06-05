@@ -715,6 +715,61 @@ const App: React.FC = () => {
       }
   }, [state.user?.id, state.user?.lastLoginRewardDate, state.originalAdmin]);
 
+  // === MIDNIGHT PROGRESS BONUS — applied when user opens app on a new day ===
+  useEffect(() => {
+    if (!state.user) return;
+    const yesterday = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    })();
+    const lastBonus = (state.user as any).lastProgressBonusDate as string | undefined;
+    if (lastBonus === yesterday) return; // Already applied for yesterday
+    // Guard: only run once per device per day
+    const lsGuard = `nst_pb_${state.user.id}_${yesterday}`;
+    if (localStorage.getItem(lsGuard)) return;
+    localStorage.setItem(lsGuard, '1');
+    // Import engine lazily (dynamic to avoid circular deps)
+    import('./utils/progressBonusEngine').then(({ calculateMidnightBonus, getDailyEarnedForDate }) => {
+      import('./utils/levelSystem').then(({ getLevelInfo: _getLvl }) => {
+        import('./utils/scoreSystem').then(({ getDailyScoreLimit: _getLimit }) => {
+          const u = state.user!;
+          const yesterdayEarned = getDailyEarnedForDate(u.id, yesterday);
+          const markDone = () => {
+            if (state.originalAdmin) return;
+            const up = { ...u, lastProgressBonusDate: yesterday } as any;
+            localStorage.setItem('nst_current_user', JSON.stringify(up));
+            saveUserToLive(up);
+            setState(prev => ({ ...prev, user: up }));
+          };
+          if (yesterdayEarned <= 0) { markDone(); return; }
+          const level = _getLvl(u.totalScore || 0).level;
+          const dailyLimit = _getLimit(u.subscriptionLevel, u.isPremium, (u as any).scoreLimitBoostPercent);
+          const result = calculateMidnightBonus(level, yesterdayEarned, dailyLimit);
+          if (result.bonusScore <= 0) { markDone(); return; }
+          const bonusId = `pb-${u.id}-${yesterday}`;
+          if ((u.inbox || []).some((m: any) => m.id === bonusId)) return;
+          const inboxMsg: any = {
+            id: bonusId,
+            text: result.inboxText,
+            date: new Date().toISOString(),
+            read: false,
+            type: 'TEXT',
+          };
+          if (state.originalAdmin) return;
+          const updatedUser = {
+            ...u,
+            totalScore: (u.totalScore || 0) + result.bonusScore,
+            lastProgressBonusDate: yesterday,
+            inbox: [inboxMsg, ...(u.inbox || [])],
+          } as any;
+          localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
+          saveUserToLive(updatedUser);
+          setState(prev => ({ ...prev, user: updatedUser }));
+        });
+      });
+    });
+  }, [state.user?.id, state.user?.lastLoginDate, state.originalAdmin]);
+
   // --- GLOBAL ERROR HANDLERS (app crash prevention) ---
   useEffect(() => {
     const handleWindowError = (event: ErrorEvent) => {

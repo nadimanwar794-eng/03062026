@@ -49,27 +49,35 @@ export const RulesPage: React.FC<Props> = ({ onBack, settings }) => {
         },
         levelSystem: {
           title: "Level & Score System",
-          intro: "Activity Score is earned by completing tasks. It determines your Level (1–8) and unlocks Store discounts.",
+          intro: "Activity Score is earned by studying daily. It determines your Level (1–15), unlocks rewards, and gives Store discounts.",
           levels: [
-            { level: "L1 · Beginner 🌱", pts: "0 pts", discount: "No discount", perks: "Basic access, daily login bonus" },
-            { level: "L2 · Apprentice ✨", pts: "100 pts", discount: "No discount", perks: "Top bar shimmer, profile badge" },
-            { level: "L3 · Scholar 📚", pts: "300 pts", discount: "5% OFF", perks: "5% store discount, glow effects" },
-            { level: "L4 · Expert 🔥", pts: "700 pts", discount: "10% OFF", perks: "10% discount, colored username" },
-            { level: "L5 · Master 💎", pts: "1,500 pts", discount: "15% OFF", perks: "15% discount, sparkle effects" },
-            { level: "L6 · Elite 🌟", pts: "3,000 pts", discount: "20% OFF", perks: "20% discount, gold username" },
-            { level: "L7 · Champion 👑", pts: "6,000 pts", discount: "25% OFF", perks: "25% discount, crown badge" },
-            { level: "L8 · Legend 🏆", pts: "10,000 pts", discount: "30% OFF (MAX)", perks: "MAX discount, legendary status" },
+            { level: "L1 · Beginner 🌱",     pts: "0",          discount: "—",           perks: "Basic access, daily login bonus" },
+            { level: "L2 · Apprentice 🌿",   pts: "1,000",      discount: "—",           perks: "Top bar shimmer, profile badge" },
+            { level: "L3 · Explorer 🔍",     pts: "2,000",      discount: "2% OFF",      perks: "Store discount, glow effects" },
+            { level: "L4 · Scholar ✨",      pts: "5,000",      discount: "3% OFF",      perks: "🎯 Progress Bonus START (25% power), colored username" },
+            { level: "L5 · Expert ⚡",       pts: "10,000",     discount: "5% OFF",      perks: "🎯 Progress Bonus 40%, Score Boost Event unlock" },
+            { level: "L6 · Veteran 🔥",      pts: "20,000",     discount: "8% OFF",      perks: "🎯 Progress Bonus 60%, Premium Achievement Badge" },
+            { level: "L7 · Master 💫",       pts: "1,00,000",   discount: "10% OFF",     perks: "🎯 Progress Bonus 80%, Theme Studio, Special Username Effects" },
+            { level: "L8 · GrandMaster 💎",  pts: "5,00,000",   discount: "13% OFF",     perks: "🎯 Progress Bonus 100% (FULL)" },
+            { level: "L9 · Titan 🌟",        pts: "10,00,000",  discount: "17% OFF",     perks: "⚡ Limit Touch Multiplier 1.5×, Unlimited Notes/Audio" },
+            { level: "L10 · Mythic 👑",      pts: "15,00,000",  discount: "20% OFF",     perks: "⚡ Multiplier 2.0×, Global Free Access Event" },
+            { level: "L11 · Supreme 🏆",     pts: "25,00,000",  discount: "20% OFF",     perks: "⚡ Multiplier 2.5×, Exclusive Profile Frame" },
+            { level: "L12 · Legend 🔮",      pts: "50,00,000",  discount: "22% OFF",     perks: "⚡ Multiplier 3.2×, Exclusive Theme Pack" },
+            { level: "L13 · Immortal ⚜️",   pts: "1,00,00,000",discount: "25% OFF",     perks: "⚡ Multiplier 4.0×" },
+            { level: "L14 · Divine 🌠",      pts: "2,00,00,000",discount: "28% OFF",     perks: "⚡ Multiplier 5.0×" },
+            { level: "L15 · Absolute 💠",    pts: "5,00,00,000",discount: "30% OFF MAX", perks: "MAX everything — legendary status" },
           ],
+          bonusNote: "🎯 Progress Bonus (L4–L8): Based on how much of your daily limit you complete, you earn a bonus score at midnight next day. Higher level = more powerful bonus (25% → 100%). ⚡ Limit Touch Multiplier (L9+): If you hit 100% of your daily limit, next day you get a multiplier bonus on your score (1.5× to 5×).",
           earningRules: [
-            "Video / Audio / PDF / Notes: Milestone score (5–25 pts) at 20%, 40%, 60%, 80%, 100% completion.",
+            "Video / Audio / PDF / Notes: Milestone score at 20%, 40%, 60%, 80%, 100% completion.",
             "MCQ Practice: +2 pts per correct answer (up to daily limit).",
             "Daily Login: +10 pts every day you open the app.",
             "Redeem Code: +5 pts for every valid code you redeem.",
             "Credits Spent: +1 pt per credit you spend.",
-            "Daily Limit: Free=1500 pts · Basic=2500 pts · Ultra=3500 pts per day.",
+            "Daily Limit: Free=5,000 pts · Basic=7,000 pts · Ultra=10,000 pts per day.",
             "Subscription Multiplier: Free 1×, Basic 1.2×, Ultra 1.5× on all earned score.",
             "Score Boost Code: Redeem a special code to get extra % score for a limited time.",
-            "Daily Limit Boost Code: Redeem to permanently increase your daily score limit by a % (stackable)."
+            "Daily Limit Boost Code: Redeem to permanently increase your daily score limit (stackable)."
           ]
         },
         leaderboard: {
@@ -136,24 +144,32 @@ export const RulesPage: React.FC<Props> = ({ onBack, settings }) => {
         },
         levelSystem: {
           title: "Level और Score सिस्टम",
-          intro: "Activity Score पढ़ाई करके कमाया जाता है। यह आपका Level (1–8) तय करता है और Store में Discount देता है।",
+          intro: "रोज़ पढ़ाई करके Activity Score कमाएं। यह आपका Level (1–15) तय करता है, rewards unlock करता है और Store में Discount देता है।",
           levels: [
-            { level: "L1 · Beginner 🌱", pts: "0 pts", discount: "कोई discount नहीं", perks: "Basic access, daily login bonus" },
-            { level: "L2 · Apprentice ✨", pts: "100 pts", discount: "कोई discount नहीं", perks: "Top bar shimmer, profile badge" },
-            { level: "L3 · Scholar 📚", pts: "300 pts", discount: "5% OFF", perks: "5% store discount, glow effects" },
-            { level: "L4 · Expert 🔥", pts: "700 pts", discount: "10% OFF", perks: "10% discount, रंगीन username" },
-            { level: "L5 · Master 💎", pts: "1,500 pts", discount: "15% OFF", perks: "15% discount, sparkle effects" },
-            { level: "L6 · Elite 🌟", pts: "3,000 pts", discount: "20% OFF", perks: "20% discount, सोने जैसा username" },
-            { level: "L7 · Champion 👑", pts: "6,000 pts", discount: "25% OFF", perks: "25% discount, crown badge" },
-            { level: "L8 · Legend 🏆", pts: "10,000 pts", discount: "30% OFF (MAX)", perks: "MAX discount, legendary status" },
+            { level: "L1 · Beginner 🌱",     pts: "0",           discount: "—",           perks: "Basic access, daily login bonus" },
+            { level: "L2 · Apprentice 🌿",   pts: "1,000",       discount: "—",           perks: "Top bar shimmer, profile badge" },
+            { level: "L3 · Explorer 🔍",     pts: "2,000",       discount: "2% OFF",      perks: "Store discount, glow effects" },
+            { level: "L4 · Scholar ✨",      pts: "5,000",       discount: "3% OFF",      perks: "🎯 Progress Bonus START (25% power), रंगीन username" },
+            { level: "L5 · Expert ⚡",       pts: "10,000",      discount: "5% OFF",      perks: "🎯 Progress Bonus 40%, Score Boost Event unlock" },
+            { level: "L6 · Veteran 🔥",      pts: "20,000",      discount: "8% OFF",      perks: "🎯 Progress Bonus 60%, Premium Achievement Badge" },
+            { level: "L7 · Master 💫",       pts: "1,00,000",    discount: "10% OFF",     perks: "🎯 Progress Bonus 80%, Theme Studio, Special Username Effects" },
+            { level: "L8 · GrandMaster 💎",  pts: "5,00,000",    discount: "13% OFF",     perks: "🎯 Progress Bonus 100% (FULL)" },
+            { level: "L9 · Titan 🌟",        pts: "10,00,000",   discount: "17% OFF",     perks: "⚡ Limit Touch Multiplier 1.5×, Unlimited Notes/Audio" },
+            { level: "L10 · Mythic 👑",      pts: "15,00,000",   discount: "20% OFF",     perks: "⚡ Multiplier 2.0×, Global Free Access Event" },
+            { level: "L11 · Supreme 🏆",     pts: "25,00,000",   discount: "20% OFF",     perks: "⚡ Multiplier 2.5×, Exclusive Profile Frame" },
+            { level: "L12 · Legend 🔮",      pts: "50,00,000",   discount: "22% OFF",     perks: "⚡ Multiplier 3.2×, Exclusive Theme Pack" },
+            { level: "L13 · Immortal ⚜️",   pts: "1,00,00,000", discount: "25% OFF",     perks: "⚡ Multiplier 4.0×" },
+            { level: "L14 · Divine 🌠",      pts: "2,00,00,000", discount: "28% OFF",     perks: "⚡ Multiplier 5.0×" },
+            { level: "L15 · Absolute 💠",    pts: "5,00,00,000", discount: "30% OFF MAX", perks: "सब कुछ MAX — legendary status" },
           ],
+          bonusNote: "🎯 Progress Bonus (L4–L8): आप जितना daily limit का % complete करते हैं, अगले दिन उतना bonus score मिलता है। Level जितना बड़ा, bonus उतना powerful (25% → 100%)। ⚡ Limit Touch Multiplier (L9+): 100% daily limit पूरी करने पर अगले दिन multiplier bonus मिलता है (1.5× से 5× तक)।",
           earningRules: [
-            "Video / Audio / PDF / Notes: हर 20%, 40%, 60%, 80%, 100% completion पर milestone score (5–25 pts)।",
-            "MCQ Practice: हर सही जवाब पर +1 pt (daily limit तक)।",
+            "Video / Audio / PDF / Notes: हर 20%, 40%, 60%, 80%, 100% completion पर milestone score।",
+            "MCQ Practice: हर सही जवाब पर +2 pts (daily limit तक)।",
             "Daily Login: हर दिन app खोलने पर +10 pts।",
             "Redeem Code: हर valid code redeem करने पर +5 pts।",
             "Credits Spend: हर credit खर्च करने पर +1 pt।",
-            "Daily Limit: Free=1500 pts · Basic=2500 pts · Ultra=3500 pts प्रति दिन।",
+            "Daily Limit: Free=5,000 pts · Basic=7,000 pts · Ultra=10,000 pts प्रति दिन।",
             "Subscription Multiplier: Free 1×, Basic 1.2×, Ultra 1.5× — सभी score पर।",
             "Score Boost Code: विशेष code से कुछ समय के लिए extra % score मिलता है।",
             "Daily Limit Boost Code: code redeem करके daily score limit permanently बढ़ाएं (stack होता है)।"
@@ -294,6 +310,11 @@ export const RulesPage: React.FC<Props> = ({ onBack, settings }) => {
                   <p className="text-[10px] text-slate-500">{l.perks}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Bonus System note */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-[11px] text-amber-800 leading-relaxed">
+              {t.sections.levelSystem.bonusNote}
             </div>
 
             {/* Earning rules */}

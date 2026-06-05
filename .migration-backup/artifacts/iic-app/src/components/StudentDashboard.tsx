@@ -5,6 +5,7 @@ import { FeatureHints, FeatureTipsList } from "./FeatureHints";
 import { TopBarEffectsLayer } from "../utils/topBarEffects";
 import { getLevelInfo, getNextLevelInfo, getLevelProgress, LEVEL_INFO, ACTIVITY_SCORES, getLevelTopBarEffects, getLevelLimitBonus, getLevelDailyLimits, getLevelDailyLimitsWithOverride, getEffectiveDailyLimit, UNLIMITED, getMaxReadingSeconds } from "../utils/levelSystem";
 import { tryEarnScore, awardMilestone, getDailyScoreEarned, DAILY_SCORE_LIMIT, getDailyScoreLimit, getActiveBoost, logScoreActivity } from "../utils/scoreSystem";
+import { getTodayBonusPreview, getLevel100BonusLabel, PROGRESS_BONUS_TABLE, LIMIT_TOUCH_MULTIPLIERS } from "../utils/progressBonusEngine";
 import { ScoreHistoryDashboard } from "./ScoreHistoryDashboard";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
 import { LevelLeaderboard } from "./LevelLeaderboard";
@@ -1161,7 +1162,7 @@ export const StudentDashboard: React.FC<Props> = ({
       if (!isCorrect) {
         // Wrong answer → +1 score, reset streak
         localStorage.setItem(streakKey, '0');
-        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG');
+        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', (freshUser as any).scoreLimitBoostPercent);
         if (earned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + earned });
         }
@@ -1173,15 +1174,15 @@ export const StudentDashboard: React.FC<Props> = ({
         let bonusMsg = '';
         // Streak milestone: every 5 consecutive → +10 bonus (checked first for display priority)
         if (newStreak % 5 === 0) {
-          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5');
+          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5', (freshUser as any).scoreLimitBoostPercent);
           bonusMsg = `⚡ ${newStreak} Streak! +10 Bonus Score!`;
         } else if (newStreak % 3 === 0) {
           // Every 3 consecutive (but not a multiple of 5) → +5 bonus
-          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3');
+          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3', (freshUser as any).scoreLimitBoostPercent);
           bonusMsg = `🔥 ${newStreak} Streak! +5 Bonus Score!`;
         }
         if (bonusMsg) showAlert(bonusMsg, 'SUCCESS');
-        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT');
+        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', (freshUser as any).scoreLimitBoostPercent);
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + totalEarned });
@@ -2393,7 +2394,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const tiers = newTier - lucentLastAwardedTierRef.current;
         lucentLastAwardedTierRef.current = newTier;
         const freshU = userRef.current;
-        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getActiveBoost(freshU));
+        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getActiveBoost(freshU), undefined, (freshU as any).scoreLimitBoostPercent);
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
           handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
@@ -8309,51 +8310,39 @@ export const StudentDashboard: React.FC<Props> = ({
       const _profileIsLight = profileWhite || _isLightBgEarly;
 
       // ── Level-based name effect (uses _displayLvl so user can pick any unlocked level's style) ──
+      // Name visually upgrades ONLY at milestone levels: 4, 7, 10, 12, 15.
+      // Between milestones the style stays locked at the previous milestone's look.
       const _nameStyle = ((): React.CSSProperties => {
         const lvl = _displayLvl.level;
-        const col = _displayLvl.nameColor || _displayLvl.color;
+        const milestoneLvl = lvl >= 15 ? 15 : lvl >= 12 ? 12 : lvl >= 10 ? 10 : lvl >= 7 ? 7 : lvl >= 4 ? 4 : lvl;
+        const milestoneLvlInfo = LEVEL_INFO.find(l => l.level === milestoneLvl);
+        const col = milestoneLvlInfo?.nameColor || _displayLvl.color;
         const glow = _displayLvl.glowColor;
         if (_profileIsLight || nameFxOff) {
-          return { color: lvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
+          return { color: milestoneLvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
         }
-        if (lvl <= 2) return { color: '#ffffff' };
-        if (lvl <= 4) return { color: col, textShadow: `0 0 14px ${glow}` };
-        if (lvl <= 6) return {
-          color: col,
-          animation: 'name-fx-glow 2.2s ease-in-out infinite',
-          ['--name-glow' as any]: glow,
-        };
-        // Gradient text definitions per level
+        if (milestoneLvl <= 3) return { color: '#ffffff' };
+        if (milestoneLvl === 4) return { color: col, textShadow: `0 0 14px ${glow}` };
+        // Gradient text — one style per milestone only
         const grads: Record<number, string> = {
           7:  'linear-gradient(135deg,#c084fc,#a855f7,#7c3aed,#c084fc)',
-          8:  'linear-gradient(135deg,#fde68a,#f59e0b,#d97706,#fde68a)',
-          9:  'linear-gradient(135deg,#fde047,#eab308,#facc15,#fde047)',
           10: 'linear-gradient(135deg,#fb923c,#f59e0b,#fbbf24,#fb923c)',
-          11: 'linear-gradient(135deg,#34d399,#06b6d4,#818cf8,#c084fc,#34d399)',
           12: 'linear-gradient(135deg,#a78bfa,#c084fc,#f472b6,#a78bfa)',
-          13: 'linear-gradient(135deg,#f9a8d4,#ec4899,#f43f5e,#ef4444,#f9a8d4)',
-          14: 'linear-gradient(135deg,#fda4af,#f43f5e,#ef4444,#f97316,#fda4af)',
           15: 'linear-gradient(135deg,#ffffff,#a5f3fc,#c4b5fd,#f9a8d4,#ffffff)',
         };
-        const anim7_8  = 'name-fx-shimmer 4s linear infinite';
-        const anim9_10 = 'name-fx-shimmer 3s linear infinite, name-fx-rainbow 7s ease infinite';
-        const anim11_12= 'name-fx-shimmer 2.5s linear infinite, name-fx-rainbow 5s ease infinite';
-        const anim13_14= 'name-fx-shimmer 2s linear infinite, name-fx-fire 1.8s ease-in-out infinite';
-        const anim15   = 'name-fx-shimmer 1.8s linear infinite, name-fx-absolute 4s ease infinite';
         const animMap: Record<number, string> = {
-          7: anim7_8, 8: anim7_8,
-          9: anim9_10, 10: anim9_10,
-          11: anim11_12, 12: anim11_12,
-          13: anim13_14, 14: anim13_14,
-          15: anim15,
+          7:  'name-fx-shimmer 4s linear infinite',
+          10: 'name-fx-shimmer 3s linear infinite, name-fx-rainbow 7s ease infinite',
+          12: 'name-fx-shimmer 2.5s linear infinite, name-fx-rainbow 5s ease infinite',
+          15: 'name-fx-shimmer 1.8s linear infinite, name-fx-absolute 4s ease infinite',
         };
         return {
-          background: grads[lvl] || `linear-gradient(135deg,${col},${col}88,${col})`,
+          background: grads[milestoneLvl] || `linear-gradient(135deg,${col},${col}88,${col})`,
           backgroundSize: '200% auto',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-          animation: animMap[lvl] || anim7_8,
+          animation: animMap[milestoneLvl] || 'name-fx-shimmer 4s linear infinite',
         } as React.CSSProperties;
       })();
 
@@ -8419,10 +8408,22 @@ export const StudentDashboard: React.FC<Props> = ({
               {/* ─── Avatar ─── */}
               <div className="flex justify-center mb-4">
                 <div className="relative">
+                  {/* L15: double rainbow ring */}
+                  {_displayLvl.legendaryAura && !cardFxOff && (
+                    <div className="absolute rounded-full pointer-events-none" style={{
+                      inset: '-6px',
+                      background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc,#c4b5fd,#a5f3fc)',
+                      animation: 'spin 2s linear infinite',
+                      borderRadius: '50%',
+                      opacity: 0.85,
+                    }} />
+                  )}
                   {/* Outer glow halo */}
                   <div className="absolute -inset-2 rounded-full pointer-events-none" style={{
-                    background: `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
-                    animation: !cardFxOff && _displayLvl.level >= 6 ? 'spin 4s linear infinite' : 'none',
+                    background: _displayLvl.legendaryAura
+                      ? 'conic-gradient(from 180deg,#f9a8d4,#a5f3fc,#c4b5fd,#fde68a,#f9a8d4)'
+                      : `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
+                    animation: !cardFxOff && _displayLvl.level >= 6 ? (_displayLvl.legendaryAura ? 'spin 3s linear infinite reverse' : 'spin 4s linear infinite') : 'none',
                     borderRadius: '50%',
                   }} />
                   {/* Inner ring */}
@@ -8433,8 +8434,12 @@ export const StudentDashboard: React.FC<Props> = ({
                   {/* Avatar image */}
                   <div className="relative w-[104px] h-[104px] rounded-full overflow-hidden flex items-center justify-center" style={{
                     background: `linear-gradient(145deg, ${tierTheme.primary}40, ${tierTheme.primary}10)`,
-                    border: `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
-                    boxShadow: `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
+                    border: _displayLvl.legendaryAura
+                      ? '3px solid rgba(165,243,252,0.8)'
+                      : `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
+                    boxShadow: _displayLvl.legendaryAura
+                      ? '0 0 0 1.5px rgba(165,243,252,0.3), 0 10px 50px rgba(165,243,252,0.5), 0 4px 12px rgba(0,0,0,0.55)'
+                      : `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
                   }}>
                     {user.photoURL && user.avatarChoice === 'gmail'
                       ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
@@ -8445,6 +8450,10 @@ export const StudentDashboard: React.FC<Props> = ({
                           </span>
                     }
                   </div>
+                  {/* L15: crown above avatar */}
+                  {_displayLvl.legendaryAura && (
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl" style={{ filter: 'drop-shadow(0 0 8px rgba(165,243,252,0.9))', animation: 'name-fx-absolute 4s ease infinite' }}>💠</div>
+                  )}
                 </div>
               </div>
 
@@ -8475,6 +8484,41 @@ export const StudentDashboard: React.FC<Props> = ({
                   {tierTheme.emoji} {_pTierLabel}
                 </span>
               </div>
+
+              {/* ─── L15 ACHIEVEMENT PLAQUE ─── */}
+              {_displayLvl.legendaryAura && (
+                <div className="mx-4 mb-3 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(165,243,252,0.3)', boxShadow: '0 0 30px rgba(165,243,252,0.15)' }}>
+                  <style>{`
+                    @keyframes absoluteShimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+                    @keyframes starPulse{0%,100%{opacity:0.6;transform:scale(0.9)}50%{opacity:1;transform:scale(1.2)}}
+                  `}</style>
+                  {/* Top banner */}
+                  <div className="px-4 py-2.5 text-center" style={{ background: 'linear-gradient(135deg,rgba(165,243,252,0.12),rgba(196,181,253,0.12),rgba(249,168,212,0.12))' }}>
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      {['✦','💠','✦'].map((s,i) => (
+                        <span key={i} className="text-sm" style={{ animation: `starPulse 2s ease-in-out infinite ${i*0.4}s`, display:'inline-block' }}>{s}</span>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-black tracking-[0.25em] uppercase" style={{ background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'absoluteShimmer 4s linear infinite' }}>
+                      ✦ ABSOLUTE LEGEND ✦
+                    </p>
+                    <p className="text-[9px] font-semibold mt-0.5" style={{ color: 'rgba(165,243,252,0.6)' }}>Maximum Level Achieved — The Pinnacle of Learning</p>
+                  </div>
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 divide-x" style={{ borderTop: '1px solid rgba(165,243,252,0.12)', divideColor: 'rgba(165,243,252,0.12)' }}>
+                    {[
+                      { label: 'Level', val: '15 MAX' },
+                      { label: 'Discount', val: '30% OFF' },
+                      { label: 'Multiplier', val: '5×' },
+                    ].map(({ label, val }) => (
+                      <div key={label} className="py-2 text-center">
+                        <p className="text-[9px] font-black" style={{ color: 'rgba(165,243,252,0.5)', letterSpacing: '0.1em' }}>{label}</p>
+                        <p className="text-[11px] font-black" style={{ color: 'rgba(165,243,252,0.9)' }}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ─── Info row: join date + days ─── */}
               <div className="flex items-center justify-center gap-3 mb-4" style={{ color: _pTxtSubColor }}>
@@ -8635,6 +8679,122 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>XP Score</div>
             </div>
           </div>
+
+          {/* ── MIDNIGHT PROGRESS BONUS PREVIEW ── */}
+          {(() => {
+            if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') return null;
+            const _pbLevel = _pLvl.level;
+            if (_pbLevel < 4) return null;
+            const _pbLimit = getDailyScoreLimit(user.isPremium ? (user.subscriptionLevel || 'BASIC') : 'FREE', user.isPremium, user.scoreLimitBoostPercent);
+            const _pbEarned = getDailyScoreEarned(user.id);
+            const preview = getTodayBonusPreview(_pbLevel, _pbEarned, _pbLimit);
+            const isL9Plus = preview.isMultiplierLevel;
+            const limitMult = isL9Plus ? LIMIT_TOUCH_MULTIPLIERS[_pbLevel] : null;
+            const hasBrackets = !!PROGRESS_BONUS_TABLE[_pbLevel];
+            const pct = preview.progressPct;
+            const accentColor = isL9Plus ? '#a855f7' : tierTheme.primary;
+            const bonusScore = preview.currentBonusScore;
+            const bonusPct = preview.currentBonusPct;
+
+            return (
+              <div className="px-3 mb-3">
+                <div className="rounded-2xl overflow-hidden" style={{ background: _pCard, border: `1px solid ${accentColor}30`, boxShadow: `0 4px 20px ${accentColor}12` }}>
+                  {/* Header */}
+                  <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: `${accentColor}14`, borderBottom: `1px solid ${accentColor}20` }}>
+                    <span className="text-[14px]">🌙</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: accentColor }}>Midnight Progress Bonus</span>
+                    <span className="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${accentColor}20`, color: accentColor }}>L{_pbLevel}</span>
+                  </div>
+
+                  <div className="px-4 py-3">
+                    {/* Today's progress bar */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[9px] font-bold uppercase tracking-wider ${_pTxtSub}`}>Aaj ka Score</span>
+                      <span className="text-[10px] font-black tabular-nums" style={{ color: accentColor }}>{_pbEarned.toLocaleString('en-IN')} / {_pbLimit.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden mb-2.5" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, background: `linear-gradient(90deg, ${accentColor}cc, ${accentColor})` }} />
+                    </div>
+
+                    {isL9Plus ? (
+                      /* L9+ — limit-touch multiplier */
+                      <div>
+                        {pct >= 100 ? (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[16px]">🚀</span>
+                              <div>
+                                <p className="text-[11px] font-black" style={{ color: accentColor }}>
+                                  {limitMult ? `${limitMult}× Multiplier Active!` : 'Multiplier Active!'}
+                                </p>
+                                <p className="text-[10px] font-bold" style={{ color: `${accentColor}b0` }}>
+                                  +{bonusScore.toLocaleString('en-IN')} XP bonus at midnight
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accentColor}18` }}>
+                            <p className="text-[10px] font-bold" style={{ color: `${accentColor}90` }}>
+                              Reach <span className="font-black" style={{ color: accentColor }}>100% limit</span> to unlock{' '}
+                              {limitMult ? <span className="font-black">{limitMult}× multiplier</span> : 'the multiplier'} bonus
+                            </p>
+                            {preview.scoreToNextBracket != null && preview.scoreToNextBracket > 0 && (
+                              <p className="text-[9px] font-bold mt-1" style={{ color: `${accentColor}70` }}>
+                                {preview.scoreToNextBracket.toLocaleString('en-IN')} XP aur chahiye
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* L4–L8 — bracket bonus */
+                      <div>
+                        {bonusScore > 0 ? (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-[11px] font-black" style={{ color: accentColor }}>
+                                  +{bonusPct}% Bracket Reached 🎯
+                                </p>
+                                <p className="text-[10px] font-bold" style={{ color: `${accentColor}b0` }}>
+                                  +{bonusScore.toLocaleString('en-IN')} XP expected at midnight
+                                </p>
+                              </div>
+                              <span className="text-[22px]">{pct >= 100 ? '🏆' : pct >= 70 ? '🔥' : pct >= 40 ? '⚡' : '✨'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accentColor}18` }}>
+                            <p className="text-[10px] font-bold" style={{ color: `${accentColor}90` }}>
+                              Aaj padho aur midnight bonus unlock karo!
+                            </p>
+                          </div>
+                        )}
+                        {/* Next bracket teaser */}
+                        {preview.nextBracketPct != null && preview.nextBonusPct != null && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-px" style={{ background: `${accentColor}20` }} />
+                            <span className="text-[9px] font-bold" style={{ color: `${accentColor}70` }}>
+                              Next: +{preview.nextBonusPct}% at {Math.round(preview.nextBracketPct * _pbLimit / 100).toLocaleString('en-IN')} XP ({preview.nextBracketPct}%)
+                            </span>
+                            <div className="flex-1 h-px" style={{ background: `${accentColor}20` }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Level-100% bonus label */}
+                    {hasBrackets && (
+                      <p className="text-[9px] font-bold mt-1.5" style={{ color: `${accentColor}60` }}>
+                        {getLevel100BonusLabel(_pbLevel)} at 100% — keep going!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── SUBSCRIPTION COUNTDOWN ── */}
           {user.isPremium && user.subscriptionEndDate && user.subscriptionTier !== 'LIFETIME' && !isNaN(new Date(user.subscriptionEndDate).getTime()) && (() => {
@@ -9200,7 +9360,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             border: isSelected ? `1.5px solid ${li.color}88` : '1.5px solid rgba(255,255,255,0.07)',
                           }}>
                           <span className="text-[22px] leading-none">{li.emoji}</span>
-                          <span className="text-[9px] font-black uppercase tracking-wider leading-none" style={{ color: li.nameColor || li.color }}>{li.label}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider leading-none" style={{ color: (() => { const m = [4,7,10,12,15].filter(ml => li.level >= ml).pop(); return m ? (LEVEL_INFO.find(l => l.level === m)?.nameColor || li.color) : li.color; })() }}>{li.label}</span>
                           <span className="text-[8px] font-semibold" style={{ color: _pTxtSubColor }}>L{li.level}</span>
                           {isSelected && (
                             <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${li.color}44`, color: li.color }}>
@@ -10483,31 +10643,71 @@ export const StudentDashboard: React.FC<Props> = ({
                 ))}
                 {/* Level up badge */}
                 <div style={{ animation: 'levelUpPop 3s ease forwards', textAlign: 'center', zIndex: 1 }} className="pointer-events-auto" onClick={() => setLevelUpCelebration(null)}>
-                  <div className="rounded-3xl px-8 py-6 shadow-2xl border-2 border-white/30 text-center" style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', boxShadow: '0 0 60px rgba(168,85,247,0.6)' }}>
-                    <div className="text-5xl mb-2">🎉</div>
-                    <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">Level Up!</p>
-                    <p className="text-5xl mb-1">{levelUpCelebration.emoji}</p>
-                    <p className="text-white text-2xl font-black">Level {levelUpCelebration.level}</p>
-                    <p className="text-white/70 text-sm font-bold">{levelUpCelebration.label}</p>
-                    {/* Level Benefits */}
-                    <div className="mt-3 space-y-1.5">
-                      {(() => {
-                        const lvlInfo = LEVEL_INFO.find(l => l.level === levelUpCelebration.level);
-                        if (!lvlInfo) return null;
-                        const benefits: string[] = [];
-                        if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
-                        if (lvlInfo.nameColor) benefits.push(`🎨 Colored name in Leaderboard`);
-                        const ld = getLevelDailyLimits(lvlInfo.level);
-                        benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
-                        const bonus = getLevelLimitBonus(lvlInfo.level);
-                        if (bonus.bonusLoginCredits > 0) benefits.push(`🎁 +${bonus.bonusLoginCredits} bonus login credits`);
-                        return benefits.map((b, i) => (
-                          <div key={i} className="bg-white/15 rounded-xl px-3 py-1.5 text-white text-[11px] font-bold">{b}</div>
-                        ));
-                      })()}
+                  {levelUpCelebration.level === 15 ? (
+                    /* ── L15 ABSOLUTE LEGEND — Grand Achievement Card ── */
+                    <div className="rounded-3xl px-8 py-7 shadow-2xl text-center" style={{
+                      background: 'linear-gradient(135deg,#0a0a1a,#0d1a2e,#0a0a1a)',
+                      border: '2px solid rgba(165,243,252,0.4)',
+                      boxShadow: '0 0 80px rgba(165,243,252,0.35), 0 0 40px rgba(196,181,253,0.25)',
+                      minWidth: '280px',
+                    }}>
+                      {/* Sparkle row */}
+                      <div className="flex justify-center gap-3 mb-2">
+                        {['✦','✦','✦','✦','✦'].map((s,i) => (
+                          <span key={i} className="text-[11px]" style={{ color: ['#a5f3fc','#c4b5fd','#f9a8d4','#c4b5fd','#a5f3fc'][i], animation: `starPulse 1.8s ease-in-out infinite ${i*0.25}s`, display:'inline-block' }}>{s}</span>
+                        ))}
+                      </div>
+                      {/* Crown + emoji */}
+                      <div className="text-5xl mb-1" style={{ filter: 'drop-shadow(0 0 16px rgba(165,243,252,0.9))' }}>💠</div>
+                      {/* MAX LEVEL label */}
+                      <p className="text-[9px] font-black tracking-[0.3em] uppercase mb-1" style={{ color: 'rgba(165,243,252,0.5)' }}>Maximum Level Reached</p>
+                      {/* ABSOLUTE LEGEND */}
+                      <p className="text-2xl font-black mb-0" style={{ background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize:'200% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'absoluteShimmer 3s linear infinite' }}>
+                        ABSOLUTE LEGEND
+                      </p>
+                      <p className="text-[11px] font-black mb-3" style={{ color: 'rgba(165,243,252,0.6)' }}>The Pinnacle of Learning</p>
+                      {/* Achievement cards */}
+                      <div className="space-y-2">
+                        {[
+                          '🏆 MAX Level 15 — You are among the elite',
+                          '💎 30% Store Discount — Maximum ever',
+                          '✦ Rainbow Name — Unique in Leaderboard',
+                          '⚡ 5× Limit Multiplier — Full Power',
+                          '💠 ABSOLUTE AURA — Cosmic profile ring',
+                        ].map((b,i) => (
+                          <div key={i} className="rounded-xl px-3 py-1.5 text-[11px] font-bold text-left" style={{ background: 'rgba(165,243,252,0.08)', border: '1px solid rgba(165,243,252,0.15)', color: 'rgba(165,243,252,0.85)' }}>{b}</div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] mt-3" style={{ color: 'rgba(165,243,252,0.3)' }}>Tap to dismiss</p>
                     </div>
-                    <p className="text-white/50 text-[10px] mt-3">Tap to dismiss</p>
-                  </div>
+                  ) : (
+                    /* ── Normal Level Up Card ── */
+                    <div className="rounded-3xl px-8 py-6 shadow-2xl border-2 border-white/30 text-center" style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', boxShadow: '0 0 60px rgba(168,85,247,0.6)' }}>
+                      <div className="text-5xl mb-2">🎉</div>
+                      <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">Level Up!</p>
+                      <p className="text-5xl mb-1">{levelUpCelebration.emoji}</p>
+                      <p className="text-white text-2xl font-black">Level {levelUpCelebration.level}</p>
+                      <p className="text-white/70 text-sm font-bold">{levelUpCelebration.label}</p>
+                      {/* Level Benefits */}
+                      <div className="mt-3 space-y-1.5">
+                        {(() => {
+                          const lvlInfo = LEVEL_INFO.find(l => l.level === levelUpCelebration.level);
+                          if (!lvlInfo) return null;
+                          const benefits: string[] = [];
+                          if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
+                          if (lvlInfo.nameColor || lvlInfo.legendaryAura) benefits.push(lvlInfo.legendaryAura ? `✦ ABSOLUTE Rainbow Name — Leaderboard mein unique!` : `🎨 Colored name in Leaderboard`);
+                          const ld = getLevelDailyLimits(lvlInfo.level);
+                          benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
+                          const bonus = getLevelLimitBonus(lvlInfo.level);
+                          if (bonus.bonusLoginCredits > 0) benefits.push(`🎁 +${bonus.bonusLoginCredits} bonus login credits`);
+                          return benefits.map((b, i) => (
+                            <div key={i} className="bg-white/15 rounded-xl px-3 py-1.5 text-white text-[11px] font-bold">{b}</div>
+                          ));
+                        })()}
+                      </div>
+                      <p className="text-white/50 text-[10px] mt-3">Tap to dismiss</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -19676,12 +19876,12 @@ RULES:
                     },
                     {
                       emoji: '🎨',
-                      title: _fl.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
-                      desc: _fl.nameColor
-                        ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
+                      title: (_fl.nameColor || _fl.legendaryAura) ? (_fl.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠' : 'Colored Username 🔥') : 'Username Color: Normal',
+                      desc: (_fl.nameColor || _fl.legendaryAura)
+                        ? (_fl.legendaryAura ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega' : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega')
                         : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
-                      color: _fl.nameColor ?? '#475569',
-                      active: !!_fl.nameColor,
+                      color: _fl.legendaryAura ? '#a5f3fc' : (_fl.nameColor ?? '#475569'),
+                      active: !!(_fl.nameColor || _fl.legendaryAura),
                     },
                     {
                       emoji: '🏆',
@@ -20084,12 +20284,12 @@ RULES:
           },
           {
             emoji: '🎨',
-            title: l.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
-            desc: l.nameColor
-              ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
+            title: (l.nameColor || l.legendaryAura) ? (l.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠' : 'Colored Username 🔥') : 'Username Color: Normal',
+            desc: (l.nameColor || l.legendaryAura)
+              ? (l.legendaryAura ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega' : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega')
               : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
-            color: l.nameColor,
-            active: !!l.nameColor,
+            color: l.legendaryAura ? '#a5f3fc' : l.nameColor,
+            active: !!(l.nameColor || l.legendaryAura),
           },
           {
             emoji: '🏆',
