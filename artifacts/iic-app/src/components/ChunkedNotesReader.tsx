@@ -1192,34 +1192,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               </button>
             )}
-            {/* READING ACTIVE indicator — sirf tab dikhta hai jab reading chal rahi ho */}
-            {readingScoreConfig && isReading && (
-              <button
-                type="button"
-                onClick={openReadingActiveInfo}
-                title="Reading chal rahi hai"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  padding: '3px 8px', borderRadius: 999,
-                  background: 'rgba(99,102,241,0.15)',
-                  border: '1.5px solid rgba(99,102,241,0.5)',
-                  cursor: 'pointer', flexShrink: 0,
-                  animation: 'pulse 1.5s ease-in-out infinite',
-                }}
-              >
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: '#6366f1', display: 'inline-block', flexShrink: 0,
-                  boxShadow: '0 0 0 2px rgba(99,102,241,0.3)',
-                }} />
-                <span style={{
-                  fontSize: 8, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase',
-                  color: '#6366f1', whiteSpace: 'nowrap',
-                }}>
-                  Reading Active
-                </span>
-              </button>
-            )}
             {onMoreOptions && !hideInline3dot && (
               <button
                 type="button"
