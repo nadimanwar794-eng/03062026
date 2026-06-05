@@ -1603,7 +1603,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     Better Learning Tip
                   </div>
                   <div style={{ color: '#475569', fontSize: 9.5, marginTop: 1 }}>
-                    Bahut zyada tap kar rahe ho — smarter padho
+                    Auto Reading available
                   </div>
                 </div>
                 <button
