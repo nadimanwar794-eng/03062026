@@ -733,7 +733,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               "🤖 AI Homework Helper Access",
               "📉 Detailed Performance Analytics",
               "🏅 VIP Badge on Leaderboard",
-              "🎁 Monthly 500 Bonus Credits",
+              "🎁 Monthly 500 Permanent Credits",
               "📞 1-on-1 Teacher Support",
               "🔄 Offline Video Download Mode",
               "📅 Personal Study Planner"
@@ -765,7 +765,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
         "❓ Full Chapter MCQs Access",
         "🏆 Weekly Pro Mock Tests & Prizes",
         "🏅 VIP Badge & Custom Profile",
-        "🎁 500+ Monthly Bonus Credits",
+        "🎁 500+ Monthly Permanent Credits",
         "📞 Direct Teacher Support Access",
         "🔄 Offline Video Downloads"
       ],

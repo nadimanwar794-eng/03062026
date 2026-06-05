@@ -224,15 +224,16 @@ export const RedeemSection: React.FC<Props> = ({ user, onSuccess }) => {
             };
             updatedUser.subscriptionHistory = [historyEntry, ...(updatedUser.subscriptionHistory || [])];
 
-            // Subscription bonus: +100 score + bonusCredits
+            // Subscription bonus: +100 score + permanentCredits
             const bonusKey = `${subTier}_${subLevel}`;
             const bonus = SUBSCRIPTION_BONUS[bonusKey] || { score: 100, bonusCredits: 0 };
             updatedUser.totalScore = (updatedUser.totalScore || 0) + bonus.score;
             if (bonus.bonusCredits > 0) {
-                updatedUser.bonusCredits = (updatedUser.bonusCredits || 0) + bonus.bonusCredits;
+                // Add as permanent credits (not expiry-based bonus)
+                updatedUser.credits = (updatedUser.credits || 0) + bonus.bonusCredits;
             }
             
-            successMessage = `Success! Unlocked ${subTier} ${subLevel} Plan!${bonus.bonusCredits > 0 ? ` +${bonus.bonusCredits} Bonus Credits!` : ''} (+${bonus.score} Score)`;
+            successMessage = `Success! Unlocked ${subTier} ${subLevel} Plan!${bonus.bonusCredits > 0 ? ` +${bonus.bonusCredits} Permanent Credits!` : ''} (+${bonus.score} Score)`;
 
         } else if (targetCode.type === 'DISCOUNT') {
             // Handle Discount Coupon

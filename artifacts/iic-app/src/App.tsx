@@ -1040,10 +1040,7 @@ const App: React.FC = () => {
           const isNowPremium = updatedUser.isPremium;
 
           if (expiredNow || JSON.stringify(updatedUser) !== JSON.stringify(state.user)) {
-               // Clear bonusCredits BEFORE save when subscription just expired
-               if (wasPremium && !isNowPremium && (updatedUser as any).bonusCredits > 0) {
-                   (updatedUser as any).bonusCredits = 0;
-               }
+               // bonusCredits are permanent — do NOT clear on expiry
                localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
                saveUserToLive(updatedUser);
                // Handle Expiry Event (Access Lock)

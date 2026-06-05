@@ -1,19 +1,22 @@
 /**
- * Credit System — Level-based permanent vs expiry credit deduction ratios.
+ * Credit System — Level-based permanent vs gifted credit deduction ratios.
+ *
+ * All subscription and earned credits are permanent (user.credits).
+ * Only gifted credits (user.giftedCredits) are expiry-based.
  *
  * When a user spends credits, the split between permanent (user.credits)
- * and expiry (user.bonusCredits + user.giftedCredits) depends on their level:
+ * and gifted (user.giftedCredits) depends on their level:
  *
- * L1 : 100% permanent / 0% expiry
- * L2 :  80% permanent / 20% expiry
- * L3 :  70% permanent / 30% expiry
- * L4 :  60% permanent / 40% expiry
- * L5 :  50% permanent / 50% expiry
- * L6 :  40% permanent / 60% expiry
- * L7 :  30% permanent / 70% expiry
- * L8 :  25% permanent / 75% expiry
+ * L1 : 100% permanent / 0% gifted
+ * L2 :  80% permanent / 20% gifted
+ * L3 :  70% permanent / 30% gifted
+ * L4 :  60% permanent / 40% gifted
+ * L5 :  50% permanent / 50% gifted
+ * L6 :  40% permanent / 60% gifted
+ * L7 :  30% permanent / 70% gifted
+ * L8 :  25% permanent / 75% gifted
  *
- * Higher level = more expiry credits used first → permanent credits are protected.
+ * Higher level = more gifted credits used first → permanent credits are protected.
  */
 
 import { getLevelInfo } from './levelSystem';
@@ -41,10 +44,10 @@ export type CreditUser = {
   role?: string;
 };
 
-/** Total spendable credits (permanent + active expiry) */
+/** Total spendable credits (permanent including any legacy bonusCredits + active gifted) */
 export const getTotalCredits = (user: CreditUser): number => {
-  const permanent = user.credits ?? 0;
-  const bonus = user.bonusCredits ?? 0;
+  // bonusCredits are now treated as permanent credits
+  const permanent = (user.credits ?? 0) + (user.bonusCredits ?? 0);
   const giftedExpiry = user.giftedCreditsExpiry
     ? new Date(user.giftedCreditsExpiry).getTime()
     : 0;
@@ -52,11 +55,12 @@ export const getTotalCredits = (user: CreditUser): number => {
     !user.giftedCreditsExpiry || giftedExpiry > Date.now()
       ? (user.giftedCredits ?? 0)
       : 0;
-  return permanent + bonus + gifted;
+  return permanent + gifted;
 };
 
 /**
- * Compute the updated credits/bonusCredits/giftedCredits after spending `amount`.
+ * Compute the updated credits/giftedCredits after spending `amount`.
+ * bonusCredits are merged into permanent credits pool.
  * Returns null if total credits are insufficient.
  * Admins always succeed with no deduction.
  */
@@ -66,8 +70,8 @@ export const applyDeduction = <T extends CreditUser>(
 ): T | null => {
   if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') return user;
 
-  const permanent = user.credits ?? 0;
-  const bonusC = user.bonusCredits ?? 0;
+  // Fold legacy bonusCredits into permanent
+  const permanent = (user.credits ?? 0) + (user.bonusCredits ?? 0);
   const giftedExpiry = user.giftedCreditsExpiry
     ? new Date(user.giftedCreditsExpiry).getTime()
     : 0;
@@ -76,8 +80,7 @@ export const applyDeduction = <T extends CreditUser>(
       ? (user.giftedCredits ?? 0)
       : 0;
 
-  const expiryTotal = bonusC + giftedActive;
-  const totalAvailable = permanent + expiryTotal;
+  const totalAvailable = permanent + giftedActive;
   if (totalAvailable < amount) return null;
 
   const level = getLevelInfo(user.totalScore ?? 0).level;
@@ -86,35 +89,24 @@ export const applyDeduction = <T extends CreditUser>(
   let fromPermanent = Math.round(amount * permRatio);
   let fromExpiry = amount - fromPermanent;
 
-  // Clamp: not enough expiry → take more permanent
-  if (fromExpiry > expiryTotal) {
-    fromExpiry = expiryTotal;
+  // Clamp: not enough gifted → take more permanent
+  if (fromExpiry > giftedActive) {
+    fromExpiry = giftedActive;
     fromPermanent = amount - fromExpiry;
   }
-  // Clamp: not enough permanent → take more expiry
+  // Clamp: not enough permanent → take more gifted
   if (fromPermanent > permanent) {
     fromPermanent = permanent;
     fromExpiry = amount - fromPermanent;
   }
 
-  // Deduct expiry: bonusCredits first, then giftedCredits
-  let newBonusCredits = bonusC;
-  let newGiftedCredits = user.giftedCredits ?? 0;
-  let expiryLeft = fromExpiry;
-
-  const fromBonus = Math.min(expiryLeft, bonusC);
-  newBonusCredits -= fromBonus;
-  expiryLeft -= fromBonus;
-
-  if (expiryLeft > 0) {
-    newGiftedCredits -= expiryLeft;
-  }
+  const newGiftedCredits = Math.max(0, (user.giftedCredits ?? 0) - fromExpiry);
 
   const result = {
     ...user,
     credits: Math.max(0, permanent - fromPermanent),
-    bonusCredits: Math.max(0, newBonusCredits),
-    giftedCredits: Math.max(0, newGiftedCredits),
+    bonusCredits: 0,
+    giftedCredits: newGiftedCredits,
   };
 
   return result;
