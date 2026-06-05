@@ -49,7 +49,7 @@ import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from '
 const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  const [isAppLoading, setIsAppLoading] = useState(false);
+  const [isAppLoading, setIsAppLoading] = useState(() => sessionStorage.getItem('nst_has_loaded') !== 'true');
 
   useEffect(() => { initPerfMode(); }, []);
 

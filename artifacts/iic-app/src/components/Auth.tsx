@@ -549,17 +549,22 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
         if (driveMatch) {
           // Google Drive — use iframe embed (direct video URL blocked by CORS/redirect)
-          const embedSrc = `https://drive.google.com/file/d/${driveMatch[1]}/preview?autoplay=1&mute=1&loop=1`;
+          // NOTE: File must be shared as "Anyone with the link" on Google Drive
+          const fileId = driveMatch[1];
+          const embedSrc = `https://drive.google.com/file/d/${fileId}/preview`;
           return (
             <iframe
               key={embedSrc}
               src={embedSrc}
-              allow="autoplay; fullscreen"
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
               style={{
-                position: 'fixed', inset: 0, zIndex: 0,
-                width: '100vw', height: '100vh',
-                border: 'none', pointerEvents: 'none',
-                transform: 'scale(1.08)',
+                position: 'fixed',
+                top: '-10%', left: '-10%',
+                width: '120%', height: '120%',
+                border: 'none',
+                pointerEvents: 'none',
+                zIndex: 0,
               }}
               title="login-bg"
             />
