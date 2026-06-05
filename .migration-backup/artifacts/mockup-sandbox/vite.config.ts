@@ -15,22 +15,16 @@ if (!rawPort && !isBuild) {
   );
 }
 
-const port = rawPort ? Number(rawPort) : 3000;
+const port = Number(rawPort ?? "3000");
 
 if (!isBuild && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath && !isBuild) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
-  base: basePath ?? "/",
+  base: basePath,
   plugins: [
     mockupPreviewPlugin(),
     react(),

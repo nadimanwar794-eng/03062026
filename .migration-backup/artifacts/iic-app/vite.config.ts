@@ -15,49 +15,24 @@ if (!rawPort && !isBuild) {
   );
 }
 
-const port = rawPort ? Number(rawPort) : 3000;
+const port = Number(rawPort ?? "3000");
 
 if (!isBuild && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath && !isBuild) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
-  base: basePath ?? "/",
+  base: basePath,
   plugins: [
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
     VitePWA({
-      registerType: "autoUpdate",
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,svg}", "**/*.png"],
-        globIgnores: ["**/splash-logo.png"],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: { cacheName: "google-fonts-cache" },
-          },
-          {
-            urlPattern: /splash-logo\.png$/,
-            handler: "CacheFirst",
-            options: { cacheName: "splash-cache" },
-          },
-        ],
-      },
-      devOptions: {
-        enabled: true,
-        type: "module",
-      },
+      registerType: 'autoUpdate',
+      devOptions: { enabled: true },
+      workbox: { maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 },
     }),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
@@ -91,7 +66,7 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     fs: {
-      strict: false,
+      strict: true,
     },
   },
   preview: {

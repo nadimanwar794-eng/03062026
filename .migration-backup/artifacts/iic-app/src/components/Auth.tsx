@@ -539,8 +539,34 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       );
   }
 
+  const isVideoMode = (appSettings?.loginPageStyle ?? settings?.loginPageStyle) === 'video';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 font-sans py-10">
+    <div className={`min-h-screen flex items-center justify-center px-4 font-sans py-10 relative ${isVideoMode ? '' : 'bg-slate-50'}`}>
+      {/* ── Video background (admin-controlled) ── */}
+      {isVideoMode && (
+        <video
+          key="login-bg-video"
+          src="/login-bg.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          style={{
+            position: 'fixed', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+      {isVideoMode && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1,
+          background: 'rgba(0,0,0,0.45)',
+          pointerEvents: 'none',
+        }} />
+      )}
+
       <CustomAlert 
           isOpen={alertConfig.isOpen} 
           message={alertConfig.message} 
@@ -550,25 +576,32 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           }} 
       />
       {showGuide && <LoginGuide onClose={() => setShowGuide(false)} />}
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full border border-slate-200 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-10 -mt-10 z-0"></div>
+      <div className={`p-8 rounded-3xl shadow-xl w-full relative overflow-hidden`}
+        style={{
+          position: 'relative', zIndex: 2,
+          background: isVideoMode ? 'rgba(10,12,28,0.82)' : '#ffffff',
+          border: isVideoMode ? '1px solid rgba(255,255,255,0.12)' : '1px solid #e2e8f0',
+          backdropFilter: isVideoMode ? 'blur(16px)' : undefined,
+        }}
+      >
+        {!isVideoMode && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-10 -mt-10 z-0"></div>}
         
-        <button onClick={() => setShowGuide(true)} className="absolute top-4 left-4 z-20 text-slate-500 hover:text-blue-600">
+        <button onClick={() => setShowGuide(true)} className={`absolute top-4 left-4 z-20 hover:text-blue-400 ${isVideoMode ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600'}`}>
             <HelpCircle size={24} />
         </button>
 
         <div className="text-center mb-8 relative z-10 mt-6">
-          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_40px_rgba(59,130,246,0.15)] ring-4 ring-slate-50 p-1 overflow-hidden">
+          <div className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-4 p-1 overflow-hidden ${isVideoMode ? 'bg-white/10 ring-4 ring-white/10' : 'bg-white shadow-[0_0_40px_rgba(59,130,246,0.15)] ring-4 ring-slate-50'}`}>
               {settings?.appLogo ? (
                   <img src={settings.appLogo} alt="App Logo" className="w-full h-full object-cover rounded-full" />
               ) : (
-                  <h1 className="text-5xl font-black text-blue-600">{settings?.appShortName || 'NSTA'}</h1>
+                  <h1 className={`text-5xl font-black ${isVideoMode ? 'text-white' : 'text-blue-600'}`}>{settings?.appShortName || 'NSTA'}</h1>
               )}
           </div>
-          <h1 className="text-[2.5rem] font-black text-[#111827] mb-1 tracking-tight leading-none mx-auto mt-6">
+          <h1 className={`text-[2.5rem] font-black mb-1 tracking-tight leading-none mx-auto mt-6 ${isVideoMode ? 'text-white' : 'text-[#111827]'}`}>
               {settings?.appShortName || 'NSTA'}
           </h1>
-          <p className="text-[#64748b] font-bold tracking-[0.15em] text-[10px] uppercase mt-3">The Future of Learning</p>
+          <p className={`font-bold tracking-[0.15em] text-[10px] uppercase mt-3 ${isVideoMode ? 'text-slate-300' : 'text-[#64748b]'}`}>The Future of Learning</p>
         </div>
 
         {view !== 'HOME' && (
