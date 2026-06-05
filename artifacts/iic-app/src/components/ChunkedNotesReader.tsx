@@ -1220,6 +1220,17 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               </button>
             )}
+            {/* More — content picker (only when provided) */}
+            {onMoreOptions && (
+              <button
+                type="button"
+                onClick={onMoreOptions}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-600 active:scale-90 transition shrink-0"
+                title="More options"
+              >
+                <LayoutGrid size={13} />
+              </button>
+            )}
             {/* 3-dot — opens full controls panel */}
             <button
               type="button"
