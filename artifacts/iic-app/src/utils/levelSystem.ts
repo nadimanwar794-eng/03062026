@@ -9,6 +9,7 @@ export interface LevelInfo {
   discount: number;
   animationIntensity: 0 | 1 | 2 | 3 | 4;
   nameColor?: string;
+  legendaryAura?: boolean;
 }
 
 export const LEVEL_INFO: LevelInfo[] = [
@@ -19,14 +20,14 @@ export const LEVEL_INFO: LevelInfo[] = [
   { level: 5,  minScore: 10000,     label: 'Expert',      emoji: '⚡', color: '#3b82f6', gradient: 'from-blue-400 to-indigo-500',                  glowColor: 'rgba(59,130,246,0.5)',   discount: 5,  animationIntensity: 2 },
   { level: 6,  minScore: 20000,     label: 'Veteran',     emoji: '🔥', color: '#f97316', gradient: 'from-orange-400 to-red-500',                   glowColor: 'rgba(249,115,22,0.55)',  discount: 8,  animationIntensity: 2 },
   { level: 7,  minScore: 100000,    label: 'Master',      emoji: '💫', color: '#a855f7', gradient: 'from-violet-400 to-purple-600',                glowColor: 'rgba(168,85,247,0.6)',   discount: 10, animationIntensity: 2, nameColor: '#a855f7' },
-  { level: 8,  minScore: 500000,    label: 'GrandMaster', emoji: '💎', color: '#f59e0b', gradient: 'from-amber-400 to-yellow-500',                 glowColor: 'rgba(245,158,11,0.65)',  discount: 13, animationIntensity: 3, nameColor: '#f59e0b' },
-  { level: 9,  minScore: 1000000,   label: 'Titan',       emoji: '🌟', color: '#eab308', gradient: 'from-yellow-400 to-amber-500',                 glowColor: 'rgba(234,179,8,0.75)',   discount: 17, animationIntensity: 3, nameColor: '#eab308' },
-  { level: 10, minScore: 1500000,   label: 'Mythic',      emoji: '👑', color: '#f59e0b', gradient: 'from-amber-400 to-orange-400',                 glowColor: 'rgba(245,158,11,0.8)',   discount: 20, animationIntensity: 3, nameColor: '#f59e0b' },
-  { level: 11, minScore: 2500000,   label: 'Supreme',     emoji: '🏆', color: '#10b981', gradient: 'from-emerald-400 via-cyan-400 to-violet-500',  glowColor: 'rgba(16,185,129,0.9)',  discount: 20, animationIntensity: 4, nameColor: '#10b981' },
+  { level: 8,  minScore: 500000,    label: 'GrandMaster', emoji: '💎', color: '#f59e0b', gradient: 'from-amber-400 to-yellow-500',                 glowColor: 'rgba(245,158,11,0.65)',  discount: 13, animationIntensity: 3 },
+  { level: 9,  minScore: 1000000,   label: 'Titan',       emoji: '🌟', color: '#eab308', gradient: 'from-yellow-400 to-amber-500',                 glowColor: 'rgba(234,179,8,0.75)',   discount: 17, animationIntensity: 3 },
+  { level: 10, minScore: 1500000,   label: 'Mythic',      emoji: '👑', color: '#f59e0b', gradient: 'from-amber-400 to-orange-400',                 glowColor: 'rgba(245,158,11,0.8)',   discount: 20, animationIntensity: 3, nameColor: '#fb923c' },
+  { level: 11, minScore: 2500000,   label: 'Supreme',     emoji: '🏆', color: '#10b981', gradient: 'from-emerald-400 via-cyan-400 to-violet-500',  glowColor: 'rgba(16,185,129,0.9)',  discount: 20, animationIntensity: 4 },
   { level: 12, minScore: 5000000,   label: 'Legend',      emoji: '🔮', color: '#8b5cf6', gradient: 'from-violet-400 via-purple-500 to-pink-500',   glowColor: 'rgba(139,92,246,0.9)',  discount: 22, animationIntensity: 4, nameColor: '#8b5cf6' },
-  { level: 13, minScore: 10000000,  label: 'Immortal',    emoji: '⚜️', color: '#ec4899', gradient: 'from-pink-400 via-rose-500 to-red-500',        glowColor: 'rgba(236,72,153,0.9)',  discount: 25, animationIntensity: 4, nameColor: '#ec4899' },
-  { level: 14, minScore: 20000000,  label: 'Divine',      emoji: '🌠', color: '#f43f5e', gradient: 'from-rose-400 via-red-500 to-orange-500',      glowColor: 'rgba(244,63,94,0.95)',  discount: 28, animationIntensity: 4, nameColor: '#f43f5e' },
-  { level: 15, minScore: 50000000,  label: 'Absolute',    emoji: '💠', color: '#a5f3fc', gradient: 'from-white via-cyan-200 to-violet-400',         glowColor: 'rgba(165,243,252,0.95)', discount: 30, animationIntensity: 4, nameColor: '#7c3aed' },
+  { level: 13, minScore: 10000000,  label: 'Immortal',    emoji: '⚜️', color: '#ec4899', gradient: 'from-pink-400 via-rose-500 to-red-500',        glowColor: 'rgba(236,72,153,0.9)',  discount: 25, animationIntensity: 4 },
+  { level: 14, minScore: 20000000,  label: 'Divine',      emoji: '🌠', color: '#f43f5e', gradient: 'from-rose-400 via-red-500 to-orange-500',      glowColor: 'rgba(244,63,94,0.95)',  discount: 28, animationIntensity: 4 },
+  { level: 15, minScore: 50000000,  label: 'Absolute',    emoji: '💠', color: '#a5f3fc', gradient: 'from-white via-cyan-200 to-violet-400',         glowColor: 'rgba(165,243,252,0.95)', discount: 30, animationIntensity: 4, legendaryAura: true },
 ];
 
 export const MAX_LEVEL = 15;

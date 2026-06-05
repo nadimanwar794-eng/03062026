@@ -8310,51 +8310,39 @@ export const StudentDashboard: React.FC<Props> = ({
       const _profileIsLight = profileWhite || _isLightBgEarly;
 
       // ── Level-based name effect (uses _displayLvl so user can pick any unlocked level's style) ──
+      // Name visually upgrades ONLY at milestone levels: 4, 7, 10, 12, 15.
+      // Between milestones the style stays locked at the previous milestone's look.
       const _nameStyle = ((): React.CSSProperties => {
         const lvl = _displayLvl.level;
-        const col = _displayLvl.nameColor || _displayLvl.color;
+        const milestoneLvl = lvl >= 15 ? 15 : lvl >= 12 ? 12 : lvl >= 10 ? 10 : lvl >= 7 ? 7 : lvl >= 4 ? 4 : lvl;
+        const milestoneLvlInfo = LEVEL_INFO.find(l => l.level === milestoneLvl);
+        const col = milestoneLvlInfo?.nameColor || _displayLvl.color;
         const glow = _displayLvl.glowColor;
         if (_profileIsLight || nameFxOff) {
-          return { color: lvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
+          return { color: milestoneLvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
         }
-        if (lvl <= 2) return { color: '#ffffff' };
-        if (lvl <= 4) return { color: col, textShadow: `0 0 14px ${glow}` };
-        if (lvl <= 6) return {
-          color: col,
-          animation: 'name-fx-glow 2.2s ease-in-out infinite',
-          ['--name-glow' as any]: glow,
-        };
-        // Gradient text definitions per level
+        if (milestoneLvl <= 3) return { color: '#ffffff' };
+        if (milestoneLvl === 4) return { color: col, textShadow: `0 0 14px ${glow}` };
+        // Gradient text — one style per milestone only
         const grads: Record<number, string> = {
           7:  'linear-gradient(135deg,#c084fc,#a855f7,#7c3aed,#c084fc)',
-          8:  'linear-gradient(135deg,#fde68a,#f59e0b,#d97706,#fde68a)',
-          9:  'linear-gradient(135deg,#fde047,#eab308,#facc15,#fde047)',
           10: 'linear-gradient(135deg,#fb923c,#f59e0b,#fbbf24,#fb923c)',
-          11: 'linear-gradient(135deg,#34d399,#06b6d4,#818cf8,#c084fc,#34d399)',
           12: 'linear-gradient(135deg,#a78bfa,#c084fc,#f472b6,#a78bfa)',
-          13: 'linear-gradient(135deg,#f9a8d4,#ec4899,#f43f5e,#ef4444,#f9a8d4)',
-          14: 'linear-gradient(135deg,#fda4af,#f43f5e,#ef4444,#f97316,#fda4af)',
           15: 'linear-gradient(135deg,#ffffff,#a5f3fc,#c4b5fd,#f9a8d4,#ffffff)',
         };
-        const anim7_8  = 'name-fx-shimmer 4s linear infinite';
-        const anim9_10 = 'name-fx-shimmer 3s linear infinite, name-fx-rainbow 7s ease infinite';
-        const anim11_12= 'name-fx-shimmer 2.5s linear infinite, name-fx-rainbow 5s ease infinite';
-        const anim13_14= 'name-fx-shimmer 2s linear infinite, name-fx-fire 1.8s ease-in-out infinite';
-        const anim15   = 'name-fx-shimmer 1.8s linear infinite, name-fx-absolute 4s ease infinite';
         const animMap: Record<number, string> = {
-          7: anim7_8, 8: anim7_8,
-          9: anim9_10, 10: anim9_10,
-          11: anim11_12, 12: anim11_12,
-          13: anim13_14, 14: anim13_14,
-          15: anim15,
+          7:  'name-fx-shimmer 4s linear infinite',
+          10: 'name-fx-shimmer 3s linear infinite, name-fx-rainbow 7s ease infinite',
+          12: 'name-fx-shimmer 2.5s linear infinite, name-fx-rainbow 5s ease infinite',
+          15: 'name-fx-shimmer 1.8s linear infinite, name-fx-absolute 4s ease infinite',
         };
         return {
-          background: grads[lvl] || `linear-gradient(135deg,${col},${col}88,${col})`,
+          background: grads[milestoneLvl] || `linear-gradient(135deg,${col},${col}88,${col})`,
           backgroundSize: '200% auto',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-          animation: animMap[lvl] || anim7_8,
+          animation: animMap[milestoneLvl] || 'name-fx-shimmer 4s linear infinite',
         } as React.CSSProperties;
       })();
 
@@ -9317,7 +9305,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             border: isSelected ? `1.5px solid ${li.color}88` : '1.5px solid rgba(255,255,255,0.07)',
                           }}>
                           <span className="text-[22px] leading-none">{li.emoji}</span>
-                          <span className="text-[9px] font-black uppercase tracking-wider leading-none" style={{ color: li.nameColor || li.color }}>{li.label}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider leading-none" style={{ color: (() => { const m = [4,7,10,12,15].filter(ml => li.level >= ml).pop(); return m ? (LEVEL_INFO.find(l => l.level === m)?.nameColor || li.color) : li.color; })() }}>{li.label}</span>
                           <span className="text-[8px] font-semibold" style={{ color: _pTxtSubColor }}>L{li.level}</span>
                           {isSelected && (
                             <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${li.color}44`, color: li.color }}>
@@ -10613,7 +10601,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         if (!lvlInfo) return null;
                         const benefits: string[] = [];
                         if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
-                        if (lvlInfo.nameColor) benefits.push(`🎨 Colored name in Leaderboard`);
+                        if (lvlInfo.nameColor || lvlInfo.legendaryAura) benefits.push(lvlInfo.legendaryAura ? `✦ ABSOLUTE Rainbow Name — Leaderboard mein unique!` : `🎨 Colored name in Leaderboard`);
                         const ld = getLevelDailyLimits(lvlInfo.level);
                         benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
                         const bonus = getLevelLimitBonus(lvlInfo.level);
@@ -19793,12 +19781,12 @@ RULES:
                     },
                     {
                       emoji: '🎨',
-                      title: _fl.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
-                      desc: _fl.nameColor
-                        ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
+                      title: (_fl.nameColor || _fl.legendaryAura) ? (_fl.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠' : 'Colored Username 🔥') : 'Username Color: Normal',
+                      desc: (_fl.nameColor || _fl.legendaryAura)
+                        ? (_fl.legendaryAura ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega' : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega')
                         : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
-                      color: _fl.nameColor ?? '#475569',
-                      active: !!_fl.nameColor,
+                      color: _fl.legendaryAura ? '#a5f3fc' : (_fl.nameColor ?? '#475569'),
+                      active: !!(_fl.nameColor || _fl.legendaryAura),
                     },
                     {
                       emoji: '🏆',
@@ -20201,12 +20189,12 @@ RULES:
           },
           {
             emoji: '🎨',
-            title: l.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
-            desc: l.nameColor
-              ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
+            title: (l.nameColor || l.legendaryAura) ? (l.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠' : 'Colored Username 🔥') : 'Username Color: Normal',
+            desc: (l.nameColor || l.legendaryAura)
+              ? (l.legendaryAura ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega' : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega')
               : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
-            color: l.nameColor,
-            active: !!l.nameColor,
+            color: l.legendaryAura ? '#a5f3fc' : l.nameColor,
+            active: !!(l.nameColor || l.legendaryAura),
           },
           {
             emoji: '🏆',
