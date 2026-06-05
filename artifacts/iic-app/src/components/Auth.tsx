@@ -546,23 +546,36 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       {/* ── Video background (admin-controlled) ── */}
       {isVideoMode && (() => {
         const rawUrl = appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4';
-        // Convert Google Drive share link → direct streamable URL
         const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-        const videoSrc = driveMatch
-          ? `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`
-          : rawUrl;
+        if (driveMatch) {
+          // Google Drive — use iframe embed (direct video URL blocked by CORS/redirect)
+          const embedSrc = `https://drive.google.com/file/d/${driveMatch[1]}/preview?autoplay=1&mute=1&loop=1`;
+          return (
+            <iframe
+              key={embedSrc}
+              src={embedSrc}
+              allow="autoplay; fullscreen"
+              style={{
+                position: 'fixed', inset: 0, zIndex: 0,
+                width: '100vw', height: '100vh',
+                border: 'none', pointerEvents: 'none',
+                transform: 'scale(1.08)',
+              }}
+              title="login-bg"
+            />
+          );
+        }
         return (
           <video
-            key={videoSrc}
-            src={videoSrc}
+            key={rawUrl}
+            src={rawUrl}
             autoPlay
             loop
             muted
             playsInline
             style={{
               position: 'fixed', inset: 0, width: '100%', height: '100%',
-              objectFit: 'cover', zIndex: 0,
-              pointerEvents: 'none',
+              objectFit: 'cover', zIndex: 0, pointerEvents: 'none',
             }}
           />
         );
