@@ -9953,9 +9953,9 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
                 {showDotsMenu && (
                   <>
-                    {/* Backdrop — full-page blur when menu opens */}
+                    {/* Backdrop — full-page subtle blur */}
                     <div
-                      className="fixed inset-0 z-[99998] bg-black/30 backdrop-blur-md animate-in fade-in duration-200"
+                      className="fixed inset-0 z-[99998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200"
                       onClick={() => setShowDotsMenu(false)}
                       onTouchStart={() => setShowDotsMenu(false)}
                     />
