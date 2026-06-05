@@ -5931,6 +5931,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           subscriptionLevel: user.subscriptionLevel || 'FREE',
                           isPremium: !!(user.isPremium || (user.subscriptionLevel && user.subscriptionLevel !== 'FREE')),
                           boostPercent: getActiveBoost(user),
+                          scoreLimitBoostPercent: (user as any).scoreLimitBoostPercent,
                           onScoreEarned: (pts: number, activity: string) => {
                             if (pts <= 0) return;
                             const cur = userRef.current;
@@ -16539,6 +16540,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       subscriptionLevel: user.subscriptionLevel || 'FREE',
                       isPremium: !!(user.isPremium || (user.subscriptionLevel && user.subscriptionLevel !== 'FREE')),
                       boostPercent: getActiveBoost(user),
+                      scoreLimitBoostPercent: (user as any).scoreLimitBoostPercent,
                       onScoreEarned: (pts: number, activity: string) => {
                         if (pts <= 0) return;
                         const cur = userRef.current;
