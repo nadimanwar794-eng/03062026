@@ -28,54 +28,39 @@ export const CreditToast: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-24 right-3 z-[9999] flex flex-col gap-2 items-end pointer-events-none">
+    <div className="fixed top-0 left-0 right-0 z-[9999] flex flex-col pointer-events-none">
       {toasts.map(({ id, payload }) => (
         <div
           key={id}
-          className="animate-in slide-in-from-right-4 fade-in duration-300 pointer-events-auto"
+          className="w-full animate-in slide-in-from-top-2 fade-in duration-300 pointer-events-auto cursor-pointer"
           onClick={() => remove(id)}
         >
           {payload.type === 'DEDUCTION' ? (
             <div
-              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl shadow-2xl cursor-pointer"
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-2"
               style={{
-                background: 'linear-gradient(135deg, rgba(15,15,15,0.97), rgba(25,20,5,0.97))',
-                border: '1px solid rgba(234,179,8,0.45)',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(234,179,8,0.15)',
-                backdropFilter: 'blur(12px)',
-                maxWidth: '220px',
+                background: 'linear-gradient(90deg, #92400e, #b45309, #92400e)',
+                color: '#fef3c7',
               }}
             >
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
-                style={{ background: 'rgba(234,179,8,0.18)', border: '1px solid rgba(234,179,8,0.35)' }}
-              >
-                🪙
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-black text-amber-300 leading-tight">
-                  -{payload.amount} Credits Kate
-                </p>
+              <span className="text-sm shrink-0">🪙</span>
+              <p className="text-xs font-black leading-tight">
+                -{payload.amount} Credits Kate
                 {payload.remaining !== undefined && (
-                  <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-                    Baaki: <span className="text-amber-500 font-bold">{payload.remaining} CR</span>
-                  </p>
+                  <span className="font-normal opacity-80"> · Baaki: {payload.remaining} CR</span>
                 )}
-              </div>
+              </p>
             </div>
           ) : (
             <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2"
               style={{
-                background: 'rgba(12,12,12,0.96)',
-                border: '1px solid rgba(99,102,241,0.35)',
-                boxShadow: '0 2px 16px rgba(0,0,0,0.6)',
-                backdropFilter: 'blur(10px)',
-                maxWidth: '200px',
+                background: 'linear-gradient(90deg, #3730a3, #4338ca, #3730a3)',
+                color: '#e0e7ff',
               }}
             >
-              <span className="text-sm">⚠️</span>
-              <p className="text-[11px] font-bold text-indigo-300 leading-tight">
+              <span className="text-sm shrink-0">⚠️</span>
+              <p className="text-xs font-bold leading-tight">
                 {payload.message || 'Free limit khatam'}
               </p>
             </div>

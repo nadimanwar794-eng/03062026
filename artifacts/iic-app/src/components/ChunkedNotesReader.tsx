@@ -1061,9 +1061,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
   return (
     <div className={className || ''}>
-      {/* Rotate toast notification */}
+      {/* Rotate toast — full-width top banner, same position as app top banners */}
       {rotateToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg animate-in fade-in pointer-events-none">
+        <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold pointer-events-none animate-in slide-in-from-top-2 fade-in duration-300"
+          style={{ background: 'linear-gradient(90deg, #1e293b, #334155, #1e293b)', color: '#e2e8f0' }}>
+          <RotateCcw size={12} className="shrink-0" />
           {rotateToast}
         </div>
       )}
