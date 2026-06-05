@@ -1570,66 +1570,100 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* ── Better Learning Tip — compact top card with blur overlay ── */}
+      {/* ── Better Learning Tip — original design, positioned at top ── */}
       {showTtsSuggestPopup && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 9998,
             background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            padding: `${showReadingActiveInfo ? 130 : 12}px 16px 0`,
           }}
           onClick={() => setShowTtsSuggestPopup(false)}
         >
-          {/* Compact card at top — appears just below the merged info popup */}
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              position: 'absolute',
-              top: showReadingActiveInfo ? 126 : 8,
-              left: 8, right: 8,
               background: 'rgba(10,14,32,0.98)',
-              border: '1px solid rgba(56,189,248,0.18)',
-              borderRadius: 16,
-              padding: '12px 14px',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.65)',
+              border: '1px solid #38bdf820',
+              borderRadius: 22,
+              padding: '22px 20px 18px',
+              maxWidth: 340,
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
               animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
             }}
           >
-            {/* Header row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: '#7dd3fc', fontSize: 12, fontWeight: 900 }}>Better Learning Tip</div>
-                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>
-                  Bahut zyada manually tap kar rahe ho — TTS try karo!
-                </div>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 22 }}>💡</span>
+              <div>
+                <div style={{ color: '#7dd3fc', fontSize: 13, fontWeight: 900 }}>Better Learning Tip</div>
+                <div style={{ color: '#475569', fontSize: 10, marginTop: 1 }}>App ki taraf se suggestion</div>
               </div>
-              <button
-                onClick={() => setShowTtsSuggestPopup(false)}
-                style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 8, padding: '4px 10px', color: '#94a3b8', fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
-              >✕</button>
             </div>
+
+            {/* Body */}
+            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
+              Aap bahut topics manually tap kar rahe hain.<br />
+              <span style={{ color: '#e2e8f0' }}>TTS Auto Reading</span> try karna chahoge?
+            </div>
+
+            {/* Feature comparison */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'Manual Reading', icon: '📖', points: ['Apni speed', 'Full control', '+2 per topic (10s)'], color: '#34d399' },
+                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+2 per topic (auto)'], color: '#38bdf8' },
+              ].map(({ label, icon, points, color }) => (
+                <div
+                  key={label}
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${color}22`,
+                    borderRadius: 12,
+                    padding: '10px 10px 8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                    <span style={{ fontSize: 13 }}>{icon}</span>
+                    <span style={{ color, fontSize: 10, fontWeight: 800 }}>{label}</span>
+                  </div>
+                  {points.map(p => (
+                    <div key={p} style={{ color: '#64748b', fontSize: 9.5, lineHeight: 1.6 }}>
+                      ✓ {p}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => {
                   setShowTtsSuggestPopup(false);
                   startFromIndex(activeIdx !== null ? activeIdx : 0);
                 }}
                 style={{
-                  flex: 2, padding: '9px 0', borderRadius: 10,
-                  background: 'linear-gradient(90deg,#0ea5e9,#38bdf8)',
-                  color: '#fff', fontWeight: 900, fontSize: 11, border: 'none', cursor: 'pointer',
+                  flex: 2, padding: '11px 0', borderRadius: 12,
+                  background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)',
+                  color: '#fff', fontWeight: 900, fontSize: 12, border: 'none',
+                  cursor: 'pointer',
                 }}
-              >🎙️ TTS Start Karo</button>
+              >
+                🎙️ TTS Start Karo
+              </button>
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
                 style={{
-                  flex: 1, padding: '9px 0', borderRadius: 10,
+                  flex: 1, padding: '11px 0', borderRadius: 12,
                   background: 'rgba(255,255,255,0.06)',
-                  color: '#64748b', fontWeight: 700, fontSize: 11,
-                  border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer',
+                  color: '#64748b', fontWeight: 700, fontSize: 12,
+                  border: '1px solid #ffffff15', cursor: 'pointer',
                 }}
-              >Abhi Nahi</button>
+              >
+                Abhi Nahi
+              </button>
             </div>
           </div>
         </div>
