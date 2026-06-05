@@ -1552,37 +1552,19 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               boxShadow: '0 6px 28px rgba(0,0,0,0.5)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-              <span style={{ fontSize: 16 }}>🛡️</span>
-              <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', flex: 1 }}>
-                Touch Protection
-              </span>
-              <button
-                onClick={() => setShowReadingActiveInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+              <span style={{ fontSize: 13 }}>🛡️</span>
+              <span style={{ color: '#a5b4fc', fontSize: 10, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', flex: 1 }}>Touch Protection</span>
+              <button onClick={() => setShowReadingActiveInfo(false)} style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133', borderRadius: 6, padding: '2px 7px', color: '#a5b4fc', fontSize: 9, fontWeight: 800, cursor: 'pointer' }}>OK</button>
             </div>
-            <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>
-              Topic par <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span> rukne ke baad<br />
-              <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span> milega
+            <div style={{ color: '#94a3b8', fontSize: 9, marginBottom: 5 }}>
+              10 sec ruko → <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ flex: 1, height: 4, background: '#1e2030', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{
-                  width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #6366f1, #818cf8)',
-                  borderRadius: 99,
-                  transition: 'width 0.9s linear',
-                }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ flex: 1, height: 3, background: '#1e2030', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%', height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: 99, transition: 'width 0.9s linear' }} />
               </div>
-              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 12, minWidth: 24, textAlign: 'right' }}>
+              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 10, minWidth: 22, textAlign: 'right' }}>
                 {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
               </span>
             </div>
@@ -1604,51 +1586,30 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               background: 'rgba(10,12,28,0.97)',
               border: '1px solid #6366f155',
               borderRadius: 14,
-              padding: '12px 14px',
+              padding: '8px 10px',
               boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 20 }}>📖</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>
-                  {isReading ? 'Reading Active' : 'Reading Score'}
-                </div>
-                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Session progress</div>
-              </div>
-              <button
-                onClick={() => setShowScoreInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 14 }}>📖</span>
+              <span style={{ color: '#a5b4fc', fontSize: 10, fontWeight: 900, flex: 1 }}>
+                {isReading ? 'Reading Active' : 'Reading Score'}
+              </span>
+              <button onClick={() => setShowScoreInfo(false)} style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133', borderRadius: 6, padding: '2px 7px', color: '#a5b4fc', fontSize: 9, fontWeight: 800, cursor: 'pointer' }}>OK</button>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <div style={{
-                flex: 1, background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(99,102,241,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Score</div>
-                <div style={{ color: '#a5b4fc', fontSize: 18, fontWeight: 900 }}>+{scoreState.totalSessionScore}</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              <div style={{ flex: 1, background: 'rgba(99,102,241,0.08)', borderRadius: 7, padding: '5px 7px', border: '1px solid rgba(99,102,241,0.12)' }}>
+                <div style={{ color: '#94a3b8', fontSize: 7, fontWeight: 700, textTransform: 'uppercase', marginBottom: 1 }}>Score</div>
+                <div style={{ color: '#a5b4fc', fontSize: 14, fontWeight: 900 }}>+{scoreState.totalSessionScore}</div>
               </div>
-              <div style={{
-                flex: 1, background: 'rgba(34,197,94,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(34,197,94,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Progress</div>
-                <div style={{ color: '#4ade80', fontSize: 18, fontWeight: 900 }}>{Math.round(scoreState.progressPercent)}%</div>
+              <div style={{ flex: 1, background: 'rgba(34,197,94,0.08)', borderRadius: 7, padding: '5px 7px', border: '1px solid rgba(34,197,94,0.12)' }}>
+                <div style={{ color: '#94a3b8', fontSize: 7, fontWeight: 700, textTransform: 'uppercase', marginBottom: 1 }}>Progress</div>
+                <div style={{ color: '#4ade80', fontSize: 14, fontWeight: 900 }}>{Math.round(scoreState.progressPercent)}%</div>
               </div>
-              <div style={{
-                flex: 1, background: 'rgba(251,191,36,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(251,191,36,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Next</div>
-                <div style={{ color: '#fbbf24', fontSize: 14, fontWeight: 900 }}>
-                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+              <div style={{ flex: 1, background: 'rgba(251,191,36,0.08)', borderRadius: 7, padding: '5px 7px', border: '1px solid rgba(251,191,36,0.12)' }}>
+                <div style={{ color: '#94a3b8', fontSize: 7, fontWeight: 700, textTransform: 'uppercase', marginBottom: 1 }}>Next</div>
+                <div style={{ color: '#fbbf24', fontSize: 11, fontWeight: 900 }}>
+                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} / ${scoreState.nextRewardInSec}s` : 'Paused'}
                 </div>
               </div>
             </div>
