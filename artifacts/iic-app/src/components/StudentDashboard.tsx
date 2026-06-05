@@ -5,6 +5,7 @@ import { FeatureHints, FeatureTipsList } from "./FeatureHints";
 import { TopBarEffectsLayer } from "../utils/topBarEffects";
 import { getLevelInfo, getNextLevelInfo, getLevelProgress, LEVEL_INFO, ACTIVITY_SCORES, getLevelTopBarEffects, getLevelLimitBonus, getLevelDailyLimits, getLevelDailyLimitsWithOverride, getEffectiveDailyLimit, UNLIMITED, getMaxReadingSeconds } from "../utils/levelSystem";
 import { tryEarnScore, awardMilestone, getDailyScoreEarned, DAILY_SCORE_LIMIT, getDailyScoreLimit, getActiveBoost, logScoreActivity } from "../utils/scoreSystem";
+import { getTodayBonusPreview, getLevel100BonusLabel, PROGRESS_BONUS_TABLE, LIMIT_TOUCH_MULTIPLIERS } from "../utils/progressBonusEngine";
 import { ScoreHistoryDashboard } from "./ScoreHistoryDashboard";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
 import { LevelLeaderboard } from "./LevelLeaderboard";
@@ -8635,6 +8636,122 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>XP Score</div>
             </div>
           </div>
+
+          {/* ── MIDNIGHT PROGRESS BONUS PREVIEW ── */}
+          {(() => {
+            if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') return null;
+            const _pbLevel = _pLvl.level;
+            if (_pbLevel < 4) return null;
+            const _pbLimit = getDailyScoreLimit(user.isPremium ? (user.subscriptionLevel || 'BASIC') : 'FREE', user.isPremium, user.scoreLimitBoostPercent);
+            const _pbEarned = getDailyScoreEarned(user.id);
+            const preview = getTodayBonusPreview(_pbLevel, _pbEarned, _pbLimit);
+            const isL9Plus = preview.isMultiplierLevel;
+            const limitMult = isL9Plus ? LIMIT_TOUCH_MULTIPLIERS[_pbLevel] : null;
+            const hasBrackets = !!PROGRESS_BONUS_TABLE[_pbLevel];
+            const pct = preview.progressPct;
+            const accentColor = isL9Plus ? '#a855f7' : tierTheme.primary;
+            const bonusScore = preview.currentBonusScore;
+            const bonusPct = preview.currentBonusPct;
+
+            return (
+              <div className="px-3 mb-3">
+                <div className="rounded-2xl overflow-hidden" style={{ background: _pCard, border: `1px solid ${accentColor}30`, boxShadow: `0 4px 20px ${accentColor}12` }}>
+                  {/* Header */}
+                  <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: `${accentColor}14`, borderBottom: `1px solid ${accentColor}20` }}>
+                    <span className="text-[14px]">🌙</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: accentColor }}>Midnight Progress Bonus</span>
+                    <span className="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${accentColor}20`, color: accentColor }}>L{_pbLevel}</span>
+                  </div>
+
+                  <div className="px-4 py-3">
+                    {/* Today's progress bar */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[9px] font-bold uppercase tracking-wider ${_pTxtSub}`}>Aaj ka Score</span>
+                      <span className="text-[10px] font-black tabular-nums" style={{ color: accentColor }}>{_pbEarned.toLocaleString('en-IN')} / {_pbLimit.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden mb-2.5" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, background: `linear-gradient(90deg, ${accentColor}cc, ${accentColor})` }} />
+                    </div>
+
+                    {isL9Plus ? (
+                      /* L9+ — limit-touch multiplier */
+                      <div>
+                        {pct >= 100 ? (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[16px]">🚀</span>
+                              <div>
+                                <p className="text-[11px] font-black" style={{ color: accentColor }}>
+                                  {limitMult ? `${limitMult}× Multiplier Active!` : 'Multiplier Active!'}
+                                </p>
+                                <p className="text-[10px] font-bold" style={{ color: `${accentColor}b0` }}>
+                                  +{bonusScore.toLocaleString('en-IN')} XP bonus at midnight
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accentColor}18` }}>
+                            <p className="text-[10px] font-bold" style={{ color: `${accentColor}90` }}>
+                              Reach <span className="font-black" style={{ color: accentColor }}>100% limit</span> to unlock{' '}
+                              {limitMult ? <span className="font-black">{limitMult}× multiplier</span> : 'the multiplier'} bonus
+                            </p>
+                            {preview.scoreToNextBracket != null && preview.scoreToNextBracket > 0 && (
+                              <p className="text-[9px] font-bold mt-1" style={{ color: `${accentColor}70` }}>
+                                {preview.scoreToNextBracket.toLocaleString('en-IN')} XP aur chahiye
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* L4–L8 — bracket bonus */
+                      <div>
+                        {bonusScore > 0 ? (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-[11px] font-black" style={{ color: accentColor }}>
+                                  +{bonusPct}% Bracket Reached 🎯
+                                </p>
+                                <p className="text-[10px] font-bold" style={{ color: `${accentColor}b0` }}>
+                                  +{bonusScore.toLocaleString('en-IN')} XP expected at midnight
+                                </p>
+                              </div>
+                              <span className="text-[22px]">{pct >= 100 ? '🏆' : pct >= 70 ? '🔥' : pct >= 40 ? '⚡' : '✨'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accentColor}18` }}>
+                            <p className="text-[10px] font-bold" style={{ color: `${accentColor}90` }}>
+                              Aaj padho aur midnight bonus unlock karo!
+                            </p>
+                          </div>
+                        )}
+                        {/* Next bracket teaser */}
+                        {preview.nextBracketPct != null && preview.nextBonusPct != null && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-px" style={{ background: `${accentColor}20` }} />
+                            <span className="text-[9px] font-bold" style={{ color: `${accentColor}70` }}>
+                              Next: +{preview.nextBonusPct}% at {Math.round(preview.nextBracketPct * _pbLimit / 100).toLocaleString('en-IN')} XP ({preview.nextBracketPct}%)
+                            </span>
+                            <div className="flex-1 h-px" style={{ background: `${accentColor}20` }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Level-100% bonus label */}
+                    {hasBrackets && (
+                      <p className="text-[9px] font-bold mt-1.5" style={{ color: `${accentColor}60` }}>
+                        {getLevel100BonusLabel(_pbLevel)} at 100% — keep going!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── SUBSCRIPTION COUNTDOWN ── */}
           {user.isPremium && user.subscriptionEndDate && user.subscriptionTier !== 'LIFETIME' && !isNaN(new Date(user.subscriptionEndDate).getTime()) && (() => {

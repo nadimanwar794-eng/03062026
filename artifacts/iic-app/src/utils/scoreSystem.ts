@@ -22,7 +22,8 @@ export const getDailyScoreLimit = (
   scoreLimitBoostPercent?: number,
   eventExtraPoints?: number,
 ): number => {
-  const base = isPremium ? (DAILY_TIER_LIMITS[subscriptionLevel ?? 'FREE'] ?? 1500) : 1500;
+  const tierKey = isPremium ? (subscriptionLevel ?? 'BASIC') : 'FREE';
+  const base = DAILY_TIER_LIMITS[tierKey] ?? DAILY_TIER_LIMITS['FREE'];
   let limit = base;
   if (scoreLimitBoostPercent && scoreLimitBoostPercent > 0) {
     limit = Math.round(base * (1 + scoreLimitBoostPercent / 100));
