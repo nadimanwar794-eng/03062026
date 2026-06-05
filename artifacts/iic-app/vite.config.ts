@@ -38,12 +38,19 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        globPatterns: ["**/*.{js,css,html,ico,svg}", "**/*.png"],
+        globIgnores: ["**/splash-logo.png"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
             options: { cacheName: "google-fonts-cache" },
+          },
+          {
+            urlPattern: /splash-logo\.png$/,
+            handler: "CacheFirst",
+            options: { cacheName: "splash-cache" },
           },
         ],
       },
