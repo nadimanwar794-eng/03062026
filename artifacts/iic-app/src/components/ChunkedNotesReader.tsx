@@ -1516,8 +1516,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       {showReadingActiveInfo && (
         <div
           style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-            padding: '8px 12px 0',
+            position: 'fixed', top: 8, left: 8, zIndex: 9999,
+            width: '48%', maxWidth: 200,
             animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
           }}
         >
@@ -1526,7 +1526,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               background: 'rgba(8,12,28,0.96)',
               border: '1px solid #6366f155',
               borderRadius: 14,
-              padding: '12px 14px',
+              padding: '12px 12px',
               boxShadow: '0 6px 28px rgba(0,0,0,0.5)',
             }}
           >
