@@ -140,8 +140,8 @@ export const ReadingScoreHUD: React.FC<Props> = ({
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
               <span style={{ fontSize: 15 }}>{modeIcon}</span>
-              <span style={{ color: '#fff', fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                {isReading ? 'Reading Active' : 'Writing Active'}
+              <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
+                Score Session
               </span>
               {state.isPaused && (
                 <span style={{ marginLeft: 'auto', background: '#ef4444cc', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99 }}>

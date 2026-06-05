@@ -1752,6 +1752,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                             setShowTouchProtectionPopup(true);
                             touchProtectionPopupShownRef.current = true;
                             localStorage.setItem(TP_SEEN_KEY, '1');
+                            setTimeout(() => setShowTouchProtectionPopup(false), 2000);
                           }
                         } catch {}
                       }
