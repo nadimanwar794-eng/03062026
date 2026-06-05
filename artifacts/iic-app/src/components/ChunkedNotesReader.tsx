@@ -566,6 +566,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     ];
     if (manualTapTimestampsRef.current.length >= RAPID_THRESHOLD) {
       manualTapTimestampsRef.current = [];
+      setShowReadingActiveInfo(false);
       setShowTtsSuggestPopup(true);
     }
   }, []);
@@ -1497,7 +1498,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       )}
 
       {/* ── MERGED INFO POPUP — Reading Active + Touch Protection (single card, top) ── */}
-      {showReadingActiveInfo && (
+      {showReadingActiveInfo && !showTtsSuggestPopup && (
         <div
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
