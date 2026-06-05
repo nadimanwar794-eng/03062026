@@ -8408,10 +8408,22 @@ export const StudentDashboard: React.FC<Props> = ({
               {/* ─── Avatar ─── */}
               <div className="flex justify-center mb-4">
                 <div className="relative">
+                  {/* L15: double rainbow ring */}
+                  {_displayLvl.legendaryAura && !cardFxOff && (
+                    <div className="absolute rounded-full pointer-events-none" style={{
+                      inset: '-6px',
+                      background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc,#c4b5fd,#a5f3fc)',
+                      animation: 'spin 2s linear infinite',
+                      borderRadius: '50%',
+                      opacity: 0.85,
+                    }} />
+                  )}
                   {/* Outer glow halo */}
                   <div className="absolute -inset-2 rounded-full pointer-events-none" style={{
-                    background: `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
-                    animation: !cardFxOff && _displayLvl.level >= 6 ? 'spin 4s linear infinite' : 'none',
+                    background: _displayLvl.legendaryAura
+                      ? 'conic-gradient(from 180deg,#f9a8d4,#a5f3fc,#c4b5fd,#fde68a,#f9a8d4)'
+                      : `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
+                    animation: !cardFxOff && _displayLvl.level >= 6 ? (_displayLvl.legendaryAura ? 'spin 3s linear infinite reverse' : 'spin 4s linear infinite') : 'none',
                     borderRadius: '50%',
                   }} />
                   {/* Inner ring */}
@@ -8422,8 +8434,12 @@ export const StudentDashboard: React.FC<Props> = ({
                   {/* Avatar image */}
                   <div className="relative w-[104px] h-[104px] rounded-full overflow-hidden flex items-center justify-center" style={{
                     background: `linear-gradient(145deg, ${tierTheme.primary}40, ${tierTheme.primary}10)`,
-                    border: `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
-                    boxShadow: `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
+                    border: _displayLvl.legendaryAura
+                      ? '3px solid rgba(165,243,252,0.8)'
+                      : `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
+                    boxShadow: _displayLvl.legendaryAura
+                      ? '0 0 0 1.5px rgba(165,243,252,0.3), 0 10px 50px rgba(165,243,252,0.5), 0 4px 12px rgba(0,0,0,0.55)'
+                      : `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
                   }}>
                     {user.photoURL && user.avatarChoice === 'gmail'
                       ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
@@ -8434,6 +8450,10 @@ export const StudentDashboard: React.FC<Props> = ({
                           </span>
                     }
                   </div>
+                  {/* L15: crown above avatar */}
+                  {_displayLvl.legendaryAura && (
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl" style={{ filter: 'drop-shadow(0 0 8px rgba(165,243,252,0.9))', animation: 'name-fx-absolute 4s ease infinite' }}>💠</div>
+                  )}
                 </div>
               </div>
 
@@ -8464,6 +8484,41 @@ export const StudentDashboard: React.FC<Props> = ({
                   {tierTheme.emoji} {_pTierLabel}
                 </span>
               </div>
+
+              {/* ─── L15 ACHIEVEMENT PLAQUE ─── */}
+              {_displayLvl.legendaryAura && (
+                <div className="mx-4 mb-3 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(165,243,252,0.3)', boxShadow: '0 0 30px rgba(165,243,252,0.15)' }}>
+                  <style>{`
+                    @keyframes absoluteShimmer{0%{background-position:200% center}100%{background-position:-200% center}}
+                    @keyframes starPulse{0%,100%{opacity:0.6;transform:scale(0.9)}50%{opacity:1;transform:scale(1.2)}}
+                  `}</style>
+                  {/* Top banner */}
+                  <div className="px-4 py-2.5 text-center" style={{ background: 'linear-gradient(135deg,rgba(165,243,252,0.12),rgba(196,181,253,0.12),rgba(249,168,212,0.12))' }}>
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      {['✦','💠','✦'].map((s,i) => (
+                        <span key={i} className="text-sm" style={{ animation: `starPulse 2s ease-in-out infinite ${i*0.4}s`, display:'inline-block' }}>{s}</span>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-black tracking-[0.25em] uppercase" style={{ background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'absoluteShimmer 4s linear infinite' }}>
+                      ✦ ABSOLUTE LEGEND ✦
+                    </p>
+                    <p className="text-[9px] font-semibold mt-0.5" style={{ color: 'rgba(165,243,252,0.6)' }}>Maximum Level Achieved — The Pinnacle of Learning</p>
+                  </div>
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 divide-x" style={{ borderTop: '1px solid rgba(165,243,252,0.12)', divideColor: 'rgba(165,243,252,0.12)' }}>
+                    {[
+                      { label: 'Level', val: '15 MAX' },
+                      { label: 'Discount', val: '30% OFF' },
+                      { label: 'Multiplier', val: '5×' },
+                    ].map(({ label, val }) => (
+                      <div key={label} className="py-2 text-center">
+                        <p className="text-[9px] font-black" style={{ color: 'rgba(165,243,252,0.5)', letterSpacing: '0.1em' }}>{label}</p>
+                        <p className="text-[11px] font-black" style={{ color: 'rgba(165,243,252,0.9)' }}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ─── Info row: join date + days ─── */}
               <div className="flex items-center justify-center gap-3 mb-4" style={{ color: _pTxtSubColor }}>
@@ -10588,31 +10643,71 @@ export const StudentDashboard: React.FC<Props> = ({
                 ))}
                 {/* Level up badge */}
                 <div style={{ animation: 'levelUpPop 3s ease forwards', textAlign: 'center', zIndex: 1 }} className="pointer-events-auto" onClick={() => setLevelUpCelebration(null)}>
-                  <div className="rounded-3xl px-8 py-6 shadow-2xl border-2 border-white/30 text-center" style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', boxShadow: '0 0 60px rgba(168,85,247,0.6)' }}>
-                    <div className="text-5xl mb-2">🎉</div>
-                    <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">Level Up!</p>
-                    <p className="text-5xl mb-1">{levelUpCelebration.emoji}</p>
-                    <p className="text-white text-2xl font-black">Level {levelUpCelebration.level}</p>
-                    <p className="text-white/70 text-sm font-bold">{levelUpCelebration.label}</p>
-                    {/* Level Benefits */}
-                    <div className="mt-3 space-y-1.5">
-                      {(() => {
-                        const lvlInfo = LEVEL_INFO.find(l => l.level === levelUpCelebration.level);
-                        if (!lvlInfo) return null;
-                        const benefits: string[] = [];
-                        if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
-                        if (lvlInfo.nameColor || lvlInfo.legendaryAura) benefits.push(lvlInfo.legendaryAura ? `✦ ABSOLUTE Rainbow Name — Leaderboard mein unique!` : `🎨 Colored name in Leaderboard`);
-                        const ld = getLevelDailyLimits(lvlInfo.level);
-                        benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
-                        const bonus = getLevelLimitBonus(lvlInfo.level);
-                        if (bonus.bonusLoginCredits > 0) benefits.push(`🎁 +${bonus.bonusLoginCredits} bonus login credits`);
-                        return benefits.map((b, i) => (
-                          <div key={i} className="bg-white/15 rounded-xl px-3 py-1.5 text-white text-[11px] font-bold">{b}</div>
-                        ));
-                      })()}
+                  {levelUpCelebration.level === 15 ? (
+                    /* ── L15 ABSOLUTE LEGEND — Grand Achievement Card ── */
+                    <div className="rounded-3xl px-8 py-7 shadow-2xl text-center" style={{
+                      background: 'linear-gradient(135deg,#0a0a1a,#0d1a2e,#0a0a1a)',
+                      border: '2px solid rgba(165,243,252,0.4)',
+                      boxShadow: '0 0 80px rgba(165,243,252,0.35), 0 0 40px rgba(196,181,253,0.25)',
+                      minWidth: '280px',
+                    }}>
+                      {/* Sparkle row */}
+                      <div className="flex justify-center gap-3 mb-2">
+                        {['✦','✦','✦','✦','✦'].map((s,i) => (
+                          <span key={i} className="text-[11px]" style={{ color: ['#a5f3fc','#c4b5fd','#f9a8d4','#c4b5fd','#a5f3fc'][i], animation: `starPulse 1.8s ease-in-out infinite ${i*0.25}s`, display:'inline-block' }}>{s}</span>
+                        ))}
+                      </div>
+                      {/* Crown + emoji */}
+                      <div className="text-5xl mb-1" style={{ filter: 'drop-shadow(0 0 16px rgba(165,243,252,0.9))' }}>💠</div>
+                      {/* MAX LEVEL label */}
+                      <p className="text-[9px] font-black tracking-[0.3em] uppercase mb-1" style={{ color: 'rgba(165,243,252,0.5)' }}>Maximum Level Reached</p>
+                      {/* ABSOLUTE LEGEND */}
+                      <p className="text-2xl font-black mb-0" style={{ background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize:'200% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'absoluteShimmer 3s linear infinite' }}>
+                        ABSOLUTE LEGEND
+                      </p>
+                      <p className="text-[11px] font-black mb-3" style={{ color: 'rgba(165,243,252,0.6)' }}>The Pinnacle of Learning</p>
+                      {/* Achievement cards */}
+                      <div className="space-y-2">
+                        {[
+                          '🏆 MAX Level 15 — You are among the elite',
+                          '💎 30% Store Discount — Maximum ever',
+                          '✦ Rainbow Name — Unique in Leaderboard',
+                          '⚡ 5× Limit Multiplier — Full Power',
+                          '💠 ABSOLUTE AURA — Cosmic profile ring',
+                        ].map((b,i) => (
+                          <div key={i} className="rounded-xl px-3 py-1.5 text-[11px] font-bold text-left" style={{ background: 'rgba(165,243,252,0.08)', border: '1px solid rgba(165,243,252,0.15)', color: 'rgba(165,243,252,0.85)' }}>{b}</div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] mt-3" style={{ color: 'rgba(165,243,252,0.3)' }}>Tap to dismiss</p>
                     </div>
-                    <p className="text-white/50 text-[10px] mt-3">Tap to dismiss</p>
-                  </div>
+                  ) : (
+                    /* ── Normal Level Up Card ── */
+                    <div className="rounded-3xl px-8 py-6 shadow-2xl border-2 border-white/30 text-center" style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', boxShadow: '0 0 60px rgba(168,85,247,0.6)' }}>
+                      <div className="text-5xl mb-2">🎉</div>
+                      <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">Level Up!</p>
+                      <p className="text-5xl mb-1">{levelUpCelebration.emoji}</p>
+                      <p className="text-white text-2xl font-black">Level {levelUpCelebration.level}</p>
+                      <p className="text-white/70 text-sm font-bold">{levelUpCelebration.label}</p>
+                      {/* Level Benefits */}
+                      <div className="mt-3 space-y-1.5">
+                        {(() => {
+                          const lvlInfo = LEVEL_INFO.find(l => l.level === levelUpCelebration.level);
+                          if (!lvlInfo) return null;
+                          const benefits: string[] = [];
+                          if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
+                          if (lvlInfo.nameColor || lvlInfo.legendaryAura) benefits.push(lvlInfo.legendaryAura ? `✦ ABSOLUTE Rainbow Name — Leaderboard mein unique!` : `🎨 Colored name in Leaderboard`);
+                          const ld = getLevelDailyLimits(lvlInfo.level);
+                          benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
+                          const bonus = getLevelLimitBonus(lvlInfo.level);
+                          if (bonus.bonusLoginCredits > 0) benefits.push(`🎁 +${bonus.bonusLoginCredits} bonus login credits`);
+                          return benefits.map((b, i) => (
+                            <div key={i} className="bg-white/15 rounded-xl px-3 py-1.5 text-white text-[11px] font-bold">{b}</div>
+                          ));
+                        })()}
+                      </div>
+                      <p className="text-white/50 text-[10px] mt-3">Tap to dismiss</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
