@@ -74,6 +74,8 @@ const PAUSE_THRESHOLD_SEC = 240;       // 4 min → pause
 const MANUAL_STAY_MS = 10_000;         // must stay on topic 10s to earn manual reward
 const MANUAL_REWARD_PTS = 2;           // +2 for manual topic engagement
 
+const TTS_MIN_INTERVAL_MS = 3_000;     // TTS: min 3 sec between highlights (prevents 3x-speed farming)
+
 export class ReadingScoreSession {
   private config: ReadingScoreConfig;
   private startTime = 0;
@@ -93,6 +95,9 @@ export class ReadingScoreSession {
   private onStateChange?: (state: ReadingScoreState) => void;
   private currentProgress = 0;
   private ttsProgressSinceValidation = false;
+
+  // TTS rate-limit (prevents 3x-speed farming)
+  private lastTtsHighlightRewardTime = 0;
 
   // Touch Protection state
   private touchProtectionActive = false;
@@ -120,6 +125,7 @@ export class ReadingScoreSession {
     this.sessionElapsedSec = 0;
     this.isWindowClosed = false;
     this.ttsProgressSinceValidation = false;
+    this.lastTtsHighlightRewardTime = 0;
     this._clearTouchProtection();
 
     this.intervalId = setInterval(() => this.tick(), 1000);
@@ -151,8 +157,9 @@ export class ReadingScoreSession {
     this.currentProgress = clipped;
   }
 
-  /** Called when TTS auto-reads a topic aloud (+1 score, NO cooldown — TTS is exempt).
-   *  TTS has natural timing so every highlight = genuine content consumption. */
+  /** Called when TTS reads a topic aloud.
+   *  +1 per topic, but minimum 3 sec between rewards — prevents 3x-speed farming.
+   *  Activity still resets stall warnings regardless of reward eligibility. */
   onTtsHighlight() {
     this.ttsProgressSinceValidation = true;
     // TTS activity = progress, reset stall warnings
@@ -163,6 +170,10 @@ export class ReadingScoreSession {
     }
     if (this.isWindowClosed) return;
 
+    const now = Date.now();
+    // Rate-limit: at most +1 every 3 seconds (normal speed reads fine; 3x-speed capped)
+    if (this.lastTtsHighlightRewardTime > 0 && now - this.lastTtsHighlightRewardTime < TTS_MIN_INTERVAL_MS) return;
+
     const pts = tryEarnScore(
       this.config.userId,
       TTS_HIGHLIGHT_REWARD,
@@ -172,6 +183,7 @@ export class ReadingScoreSession {
       'READ_TTS_HIGHLIGHT',
     );
     if (pts > 0) {
+      this.lastTtsHighlightRewardTime = now;
       this.totalSessionScore += pts;
       this.lastScoreEarned = pts;
       this.config.onScoreEarned?.(pts, 'READ_TTS_HIGHLIGHT');
