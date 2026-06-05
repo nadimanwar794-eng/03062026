@@ -17,7 +17,7 @@ interface Props {
   levelLabel?: string;
 }
 
-type PopupKind = 'none' | 'info' | 'reward' | 'warning';
+type PopupKind = 'none' | 'info' | 'reward' | 'warning' | 'touch';
 
 const fmt2 = (n: number) => String(Math.max(0, n)).padStart(2, '0');
 
@@ -58,6 +58,22 @@ export const ReadingScoreHUD: React.FC<Props> = ({
     }
     if (state.warningLevel === 0) prevWarning.current = 0;
   }, [state.warningLevel, showFor]);
+
+  /* Touch protection indicator — stays visible while countdown is active */
+  const prevTouchProtection = useRef(false);
+  useEffect(() => {
+    if (state.touchProtectionActive && !prevTouchProtection.current) {
+      // Became active → switch to touch popup and keep it open
+      clearTimer();
+      setMounted(true);
+      setPopup('touch');
+    }
+    if (!state.touchProtectionActive && prevTouchProtection.current) {
+      // Countdown ended → hide touch popup
+      setPopup(p => (p === 'touch' ? 'none' : p));
+    }
+    prevTouchProtection.current = state.touchProtectionActive;
+  }, [state.touchProtectionActive]);
 
   /* Cleanup on unmount */
   useEffect(() => { return () => clearTimer(); }, []);
@@ -163,6 +179,54 @@ export const ReadingScoreHUD: React.FC<Props> = ({
                 <span style={{ color: levelColor, fontSize: 9, fontWeight: 800 }}>{levelLabel}</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── TOUCH PROTECTION POPUP ── */}
+        {popup === 'touch' && (
+          <div
+            style={{
+              ...popupBase,
+              background: 'rgba(8,12,28,0.96)',
+              border: '1px solid #6366f155',
+              padding: '12px 14px',
+              minWidth: 200,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+              <span style={{ fontSize: 16 }}>🛡️</span>
+              <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Touch Protection
+              </span>
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>
+              Topic par <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span> rukne ke baad<br />
+              <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span> milega
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div
+                style={{
+                  flex: 1,
+                  height: 4,
+                  background: '#1e2030',
+                  borderRadius: 99,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.round(((10 - state.touchProtectionCooldownSec) / 10) * 100)}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                    borderRadius: 99,
+                    transition: 'width 0.9s linear',
+                  }}
+                />
+              </div>
+              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 12, minWidth: 24, textAlign: 'right' }}>
+                {fmt2(state.touchProtectionCooldownSec)}s
+              </span>
+            </div>
           </div>
         )}
 

@@ -6,8 +6,8 @@
  *   • Max reward window by level (L1-L8: 5 min, L9: 5.5 min … L15: 10 min)
  *   • Progress validation every 2 min: need ≥10% net forward progress
  *   • Anti-spam: only net forward topic progress counts
- *   • TTS topic highlight: each topic read via TTS → +1 score
- *     BUT only once per 10 seconds (anti-tap-farming cooldown)
+ *   • TTS topic highlight: each topic read via TTS → +1 score (NO cooldown — natural timing)
+ *   • Manual topic tap: user must stay on topic for 10 sec → +2 score (Touch Protection)
  *
  * Writing Mode:
  *   • Every 5 min of validated writing → +25 score
@@ -42,6 +42,9 @@ export interface ReadingScoreState {
   progressPercent: number;        // net forward progress %
   mode: 'reading' | 'writing';
   isWindowClosed: boolean;        // max window reached
+  // Touch Protection (manual tap anti-abuse)
+  touchProtectionActive: boolean; // true while 10-sec countdown is running
+  touchProtectionCooldownSec: number; // seconds remaining in current countdown
 }
 
 export interface ReadingScoreConfig {
@@ -68,7 +71,8 @@ const WARN1_THRESHOLD_SEC = 120;       // 2 min no progress → warn1
 const WARN2_THRESHOLD_SEC = 180;       // 3 min → warn2
 const PAUSE_THRESHOLD_SEC = 240;       // 4 min → pause
 
-const TTS_COOLDOWN_MS = 10_000;        // 10 sec cooldown between TTS highlight rewards
+const MANUAL_STAY_MS = 10_000;         // must stay on topic 10s to earn manual reward
+const MANUAL_REWARD_PTS = 2;           // +2 for manual topic engagement
 
 export class ReadingScoreSession {
   private config: ReadingScoreConfig;
@@ -88,8 +92,13 @@ export class ReadingScoreSession {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private onStateChange?: (state: ReadingScoreState) => void;
   private currentProgress = 0;
-  private ttsProgressSinceValidation = false; // new TTS section read
-  private lastTtsHighlightRewardTime = 0;     // anti-tap-farming: last time TTS gave score
+  private ttsProgressSinceValidation = false;
+
+  // Touch Protection state
+  private touchProtectionActive = false;
+  private touchProtectionTopicIdx = -1;
+  private touchProtectionStartMs = 0;
+  private touchProtectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor(config: ReadingScoreConfig, onStateChange?: (state: ReadingScoreState) => void) {
     this.config = config;
@@ -111,7 +120,7 @@ export class ReadingScoreSession {
     this.sessionElapsedSec = 0;
     this.isWindowClosed = false;
     this.ttsProgressSinceValidation = false;
-    this.lastTtsHighlightRewardTime = 0;
+    this._clearTouchProtection();
 
     this.intervalId = setInterval(() => this.tick(), 1000);
     this.emitState();
@@ -122,6 +131,7 @@ export class ReadingScoreSession {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    this._clearTouchProtection();
   }
 
   /** Call whenever the user's reading progress changes (0-100) */
@@ -141,25 +151,17 @@ export class ReadingScoreSession {
     this.currentProgress = clipped;
   }
 
-  /** Call when a TTS topic/line is read aloud (+1 score, counts as progress)
-   *  Anti-farming: score is granted at most once per TTS_COOLDOWN_MS (10 sec).
-   *  Any number of topic taps within that window still count as activity/progress
-   *  but do NOT yield additional score. */
+  /** Called when TTS auto-reads a topic aloud (+1 score, NO cooldown — TTS is exempt).
+   *  TTS has natural timing so every highlight = genuine content consumption. */
   onTtsHighlight() {
     this.ttsProgressSinceValidation = true;
-    // Treat TTS activity as progress (reset warning) regardless of cooldown
+    // TTS activity = progress, reset stall warnings
     if (this.warningLevel > 0 || this.isPaused) {
       this.noProgressSec = 0;
       this.warningLevel = 0;
       this.isPaused = false;
     }
-
     if (this.isWindowClosed) return;
-
-    const now = Date.now();
-    const msSinceLast = now - this.lastTtsHighlightRewardTime;
-    // Cooldown not yet elapsed → skip score (anti-tap-farming)
-    if (this.lastTtsHighlightRewardTime > 0 && msSinceLast < TTS_COOLDOWN_MS) return;
 
     const pts = tryEarnScore(
       this.config.userId,
@@ -170,7 +172,6 @@ export class ReadingScoreSession {
       'READ_TTS_HIGHLIGHT',
     );
     if (pts > 0) {
-      this.lastTtsHighlightRewardTime = now;
       this.totalSessionScore += pts;
       this.lastScoreEarned = pts;
       this.config.onScoreEarned?.(pts, 'READ_TTS_HIGHLIGHT');
@@ -178,11 +179,71 @@ export class ReadingScoreSession {
     }
   }
 
+  /** Called when user MANUALLY taps a topic (Touch Protection).
+   *  User must stay on the same topic for 10 sec to earn +2.
+   *  Tapping a different topic before 10 sec cancels the pending reward.
+   *  Returns true if a new countdown started, false if same topic (already counting). */
+  onManualTopicEnter(topicIdx: number): void {
+    if (this.isWindowClosed) return;
+
+    // Same topic tapped again while counting → ignore (already running)
+    if (this.touchProtectionActive && this.touchProtectionTopicIdx === topicIdx) return;
+
+    // Cancel any previous pending reward
+    this._clearTouchProtection();
+
+    this.touchProtectionActive = true;
+    this.touchProtectionTopicIdx = topicIdx;
+    this.touchProtectionStartMs = Date.now();
+    this.emitState();
+
+    // Award +2 after 10 sec of staying on the same topic
+    this.touchProtectionTimeoutId = setTimeout(() => {
+      this.touchProtectionTimeoutId = null;
+      this.touchProtectionActive = false;
+
+      if (this.isWindowClosed) { this.emitState(); return; }
+
+      const pts = tryEarnScore(
+        this.config.userId,
+        MANUAL_REWARD_PTS,
+        this.config.subscriptionLevel,
+        this.config.isPremium,
+        this.config.boostPercent,
+        'READ_MANUAL_TOPIC_10S',
+      );
+      if (pts > 0) {
+        this.totalSessionScore += pts;
+        this.lastScoreEarned = pts;
+        this.ttsProgressSinceValidation = true; // counts as valid activity
+        this.config.onScoreEarned?.(pts, 'READ_MANUAL_TOPIC_10S');
+      }
+      this.emitState();
+    }, MANUAL_STAY_MS);
+  }
+
+  private _clearTouchProtection() {
+    if (this.touchProtectionTimeoutId) {
+      clearTimeout(this.touchProtectionTimeoutId);
+      this.touchProtectionTimeoutId = null;
+    }
+    this.touchProtectionActive = false;
+    this.touchProtectionTopicIdx = -1;
+    this.touchProtectionStartMs = 0;
+  }
+
   getState(): ReadingScoreState {
     const intervalSec = this.mode === 'reading' ? READING_INTERVAL_SEC : WRITING_INTERVAL_SEC;
     const now = Date.now();
     const elapsed = this.intervalId ? (now - this.lastRewardTime) / 1000 : 0;
     const nextRewardInSec = Math.max(0, Math.ceil(intervalSec - elapsed));
+
+    // Touch protection countdown seconds remaining
+    let touchProtectionCooldownSec = 0;
+    if (this.touchProtectionActive && this.touchProtectionStartMs > 0) {
+      const msElapsed = now - this.touchProtectionStartMs;
+      touchProtectionCooldownSec = Math.max(0, Math.ceil((MANUAL_STAY_MS - msElapsed) / 1000));
+    }
 
     return {
       warningLevel: this.warningLevel,
@@ -195,6 +256,8 @@ export class ReadingScoreSession {
       progressPercent: this.maxProgressReached,
       mode: this.mode,
       isWindowClosed: this.isWindowClosed,
+      touchProtectionActive: this.touchProtectionActive,
+      touchProtectionCooldownSec,
     };
   }
 

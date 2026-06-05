@@ -510,6 +510,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const [scoreState, setScoreState] = useState<ReadingScoreState | null>(null);
   const maxTopicReachedRef = useRef<number>(0);
 
+  // Touch Protection explanation popup (shown once per device)
+  const TP_SEEN_KEY = 'iic_touch_protection_seen';
+  const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
+  const touchProtectionPopupShownRef = useRef(false);
+
   useEffect(() => {
     if (!readingScoreConfig) return;
     const session = new ReadingScoreSession(readingScoreConfig, setScoreState);
@@ -1373,6 +1378,71 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
+      {/* Touch Protection explanation popup — shown first time user taps a topic */}
+      {showTouchProtectionPopup && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            padding: '0 16px 32px',
+          }}
+          onClick={() => setShowTouchProtectionPopup(false)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'rgba(10,12,28,0.98)',
+              border: '1px solid #6366f144',
+              borderRadius: 20,
+              padding: '24px 22px 20px',
+              maxWidth: 340,
+              width: '100%',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
+              animation: 'rshud-slide 0.25s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <span style={{ fontSize: 26 }}>🛡️</span>
+              <div>
+                <div style={{ color: '#a5b4fc', fontSize: 14, fontWeight: 900 }}>Touch Protection Active</div>
+                <div style={{ color: '#64748b', fontSize: 10, marginTop: 2 }}>Fair learning system</div>
+              </div>
+            </div>
+            <div style={{ color: '#cbd5e1', fontSize: 12, lineHeight: 1.7, marginBottom: 16 }}>
+              Rapid tapping se score <span style={{ color: '#f87171', fontWeight: 700 }}>earn nahi hoga</span>.<br />
+              Reward tab milega jab:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {[
+                { icon: '📖', text: 'Topic open karo' },
+                { icon: '⏱️', text: '10 sec padhte raho' },
+                { icon: '✨', text: '+2 reward automatic milega' },
+              ].map(({ icon, text }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(99,102,241,0.1)', borderRadius: 10, padding: '8px 12px' }}>
+                  <span style={{ fontSize: 16 }}>{icon}</span>
+                  <span style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600 }}>{text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ color: '#475569', fontSize: 10, textAlign: 'center', marginBottom: 14 }}>
+              TTS auto-reading naturally exempt hai — score milta rahega.
+            </div>
+            <button
+              onClick={() => setShowTouchProtectionPopup(false)}
+              style={{
+                width: '100%', padding: '11px 0', borderRadius: 12,
+                background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                color: '#fff', fontWeight: 900, fontSize: 13, border: 'none',
+                cursor: 'pointer', letterSpacing: '0.03em',
+              }}
+            >
+              Samajh gaya, theek hai!
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Reading Score HUD — smart floating icon, tap-to-reveal, auto reward/warning popups */}
       {readingScoreConfig && scoreState && (() => {
         const lvl = getLevelInfo(
@@ -1431,8 +1501,25 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 type="button"
                 onClick={() => {
                   try { if (navigator.vibrate) navigator.vibrate(isActive ? 30 : 50); } catch {}
-                  if (isActive) stopAll();
-                  else startFromIndex(idx);
+                  if (isActive) {
+                    stopAll();
+                  } else {
+                    // Manual tap → Touch Protection (10 sec stay → +2)
+                    if (scoreSessionRef.current && !topic.isHeading && readingScoreConfig) {
+                      scoreSessionRef.current.onManualTopicEnter(idx);
+                      // Show explanation popup first time only
+                      if (!touchProtectionPopupShownRef.current) {
+                        try {
+                          if (!localStorage.getItem(TP_SEEN_KEY)) {
+                            setShowTouchProtectionPopup(true);
+                            touchProtectionPopupShownRef.current = true;
+                            localStorage.setItem(TP_SEEN_KEY, '1');
+                          }
+                        } catch {}
+                      }
+                    }
+                    startFromIndex(idx);
+                  }
                 }}
                 aria-label={isActive ? 'Stop reading this line' : 'Read from this line'}
                 title={isActive ? 'Tap to stop' : 'Tap to read from here'}
