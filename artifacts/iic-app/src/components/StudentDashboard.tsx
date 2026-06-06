@@ -9724,11 +9724,11 @@ export const StudentDashboard: React.FC<Props> = ({
   <ThemeProvider theme={_extendedTheme}>
     <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
       <NotificationPrompt />
-      {/* ADMIN SWITCH BUTTON — only visible inside content (Notes/MCQ player or HW notes) */}
+      {/* ADMIN SWITCH BUTTON — only visible inside content (Notes/MCQ player), NOT in competition viewer */}
       {(user.role === "ADMIN" ||
         user.role === "SUB_ADMIN" ||
         isImpersonating) &&
-        (contentViewStep === "PLAYER" || !!hwActiveHwId) && (
+        contentViewStep === "PLAYER" && !hwActiveHwId && (
         <div className="fixed bottom-36 right-4 z-50 flex flex-col gap-3 items-end">
           <button
             onClick={() => setIsLayoutEditing(!isLayoutEditing)}
