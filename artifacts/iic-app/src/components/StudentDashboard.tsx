@@ -9797,10 +9797,30 @@ export const StudentDashboard: React.FC<Props> = ({
               return _imgEl;
             })()}
             <div className="flex items-center gap-1 min-w-0">
-              <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
-                {settings?.appShortName || settings?.appName || "IIC"}
-              </span>
-              <BadgeCheck size={16} className="text-blue-200 shrink-0" fill="rgba(191,219,254,0.35)" />
+              {tierTheme.tier === 'ultra' ? (
+                <>
+                  <style>{`@keyframes _tbGoldShimmer{0%{background-position:200% center}100%{background-position:-200% center}}`}</style>
+                  <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap" style={{
+                    background: 'linear-gradient(90deg,#fde68a,#fbbf24,#f59e0b,#fde68a,#e2e8f0,#fde68a)',
+                    backgroundSize: '250% auto',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    animation: '_tbGoldShimmer 3s linear infinite',
+                    filter: 'drop-shadow(0 0 6px rgba(251,191,36,0.55))',
+                  }}>
+                    {settings?.appShortName || settings?.appName || "IIC"}
+                  </span>
+                  <BadgeCheck size={16} style={{ color: '#fbbf24', filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.7))' }} className="shrink-0" fill="rgba(251,191,36,0.25)" />
+                </>
+              ) : (
+                <>
+                  <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
+                    {settings?.appShortName || settings?.appName || "IIC"}
+                  </span>
+                  <BadgeCheck size={16} className="text-blue-200 shrink-0" fill="rgba(191,219,254,0.35)" />
+                </>
+              )}
             </div>
           </div>
 
