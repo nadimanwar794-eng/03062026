@@ -9794,24 +9794,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <BrainCircuit size={16} />
                 </div>
               );
-              if (!_hasRing) return _imgEl;
-              return (
-                <div className="relative shrink-0" style={{ width: 32, height: 32 }}>
-                  <div style={_ringStyle} />
-                  <div style={{ position: 'absolute', inset: _isLegendary ? '2px' : _tbLvl >= 13 ? '2px' : '2px', borderRadius: '50%', background: 'rgba(0,0,0,0.6)', zIndex: 0 }} />
-                  <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden' }}>
-                    {user.photoURL && user.avatarChoice === 'gmail' ? (
-                      <img src={user.photoURL} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : settings?.appLogo ? (
-                      <img src={settings.appLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.2)', color: 'white' }}>
-                        <BrainCircuit size={14} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
+              return _imgEl;
             })()}
             <div className="flex items-center gap-1 min-w-0">
               <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
