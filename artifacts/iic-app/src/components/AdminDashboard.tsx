@@ -130,6 +130,7 @@ type AdminTab =
   | 'BOOK_NOTES_MANAGER' // NEW – separate from homework
   | 'CLASS_NOTES_MANAGER' // NEW – Class 6-12 school notes
   | 'DAILY_GK_MANAGER' // NEW
+  | 'LIBRARY_NOTES_MANAGER' // NEW – Library books notes upload
   | 'TEACHERS' // NEW
   | 'TRENDING_NOTES_MANAGER' // NEW: Live trending important notes
   | 'GLOBAL_CHAT' // NEW: Chat moderation
@@ -17321,6 +17322,208 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               </div>
           </div>
       )}
+
+      {/* ══════════════════════════════════════════════
+          LIBRARY NOTES MANAGER
+          Admin se Library ki books ke chapters aur notes upload karein
+          Jo chapters yahan add honge woh LibraryView mein dikhenge
+      ══════════════════════════════════════════════ */}
+      {activeTab === 'LIBRARY_NOTES_MANAGER' && (() => {
+          const LIBRARY_BOOKS = [
+              { id: 'LUCENT',   emoji: '📖', label: 'Lucent GK',         classLevel: 'BOOK',        color: 'indigo', subjects: ['History / इतिहास','Geography / भूगोल','Polity / राजनीति','Economy / अर्थशास्त्र','Science / विज्ञान','Art & Culture / कला'] },
+              { id: 'COMPBOOK', emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',        color: 'amber',  subjects: ['Sar Sangrah / सार संग्रह','Speedy Science','Speedy Social Science'] },
+              { id: 'GK',       emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       color: 'emerald',subjects: ['General Knowledge / सामान्य ज्ञान','Current Affairs / करंट अफेयर्स'] },
+              { id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes',  classLevel: 'COMPETITION', color: 'purple', subjects: ['MCQ Practice','Class Notes / कक्षा नोट्स'] },
+          ];
+
+          const [lnmSelBook, setLnmSelBook] = React.useState<string>('LUCENT');
+          const [lnmSelSubject, setLnmSelSubject] = React.useState<string>('');
+          const [lnmChapters, setLnmChapters] = React.useState<{id:string;title:string}[]>([]);
+          const [lnmLoadingChapters, setLnmLoadingChapters] = React.useState(false);
+          const [lnmNewChapter, setLnmNewChapter] = React.useState('');
+          const [lnmSavingChapter, setLnmSavingChapter] = React.useState(false);
+          const [lnmSelChapterId, setLnmSelChapterId] = React.useState<string|null>(null);
+          const [lnmFreeNotes, setLnmFreeNotes] = React.useState('');
+          const [lnmSavingNotes, setLnmSavingNotes] = React.useState(false);
+          const [lnmDeletingId, setLnmDeletingId] = React.useState<string|null>(null);
+
+          const bookCfg = LIBRARY_BOOKS.find(b => b.id === lnmSelBook)!;
+          const syllabusKey = lnmSelSubject ? `${lnmSelBook}-${bookCfg.classLevel}-${lnmSelSubject}-English` : '';
+          const contentKey = lnmSelChapterId ? `nst_content_${lnmSelBook}_${bookCfg.classLevel}_${lnmSelSubject}_${lnmSelChapterId}` : '';
+          const selChapter = lnmChapters.find(c => c.id === lnmSelChapterId);
+
+          const loadChapters = async (bookId: string, subject: string) => {
+              if (!subject) return;
+              const cfg = LIBRARY_BOOKS.find(b => b.id === bookId)!;
+              const key = `${bookId}-${cfg.classLevel}-${subject}-English`;
+              setLnmLoadingChapters(true);
+              setLnmSelChapterId(null);
+              setLnmFreeNotes('');
+              try {
+                  const ch = await getCustomSyllabus(key);
+                  setLnmChapters(Array.isArray(ch) ? ch : []);
+              } catch { setLnmChapters([]); }
+              setLnmLoadingChapters(false);
+          };
+
+          const handleAddChapter = async () => {
+              if (!lnmNewChapter.trim() || !lnmSelSubject) return;
+              setLnmSavingChapter(true);
+              try {
+                  const newCh = { id: `ch_${Date.now()}`, title: lnmNewChapter.trim() };
+                  const updated = [...lnmChapters, newCh];
+                  await saveCustomSyllabus(syllabusKey, updated);
+                  setLnmChapters(updated);
+                  setLnmNewChapter('');
+                  setAlertConfig({ isOpen: true, message: `✅ Chapter "${newCh.title}" add ho gaya!` });
+              } catch { setAlertConfig({ isOpen: true, message: '❌ Chapter save nahi hua, dobara try karein.' }); }
+              setLnmSavingChapter(false);
+          };
+
+          const handleDeleteChapter = async (chId: string) => {
+              if (!confirm('Is chapter ko delete karna chahte hain?')) return;
+              setLnmDeletingId(chId);
+              try {
+                  const updated = lnmChapters.filter(c => c.id !== chId);
+                  await saveCustomSyllabus(syllabusKey, updated);
+                  setLnmChapters(updated);
+                  if (lnmSelChapterId === chId) { setLnmSelChapterId(null); setLnmFreeNotes(''); }
+              } catch { setAlertConfig({ isOpen: true, message: '❌ Delete nahi hua.' }); }
+              setLnmDeletingId(null);
+          };
+
+          const handleLoadNotes = async (chId: string) => {
+              setLnmSelChapterId(chId);
+              setLnmFreeNotes('');
+              const key = `nst_content_${lnmSelBook}_${bookCfg.classLevel}_${lnmSelSubject}_${chId}`;
+              try {
+                  const data = await getChapterData(key);
+                  setLnmFreeNotes(data?.freeNotesHtml || data?.aiHtmlContent || '');
+              } catch { setLnmFreeNotes(''); }
+          };
+
+          const handleSaveNotes = async () => {
+              if (!lnmSelChapterId || !contentKey) return;
+              setLnmSavingNotes(true);
+              try {
+                  const existing = await getChapterData(contentKey) || {};
+                  const updated = { ...existing, freeNotesHtml: lnmFreeNotes, type: 'MULTI_TAB', title: selChapter?.title || '', subtitle: `${bookCfg.label} · ${lnmSelSubject}` };
+                  await saveChapterData(contentKey, updated);
+                  setAlertConfig({ isOpen: true, message: `✅ Notes save ho gaye — Library mein ab dikhenge!` });
+              } catch { setAlertConfig({ isOpen: true, message: '❌ Notes save nahi hue.' }); }
+              setLnmSavingNotes(false);
+          };
+
+          return (
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right overflow-hidden">
+                  <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50">
+                      <button onClick={() => setActiveTab('DASHBOARD')} className="bg-white p-2 rounded-full hover:bg-slate-100 border border-slate-200"><ArrowLeft size={20} /></button>
+                      <div>
+                          <h3 className="text-xl font-black text-slate-800">📚 Library Notes Manager</h3>
+                          <p className="text-xs text-slate-500 font-medium">Library ki books mein chapters aur notes add karein</p>
+                      </div>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                      {/* Step 1: Book Select */}
+                      <div>
+                          <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest mb-3">Step 1 — Book Chunein</p>
+                          <div className="grid grid-cols-2 gap-2">
+                              {LIBRARY_BOOKS.map(b => (
+                                  <button key={b.id} onClick={() => { setLnmSelBook(b.id); setLnmSelSubject(''); setLnmChapters([]); setLnmSelChapterId(null); setLnmFreeNotes(''); }}
+                                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left font-black text-sm ${lnmSelBook === b.id ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-700 hover:border-violet-300'}`}>
+                                      <span className="text-xl shrink-0">{b.emoji}</span>
+                                      <span className="truncate">{b.label}</span>
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
+                      {/* Step 2: Subject Select */}
+                      <div>
+                          <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest mb-3">Step 2 — Subject Chunein</p>
+                          <select
+                              value={lnmSelSubject}
+                              onChange={e => { setLnmSelSubject(e.target.value); loadChapters(lnmSelBook, e.target.value); }}
+                              className="w-full border-2 border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400 bg-white"
+                          >
+                              <option value="">— Subject chunein —</option>
+                              {bookCfg.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                      </div>
+
+                      {lnmSelSubject && (
+                          <>
+                              {/* Step 3: Chapter Add */}
+                              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-3">
+                                  <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest">Step 3 — Chapter Add Karein</p>
+                                  <div className="flex gap-2">
+                                      <input
+                                          value={lnmNewChapter}
+                                          onChange={e => setLnmNewChapter(e.target.value)}
+                                          onKeyDown={e => e.key === 'Enter' && handleAddChapter()}
+                                          placeholder="Chapter ka naam likhein (jaise: Chapter 1 - History)"
+                                          className="flex-1 border-2 border-violet-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-violet-500 bg-white"
+                                      />
+                                      <button onClick={handleAddChapter} disabled={lnmSavingChapter || !lnmNewChapter.trim()}
+                                          className="px-4 py-2 bg-violet-600 text-white rounded-xl font-black text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap">
+                                          {lnmSavingChapter ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
+                                      </button>
+                                  </div>
+
+                                  {/* Chapter List */}
+                                  {lnmLoadingChapters ? (
+                                      <div className="flex items-center gap-2 py-4 justify-center text-violet-500"><Loader2 size={18} className="animate-spin" /><span className="text-sm font-bold">Chapters load ho rahe hain...</span></div>
+                                  ) : lnmChapters.length === 0 ? (
+                                      <p className="text-center text-sm text-slate-400 font-medium py-4">Abhi koi chapter nahi — upar se add karein</p>
+                                  ) : (
+                                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                          {lnmChapters.map((ch, i) => (
+                                              <div key={ch.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${lnmSelChapterId === ch.id ? 'border-violet-500 bg-violet-100' : 'border-slate-200 bg-white hover:border-violet-300'}`}
+                                                  onClick={() => handleLoadNotes(ch.id)}>
+                                                  <div className="w-7 h-7 rounded-lg bg-violet-600 text-white text-xs font-black flex items-center justify-center shrink-0">{i+1}</div>
+                                                  <p className="flex-1 text-sm font-bold text-slate-800 truncate">{ch.title}</p>
+                                                  <button onClick={e => { e.stopPropagation(); handleDeleteChapter(ch.id); }} disabled={lnmDeletingId === ch.id}
+                                                      className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0">
+                                                      {lnmDeletingId === ch.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                                  </button>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  )}
+                              </div>
+
+                              {/* Step 4: Notes Upload */}
+                              {lnmSelChapterId && selChapter && (
+                                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3">
+                                      <div>
+                                          <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Step 4 — Notes Upload Karein</p>
+                                          <p className="text-xs text-slate-600 font-medium mt-1">📌 {selChapter.title}</p>
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Notes (HTML ya plain text)</label>
+                                          <textarea
+                                              value={lnmFreeNotes}
+                                              onChange={e => setLnmFreeNotes(e.target.value)}
+                                              rows={10}
+                                              placeholder="Yahan notes paste karein — HTML supported hai (jaise <b>bold</b>, <ul><li>...</li></ul>)"
+                                              className="w-full border-2 border-emerald-200 rounded-xl p-3 text-sm font-mono outline-none focus:border-emerald-500 bg-white resize-none"
+                                          />
+                                      </div>
+                                      <button onClick={handleSaveNotes} disabled={lnmSavingNotes}
+                                          className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-sm hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors">
+                                          {lnmSavingNotes ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Library mein Save Karein</>}
+                                      </button>
+                                      <p className="text-[10px] text-slate-400 text-center">Save ke baad students Library mein is chapter ka content dekh sakenge</p>
+                                  </div>
+                              )}
+                          </>
+                      )}
+                  </div>
+              </div>
+          );
+      })()}
+
     </div>
   );
 };
