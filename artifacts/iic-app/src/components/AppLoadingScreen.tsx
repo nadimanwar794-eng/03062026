@@ -265,7 +265,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         @keyframes _shoot { 0%{transform:translateX(0) translateY(0) scaleX(0);opacity:0} 10%{opacity:1;transform:translateX(0) translateY(0) scaleX(1)} 100%{transform:translateX(170px) translateY(105px) scaleX(1);opacity:0} }
         @keyframes _aurora_t { 0%,100%{transform:translateX(-18%) scaleY(1);opacity:0.6} 50%{transform:translateX(18%) scaleY(1.4);opacity:0.9} }
         @keyframes _aurora_b { 0%,100%{transform:translateX(12%) scaleY(1);opacity:0.5} 50%{transform:translateX(-12%) scaleY(1.5);opacity:0.75} }
-        @keyframes _logo_in { 0%{transform:scale(0.18) rotate(-12deg);opacity:0;filter:blur(28px) brightness(0.1)} 55%{transform:scale(1.13) rotate(3deg);opacity:1;filter:blur(0) brightness(2.2)} 78%{transform:scale(0.97) rotate(-1deg);opacity:1;filter:blur(0) brightness(1.1)} 100%{transform:scale(1) rotate(0deg);opacity:1;filter:blur(0) brightness(1)} }
+        @keyframes _logo_in { 0%{opacity:0;transform:scale(0.55) translateY(14px)} 65%{opacity:1;transform:scale(1.06) translateY(-2px)} 82%{transform:scale(0.97) translateY(1px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes _logo_glow { ${T.logoGlowKeyframe} }
         @keyframes _ring1 { from{transform:translate(-50%,-50%) rotate(0deg)} to{transform:translate(-50%,-50%) rotate(360deg)} }
         @keyframes _ring2 { from{transform:translate(-50%,-50%) rotate(0deg)} to{transform:translate(-50%,-50%) rotate(-360deg)} }
@@ -468,43 +468,37 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
-        <div style={{ animation: phase > 0 ? '_logo_in 0.85s cubic-bezier(0.34,1.56,0.64,1) both' : 'none', opacity: phase === 0 ? 0 : undefined }}>
-          <div style={{ animation: phase === 2 ? '_logo_glow 3.5s ease-in-out infinite 0.5s' : 'none', filter: T.logoGlowStatic }}>
-            {logoEnabled && logoUrl && !imgFailed ? (
-              <img
-                src={logoUrl} alt={appName} draggable={false}
-                onError={() => setImgFailed(true)}
-                style={{ width: logoSize, height: logoSize, maxWidth: '70vw', objectFit: 'contain', borderRadius: 24, display: 'block' }}
-              />
-            ) : (
-              <div style={{ width: logoSize, height: logoSize, maxWidth: '70vw' }} />
-            )}
-          </div>
+        <div style={{ animation: phase > 0 ? '_logo_in 0.9s ease both' : 'none', opacity: phase === 0 ? 0 : undefined }}>
+          <h1 style={{
+            fontSize: Math.min(appNameSize * 1.6, 140), fontWeight: 900, margin: 0,
+            background: T.nameGrad, backgroundSize: '250% auto',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            animation: phase === 2 ? '_shimmer 3.2s linear infinite' : 'none',
+            textAlign: 'center', lineHeight: 1.0,
+            textShadow: 'none',
+            ...fontStyle, ...lsStyle,
+          }}>{appName}</h1>
         </div>
       </div>
 
-      {/* ─── INFO BLOCK — App name first, then messages + dots ─── */}
+      {/* ─── INFO BLOCK — tagline + messages + dots, below IIC text ─── */}
       {phase === 2 && (
         <div style={{
           position: 'absolute',
-          top: `calc(50% + ${logoSize / 2 + 14}px)`,
+          top: `calc(50% + ${Math.min(appNameSize * 1.6, 140) * 0.58 + 18}px)`,
           left: '50%', transform: 'translateX(-50%)',
           zIndex: 10,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           width: '90vw', maxWidth: 320,
         }}>
-          {/* App name — first, right below logo */}
-          <div style={{ textAlign: 'center', animation: '_name_in 0.6s ease 0.3s both', marginBottom: 10 }}>
+          {/* Tagline (if set) */}
+          {appTagline ? (
             <p style={{
-              margin: 0, fontSize: Math.min(appNameSize * 0.56, 22), fontWeight: 900, letterSpacing: '0.06em',
-              background: T.nameGrad, backgroundSize: '280% auto',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              animation: '_shimmer 4.5s linear infinite 0.3s', ...fontStyle, ...lsStyle,
-            }}>{appName}</p>
-            {appTagline ? (
-              <p style={{ margin: '4px 0 0', fontSize: 9, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.taglineColor }}>{appTagline}</p>
-            ) : null}
-          </div>
+              margin: '0 0 10px', fontSize: 9, fontWeight: 700, letterSpacing: '0.24em',
+              textTransform: 'uppercase', color: T.taglineColor,
+              animation: '_name_in 0.6s ease 0.3s both',
+            }}>{appTagline}</p>
+          ) : null}
 
           {/* Rotating message — BASIC / ULTRA only */}
           {tier !== 'FREE' && (
