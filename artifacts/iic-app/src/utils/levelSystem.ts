@@ -49,14 +49,13 @@ export const PROGRESS_BONUS_MAX_PCT = 45;
 /**
  * Returns the progress bonus percentage (0–45) for a given level and daily
  * progress percentage (0–100). Returns 0 for levels below 4.
- * Bonus is applied on top of the base score when daily progress is being made.
+ * L9–L15 still receive the L8 Progress Bonus (45% max) in addition to Daily Limit Bonus.
  */
 export const getProgressBonus = (level: number, dailyProgressPct: number): number => {
   if (level < 4 || dailyProgressPct <= 0) return 0;
-  const effectiveLevel = Math.min(level, 8); // L8+ uses L8 table
+  const effectiveLevel = Math.min(level, 8); // L8+ uses L8 table (45% cap)
   const row = _PROGRESS_BONUS_ROWS[effectiveLevel];
   if (!row) return 0;
-  // Find the applicable breakpoint (floor to nearest 10%)
   const bucketIdx = Math.min(9, Math.floor(Math.max(0, dailyProgressPct - 1) / 10));
   return row[bucketIdx] ?? 0;
 };
@@ -73,6 +72,59 @@ export const applyProgressBonus = (
   const bonusPct = getProgressBonus(level, dailyProgressPct);
   if (bonusPct <= 0) return baseScore;
   return Math.round(baseScore * (1 + bonusPct / 100));
+};
+
+// ── Daily Limit Bonus System (L9–L15) ────────────────────────────────────────
+// Unlocks at Level 9. Scales linearly with daily progress (per 10% bucket).
+// L15 is capped at the same max as L14 (500%). Max cap = 500%.
+// The bonus multiplies the effective daily score/limit cap for that session.
+//
+// Base bonus added per 10%-progress bucket:
+//   L9 → 10% per bucket (max 100%)
+//   L10 → 20%           (max 200%)
+//   L11 → 25%           (max 250%)
+//   L12 → 32%           (max 320%)
+//   L13 → 40%           (max 400%)
+//   L14 → 50%           (max 500%)
+//   L15 → 50% (capped)  (max 500%)
+const _DAILY_LIMIT_BONUS_PER_BUCKET: Record<number, number> = {
+  9:  10,
+  10: 20,
+  11: 25,
+  12: 32,
+  13: 40,
+  14: 50,
+  15: 50, // same cap as L14
+};
+
+export const DAILY_LIMIT_BONUS_MAX_PCT = 500;
+
+/**
+ * Returns the Daily Limit Bonus percentage (0–500) for a given level and
+ * daily progress percentage (0–100). Applies only to L9+.
+ * Scales linearly: each completed 10% of daily goal adds the level's bucket bonus.
+ * L15 is capped at 500% (same as L14).
+ */
+export const getDailyLimitBonus = (level: number, dailyProgressPct: number): number => {
+  if (level < 9 || dailyProgressPct <= 0) return 0;
+  const effectiveLevel = Math.min(level, 15);
+  const perBucket = _DAILY_LIMIT_BONUS_PER_BUCKET[effectiveLevel] ?? 0;
+  const buckets = Math.min(10, Math.floor(dailyProgressPct / 10));
+  return Math.min(DAILY_LIMIT_BONUS_MAX_PCT, buckets * perBucket);
+};
+
+/**
+ * Applies the Daily Limit Bonus multiplier to a daily limit value.
+ * e.g. if daily MCQ limit is 100 and bonus is 200%, returns 300.
+ */
+export const applyDailyLimitBonus = (
+  baseLimit: number,
+  level: number,
+  dailyProgressPct: number,
+): number => {
+  const bonusPct = getDailyLimitBonus(level, dailyProgressPct);
+  if (bonusPct <= 0) return baseLimit;
+  return Math.round(baseLimit * (1 + bonusPct / 100));
 };
 
 // ── Per-tier limit structure ─────────────────────────────────────────────────
