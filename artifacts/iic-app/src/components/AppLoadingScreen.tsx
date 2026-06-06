@@ -466,16 +466,38 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         position: 'absolute', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
         zIndex: 10,
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
       }}>
-        <div style={{ animation: phase > 0 ? '_logo_in 0.9s ease both' : 'none', opacity: phase === 0 ? 0 : undefined }}>
+        {/* Logo image */}
+        {logoEnabled && !imgFailed && (
+          <div style={{ animation: phase > 0 ? '_logo_in 0.9s ease both' : 'none', opacity: phase === 0 ? 0 : 1 }}>
+            <img
+              src={logoUrl}
+              alt="Logo"
+              onError={() => setImgFailed(true)}
+              style={{
+                width: logoSize, height: logoSize,
+                objectFit: 'contain',
+                borderRadius: 20,
+                filter: T.logoGlowStatic,
+                animation: phase === 2 ? '_logo_glow 2.8s ease-in-out infinite' : 'none',
+                display: 'block',
+              }}
+            />
+          </div>
+        )}
+
+        {/* App name text */}
+        <div style={{ animation: phase > 0 ? '_name_in 0.7s ease 0.3s both' : 'none', opacity: phase === 0 ? 0 : 1 }}>
           <h1 style={{
             fontSize: Math.min(appNameSize * 1.6, 140), fontWeight: 900, margin: 0,
-            background: T.nameGrad, backgroundSize: '250% auto',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-            animation: phase === 2 ? '_shimmer 3.2s linear infinite' : 'none',
+            color: tier === 'FREE' ? '#0ea5e9' : tier === 'BASIC' ? '#93c5fd' : '#fde68a',
             textAlign: 'center', lineHeight: 1.0,
-            textShadow: 'none',
+            textShadow: tier === 'ULTRA'
+              ? '0 0 24px rgba(249,200,70,0.70), 0 2px 8px rgba(0,0,0,0.5)'
+              : tier === 'BASIC'
+              ? '0 0 20px rgba(59,130,246,0.70), 0 2px 8px rgba(0,0,0,0.5)'
+              : '0 0 18px rgba(14,165,233,0.60), 0 2px 8px rgba(0,0,0,0.3)',
             ...fontStyle, ...lsStyle,
           }}>{appName}</h1>
         </div>
@@ -485,7 +507,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       {phase === 2 && (
         <div style={{
           position: 'absolute',
-          top: `calc(50% + ${Math.min(appNameSize * 1.6, 140) * 0.58 + 18}px)`,
+          top: `calc(50% + ${(logoEnabled && !imgFailed ? logoSize / 2 : 0) + Math.min(appNameSize * 1.6, 140) * 0.58 + 24}px)`,
           left: '50%', transform: 'translateX(-50%)',
           zIndex: 10,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
