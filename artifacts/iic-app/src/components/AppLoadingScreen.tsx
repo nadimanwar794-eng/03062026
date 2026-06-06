@@ -230,14 +230,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     return () => clearInterval(id);
   }, [MESSAGES.length]);
 
-  // Stars — more stars for ULTRA, medium for BASIC, fewer for FREE
-  const starCount = tier === 'ULTRA' ? 65 : tier === 'BASIC' ? 50 : 35;
+  // Stars — ULTRA: 65, BASIC: 42, FREE: 0 (simple/clean look)
+  const starCount = tier === 'ULTRA' ? 65 : tier === 'BASIC' ? 42 : 0;
   const stars = useMemo(() => Array.from({ length: starCount }, () => ({
     x: Math.random() * 100, y: Math.random() * 100,
-    r: (tier === 'FREE' ? 0.6 : 0.8) + Math.random() * 1.8,
+    r: 0.8 + Math.random() * 1.8,
     dur: 1.4 + Math.random() * 2.8, delay: Math.random() * 3.5,
-    opacity: tier === 'FREE' ? 0.20 + Math.random() * 0.40 : 0.25 + Math.random() * 0.55,
-  })), [starCount, tier]);
+    opacity: 0.25 + Math.random() * 0.55,
+  })), [starCount]);
 
   const [shootIdx, setShootIdx] = useState(-1);
   useEffect(() => {
@@ -310,8 +310,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         }} />
       ))}
 
-      {/* ─── Shooting stars ─── */}
-      {shoots.map((sh, i) => (
+      {/* ─── Shooting stars — BASIC / ULTRA only ─── */}
+      {tier !== 'FREE' && shoots.map((sh, i) => (
         <div key={i} style={{
           position: 'absolute', left: `${sh.x}%`, top: `${sh.y}%`,
           width: 100, height: 2,
@@ -346,8 +346,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         pointerEvents: 'none', zIndex: 1,
       }} />
 
-      {/* ─── HUD corners ─── */}
-      {phase > 0 && [
+      {/* ─── HUD corners — BASIC / ULTRA only ─── */}
+      {phase > 0 && tier !== 'FREE' && [
         { top: 18, left: 18, r: 0 }, { top: 18, right: 18, r: 90 },
         { bottom: 18, right: 18, r: 180 }, { bottom: 18, left: 18, r: 270 },
       ].map((c, i) => (
@@ -397,7 +397,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       </>}
 
       {/* ─── Spinning arc rings ─── */}
-      {phase === 2 && <>
+      {/* BASIC: R1 + R2 only (no radar/pulse). ULTRA: all 3 + radar + pulse. FREE: none */}
+      {phase === 2 && tier !== 'FREE' && <>
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           width: R1, height: R1, borderRadius: '50%',
@@ -414,42 +415,42 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           animation: '_ring2 4.6s linear infinite',
           pointerEvents: 'none', zIndex: 4,
         }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: R3, height: R3, borderRadius: '50%',
-          background: T.ring3,
-          WebkitMask: ringMask(R3), mask: ringMask(R3),
-          animation: '_ring3 6.8s linear infinite',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-
-        {/* Radar sweep */}
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: R2, height: R2, borderRadius: '50%',
-          background: T.sweep,
-          WebkitMask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
-          mask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
-          animation: '_sweep 3.5s linear infinite',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-
-        {/* Outer pulse ring */}
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: R3 + 38, height: R3 + 38, borderRadius: '50%',
-          border: `1px solid ${T.burstBorder1}28`,
-          animation: '_pulse_ring 4s ease-in-out infinite 1s',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
+        {tier === 'ULTRA' && <>
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            width: R3, height: R3, borderRadius: '50%',
+            background: T.ring3,
+            WebkitMask: ringMask(R3), mask: ringMask(R3),
+            animation: '_ring3 6.8s linear infinite',
+            pointerEvents: 'none', zIndex: 4,
+          }} />
+          {/* Radar sweep */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            width: R2, height: R2, borderRadius: '50%',
+            background: T.sweep,
+            WebkitMask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
+            mask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
+            animation: '_sweep 3.5s linear infinite',
+            pointerEvents: 'none', zIndex: 4,
+          }} />
+          {/* Outer pulse ring */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            width: R3 + 38, height: R3 + 38, borderRadius: '50%',
+            border: `1px solid ${T.burstBorder1}28`,
+            animation: '_pulse_ring 4s ease-in-out infinite 1s',
+            pointerEvents: 'none', zIndex: 4,
+          }} />
+        </>}
       </>}
 
-      {/* ─── Orbiting dots ─── */}
-      {phase === 2 && [
+      {/* ─── Orbiting dots: FREE=none, BASIC=2, ULTRA=3 ─── */}
+      {phase === 2 && tier !== 'FREE' && [
         { angle: 0,   dist: logoSize / 2 + 28, dur: 2.8 },
         { angle: 120, dist: logoSize / 2 + 45, dur: 4.5 },
         { angle: 240, dist: logoSize / 2 + 63, dur: 6.6 },
-      ].map((d, i) => (
+      ].slice(0, tier === 'BASIC' ? 2 : 3).map((d, i) => (
         <div key={i} style={{
           position: 'absolute', top: 'calc(50% - 6px)', left: 'calc(50% - 6px)',
           width: 12, height: 12, borderRadius: '50%',
@@ -476,43 +477,26 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
                 style={{ width: logoSize, height: logoSize, maxWidth: '70vw', objectFit: 'contain', borderRadius: 24, display: 'block' }}
               />
             ) : (
-              <h1 style={{
-                fontSize: appNameSize, fontWeight: 900, margin: 0,
-                background: T.nameGrad, backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                animation: '_shimmer 3s linear infinite', ...fontStyle, ...lsStyle,
-              }}>{appName}</h1>
+              <div style={{ width: logoSize, height: logoSize, maxWidth: '70vw' }} />
             )}
           </div>
         </div>
       </div>
 
-      {/* ─── INFO BLOCK — below logo, absolutely positioned ─── */}
+      {/* ─── INFO BLOCK — App name first, then messages + dots ─── */}
       {phase === 2 && (
         <div style={{
           position: 'absolute',
-          top: `calc(50% + ${logoSize / 2 + 18}px)`,
+          top: `calc(50% + ${logoSize / 2 + 14}px)`,
           left: '50%', transform: 'translateX(-50%)',
           zIndex: 10,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           width: '90vw', maxWidth: 320,
         }}>
-          {/* Developer credit */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', animation: '_dev_in 0.65s cubic-bezier(0.34,1.3,0.64,1) 0.3s both', marginBottom: 10 }}>
-            <div style={{ width: 48, height: 1, marginBottom: 6, background: T.separatorGrad }} />
-            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.devByColor, display: 'block', marginBottom: 2 }}>Developed by</span>
-            <span style={{
-              fontSize: 16, fontWeight: 800, letterSpacing: '0.05em',
-              background: T.devGrad, backgroundSize: '250% auto',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              animation: '_shimmer 3.5s linear infinite', display: 'block',
-            }}>{developerName}</span>
-          </div>
-
-          {/* App name */}
-          <div style={{ textAlign: 'center', animation: '_name_in 0.6s ease 0.45s both', marginBottom: 14 }}>
+          {/* App name — first, right below logo */}
+          <div style={{ textAlign: 'center', animation: '_name_in 0.6s ease 0.3s both', marginBottom: 10 }}>
             <p style={{
-              margin: 0, fontSize: Math.min(appNameSize * 0.52, 20), fontWeight: 900, letterSpacing: '0.06em',
+              margin: 0, fontSize: Math.min(appNameSize * 0.56, 22), fontWeight: 900, letterSpacing: '0.06em',
               background: T.nameGrad, backgroundSize: '280% auto',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               animation: '_shimmer 4.5s linear infinite 0.3s', ...fontStyle, ...lsStyle,
@@ -522,24 +506,28 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             ) : null}
           </div>
 
-          {/* Rotating message */}
-          <div style={{ height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: '100%', marginBottom: 10 }}>
-            <p style={{
-              margin: 0, fontSize: 11, fontWeight: 600, color: T.msgColor, textAlign: 'center',
-              animation: msgVisible ? '_msg_in 0.4s ease both' : '_msg_out 0.35s ease both',
-            }}>{MESSAGES[msgIndex]}</p>
-          </div>
+          {/* Rotating message — BASIC / ULTRA only */}
+          {tier !== 'FREE' && (
+            <div style={{ height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: '100%', marginBottom: 10 }}>
+              <p style={{
+                margin: 0, fontSize: 11, fontWeight: 600, color: T.msgColor, textAlign: 'center',
+                animation: msgVisible ? '_msg_in 0.4s ease both' : '_msg_out 0.35s ease both',
+              }}>{MESSAGES[msgIndex]}</p>
+            </div>
+          )}
 
-          {/* Bouncing dots */}
-          <div style={{ display: 'flex', gap: 7 }}>
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: T.dotColors[i], boxShadow: `0 0 8px ${T.dotShadows[i]}`,
-                animation: `_dot_bounce 0.9s ease-in-out ${i * 0.18}s infinite`,
-              }} />
-            ))}
-          </div>
+          {/* Bouncing dots — BASIC / ULTRA only */}
+          {tier !== 'FREE' && (
+            <div style={{ display: 'flex', gap: 7 }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: T.dotColors[i], boxShadow: `0 0 8px ${T.dotShadows[i]}`,
+                  animation: `_dot_bounce 0.9s ease-in-out ${i * 0.18}s infinite`,
+                }} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -567,7 +555,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+          <span style={{ fontSize: 8, fontWeight: 600, color: T.devByColor, letterSpacing: '0.08em' }}>
+            Developed by <span style={{ fontWeight: 800, color: T.devByColor }}>{developerName}</span>
+          </span>
           <span style={{ fontSize: 8, fontFamily: 'monospace', fontWeight: 700, color: T.devByColor, letterSpacing: '0.03em' }}>v{APP_VERSION}</span>
         </div>
       </div>
