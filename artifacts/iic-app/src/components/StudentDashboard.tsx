@@ -2270,13 +2270,13 @@ export const StudentDashboard: React.FC<Props> = ({
     (async () => {
       const data = await tryFetchData();
       if (data) {
-        const readNotes = !!(data.freeNotes || data.topicNotes?.length || data.content || data.teachingStrategyNotes || data.chunkNotes || data.notes);
+        const readNotes = !!(data.freeNotes || data.topicNotes?.length || data.content || data.teachingStrategyNotes || data.chunkNotes || data.notes || data.unifiedChunkNotes || data.unifiedHtmlNotes);
         const writeNotes = !!(data.freeNotesHtml || data.htmlNotes || data.premiumNotes);
         const notes = readNotes || writeNotes;
-        const pdf = !!(data.freeLink || data.premiumLink || data.schoolPdfLink || data.competitionPdfLink || data.pdfUrl || data.pdfList?.length);
-        const video = !!(data.videoPlaylist?.length || data.schoolVideoPlaylist?.length || data.topicVideos?.length || data.premiumVideoLink || data.freeVideoLink);
-        const audio = !!(data.audioPlaylist?.length);
-        const mcq = !!(data.manualMcqData?.length || data.weeklyTestMcqData?.length || data.mcqList?.length);
+        const pdf = !!(data.freeLink || data.premiumLink || data.schoolPdfLink || data.competitionPdfLink || data.pdfUrl || data.pdfList?.length || data.unifiedPdfUrl);
+        const video = !!(data.videoPlaylist?.length || data.schoolVideoPlaylist?.length || data.topicVideos?.length || data.premiumVideoLink || data.freeVideoLink || data.unifiedVideoUrl);
+        const audio = !!(data.audioPlaylist?.length || data.unifiedAudioUrl);
+        const mcq = !!(data.manualMcqData?.length || data.weeklyTestMcqData?.length || data.mcqList?.length || data.unifiedManualMcqData?.length);
         const pdfUrl = data.schoolPdfLink || data.freeLink || data.premiumLink || data.competitionPdfLink || data.pdfUrl || null;
         setCourseAvailability({ notes, readNotes, writeNotes, pdf, video, mcq, audio });
         setCoursePdfUrl(pdfUrl);

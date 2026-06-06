@@ -47,6 +47,7 @@ interface Props {
   instantExplanation?: boolean; // NEW: Instant Feedback Mode
   onShowMarksheet?: (result?: any) => void; // NEW: Marksheet Trigger
   onImmersiveChange?: (isImmersive: boolean) => void;
+  multiTab?: boolean; // Force multi-tab mode: Notes | MCQ | Video | Audio | PDF tabs
 }
 
 export const LessonView: React.FC<Props> = ({ 
@@ -63,10 +64,12 @@ export const LessonView: React.FC<Props> = ({
   isStreaming = false,
   onLaunchContent,
   onToggleAutoTts,
-  instantExplanation = false, // Default to standard mode
+  instantExplanation = false,
   onShowMarksheet,
-  onImmersiveChange
+  onImmersiveChange,
+  multiTab = false,
 }) => {
+  const [activeMultiTab, setActiveMultiTab] = useState<'NOTES'|'MCQ'|'VIDEO'|'AUDIO'|'PDF'>('NOTES');
   const [mcqState, setMcqState] = useState<Record<number, number | null>>({});
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
   const [timeSpentPerQuestion, setTimeSpentPerQuestion] = useState<Record<number, number>>({});
@@ -98,6 +101,23 @@ export const LessonView: React.FC<Props> = ({
   useEffect(() => {
     if (onImmersiveChange) onImmersiveChange(isImmersive);
   }, [isImmersive]);
+
+  // Reset activeMultiTab when content changes (e.g. chapter switches)
+  useEffect(() => {
+    if (!content) return;
+    if (content.type === 'MULTI_TAB' || multiTab) {
+      const hasNotes = !!(content.unifiedChunkNotes || content.unifiedHtmlNotes || content.content);
+      const hasMcq   = !!(content.unifiedManualMcqData?.length || content.mcqData?.length);
+      const hasVideo = !!content.unifiedVideoUrl;
+      const hasAudio = !!content.unifiedAudioUrl;
+      const hasPdf   = !!content.unifiedPdfUrl;
+      if (hasNotes) setActiveMultiTab('NOTES');
+      else if (hasMcq) setActiveMultiTab('MCQ');
+      else if (hasVideo) setActiveMultiTab('VIDEO');
+      else if (hasAudio) setActiveMultiTab('AUDIO');
+      else if (hasPdf) setActiveMultiTab('PDF');
+    }
+  }, [content?.id, content?.type, multiTab]);
 
   // ── Reading Score Config ──────────────────────────────────────────────────
   // userRef always has the latest user — prevents stale closure when TTS fires
@@ -493,6 +513,211 @@ export const LessonView: React.FC<Props> = ({
 
           </div>
       );
+  }
+
+  // ── MULTI-TAB VIEWER ─────────────────────────────────────────────────────────
+  // Renders when type === 'MULTI_TAB' (unified content: Notes + MCQ + Video + Audio + PDF)
+  if (content.type === 'MULTI_TAB' || multiTab) {
+    const hasNotes = !!(content.unifiedChunkNotes || content.unifiedHtmlNotes || content.content);
+    const hasMcq   = !!(content.unifiedManualMcqData?.length || content.mcqData?.length);
+    const hasVideo = !!content.unifiedVideoUrl;
+    const hasAudio = !!content.unifiedAudioUrl;
+    const hasPdf   = !!content.unifiedPdfUrl;
+
+    const tabDefs = [
+      hasNotes && { id: 'NOTES' as const, label: '📖 Notes' },
+      hasMcq   && { id: 'MCQ'   as const, label: '🧠 MCQ'   },
+      hasVideo && { id: 'VIDEO' as const, label: '🎬 Video'  },
+      hasAudio && { id: 'AUDIO' as const, label: '🎵 Audio'  },
+      hasPdf   && { id: 'PDF'   as const, label: '📄 PDF'    },
+    ].filter(Boolean) as { id: 'NOTES'|'MCQ'|'VIDEO'|'AUDIO'|'PDF'; label: string }[];
+
+    const validTab = tabDefs.find(t => t.id === activeMultiTab)
+      ? activeMultiTab
+      : (tabDefs[0]?.id ?? 'NOTES');
+
+    const mcqList = content.unifiedManualMcqData || content.mcqData || [];
+
+    return (
+      <div className={`flex flex-col bg-white animate-in fade-in ${isImmersive ? 'fixed inset-0 z-[200]' : 'h-full'}`}>
+        {/* ── Header ── */}
+        <header className={`bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-10 shadow-sm${isImmersive ? ' hidden' : ''}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={onBack} className="p-2 bg-slate-100 rounded-full flex-shrink-0 hover:bg-slate-200 transition-colors">
+              <ArrowLeft size={20} className="text-slate-700" />
+            </button>
+            <div className="min-w-0">
+              <h2 className="font-black text-slate-800 truncate text-sm leading-tight">{content.title}</h2>
+              <p className="text-[10px] text-slate-500 font-bold uppercase truncate">{content.subtitle || subject?.name || ''}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setIsImmersive(v => !v)} className={`p-2 rounded-full transition-colors ${isImmersive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`} title="Focus Mode">
+              <Zap size={18} />
+            </button>
+          </div>
+        </header>
+
+        {/* ── Tab Bar ── */}
+        {tabDefs.length > 1 && (
+          <div className={`flex gap-2 px-4 py-2.5 border-b border-slate-200 bg-white overflow-x-auto scrollbar-none flex-shrink-0${isImmersive ? ' hidden' : ''}`}>
+            {tabDefs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveMultiTab(tab.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition-all flex-shrink-0 ${
+                  validTab === tab.id
+                    ? 'bg-slate-800 text-white shadow-md scale-105'
+                    : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Content Area ── */}
+        <div className="flex-1 overflow-y-auto">
+
+          {/* NOTES TAB */}
+          {validTab === 'NOTES' && (
+            <div className="p-4 pb-10">
+              {content.unifiedChunkNotes ? (
+                <ChunkedNotesReader
+                  key={`multi-tab-chunk-${content.id || content.title}`}
+                  content={content.unifiedChunkNotes}
+                  topBarLabel={content.title}
+                  hideTopBar
+                  preferChunkMode={false}
+                />
+              ) : content.unifiedHtmlNotes ? (
+                <div
+                  className="notes-html-content prose prose-slate max-w-none text-sm"
+                  dangerouslySetInnerHTML={{ __html: decodeHtml(content.unifiedHtmlNotes) }}
+                />
+              ) : content.content ? (
+                <div className="prose prose-slate max-w-none text-sm">
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {content.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <BookOpen size={40} className="mb-3 opacity-40" />
+                  <p className="font-bold text-sm">Notes not uploaded yet</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MCQ TAB */}
+          {validTab === 'MCQ' && (
+            <div className="p-4 pb-10 flex flex-col gap-4">
+              {mcqList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <BrainCircuit size={40} className="mb-3 opacity-40" />
+                  <p className="font-bold text-sm">MCQ not uploaded yet</p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-1">
+                    {mcqList.length} Questions
+                  </div>
+                  {mcqList.map((q, qi) => (
+                    <div key={qi} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                      <p className="font-bold text-slate-800 text-sm mb-3 leading-snug">
+                        <span className="text-blue-600 mr-1">Q{qi + 1}.</span> {q.question}
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {(q.options || []).map((opt, oi) => (
+                          <div
+                            key={oi}
+                            className={`px-3 py-2 rounded-xl text-sm font-medium border transition-all ${
+                              oi === q.correctAnswer
+                                ? 'bg-green-50 border-green-300 text-green-800'
+                                : 'bg-slate-50 border-slate-200 text-slate-700'
+                            }`}
+                          >
+                            <span className={`font-black mr-2 ${oi === q.correctAnswer ? 'text-green-600' : 'text-slate-400'}`}>
+                              {String.fromCharCode(65 + oi)}.
+                            </span>
+                            {opt}
+                            {oi === q.correctAnswer && <CheckCircle size={13} className="inline ml-1 text-green-500" />}
+                          </div>
+                        ))}
+                      </div>
+                      {q.explanation && (
+                        <div className="mt-3 p-2.5 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-800 font-medium">
+                          <span className="font-black">Explanation: </span>{q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* VIDEO TAB */}
+          {validTab === 'VIDEO' && (
+            <div className="p-4 pb-10">
+              {content.unifiedVideoUrl ? (
+                <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
+                  <CustomPlayer videoUrl={content.unifiedVideoUrl} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <Play size={40} className="mb-3 opacity-40" />
+                  <p className="font-bold text-sm">Video not uploaded yet</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AUDIO TAB */}
+          {validTab === 'AUDIO' && (
+            <div className="p-4 pb-10">
+              {content.unifiedAudioUrl ? (
+                <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
+                  <CustomPlayer videoUrl={content.unifiedAudioUrl} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <Volume2 size={40} className="mb-3 opacity-40" />
+                  <p className="font-bold text-sm">Audio not uploaded yet</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PDF TAB */}
+          {validTab === 'PDF' && (
+            content.unifiedPdfUrl ? (
+              <PdfViewer
+                url={content.unifiedPdfUrl}
+                title={content.title}
+                onBack={onBack}
+                sessionKey={chapter?.id ? `chapter_${chapter.id}` : undefined}
+                userId={user?.id}
+                subscriptionLevel={user?.subscriptionTier || 'FREE'}
+                isPremium={!!(user?.isPremium || (user?.subscriptionTier && user.subscriptionTier !== 'FREE'))}
+                boostPercent={getActiveBoost(user as any)}
+                onScoreEarned={handleReadingScoreEarned}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <FileText size={40} className="mb-3 opacity-40" />
+                <p className="font-bold text-sm">PDF not uploaded yet</p>
+              </div>
+            )
+          )}
+
+        </div>
+
+        {floatingBtn}
+      </div>
+    );
   }
 
   if (content.type === 'NOTES_IMAGE_AI' || isImage || isHtml) {

@@ -1297,7 +1297,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           
           manualMcqData: editingMcqs,
           weeklyTestMcqData: editingTestMcqs,
-          type: aiGenType,
+          type: VIRTUAL_BOARD_CONFIG[selBoard] ? 'MULTI_TAB' : aiGenType,
           content: finalContent,
 
           // SAVE NEW TOPIC CONTENT
@@ -2520,15 +2520,29 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       alert("Full Syllabus Copied to Clipboard!");
   };
 
+  // ── VIRTUAL BOARD CONFIG ──────────────────────────────────────────────────
+  // Boards that use unified MULTI_TAB content (not the school CBSE/BSEB syllabus)
+  const VIRTUAL_BOARD_CONFIG: Record<string, { emoji: string; label: string; classLevel: string; subjects: { id: string; name: string }[] }> = {
+    LUCENT:   { emoji: '📖', label: 'Lucent GK',         classLevel: 'BOOK',        subjects: [{ id: 'history', name: 'History / इतिहास' }, { id: 'geography', name: 'Geography / भूगोल' }, { id: 'polity', name: 'Polity / राजनीति' }, { id: 'economy', name: 'Economy / अर्थशास्त्र' }, { id: 'science', name: 'Science / विज्ञान' }, { id: 'art_culture', name: 'Art & Culture / कला' }] },
+    COMPBOOK: { emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',        subjects: [{ id: 'sar_sangrah', name: 'Sar Sangrah / सार संग्रह' }, { id: 'speedy_science', name: 'Speedy Science' }, { id: 'speedy_social', name: 'Speedy Social Science' }] },
+    GK:       { emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       subjects: [{ id: 'general_knowledge', name: 'General Knowledge / सामान्य ज्ञान' }, { id: 'current_affairs', name: 'Current Affairs / करंट अफेयर्स' }] },
+    HOMEWORK: { emoji: '📝', label: 'Homework',          classLevel: 'COMPETITION', subjects: [{ id: 'mcq_practice', name: 'MCQ Practice' }, { id: 'class_notes', name: 'Class Notes / कक्षा नोट्स' }] },
+  };
+
   const handleSubjectClick = async (s: Subject) => {
       setSelSubject(s);
       setIsLoadingChapters(true);
       try {
-          const lang = selBoard === 'BSEB' ? 'Hindi' : 'English';
-          const ch = await fetchChapters(selBoard, selClass, selStream, s, lang);
-          setSelChapters(ch);
-          
-
+          const vbConfig = VIRTUAL_BOARD_CONFIG[selBoard];
+          if (vbConfig) {
+              // Virtual board — load custom syllabus keyed by virtual board + subject
+              const ch = await getCustomSyllabus(`${selBoard}-${vbConfig.classLevel}-${s.name}-English`);
+              setSelChapters(Array.isArray(ch) ? ch : []);
+          } else {
+              const lang = selBoard === 'BSEB' ? 'Hindi' : 'English';
+              const ch = await fetchChapters(selBoard, selClass, selStream, s, lang);
+              setSelChapters(ch);
+          }
       } catch (e) { console.error(e); setSelChapters([]); }
       setIsLoadingChapters(false);
   };
@@ -3400,27 +3414,82 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   );
 
   const SubjectSelector = () => {
-      // 1. BOARD INDICATOR (Controlled via Header)
-      const renderBoards = () => (
-          <div className="flex items-center justify-between mb-4">
-             <div className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest border-2 flex items-center gap-2 ${selBoard === 'CBSE' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
-                {selBoard === 'CBSE' ? <Book size={14}/> : <Globe size={14}/>}
-                CURRENT BOARD: {selBoard}
-             </div>
-             
-             {/* VISIBILITY TOGGLE BUTTON */}
-             <button 
-                onClick={() => setShowVisibilityControls(!showVisibilityControls)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showVisibilityControls ? 'bg-slate-800 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-600'}`}
-             >
-                {showVisibilityControls ? <EyeOff size={14} /> : <Eye size={14} />}
-                {showVisibilityControls ? 'Hide Controls' : 'Visibility Mode'}
-             </button>
-          </div>
-      );
+      // 1. BOARD INDICATOR + VIRTUAL BOARD QUICK-SELECT
+      const renderBoards = () => {
+          const vbCfg = VIRTUAL_BOARD_CONFIG[selBoard];
+          return (
+            <div className="mb-4">
+              {/* Top row: current board badge + visibility toggle */}
+              <div className="flex items-center justify-between mb-3">
+                <div className={`px-3 py-1.5 rounded-xl text-xs font-black tracking-widest border-2 flex items-center gap-2 ${vbCfg ? 'bg-purple-50 text-purple-700 border-purple-200' : selBoard === 'CBSE' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
+                  {vbCfg ? <BookOpen size={13}/> : selBoard === 'CBSE' ? <Book size={13}/> : <Globe size={13}/>}
+                  BOARD: {selBoard}
+                </div>
+                <button
+                  onClick={() => setShowVisibilityControls(!showVisibilityControls)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showVisibilityControls ? 'bg-slate-800 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-600'}`}
+                >
+                  {showVisibilityControls ? <EyeOff size={14} /> : <Eye size={14} />}
+                  {showVisibilityControls ? 'Hide Controls' : 'Visibility Mode'}
+                </button>
+              </div>
+
+              {/* Virtual board quick-select pills */}
+              <div className="flex flex-wrap gap-2">
+                <p className="w-full text-[10px] font-bold text-slate-500 uppercase mb-0.5">Quick Upload — Books & GK</p>
+                {Object.entries(VIRTUAL_BOARD_CONFIG).map(([boardId, cfg]) => (
+                  <button
+                    key={boardId}
+                    onClick={() => {
+                      setSelBoard(boardId as any);
+                      setSelClass(cfg.classLevel as any);
+                      setSelSubject(null);
+                      setSelChapters([]);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 transition-all border ${
+                      selBoard === boardId
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-md scale-105'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300 hover:text-purple-600'
+                    }`}
+                  >
+                    <span>{cfg.emoji}</span>
+                    {cfg.label}
+                  </button>
+                ))}
+                {vbCfg && (
+                  <button
+                    onClick={() => {
+                      setSelBoard(adminBoardContext);
+                      setSelClass('10');
+                      setSelSubject(null);
+                      setSelChapters([]);
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all"
+                  >
+                    ← Back to {adminBoardContext}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+      };
 
       // 2. CLASS BUTTONS (Explicit List)
-      const renderClasses = () => (
+      const renderClasses = () => {
+          // Virtual board: class is auto-assigned — show info badge only
+          const vbCfg = VIRTUAL_BOARD_CONFIG[selBoard];
+          if (vbCfg) {
+              return (
+                  <div className="mb-4">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Auto-Assigned Class</p>
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black bg-purple-50 text-purple-700 border border-purple-200">
+                          <BookOpen size={13} />
+                          Class: {vbCfg.classLevel}
+                      </div>
+                  </div>
+              );
+          }
+          return (
           <div className="mb-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Select Class</p>
               <div className="flex flex-wrap gap-2">
@@ -3471,6 +3540,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               </div>
           </div>
       );
+      };
 
       // 3. STREAM BUTTONS (Conditional)
       const renderStreams = () => {
@@ -3494,22 +3564,29 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       };
 
       // 4. SUBJECT BUTTONS
-      const renderSubjects = () => (
+      const renderSubjects = () => {
+          const vbCfg = VIRTUAL_BOARD_CONFIG[selBoard];
+          const subjects: { id: string; name: string }[] = vbCfg
+              ? vbCfg.subjects
+              : getSubjectsList(selClass, selStream, selBoard);
+          return (
           <div className="mb-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Select Subject</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">
+                  {vbCfg ? `${vbCfg.emoji} ${vbCfg.label} Subjects` : 'Select Subject'}
+              </p>
               <div className="flex flex-wrap gap-2">
-                  {getSubjectsList(selClass, selStream, selBoard).map(s => {
-                      const isHidden = (localSettings.hiddenSubjects || []).includes(s.id);
+                  {subjects.map(s => {
+                      const isHidden = !vbCfg && (localSettings.hiddenSubjects || []).includes(s.id);
                       return (
                       <div key={s.id} className="relative">
                           <button 
                               onClick={() => handleSubjectClick(s)}
-                              className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${selSubject?.id === s.id ? 'bg-green-600 text-white border-green-600 shadow-md scale-105' : 'bg-white border-slate-200 text-slate-700 hover:bg-green-50'} ${isHidden ? 'opacity-50 grayscale' : ''}`}
+                              className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${selSubject?.id === s.id ? 'bg-green-600 text-white border-green-600 shadow-md scale-105' : vbCfg ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' : 'bg-white border-slate-200 text-slate-700 hover:bg-green-50'} ${isHidden ? 'opacity-50 grayscale' : ''}`}
                           >
                               {selSubject?.id === s.id && <CheckCircle size={12} />}
                               {s.name}
                           </button>
-                          {showVisibilityControls && (
+                          {showVisibilityControls && !vbCfg && (
                               <button 
                                   onClick={(e) => {
                                       e.stopPropagation();
@@ -3525,7 +3602,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   )})}
               </div>
           </div>
-      );
+          );
+      };
 
       return (
           <div className="mb-8 bg-slate-50 p-4 rounded-3xl border border-slate-200 shadow-inner">
