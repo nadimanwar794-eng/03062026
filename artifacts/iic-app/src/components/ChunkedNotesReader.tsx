@@ -1243,6 +1243,25 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
                   <RotateCcw size={14} className="text-slate-600" />
                 </button>
+                {/* Level badge */}
+                {readingScoreConfig && (() => {
+                  const lvl = getLevelInfo(
+                    LEVEL_INFO.find(l => l.level === readingScoreConfig.userLevel)?.minScore ?? 0
+                  );
+                  return (
+                    <div
+                      className="flex-1 h-8 flex items-center justify-center gap-1 rounded-xl border text-[10px] font-black select-none"
+                      style={{
+                        background: `${lvl.color}15`,
+                        borderColor: `${lvl.color}40`,
+                        color: lvl.color,
+                      }}
+                    >
+                      <span>{lvl.emoji}</span>
+                      <span>L{lvl.level}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
