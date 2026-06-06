@@ -1175,8 +1175,16 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     );
   }
 
+  const _themeBg = themeMode === 'dark' ? '#0f172a' : themeMode === 'blue' ? '#0c1e3d' : '#ffffff';
+  const _themeToolbarBg = themeMode === 'dark' ? '#0f172a' : themeMode === 'blue' ? '#0c1e3d' : '#ffffff';
+  const _themeBorder = themeMode === 'dark' ? 'rgba(255,255,255,0.08)' : themeMode === 'blue' ? 'rgba(255,255,255,0.1)' : '#e2e8f0';
+  const _themeInputBg = themeMode === 'dark' ? 'rgba(255,255,255,0.06)' : themeMode === 'blue' ? 'rgba(255,255,255,0.08)' : undefined;
+  const _themeInputText = themeMode !== 'light' ? '#e2e8f0' : undefined;
+  const _headingBg = themeMode !== 'light' ? 'rgba(99,102,241,0.15)' : undefined;
+  const _headingText = themeMode !== 'light' ? '#a5b4fc' : 'rgb(49,46,129)'; // indigo-800
+
   return (
-    <div className={className || ''}>
+    <div className={className || ''} style={{ background: _themeBg }}>
       {/* Rotate toast — full-width top banner, same position as app top banners */}
       {rotateToast && (
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold pointer-events-none animate-in slide-in-from-top-2 fade-in duration-300"
@@ -1219,7 +1227,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
       {!hideTopBar && (
-        <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3">
+        <div ref={toolbarRef} className="sticky top-0 z-20 mb-3" style={{ background: _themeToolbarBg, borderBottom: `1px solid ${_themeBorder}` }}>
           {/* ── Slim bar — Back · Reading Active · Touch Protection · 3-dot ── */}
           <div className="flex items-center gap-2 px-2 py-1.5">
             {onBack && (
@@ -1492,7 +1500,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
       {/* Inline search panel */}
       {inlineSearch && (
-        <div className="sticky top-[52px] z-10 bg-white border-b border-slate-100 px-0 pb-2 mb-2 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="sticky top-[52px] z-10 px-0 pb-2 mb-2 animate-in fade-in slide-in-from-top-1 duration-150" style={{ background: _themeToolbarBg, borderBottom: `1px solid ${_themeBorder}` }}>
           <div className="relative mb-2">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
             <input
@@ -1808,11 +1816,12 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               <div
                 key={`tp-${idx}`}
                 ref={(el) => { itemRefs.current[idx] = el; }}
-                className="mt-4 mb-2 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-50 to-transparent border-l-4 border-indigo-400"
+                className="mt-4 mb-2 px-3 py-2 rounded-lg border-l-4 border-indigo-400"
+                style={{ background: _headingBg || 'linear-gradient(90deg,#eef2ff,transparent)' }}
               >
                 <p
-                  className="font-black text-indigo-800 uppercase tracking-wide"
-                  style={{ fontSize: `${Math.min(fontSize + 2, 20)}px`, fontFamily: activeFont?.family }}
+                  className="font-black uppercase tracking-wide"
+                  style={{ fontSize: `${Math.min(fontSize + 2, 20)}px`, fontFamily: activeFont?.family, color: _headingText }}
                 >
                   {topic.text}
                 </p>
@@ -1827,13 +1836,15 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             <div
               key={`tp-${idx}`}
               ref={(el) => { itemRefs.current[idx] = el as any; }}
-              className={`group relative w-full rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-yellow-50 ring-2 ring-yellow-300'
+              className="group relative w-full rounded-lg transition-colors"
+              style={{
+                background: isActive
+                  ? themeMode !== 'light' ? 'rgba(234,179,8,0.15)' : '#fefce8'
                   : starred
-                    ? 'bg-amber-50'
-                    : 'hover:bg-slate-50'
-              }`}
+                    ? themeMode !== 'light' ? 'rgba(251,191,36,0.1)' : '#fffbeb'
+                    : undefined,
+                boxShadow: isActive ? `0 0 0 2px ${themeMode !== 'light' ? 'rgba(253,224,71,0.5)' : '#fde047'}` : undefined,
+              }}
             >
               <button
                 type="button"
@@ -1855,11 +1866,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 className="w-full text-left pl-4 pr-10 py-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
               >
                 <p
-                  className={`leading-relaxed ${isActive ? 'text-yellow-900' : ''}`}
+                  className="leading-relaxed"
                   style={{
                     fontSize: `${fontSize}px`,
                     fontWeight: isActive ? Math.max(fontWeight, 600) : fontWeight,
-                    color: isActive ? undefined : (textColorOverride || textColor),
+                    color: isActive
+                      ? (themeMode !== 'light' ? '#fde68a' : '#713f12')
+                      : (textColorOverride || textColor),
                     fontFamily: activeFont?.family,
                   }}
                 >
