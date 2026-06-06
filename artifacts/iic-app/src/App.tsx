@@ -452,9 +452,12 @@ const App: React.FC = () => {
 
   // Milestone reward config for special levels
   const MILESTONE_REWARDS: Record<number, { credits: number; boostPercent: number; color: string; bg: string }> = {
-    8:  { credits: 500,  boostPercent: 10, color: '#f59e0b', bg: 'linear-gradient(135deg, #78350f 0%, #1c1400 60%, #0a0a00 100%)' },
-    10: { credits: 1000, boostPercent: 15, color: '#fb923c', bg: 'linear-gradient(135deg, #7c2d12 0%, #1c0a00 60%, #0a0500 100%)' },
-    12: { credits: 2000, boostPercent: 20, color: '#8b5cf6', bg: 'linear-gradient(135deg, #4c1d95 0%, #1e1040 60%, #0a0a1a 100%)' },
+    8:  { credits: 500,   boostPercent: 10, color: '#f59e0b', bg: 'linear-gradient(135deg, #78350f 0%, #1c1400 60%, #0a0a00 100%)' },
+    10: { credits: 1000,  boostPercent: 15, color: '#fb923c', bg: 'linear-gradient(135deg, #7c2d12 0%, #1c0a00 60%, #0a0500 100%)' },
+    12: { credits: 2000,  boostPercent: 20, color: '#8b5cf6', bg: 'linear-gradient(135deg, #4c1d95 0%, #1e1040 60%, #0a0a1a 100%)' },
+    13: { credits: 3000,  boostPercent: 25, color: '#ec4899', bg: 'linear-gradient(135deg, #831843 0%, #1a0a1a 60%, #0a0010 100%)' },
+    14: { credits: 5000,  boostPercent: 30, color: '#f43f5e', bg: 'linear-gradient(135deg, #881337 0%, #1a0010 60%, #0a000a 100%)' },
+    15: { credits: 10000, boostPercent: 50, color: '#a5f3fc', bg: 'linear-gradient(135deg, #164e63 0%, #0a1a2e 60%, #050a15 100%)' },
   };
 
   // Level-up detection: fire notification when user crosses a level threshold
@@ -3125,7 +3128,7 @@ const App: React.FC = () => {
           >
             {/* Crown / trophy icon */}
             <div className="text-6xl mb-2" style={{ animation: 'milestoneFloat 2.5s ease-in-out infinite' }}>
-              {milestoneRewardNotif.level === 8 ? '💎' : milestoneRewardNotif.level === 10 ? '👑' : '🔮'}
+              {milestoneRewardNotif.level === 8 ? '💎' : milestoneRewardNotif.level === 10 ? '👑' : milestoneRewardNotif.level === 12 ? '🔮' : milestoneRewardNotif.level === 13 ? '⚜️' : milestoneRewardNotif.level === 14 ? '🌠' : '💠'}
             </div>
 
             {/* Badge */}

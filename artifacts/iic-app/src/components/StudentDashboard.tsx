@@ -20379,7 +20379,7 @@ RULES:
           });
         }
 
-        // ── Milestone Rewards (L8, L10, L12) ──
+        // ── Milestone Rewards (L8, L10, L12, L13, L14, L15) ──
         if (l.level === 8) {
           benefits.push({ emoji: '💎', title: '🏆 Milestone Reward: +500 Credits + 10% Daily Limit Boost!', desc: 'GrandMaster milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#f59e0b', active: true });
           benefits.push({ emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Level 8 pe Credit Free events ka fayda — bina coins ke content unlock karo', color: '#06b6d4', active: true });
@@ -20390,6 +20390,15 @@ RULES:
         }
         if (l.level === 12) {
           benefits.push({ emoji: '🔮', title: '🏆 Milestone Reward: +2,000 Credits + 20% Daily Limit Boost!', desc: 'Legend milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#8b5cf6', active: true });
+        }
+        if (l.level === 13) {
+          benefits.push({ emoji: '⚜️', title: '🏆 Milestone Reward: +3,000 Credits + 25% Daily Limit Boost!', desc: 'Immortal milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#ec4899', active: true });
+        }
+        if (l.level === 14) {
+          benefits.push({ emoji: '🌠', title: '🏆 Milestone Reward: +5,000 Credits + 30% Daily Limit Boost!', desc: 'Divine milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#f43f5e', active: true });
+        }
+        if (l.level === 15) {
+          benefits.push({ emoji: '💠', title: '🏆 ABSOLUTE Milestone Reward: +10,000 Credits + 50% Daily Limit Boost!', desc: 'Absolute — sabse bada milestone! Ek baar ka legendary reward — maximum credits aur daily score limit boost permanently milti hai 🌈', color: '#a5f3fc', active: true });
         }
 
         // ── Event unlocks (level-specific, not 8/10 already added above) ──
