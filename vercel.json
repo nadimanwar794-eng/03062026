@@ -1,0 +1,5 @@
+{
+  "outputDirectory": "artifacts/iic-app/dist/public",
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install"
+}
