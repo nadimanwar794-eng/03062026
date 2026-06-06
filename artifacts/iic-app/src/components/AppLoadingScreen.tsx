@@ -339,7 +339,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
       {/* ─── Radial ambient glow behind logo ─── */}
       <div style={{
-        position: 'absolute', top: '38%', left: '50%',
+        position: 'absolute', top: '50%', left: '50%',
         width: 400, height: 400, borderRadius: '50%',
         background: T.radialBehind,
         animation: '_radial_pulse 5s ease-in-out infinite',
@@ -381,14 +381,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       {/* ─── Burst halos ─── */}
       {phase > 0 && <>
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: logoSize + 12, height: logoSize + 12, borderRadius: '50%',
           border: `2px solid ${T.burstBorder1}`,
           animation: '_burst1 1.2s ease-out 0.1s forwards',
           pointerEvents: 'none', zIndex: 4,
         }} />
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: logoSize + 12, height: logoSize + 12, borderRadius: '50%',
           border: `1.5px solid ${T.burstBorder2}`,
           animation: '_burst2 1.5s ease-out 0.25s forwards',
@@ -399,7 +399,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       {/* ─── Spinning arc rings ─── */}
       {phase === 2 && <>
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: R1, height: R1, borderRadius: '50%',
           background: T.ring1,
           WebkitMask: ringMask(R1), mask: ringMask(R1),
@@ -407,7 +407,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           pointerEvents: 'none', zIndex: 4,
         }} />
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: R2, height: R2, borderRadius: '50%',
           background: T.ring2,
           WebkitMask: ringMask(R2), mask: ringMask(R2),
@@ -415,7 +415,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           pointerEvents: 'none', zIndex: 4,
         }} />
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: R3, height: R3, borderRadius: '50%',
           background: T.ring3,
           WebkitMask: ringMask(R3), mask: ringMask(R3),
@@ -425,7 +425,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
         {/* Radar sweep */}
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: R2, height: R2, borderRadius: '50%',
           background: T.sweep,
           WebkitMask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
@@ -436,7 +436,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
         {/* Outer pulse ring */}
         <div style={{
-          position: 'absolute', top: '38%', left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           width: R3 + 38, height: R3 + 38, borderRadius: '50%',
           border: `1px solid ${T.burstBorder1}28`,
           animation: '_pulse_ring 4s ease-in-out infinite 1s',
@@ -451,7 +451,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         { angle: 240, dist: logoSize / 2 + 63, dur: 6.6 },
       ].map((d, i) => (
         <div key={i} style={{
-          position: 'absolute', top: 'calc(38% - 6px)', left: 'calc(50% - 6px)',
+          position: 'absolute', top: 'calc(50% - 6px)', left: 'calc(50% - 6px)',
           width: 12, height: 12, borderRadius: '50%',
           background: T.orbitColors[i], boxShadow: `0 0 10px 4px ${T.orbitShadows[i]}`,
           animation: `_orbit ${d.dur}s linear infinite`,
@@ -460,26 +460,20 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         }} />
       ))}
 
-      {/* ─── CENTER CONTENT ─── */}
+      {/* ─── LOGO — absolutely centered on screen ─── */}
       <div style={{
-        position: 'relative', zIndex: 10,
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        marginTop: 10,
       }}>
-        {/* Logo */}
         <div style={{ animation: phase > 0 ? '_logo_in 0.85s cubic-bezier(0.34,1.56,0.64,1) both' : 'none', opacity: phase === 0 ? 0 : undefined }}>
           <div style={{ animation: phase === 2 ? '_logo_glow 3.5s ease-in-out infinite 0.5s' : 'none', filter: T.logoGlowStatic }}>
             {logoEnabled && logoUrl && !imgFailed ? (
               <img
-                src={logoUrl}
-                alt={appName}
-                draggable={false}
+                src={logoUrl} alt={appName} draggable={false}
                 onError={() => setImgFailed(true)}
-                style={{
-                  width: logoSize, height: logoSize,
-                  maxWidth: '68vw', objectFit: 'contain',
-                  borderRadius: 24, display: 'block',
-                }}
+                style={{ width: logoSize, height: logoSize, maxWidth: '70vw', objectFit: 'contain', borderRadius: 24, display: 'block' }}
               />
             ) : (
               <h1 style={{
@@ -491,51 +485,53 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Developer credit */}
-        {phase === 2 && (
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', animation: '_dev_in 0.65s cubic-bezier(0.34,1.3,0.64,1) 0.3s both' }}>
-            <div style={{ width: 52, height: 1, marginBottom: 8, background: T.separatorGrad }} />
-            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.devByColor, display: 'block', marginBottom: 3 }}>Developed by</span>
+      {/* ─── INFO BLOCK — below logo, absolutely positioned ─── */}
+      {phase === 2 && (
+        <div style={{
+          position: 'absolute',
+          top: `calc(50% + ${logoSize / 2 + 18}px)`,
+          left: '50%', transform: 'translateX(-50%)',
+          zIndex: 10,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          width: '90vw', maxWidth: 320,
+        }}>
+          {/* Developer credit */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', animation: '_dev_in 0.65s cubic-bezier(0.34,1.3,0.64,1) 0.3s both', marginBottom: 10 }}>
+            <div style={{ width: 48, height: 1, marginBottom: 6, background: T.separatorGrad }} />
+            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.devByColor, display: 'block', marginBottom: 2 }}>Developed by</span>
             <span style={{
-              fontSize: 18, fontWeight: 800, letterSpacing: '0.05em',
+              fontSize: 16, fontWeight: 800, letterSpacing: '0.05em',
               background: T.devGrad, backgroundSize: '250% auto',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               animation: '_shimmer 3.5s linear infinite', display: 'block',
             }}>{developerName}</span>
           </div>
-        )}
 
-        {/* App name */}
-        {phase === 2 && (
-          <div style={{ marginTop: 18, textAlign: 'center', animation: '_name_in 0.6s ease 0.45s both' }}>
+          {/* App name */}
+          <div style={{ textAlign: 'center', animation: '_name_in 0.6s ease 0.45s both', marginBottom: 14 }}>
             <p style={{
-              margin: 0, fontSize: Math.min(appNameSize * 0.55, 22), fontWeight: 900, letterSpacing: '0.06em',
+              margin: 0, fontSize: Math.min(appNameSize * 0.52, 20), fontWeight: 900, letterSpacing: '0.06em',
               background: T.nameGrad, backgroundSize: '280% auto',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              animation: '_shimmer 4.5s linear infinite 0.3s',
-              ...fontStyle, ...lsStyle,
+              animation: '_shimmer 4.5s linear infinite 0.3s', ...fontStyle, ...lsStyle,
             }}>{appName}</p>
             {appTagline ? (
-              <p style={{ margin: '5px 0 0', fontSize: 9, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.taglineColor }}>{appTagline}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 9, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.taglineColor }}>{appTagline}</p>
             ) : null}
           </div>
-        )}
 
-        {/* Rotating message */}
-        {phase === 2 && (
-          <div style={{ marginTop: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', minWidth: 240 }}>
+          {/* Rotating message */}
+          <div style={{ height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: '100%', marginBottom: 10 }}>
             <p style={{
-              margin: 0, fontSize: 12, fontWeight: 600,
-              color: T.msgColor, textAlign: 'center',
+              margin: 0, fontSize: 11, fontWeight: 600, color: T.msgColor, textAlign: 'center',
               animation: msgVisible ? '_msg_in 0.4s ease both' : '_msg_out 0.35s ease both',
             }}>{MESSAGES[msgIndex]}</p>
           </div>
-        )}
 
-        {/* Bouncing dots */}
-        {phase === 2 && (
-          <div style={{ display: 'flex', gap: 7, marginTop: 14 }}>
+          {/* Bouncing dots */}
+          <div style={{ display: 'flex', gap: 7 }}>
             {[0, 1, 2].map(i => (
               <div key={i} style={{
                 width: 7, height: 7, borderRadius: '50%',
@@ -544,8 +540,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               }} />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ─── BOTTOM PROGRESS ─── */}
       <div style={{ position: 'absolute', bottom: 28, left: 0, right: 0, padding: '0 28px', zIndex: 10 }}>
