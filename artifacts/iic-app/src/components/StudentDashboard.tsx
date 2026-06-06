@@ -20264,145 +20264,191 @@ RULES:
         const animActive = l.animationIntensity > 0;
         // Progress toward this level
         const progressPct = isUnlocked ? 100 : Math.round((totalScore / Math.max(1, l.minScore)) * 100);
-        // Benefits list
-        const benefits = [
-          {
-            emoji: '🏷️',
-            title: l.discount > 0 ? `${l.discount}% Store Discount` : 'Store Discount: Nahi',
-            desc: l.discount > 0
-              ? `Sabhi store purchases pe automatic ${l.discount}% off — coins, subscriptions sab`
-              : 'Koi discount nahi milega — Level 2 se shuru hoga (3%)',
-            color: l.discount > 0 ? l.color : undefined,
-            active: l.discount > 0,
-          },
-          {
-            emoji: '✨',
-            title: animActive ? `Top Bar Animation: ${animLabels[l.animationIntensity]}` : 'Top Bar Animation: Nahi',
-            desc: animActive
-              ? 'Aapke top bar pe dynamic animation effect dikhega — subscription se independent'
-              : 'Koi top bar animation nahi — Level 2 se unlock hoga',
-            color: animActive ? '#818cf8' : undefined,
-            active: animActive,
-          },
-          {
-            emoji: '🎨',
-            title: (l.nameColor || l.legendaryAura) ? (l.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠' : 'Colored Username 🔥') : 'Username Color: Normal',
-            desc: (l.nameColor || l.legendaryAura)
-              ? (l.legendaryAura ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega' : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega')
-              : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
-            color: l.legendaryAura ? '#a5f3fc' : l.nameColor,
-            active: !!(l.nameColor || l.legendaryAura),
-          },
-          {
-            emoji: '🏆',
-            title: 'Level Leaderboard Entry',
-            desc: 'Sabhi users ke saath global level leaderboard mein rank dikhegi',
-            color: '#eab308',
-            active: true,
-          },
-          {
-            emoji: '📊',
-            title: 'Activity Score Tracking',
-            desc: 'MCQ, video, PDF, audio se daily score earn karo — level up karo. Notes/PDF/Video/Audio: har 30 sec pe +5 pts milenge, max 5 min tak.',
-            color: '#10b981',
-            active: true,
-          },
-          {
-            emoji: '⏱️',
-            title: l.level >= 9 ? `Reading Time Bonus: Max ${getMaxReadingSeconds(l.level)}s (${Math.floor(getMaxReadingSeconds(l.level)/60)}m ${getMaxReadingSeconds(l.level)%60}s) 🔥` : 'Reading Time Bonus: Level 9 se unlock hoga',
-            desc: l.level >= 9
-              ? `Level ${l.level} bonus: Notes/PDF/Video/Audio padhne ka max time ${getMaxReadingSeconds(l.level)} seconds (base 300s + ${(l.level-8)*30}s bonus). Har level pe +30 sec milte hain.`
-              : 'Level 8 (GrandMaster) ke baad har level pe max reading/watching time +30 sec badhta hai — zyada time mein zyada score earn kar sakte ho.',
-            color: l.level >= 9 ? '#f59e0b' : undefined,
-            active: l.level >= 9,
-          },
-          {
-            emoji: '🎁',
-            title: 'Level-Up Celebration',
-            desc: 'Level change hone pe special popup aur benefits card dikhega',
-            color: '#f59e0b',
-            active: true,
-          },
-          // ── Level-based Daily Limits (Free / Basic / Ultra) ──
-          (() => {
-            const ld = getLevelDailyLimits(l.level);
-            const l1 = getLevelDailyLimits(1);
-            const hasBonus = ld.mcq.free > l1.mcq.free;
-            return {
-              emoji: '📈',
-              title: `Daily Limits — 🆓${ld.mcq.free} · 🔵${ld.mcq.basic} · ⚡${ld.mcq.ultra} MCQ/day`,
-              desc: hasBonus
-                ? `Is level pe aapki daily MCQ limit: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Downloads: Free=${ld.dl.free}, Basic=${ld.dl.basic}, Ultra=${ld.dl.ultra}/day. Video/PDF (Basic=${ld.video.basic}, Ultra=${ld.video.ultra} free/day).`
-                : `Is level pe aapki daily MCQ limit: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Higher levels mein ye limits badhti jaayengi.`,
-              color: hasBonus ? '#06b6d4' : undefined,
-              active: true,
-            };
-          })(),
-          // ── L6+ new perks ──
-          ...(l.level >= 6 ? [{
-            emoji: '💰',
-            title: `Sunday Streak Recovery Bonus: +${getLevelLimitBonus(l.level).bonusLoginCredits} CR`,
-            desc: `Sunday ke pehle login pe streak tootne par ${getLevelLimitBonus(l.level).bonusLoginCredits} extra credits milenge — L6+ exclusive perk!`,
-            color: '#f59e0b',
-            active: true,
-          }] : []),
-          ...(l.level >= 6 ? [{
-            emoji: '✍️',
-            title: `Extended Credit Write Mode: ${getLevelLimitBonus(l.level).creditWriteMax}/day`,
-            desc: `Credit se unlock kiye ja sakne wale Write Mode sessions aaj ke liye ${getLevelLimitBonus(l.level).creditWriteMax} tak badh jaate hain (base: 100) — L6 = 120, L7 = 130, L8 = 150.`,
-            color: '#8b5cf6',
-            active: true,
-          }] : []),
-          ...(l.level >= 5 ? [{
-            emoji: '💎',
-            title: 'Elite Status Badge',
-            desc: 'Leaderboard mein special Elite/Legend badge ke saath dikh-o ge',
-            color: l.color,
-            active: true,
-          }] : []),
-          ...(l.level === 8 ? [{
-            emoji: '🌈',
-            title: 'MAX LEVEL — Legend',
-            desc: 'Aap sabse upar ho! 20% max discount + legendary animation permanently unlock',
-            color: '#10b981',
-            active: true,
-          }] : []),
-          // ── Events newly unlocking at this level ──
-          ...(l.level === 1 ? [
+        // Benefits — only show what is NEW or CHANGED at THIS level vs previous level
+        const prevLd  = l.level > 1 ? getLevelDailyLimits(l.level - 1) : null;
+        const currLd  = getLevelDailyLimits(l.level);
+        const prevLvlInfo = l.level > 1 ? LEVEL_INFO[l.level - 2] : null; // 0-indexed
+
+        type Benefit = { emoji: string; title: string; desc: string; color?: string; active: boolean };
+        const benefits: Benefit[] = [];
+
+        // ── L1 base unlocks (shown only on level 1) ──
+        if (l.level === 1) {
+          benefits.push(
+            { emoji: '🏆', title: 'Level Leaderboard Entry', desc: 'Sabhi users ke saath global level leaderboard mein rank dikhegi', color: '#eab308', active: true },
+            { emoji: '📊', title: 'Activity Score Tracking', desc: 'MCQ, video, PDF, audio se daily score earn karo — level up karo. Notes/PDF/Video/Audio: har 30 sec pe +5 pts milenge, max 5 min tak.', color: '#10b981', active: true },
+            { emoji: '🎁', title: 'Level-Up Celebration', desc: 'Level change hone pe special popup aur benefits card dikhega', color: '#f59e0b', active: true },
             { emoji: '🏷️', title: '🎉 Discount Event — Unlocked!', desc: 'Ab discount sale events ka full fayda uthao — store pe special % off milega', color: '#f59e0b', active: true },
             { emoji: '🎁', title: '🎉 Credit Bonus Event — Unlocked!', desc: 'MCQ prizes aur gifts pe extra % bonus credits — yahan se shuru', color: '#22c55e', active: true },
-          ] : []),
-          ...(l.level === 3 ? [
-            { emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: `Level 3 mil gaya! Ab Limit Boost events mein daily score limit extra badhegi`, color: '#10b981', active: true },
-          ] : []),
-          ...(l.level === 5 ? [
-            { emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Level 5 pe Score Boost events fully active — boosted scores + Theme Studio perk', color: '#f97316', active: true },
-          ] : []),
-          ...(l.level === 7 ? [
-            { emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Level 7 pe Theme Studio events access milega — app ka look customize karo', color: '#8b5cf6', active: true },
-          ] : []),
-          ...(l.level === 8 ? [
-            { emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Level 8 pe Credit Free events ka fayda — bina coins ke content unlock karo', color: '#06b6d4', active: true },
-          ] : []),
-          ...(l.level === 10 ? [
-            { emoji: '🌍', title: '🎉 Global Free Access Event — Unlocked!', desc: 'Level 10 pe Global Free Access events mein sab kuch bilkul free!', color: '#10b981', active: true },
-          ] : []),
-          // ── Events summary for all levels ──
-          {
-            emoji: '🎪',
-            title: 'Events Access Summary',
-            desc: [
-              l.level >= 1 ? '✓ Discount + Credit Bonus' : '🔒 Discount/Credit Bonus (L1)',
-              l.level >= 3 ? '✓ Limit Boost' : `🔒 Limit Boost (L3)`,
-              l.level >= 5 ? '✓ Score Boost' : `🔒 Score Boost (L5)`,
-              l.level >= 7 ? '✓ Theme Studio' : `🔒 Theme Studio (L7)`,
-              l.level >= 8 ? '✓ Credit Free' : `🔒 Credit Free (L8)`,
-              l.level >= 10 ? '✓ Global Free' : `🔒 Global Free (L10)`,
-            ].join(' · '),
-            color: '#6366f1',
+          );
+        }
+
+        // ── Discount — show only when it changes ──
+        const prevDiscount = prevLvlInfo?.discount ?? 0;
+        if (l.discount !== prevDiscount) {
+          if (l.discount > 0) {
+            benefits.push({
+              emoji: '🏷️',
+              title: `Store Discount: ${l.discount}% ${l.discount > prevDiscount ? `(+${l.discount - prevDiscount}% badha!)` : ''}`,
+              desc: `Sabhi store purchases pe automatic ${l.discount}% off — coins, subscriptions sab`,
+              color: l.color,
+              active: true,
+            });
+          }
+        }
+
+        // ── Top Bar Animation — show only when intensity changes ──
+        const prevAnim = prevLvlInfo?.animationIntensity ?? 0;
+        if (l.animationIntensity !== prevAnim) {
+          benefits.push({
+            emoji: '✨',
+            title: l.animationIntensity > 0 ? `Top Bar Animation Unlock: ${animLabels[l.animationIntensity]}` : 'Top Bar Animation Removed',
+            desc: l.animationIntensity > 0
+              ? `Aapke top bar pe dynamic animation effect dikhega — subscription se independent`
+              : 'Koi top bar animation nahi',
+            color: '#818cf8',
+            active: l.animationIntensity > 0,
+          });
+        }
+
+        // ── Colored Username — show only at levels where it first appears/changes ──
+        const prevHasColor = !!(prevLvlInfo?.nameColor || prevLvlInfo?.legendaryAura);
+        const currHasColor = !!(l.nameColor || l.legendaryAura);
+        if (currHasColor && !prevHasColor) {
+          benefits.push({
+            emoji: '🎨',
+            title: l.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠 — Unlocked!' : 'Colored Username 🔥 — Unlocked!',
+            desc: l.legendaryAura
+              ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega'
+              : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega',
+            color: l.legendaryAura ? '#a5f3fc' : l.nameColor,
             active: true,
-          },
-        ];
+          });
+        }
+
+        // ── Elite Badge — only at L5 ──
+        if (l.level === 5) {
+          benefits.push({ emoji: '💎', title: 'Elite Status Badge — Unlocked!', desc: 'Leaderboard mein special Elite badge ke saath dikho ge', color: l.color, active: true });
+        }
+
+        // ── Sunday Streak Bonus — show at L6 (unlock) and when it increases ──
+        if (l.level >= 6) {
+          const curr = getLevelLimitBonus(l.level).bonusLoginCredits;
+          const prev = l.level > 6 ? getLevelLimitBonus(l.level - 1).bonusLoginCredits : 0;
+          if (curr !== prev) {
+            benefits.push({
+              emoji: '💰',
+              title: l.level === 6
+                ? `Sunday Streak Recovery Bonus — Unlocked! +${curr} CR`
+                : `Sunday Streak Bonus Badha: +${curr} CR (+${curr - prev})`,
+              desc: `Sunday ke pehle login pe streak tootne par ${curr} extra credits milenge — L6+ exclusive perk!`,
+              color: '#f59e0b',
+              active: true,
+            });
+          }
+        }
+
+        // ── Credit Write Mode — show at L6 (unlock) and when it increases ──
+        if (l.level >= 6) {
+          const curr = getLevelLimitBonus(l.level).creditWriteMax;
+          const prev = l.level > 6 ? getLevelLimitBonus(l.level - 1).creditWriteMax : 100;
+          if (curr !== prev) {
+            benefits.push({
+              emoji: '✍️',
+              title: l.level === 6
+                ? `Extended Write Mode — Unlocked! ${curr}/day`
+                : `Write Mode Limit Badhi: ${curr}/day (+${curr - prev})`,
+              desc: `Credit se unlock kiye ja sakne wale Write Mode sessions aaj ke liye ${curr} tak badh jaate hain`,
+              color: '#8b5cf6',
+              active: true,
+            });
+          }
+        }
+
+        // ── Reading Time Bonus — at L9 (unlock) and each level after ──
+        if (l.level >= 9) {
+          const secs = getMaxReadingSeconds(l.level);
+          benefits.push({
+            emoji: '⏱️',
+            title: l.level === 9
+              ? `Reading Time Bonus — Unlocked! Max ${secs}s`
+              : `Reading Time +30s Bonus: Max ${secs}s (${Math.floor(secs/60)}m ${secs%60}s)`,
+            desc: `Notes/PDF/Video/Audio padhne ka max scoring time ${secs} seconds — base 300s + ${(l.level-8)*30}s bonus`,
+            color: '#f59e0b',
+            active: true,
+          });
+        }
+
+        // ── Milestone Rewards (L8, L10, L12) ──
+        if (l.level === 8) {
+          benefits.push({ emoji: '💎', title: '🏆 Milestone Reward: +500 Credits + 10% Daily Limit Boost!', desc: 'GrandMaster milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#f59e0b', active: true });
+          benefits.push({ emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Level 8 pe Credit Free events ka fayda — bina coins ke content unlock karo', color: '#06b6d4', active: true });
+        }
+        if (l.level === 10) {
+          benefits.push({ emoji: '👑', title: '🏆 Milestone Reward: +1,000 Credits + 15% Daily Limit Boost!', desc: 'Mythic milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#fb923c', active: true });
+          benefits.push({ emoji: '🌍', title: '🎉 Global Free Access Event — Unlocked!', desc: 'Level 10 pe Global Free Access events mein sab kuch bilkul free!', color: '#10b981', active: true });
+        }
+        if (l.level === 12) {
+          benefits.push({ emoji: '🔮', title: '🏆 Milestone Reward: +2,000 Credits + 20% Daily Limit Boost!', desc: 'Legend milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#8b5cf6', active: true });
+        }
+
+        // ── Event unlocks (level-specific, not 8/10 already added above) ──
+        if (l.level === 3) benefits.push({ emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: 'Level 3 mil gaya! Ab Limit Boost events mein daily score limit extra badhegi', color: '#10b981', active: true });
+        if (l.level === 5) benefits.push({ emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Level 5 pe Score Boost events fully active — boosted scores + Theme Studio perk', color: '#f97316', active: true });
+        if (l.level === 7) benefits.push({ emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Level 7 pe Theme Studio events access milega — app ka look customize karo', color: '#8b5cf6', active: true });
+
+        // ── Daily Limits: only show rows that CHANGED vs previous level ──
+        if (prevLd) {
+          type LimitRow = { icon: string; label: string; change: string; color: string };
+          const changedRows: LimitRow[] = [];
+          const fmtV = (v: number) => v >= UNLIMITED ? '∞' : String(v);
+          const chk = (icon: string, label: string, pF: number, cF: number, pB: number, cB: number, pU: number, cU: number) => {
+            if (cF !== pF || cB !== pB || cU !== pU) {
+              const parts: string[] = [];
+              if (cF !== pF) parts.push(`🆓 ${fmtV(pF)}→${fmtV(cF)}`);
+              if (cB !== pB) parts.push(`🔵 ${fmtV(pB)}→${fmtV(cB)}`);
+              if (cU !== pU) parts.push(`⚡ ${fmtV(pU)}→${fmtV(cU)}`);
+              changedRows.push({ icon, label, change: parts.join('  '), color: '#06b6d4' });
+            }
+          };
+          chk('❓', 'MCQ Practice',    prevLd.mcq.free, currLd.mcq.free, prevLd.mcq.basic, currLd.mcq.basic, prevLd.mcq.ultra, currLd.mcq.ultra);
+          chk('📥', 'Downloads',       prevLd.dl.free, currLd.dl.free, prevLd.dl.basic, currLd.dl.basic, prevLd.dl.ultra, currLd.dl.ultra);
+          chk('🎬', 'Video Lectures',  prevLd.video.free, currLd.video.free, prevLd.video.basic, currLd.video.basic, prevLd.video.ultra, currLd.video.ultra);
+          chk('📄', 'PDF / Notes',     prevLd.pdf.free, currLd.pdf.free, prevLd.pdf.basic, currLd.pdf.basic, prevLd.pdf.ultra, currLd.pdf.ultra);
+          chk('📖', 'Notes Reading',   prevLd.notes.free, currLd.notes.free, prevLd.notes.basic, currLd.notes.basic, prevLd.notes.ultra, currLd.notes.ultra);
+          chk('🔊', 'Audio / TTS',     prevLd.tts.free, currLd.tts.free, prevLd.tts.basic, currLd.tts.basic, prevLd.tts.ultra, currLd.tts.ultra);
+          chk('🃏', 'Flashcards',      prevLd.flashcard.free, currLd.flashcard.free, prevLd.flashcard.basic, currLd.flashcard.basic, prevLd.flashcard.ultra, currLd.flashcard.ultra);
+          chk('✍️', 'Write Mode',      prevLd.write.free, currLd.write.free, prevLd.write.basic, currLd.write.basic, prevLd.write.ultra, currLd.write.ultra);
+          if (changedRows.length > 0) {
+            changedRows.forEach(r => benefits.push({
+              emoji: r.icon,
+              title: `${r.label} Limit Badhi!`,
+              desc: r.change,
+              color: r.color,
+              active: true,
+            }));
+          }
+        } else {
+          // L1 — show base limits
+          benefits.push({
+            emoji: '📈',
+            title: `Base Daily Limits — 🆓${currLd.mcq.free} · 🔵${currLd.mcq.basic} · ⚡${currLd.mcq.ultra} MCQ/day`,
+            desc: `Starting limits: MCQ Free=${currLd.mcq.free}, Basic=${currLd.mcq.basic}, Ultra=${currLd.mcq.ultra}. Downloads Free=${currLd.dl.free}/Basic=${currLd.dl.basic}/Ultra=${currLd.dl.ultra}/day.`,
+            color: '#06b6d4',
+            active: true,
+          });
+        }
+
+        // If nothing new at this level, show a placeholder
+        if (benefits.length === 0) {
+          benefits.push({
+            emoji: '📊',
+            title: 'Daily Limits continue to scale',
+            desc: `Is level pe koi nayi cheez unlock nahi hoti — lekin aapke limits aur score accumulate hote rahe.`,
+            color: undefined,
+            active: true,
+          });
+        }
         return (
           <div className="fixed inset-0 z-[9999] flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.8)' }} onClick={() => setSelectedLevelDetail(null)}>
             <div className="bg-[#111] rounded-t-3xl w-full max-h-[88vh] overflow-y-auto no-scrollbar" onClick={e => e.stopPropagation()}>
