@@ -529,6 +529,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [lnmFreeNotes, setLnmFreeNotes] = useState('');
   const [lnmSavingNotes, setLnmSavingNotes] = useState(false);
   const [lnmDeletingId, setLnmDeletingId] = useState<string|null>(null);
+  const [lnmPages, setLnmPages] = useState<any[]>([{ id: Date.now().toString(), pageNo: '1', chunkNotes: '', htmlNotes: '' }]);
+  const [lnmIsSaving, setLnmIsSaving] = useState(false);
   const [autoSplitText, setAutoSplitText] = useState('');
   const [showAutoSplit, setShowAutoSplit] = useState(false);
   const [lucentSmartPasteText, setLucentSmartPasteText] = useState('');
@@ -17345,15 +17347,12 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               { id: 'GK',       emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       subjects: ['General Knowledge / सामान्य ज्ञान','Current Affairs / करंट अफेयर्स'] },
               { id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes',  classLevel: 'COMPETITION', subjects: ['MCQ Practice','Class Notes / कक्षा नोट्स'] },
           ];
-
-          const bookCfg = LIBRARY_BOOKS.find(b => b.id === lnmSelBook)!;
+          const bookCfg = LIBRARY_BOOKS.find(b => b.id === lnmSelBook) || LIBRARY_BOOKS[0];
           const syllabusKey = lnmSelSubject ? `${lnmSelBook}-${bookCfg.classLevel}-${lnmSelSubject}-English` : '';
-          const contentKey = lnmSelChapterId ? `nst_content_${lnmSelBook}_${bookCfg.classLevel}_${lnmSelSubject}_${lnmSelChapterId}` : '';
-          const selChapter = lnmChapters.find(c => c.id === lnmSelChapterId);
 
           const loadChapters = async (bookId: string, subject: string) => {
               if (!subject) return;
-              const cfg = LIBRARY_BOOKS.find(b => b.id === bookId)!;
+              const cfg = LIBRARY_BOOKS.find(b => b.id === bookId) || LIBRARY_BOOKS[0];
               const key = `${bookId}-${cfg.classLevel}-${subject}-English`;
               setLnmLoadingChapters(true);
               setLnmSelChapterId(null);
@@ -17365,21 +17364,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               setLnmLoadingChapters(false);
           };
 
-          const handleAddChapter = async () => {
-              if (!lnmNewChapter.trim() || !lnmSelSubject) return;
-              setLnmSavingChapter(true);
-              try {
-                  const newCh = { id: `ch_${Date.now()}`, title: lnmNewChapter.trim() };
-                  const updated = [...lnmChapters, newCh];
-                  await saveCustomSyllabus(syllabusKey, updated);
-                  setLnmChapters(updated);
-                  setLnmNewChapter('');
-                  setAlertConfig({ isOpen: true, message: `✅ Chapter "${newCh.title}" add ho gaya!` });
-              } catch { setAlertConfig({ isOpen: true, message: '❌ Chapter save nahi hua, dobara try karein.' }); }
-              setLnmSavingChapter(false);
-          };
-
-          const handleDeleteChapter = async (chId: string) => {
+          const handleLnmDeleteChapter = async (chId: string) => {
               if (!confirm('Is chapter ko delete karna chahte hain?')) return;
               setLnmDeletingId(chId);
               try {
@@ -17391,132 +17376,215 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               setLnmDeletingId(null);
           };
 
-          const handleLoadNotes = async (chId: string) => {
-              setLnmSelChapterId(chId);
-              setLnmFreeNotes('');
-              const key = `nst_content_${lnmSelBook}_${bookCfg.classLevel}_${lnmSelSubject}_${chId}`;
+          const handleLnmSave = async () => {
+              if (!lnmNewChapter.trim()) return setAlertConfig({ isOpen: true, message: '⚠️ Chapter ka title zaroor daalein.' });
+              if (!lnmSelSubject) return setAlertConfig({ isOpen: true, message: '⚠️ Subject chunein.' });
+              const validPages = lnmPages.filter(p => p.pageNo?.trim() && (p.chunkNotes?.trim() || p.htmlNotes?.trim() || (p.mcqs && p.mcqs.length > 0) || p.videoUrl?.trim() || p.audioUrl?.trim() || p.pdfUrl?.trim()));
+              if (validPages.length === 0) return setAlertConfig({ isOpen: true, message: '⚠️ Kam se kam ek page ke notes ya MCQ add karein.' });
+              setLnmIsSaving(true);
               try {
-                  const data = await getChapterData(key);
-                  setLnmFreeNotes(data?.freeNotesHtml || data?.aiHtmlContent || '');
-              } catch { setLnmFreeNotes(''); }
-          };
-
-          const handleSaveNotes = async () => {
-              if (!lnmSelChapterId || !contentKey) return;
-              setLnmSavingNotes(true);
-              try {
-                  const existing = await getChapterData(contentKey) || {};
-                  const updated = { ...existing, freeNotesHtml: lnmFreeNotes, type: 'MULTI_TAB', title: selChapter?.title || '', subtitle: `${bookCfg.label} · ${lnmSelSubject}` };
-                  await saveChapterData(contentKey, updated);
-                  setAlertConfig({ isOpen: true, message: `✅ Notes save ho gaye — Library mein ab dikhenge!` });
-              } catch { setAlertConfig({ isOpen: true, message: '❌ Notes save nahi hue.' }); }
-              setLnmSavingNotes(false);
+                  const chId = `ch_${Date.now()}`;
+                  const newCh = { id: chId, title: lnmNewChapter.trim() };
+                  const updatedChapters = [...lnmChapters, newCh];
+                  await saveCustomSyllabus(syllabusKey, updatedChapters);
+                  setLnmChapters(updatedChapters);
+                  const contentKey = `nst_content_${lnmSelBook}_${bookCfg.classLevel}_${lnmSelSubject}_${chId}`;
+                  const contentData = {
+                      type: 'MULTI_TAB',
+                      title: lnmNewChapter.trim(),
+                      subtitle: `${bookCfg.label} · ${lnmSelSubject}`,
+                      pages: validPages,
+                      freeNotesHtml: validPages[0]?.htmlNotes || validPages[0]?.chunkNotes || '',
+                  };
+                  await saveChapterData(contentKey, contentData);
+                  setLnmNewChapter('');
+                  setLnmPages([{ id: Date.now().toString(), pageNo: '1', chunkNotes: '', htmlNotes: '' }]);
+                  setAlertConfig({ isOpen: true, message: `✅ Chapter "${newCh.title}" Library mein save ho gaya!` });
+              } catch (e: any) {
+                  setAlertConfig({ isOpen: true, message: `❌ Save nahi hua — ${e?.message || 'dobara try karein'}` });
+              }
+              setLnmIsSaving(false);
           };
 
           return (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right overflow-hidden">
-                  <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50">
+                  <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50">
                       <button onClick={() => setActiveTab('DASHBOARD')} className="bg-white p-2 rounded-full hover:bg-slate-100 border border-slate-200"><ArrowLeft size={20} /></button>
-                      <div>
+                      <div className="flex-1 min-w-0">
                           <h3 className="text-xl font-black text-slate-800">📚 Library Notes Manager</h3>
-                          <p className="text-xs text-slate-500 font-medium">Library ki books mein chapters aur notes add karein</p>
+                          <p className="text-xs text-slate-500 font-medium">Class 6-12 jaisi notes — Library ki books mein add karein</p>
                       </div>
                   </div>
 
-                  <div className="p-6 space-y-6">
-                      {/* Step 1: Book Select */}
+                  <div className="p-5 space-y-5">
+                      {/* Book + Subject Row */}
+                      <div className="grid grid-cols-2 gap-3">
+                          <div>
+                              <label className="text-[10px] font-black text-violet-700 uppercase block mb-1.5">📚 Book Chunein</label>
+                              <select
+                                  value={lnmSelBook}
+                                  onChange={e => { setLnmSelBook(e.target.value); setLnmSelSubject(''); setLnmChapters([]); setLnmSelChapterId(null); }}
+                                  className="w-full p-2.5 border-2 border-violet-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-violet-500 bg-white"
+                              >
+                                  {LIBRARY_BOOKS.map(b => <option key={b.id} value={b.id}>{b.emoji} {b.label}</option>)}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="text-[10px] font-black text-violet-700 uppercase block mb-1.5">📗 Subject Chunein</label>
+                              <select
+                                  value={lnmSelSubject}
+                                  onChange={e => { setLnmSelSubject(e.target.value); loadChapters(lnmSelBook, e.target.value); }}
+                                  className="w-full p-2.5 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-violet-400 bg-white"
+                              >
+                                  <option value="">— Subject —</option>
+                                  {bookCfg.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                          </div>
+                      </div>
+
+                      {/* Chapter Title */}
                       <div>
-                          <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest mb-3">Step 1 — Book Chunein</p>
-                          <div className="grid grid-cols-2 gap-2">
-                              {LIBRARY_BOOKS.map(b => (
-                                  <button key={b.id} onClick={() => { setLnmSelBook(b.id); setLnmSelSubject(''); setLnmChapters([]); setLnmSelChapterId(null); setLnmFreeNotes(''); }}
-                                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left font-black text-sm ${lnmSelBook === b.id ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-700 hover:border-violet-300'}`}>
-                                      <span className="text-xl shrink-0">{b.emoji}</span>
-                                      <span className="truncate">{b.label}</span>
-                                  </button>
+                          <label className="text-[10px] font-black text-slate-500 uppercase block mb-1.5">📖 Chapter / Lesson Title *</label>
+                          <input
+                              type="text"
+                              value={lnmNewChapter}
+                              onChange={e => setLnmNewChapter(e.target.value)}
+                              className="w-full p-2.5 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-violet-500"
+                              placeholder="e.g. Chapter 1: Mughal Samrajya, Chapter 3: Photosynthesis…"
+                          />
+                      </div>
+
+                      {/* Multi-page editor */}
+                      <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-black text-slate-500 uppercase">📄 Pages ({lnmPages.length})</label>
+                              <button
+                                  type="button"
+                                  onClick={() => setLnmPages([...lnmPages, { id: Date.now().toString(), pageNo: String(lnmPages.length + 1), chunkNotes: '', htmlNotes: '' }])}
+                                  className="text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-lg hover:bg-violet-100"
+                              >+ Page Add Karein</button>
+                          </div>
+
+                          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                              {lnmPages.map((pg, pgIdx) => (
+                                  <div key={pg.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 relative">
+                                      {lnmPages.length > 1 && (
+                                          <button type="button" onClick={() => { const u=[...lnmPages]; u.splice(pgIdx,1); setLnmPages(u); }} className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 rounded"><Trash2 size={13}/></button>
+                                      )}
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Page No.</label>
+                                              <input type="text" value={pg.pageNo} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], pageNo: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-violet-400" placeholder="1" />
+                                          </div>
+                                          <div>
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Date</label>
+                                              <input type="date" value={pg.date || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], date: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-violet-400" />
+                                          </div>
+                                      </div>
+
+                                      {/* Read Mode */}
+                                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
+                                          <label className="text-[9px] font-black text-amber-700 uppercase block mb-1">📖 Read Mode Notes (TTS ke liye — plain text)</label>
+                                          <textarea value={pg.chunkNotes || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], chunkNotes: e.target.value}; setLnmPages(u); }} className="w-full p-2 border border-amber-200 rounded text-sm outline-none min-h-[90px] resize-y focus:border-amber-500 bg-white leading-relaxed" placeholder="Plain text notes — students yahan sunenge (TTS). Formatting nahi hogi." />
+                                      </div>
+
+                                      {/* Write Mode */}
+                                      <div className="bg-teal-50 border border-teal-200 rounded-lg p-2">
+                                          <label className="text-[9px] font-black text-teal-700 uppercase block mb-1">🎨 Write Mode Notes (HTML formatted)</label>
+                                          <textarea value={pg.htmlNotes || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], htmlNotes: e.target.value}; setLnmPages(u); }} className="w-full p-2 border border-teal-200 rounded text-sm outline-none min-h-[110px] resize-y focus:border-teal-500 bg-white font-mono" placeholder={'<h2>Topic</h2>\n<p>HTML formatted notes — <b>bold</b>, <ul><li>list</li></ul>, tables sab supported hai.</p>'} />
+                                      </div>
+
+                                      {/* Media Links */}
+                                      <div className="bg-rose-50 border border-rose-200 rounded-lg p-2 space-y-2">
+                                          <p className="text-[9px] font-black text-rose-700 uppercase">🎬 Media Links (Google Drive ya YouTube)</p>
+                                          <div>
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">▶ Video URL</label>
+                                              <input type="url" value={pg.videoUrl || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], videoUrl: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-rose-200 rounded text-xs outline-none focus:border-rose-500 bg-white" placeholder="https://drive.google.com/file/d/... ya YouTube link" />
+                                          </div>
+                                          <div>
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">🎵 Audio URL</label>
+                                              <input type="url" value={pg.audioUrl || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], audioUrl: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-rose-200 rounded text-xs outline-none focus:border-rose-500 bg-white" placeholder="https://drive.google.com/file/d/... (audio file)" />
+                                          </div>
+                                          <div>
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">📄 PDF URL</label>
+                                              <input type="url" value={pg.pdfUrl || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], pdfUrl: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-rose-200 rounded text-xs outline-none focus:border-rose-500 bg-white" placeholder="https://drive.google.com/file/d/... (PDF file)" />
+                                          </div>
+                                          <p className="text-[8px] text-rose-600">💡 Google Drive links: File ko "Anyone with the link" se share karein.</p>
+                                      </div>
+
+                                      {/* MCQ Section */}
+                                      <div className="border-t border-slate-200 pt-2">
+                                          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                                              <label className="text-[9px] font-bold text-emerald-700 uppercase">📝 Page MCQs ({(pg.mcqs||[]).length})</label>
+                                              <div className="flex gap-1">
+                                                  <button type="button" onClick={() => setLucentPageBulk(prev => { const cp={...prev}; cp[pg.id]===undefined ? cp[pg.id]='' : delete cp[pg.id]; return cp; })} className="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-amber-600">📋 Bulk Paste</button>
+                                                  <button type="button" onClick={() => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], mcqs:[...(u[pgIdx].mcqs||[]), {id:`mcq_${Date.now()}_${Math.random()}`,question:'',options:['','','',''],correctAnswer:0}]}; setLnmPages(u); }} className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-emerald-700 flex items-center gap-1"><Plus size={10}/> Add MCQ</button>
+                                              </div>
+                                          </div>
+                                          {lucentPageBulk[pg.id] !== undefined && (
+                                              <div className="bg-amber-50 border border-amber-200 rounded p-2 mb-2 space-y-1.5">
+                                                  <textarea value={lucentPageBulk[pg.id]} onChange={e => setLucentPageBulk(prev=>({...prev,[pg.id]:e.target.value}))} placeholder={"**प्रश्न:** ...?\nA) ...\nB) ...\nC) ...\nD) ...\n**सही उत्तर:** B) ..."} className="w-full p-1.5 border border-amber-300 rounded text-[11px] font-mono outline-none h-32 focus:border-amber-500" />
+                                                  <div className="flex gap-1">
+                                                      <button type="button" onClick={() => { const raw=(lucentPageBulk[pg.id]||'').trim(); if(!raw)return; const parsed=parseMCQText(normalizeMcqPaste(raw)); if(!parsed.questions?.length)return setAlertConfig({isOpen:true,message:'❌ Parse fail — format check karein.'}); const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], mcqs:[...(u[pgIdx].mcqs||[]),...parsed.questions.map(q=>({id:`mcq_${Date.now()}_${Math.random()}`,question:(q.question||'').replace(/<br\/?>/g,'\n').trim(),options:(q.options||['','','','']).slice(0,4),correctAnswer:q.correctAnswer??0}))]}; setLnmPages(u); setLucentPageBulk(prev=>{const cp={...prev};delete cp[pg.id];return cp;}); setAlertConfig({isOpen:true,message:'✅ MCQs add ho gaye!'}); }} className="flex-1 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-700">Parse & Add All</button>
+                                                      <button type="button" onClick={() => setLucentPageBulk(prev=>{const cp={...prev};delete cp[pg.id];return cp;})} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300">Cancel</button>
+                                                  </div>
+                                              </div>
+                                          )}
+                                          {(pg.mcqs||[]).map((mcq: any, mIdx: number) => (
+                                              <div key={mcq.id||mIdx} className="bg-white border border-emerald-100 rounded p-2 mb-2 space-y-1.5 relative">
+                                                  <button type="button" onClick={() => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], mcqs:(u[pgIdx].mcqs||[]).filter((_: any,i: number)=>i!==mIdx)}; setLnmPages(u); }} className="absolute top-1 right-1 p-0.5 text-red-400 hover:text-red-600 rounded"><Trash2 size={11}/></button>
+                                                  <input type="text" value={mcq.question} onChange={e => { const u=[...lnmPages]; const ms=[...(u[pgIdx].mcqs||[])]; ms[mIdx]={...ms[mIdx],question:e.target.value}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setLnmPages(u); }} className="w-full p-1.5 pr-6 border border-slate-200 rounded text-xs outline-none focus:border-emerald-500" placeholder={`Q${mIdx+1}: Question likhein?`} />
+                                                  <div className="grid grid-cols-2 gap-1">
+                                                      {(mcq.options||['','','','']).map((opt: string, oi: number) => (
+                                                          <div key={oi} className="flex items-center gap-1">
+                                                              <input type="radio" name={`lnm-correct-${pg.id}-${mIdx}`} checked={(mcq.correctAnswer??0)===oi} onChange={() => { const u=[...lnmPages]; const ms=[...(u[pgIdx].mcqs||[])]; ms[mIdx]={...ms[mIdx],correctAnswer:oi}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setLnmPages(u); }} className="shrink-0" />
+                                                              <input type="text" value={opt} onChange={e => { const u=[...lnmPages]; const ms=[...(u[pgIdx].mcqs||[])]; const opts=[...(ms[mIdx].options||['','','',''])]; opts[oi]=e.target.value; ms[mIdx]={...ms[mIdx],options:opts}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setLnmPages(u); }} className="w-full p-1 border border-slate-200 rounded text-[11px] outline-none focus:border-emerald-500" placeholder={`Option ${String.fromCharCode(65+oi)}`} />
+                                                          </div>
+                                                      ))}
+                                                  </div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
                               ))}
                           </div>
                       </div>
 
-                      {/* Step 2: Subject Select */}
-                      <div>
-                          <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest mb-3">Step 2 — Subject Chunein</p>
-                          <select
-                              value={lnmSelSubject}
-                              onChange={e => { setLnmSelSubject(e.target.value); loadChapters(lnmSelBook, e.target.value); }}
-                              className="w-full border-2 border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400 bg-white"
-                          >
-                              <option value="">— Subject chunein —</option>
-                              {bookCfg.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                      </div>
+                      {/* Save Button */}
+                      <button
+                          onClick={handleLnmSave}
+                          disabled={lnmIsSaving || !lnmSelSubject || !lnmNewChapter.trim()}
+                          className="w-full py-3 bg-violet-600 text-white rounded-xl font-black text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                      >
+                          {lnmIsSaving ? <><Loader2 size={16} className="animate-spin"/> Saving…</> : <><Save size={16}/> Library mein Save Karein</>}
+                      </button>
 
+                      {/* Existing Chapters History */}
                       {lnmSelSubject && (
-                          <>
-                              {/* Step 3: Chapter Add */}
-                              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-3">
-                                  <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest">Step 3 — Chapter Add Karein</p>
-                                  <div className="flex gap-2">
-                                      <input
-                                          value={lnmNewChapter}
-                                          onChange={e => setLnmNewChapter(e.target.value)}
-                                          onKeyDown={e => e.key === 'Enter' && handleAddChapter()}
-                                          placeholder="Chapter ka naam likhein (jaise: Chapter 1 - History)"
-                                          className="flex-1 border-2 border-violet-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-violet-500 bg-white"
-                                      />
-                                      <button onClick={handleAddChapter} disabled={lnmSavingChapter || !lnmNewChapter.trim()}
-                                          className="px-4 py-2 bg-violet-600 text-white rounded-xl font-black text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap">
-                                          {lnmSavingChapter ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
-                                      </button>
-                                  </div>
-
-                                  {/* Chapter List */}
-                                  {lnmLoadingChapters ? (
-                                      <div className="flex items-center gap-2 py-4 justify-center text-violet-500"><Loader2 size={18} className="animate-spin" /><span className="text-sm font-bold">Chapters load ho rahe hain...</span></div>
-                                  ) : lnmChapters.length === 0 ? (
-                                      <p className="text-center text-sm text-slate-400 font-medium py-4">Abhi koi chapter nahi — upar se add karein</p>
-                                  ) : (
-                                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                                          {lnmChapters.map((ch, i) => (
-                                              <div key={ch.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${lnmSelChapterId === ch.id ? 'border-violet-500 bg-violet-100' : 'border-slate-200 bg-white hover:border-violet-300'}`}
-                                                  onClick={() => handleLoadNotes(ch.id)}>
-                                                  <div className="w-7 h-7 rounded-lg bg-violet-600 text-white text-xs font-black flex items-center justify-center shrink-0">{i+1}</div>
-                                                  <p className="flex-1 text-sm font-bold text-slate-800 truncate">{ch.title}</p>
-                                                  <button onClick={e => { e.stopPropagation(); handleDeleteChapter(ch.id); }} disabled={lnmDeletingId === ch.id}
-                                                      className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0">
-                                                      {lnmDeletingId === ch.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                                                  </button>
-                                              </div>
-                                          ))}
-                                      </div>
-                                  )}
+                          <div className="border-t border-slate-100 pt-4">
+                              <div className="flex items-center justify-between mb-3">
+                                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                      Existing Chapters {lnmLoadingChapters ? '…' : `(${lnmChapters.length})`}
+                                  </p>
                               </div>
-
-                              {/* Step 4: Notes Upload */}
-                              {lnmSelChapterId && selChapter && (
-                                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3">
-                                      <div>
-                                          <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Step 4 — Notes Upload Karein</p>
-                                          <p className="text-xs text-slate-600 font-medium mt-1">📌 {selChapter.title}</p>
-                                      </div>
-                                      <div>
-                                          <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Notes (HTML ya plain text)</label>
-                                          <textarea
-                                              value={lnmFreeNotes}
-                                              onChange={e => setLnmFreeNotes(e.target.value)}
-                                              rows={10}
-                                              placeholder="Yahan notes paste karein — HTML supported hai (jaise <b>bold</b>, <ul><li>...</li></ul>)"
-                                              className="w-full border-2 border-emerald-200 rounded-xl p-3 text-sm font-mono outline-none focus:border-emerald-500 bg-white resize-none"
-                                          />
-                                      </div>
-                                      <button onClick={handleSaveNotes} disabled={lnmSavingNotes}
-                                          className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-sm hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors">
-                                          {lnmSavingNotes ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Library mein Save Karein</>}
-                                      </button>
-                                      <p className="text-[10px] text-slate-400 text-center">Save ke baad students Library mein is chapter ka content dekh sakenge</p>
+                              {lnmLoadingChapters ? (
+                                  <div className="flex items-center gap-2 py-4 justify-center text-violet-500"><Loader2 size={16} className="animate-spin"/><span className="text-sm font-bold">Load ho raha hai...</span></div>
+                              ) : lnmChapters.length === 0 ? (
+                                  <p className="text-center text-sm text-slate-400 py-4">Abhi koi chapter nahi — upar se add karein</p>
+                              ) : (
+                                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                                      {lnmChapters.map((ch, i) => (
+                                          <div key={ch.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-violet-100 bg-violet-50">
+                                              <div className="w-6 h-6 rounded-lg bg-violet-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">{i+1}</div>
+                                              <p className="flex-1 text-sm font-bold text-slate-800 truncate">{ch.title}</p>
+                                              <button onClick={() => handleLnmDeleteChapter(ch.id)} disabled={lnmDeletingId === ch.id} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0">
+                                                  {lnmDeletingId === ch.id ? <Loader2 size={13} className="animate-spin"/> : <Trash2 size={13}/>}
+                                              </button>
+                                          </div>
+                                      ))}
                                   </div>
                               )}
-                          </>
+                          </div>
                       )}
                   </div>
               </div>
