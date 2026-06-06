@@ -1,7 +1,7 @@
 
-export type ClassLevel = '6' | '7' | '8' | '9' | '10' | '11' | '12' | 'COMPETITION' | 'BOOK' | 'DAILY';
+export type ClassLevel = '6' | '7' | '8' | '9' | '10' | '11' | '12' | 'COMPETITION';
 
-export type Board = 'CBSE' | 'BSEB' | 'COMPETITION' | 'LUCENT' | 'COMPBOOK' | 'GK' | 'HOMEWORK';
+export type Board = 'CBSE' | 'BSEB' | 'COMPETITION';
 
 export type Stream = 'Science' | 'Commerce' | 'Arts';
 
@@ -19,7 +19,7 @@ export interface FrequencyConfig {
     unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'months' | 'years';
 }
 
-export type ContentType = 'NOTES_SIMPLE' | 'NOTES_PREMIUM' | 'MCQ_ANALYSIS' | 'MCQ_SIMPLE' | 'MCQ_RESULT' | 'PDF_FREE' | 'PDF_PREMIUM' | 'PDF_ULTRA' | 'PDF_VIEWER' | 'WEEKLY_TEST' | 'VIDEO_LECTURE' | 'NOTES_HTML_FREE' | 'NOTES_HTML_PREMIUM' | 'NOTES_IMAGE_AI' | 'TEACHING_STRATEGY' | 'MULTI_TAB';
+export type ContentType = 'NOTES_SIMPLE' | 'NOTES_PREMIUM' | 'MCQ_ANALYSIS' | 'MCQ_SIMPLE' | 'MCQ_RESULT' | 'PDF_FREE' | 'PDF_PREMIUM' | 'PDF_ULTRA' | 'PDF_VIEWER' | 'WEEKLY_TEST' | 'VIDEO_LECTURE' | 'NOTES_HTML_FREE' | 'NOTES_HTML_PREMIUM' | 'NOTES_IMAGE_AI' | 'TEACHING_STRATEGY';
 
 export interface PrizeRule {
   id: string;
@@ -673,10 +673,6 @@ export interface SystemSettings {
   splashLogoEnabled?: boolean;   // Default true — show image instead of text on splash
   splashLogoUrl?: string;        // Public path or data: URL. Default '/splash-logo.png'
   splashLogoSize?: number;       // Rendered width in pixels (clamped 60-260). Default 140.
-  // === Loading-screen DURATION (seconds, per subscription tier) ===
-  splashDurationFree?: number;   // Seconds for FREE users. Default 5.
-  splashDurationBasic?: number;  // Seconds for BASIC users. Default 5.
-  splashDurationUltra?: number;  // Seconds for ULTRA users. Default 5.
   // Universal Video — when true, hides the bottom Video tab and shows a Video icon in the top header instead.
   universalVideoInTopBar?: boolean;
   // NEW Revision Hub V2 — auto-finds notes for weak topics tracked from MCQ attempts.
@@ -1520,17 +1516,6 @@ export interface LessonContent {
   aiAnalysisText?: string;
   topic?: string; // Filtered Topic
   analytics?: any; // For passing full analytics data
-
-  // UNIFIED MULTI-TAB CONTENT (used when type === 'MULTI_TAB')
-  // Stores all content types in one object — Notes, MCQ, Video, Audio, PDF tabs shown together.
-  unifiedChunkNotes?: string;     // Plain-text notes for TTS reader
-  unifiedHtmlNotes?: string;      // HTML formatted notes (Notes Maker)
-  unifiedLightCSS?: string;       // CSS for light mode HTML notes
-  unifiedDarkCSS?: string;        // CSS for dark/blue mode HTML notes
-  unifiedManualMcqData?: MCQItem[]; // MCQ questions
-  unifiedAudioUrl?: string;       // Direct audio URL
-  unifiedVideoUrl?: string;       // Direct video URL
-  unifiedPdfUrl?: string;         // Direct PDF URL
 }
 
 export type ViewState = 'ONBOARDING' | 'BOARDS' | 'CLASSES' | 'STREAMS' | 'SUBJECTS' | 'CHAPTERS' | 'LESSON' | 'ADMIN_DASHBOARD' | 'AUDIO_STUDIO' | 'STUDENT_DASHBOARD' | 'UNIVERSAL_CHAT' | 'RULES' | 'IIC' | 'LEADERBOARD';

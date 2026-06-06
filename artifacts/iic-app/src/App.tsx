@@ -373,7 +373,6 @@ const App: React.FC = () => {
   }, [studentTab]);
   const [streakLoginPopup, setStreakLoginPopup] = useState<{newStreak: number; prevStreak: number; isNewRecord: boolean} | null>(null);
   const [levelUpNotif, setLevelUpNotif] = useState<{level: number; label: string; emoji: string; color: string} | null>(null);
-  const [milestoneRewardNotif, setMilestoneRewardNotif] = useState<{level: number; label: string; emoji: string; credits: number; boostPercent: number; color: string; bg: string} | null>(null);
   const [lastTestResult, setLastTestResult] = useState<MCQResult | null>(null);
   const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null); // NEW: For granular analysis
   
@@ -450,16 +449,6 @@ const App: React.FC = () => {
     (window as any).recordActivity = recordActivity;
   }, [state.user?.id]);
 
-  // Milestone reward config for special levels
-  const MILESTONE_REWARDS: Record<number, { credits: number; boostPercent: number; color: string; bg: string }> = {
-    8:  { credits: 500,   boostPercent: 10, color: '#f59e0b', bg: 'linear-gradient(135deg, #78350f 0%, #1c1400 60%, #0a0a00 100%)' },
-    10: { credits: 1000,  boostPercent: 15, color: '#fb923c', bg: 'linear-gradient(135deg, #7c2d12 0%, #1c0a00 60%, #0a0500 100%)' },
-    12: { credits: 2000,  boostPercent: 20, color: '#8b5cf6', bg: 'linear-gradient(135deg, #4c1d95 0%, #1e1040 60%, #0a0a1a 100%)' },
-    13: { credits: 3000,  boostPercent: 25, color: '#ec4899', bg: 'linear-gradient(135deg, #831843 0%, #1a0a1a 60%, #0a0010 100%)' },
-    14: { credits: 5000,  boostPercent: 30, color: '#f43f5e', bg: 'linear-gradient(135deg, #881337 0%, #1a0010 60%, #0a000a 100%)' },
-    15: { credits: 10000, boostPercent: 50, color: '#a5f3fc', bg: 'linear-gradient(135deg, #164e63 0%, #0a1a2e 60%, #050a15 100%)' },
-  };
-
   // Level-up detection: fire notification when user crosses a level threshold
   const prevLevelRef = React.useRef<number>(0);
   useEffect(() => {
@@ -471,33 +460,6 @@ const App: React.FC = () => {
       if (!sessionStorage.getItem(key)) {
         sessionStorage.setItem(key, '1');
         setLevelUpNotif({ level: info.level, label: info.label, emoji: info.emoji, color: info.color });
-      }
-
-      // Check milestone reward for levels 8, 10, 12
-      const milestone = MILESTONE_REWARDS[info.level];
-      if (milestone) {
-        const alreadyGiven: number[] = (state.user as any).milestoneRewardsGiven || [];
-        if (!alreadyGiven.includes(info.level)) {
-          // Apply rewards
-          const updatedUser = { ...state.user } as any;
-          updatedUser.credits = (updatedUser.credits || 0) + milestone.credits;
-          updatedUser.scoreLimitBoostPercent = ((updatedUser.scoreLimitBoostPercent || 0) + milestone.boostPercent);
-          updatedUser.milestoneRewardsGiven = [...alreadyGiven, info.level];
-          setState((prev) => ({ ...prev, user: updatedUser }));
-          saveUserToLive(updatedUser);
-          // Show milestone popup (slight delay so level-up popup shows first)
-          setTimeout(() => {
-            setMilestoneRewardNotif({
-              level: info.level,
-              label: info.label,
-              emoji: info.emoji,
-              credits: milestone.credits,
-              boostPercent: milestone.boostPercent,
-              color: milestone.color,
-              bg: milestone.bg,
-            });
-          }, 2500);
-        }
       }
     }
     prevLevelRef.current = info.level;
@@ -752,61 +714,6 @@ const App: React.FC = () => {
           }
       }
   }, [state.user?.id, state.user?.lastLoginRewardDate, state.originalAdmin]);
-
-  // === MIDNIGHT PROGRESS BONUS — applied when user opens app on a new day ===
-  useEffect(() => {
-    if (!state.user) return;
-    const yesterday = (() => {
-      const d = new Date(); d.setDate(d.getDate() - 1);
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    })();
-    const lastBonus = (state.user as any).lastProgressBonusDate as string | undefined;
-    if (lastBonus === yesterday) return; // Already applied for yesterday
-    // Guard: only run once per device per day
-    const lsGuard = `nst_pb_${state.user.id}_${yesterday}`;
-    if (localStorage.getItem(lsGuard)) return;
-    localStorage.setItem(lsGuard, '1');
-    // Import engine lazily (dynamic to avoid circular deps)
-    import('./utils/progressBonusEngine').then(({ calculateMidnightBonus, getDailyEarnedForDate }) => {
-      import('./utils/levelSystem').then(({ getLevelInfo: _getLvl }) => {
-        import('./utils/scoreSystem').then(({ getDailyScoreLimit: _getLimit }) => {
-          const u = state.user!;
-          const yesterdayEarned = getDailyEarnedForDate(u.id, yesterday);
-          const markDone = () => {
-            if (state.originalAdmin) return;
-            const up = { ...u, lastProgressBonusDate: yesterday } as any;
-            localStorage.setItem('nst_current_user', JSON.stringify(up));
-            saveUserToLive(up);
-            setState(prev => ({ ...prev, user: up }));
-          };
-          if (yesterdayEarned <= 0) { markDone(); return; }
-          const level = _getLvl(u.totalScore || 0).level;
-          const dailyLimit = _getLimit(u.subscriptionLevel, u.isPremium, (u as any).scoreLimitBoostPercent);
-          const result = calculateMidnightBonus(level, yesterdayEarned, dailyLimit);
-          if (result.bonusScore <= 0) { markDone(); return; }
-          const bonusId = `pb-${u.id}-${yesterday}`;
-          if ((u.inbox || []).some((m: any) => m.id === bonusId)) return;
-          const inboxMsg: any = {
-            id: bonusId,
-            text: result.inboxText,
-            date: new Date().toISOString(),
-            read: false,
-            type: 'TEXT',
-          };
-          if (state.originalAdmin) return;
-          const updatedUser = {
-            ...u,
-            totalScore: (u.totalScore || 0) + result.bonusScore,
-            lastProgressBonusDate: yesterday,
-            inbox: [inboxMsg, ...(u.inbox || [])],
-          } as any;
-          localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
-          saveUserToLive(updatedUser);
-          setState(prev => ({ ...prev, user: updatedUser }));
-        });
-      });
-    });
-  }, [state.user?.id, state.user?.lastLoginDate, state.originalAdmin]);
 
   // --- GLOBAL ERROR HANDLERS (app crash prevention) ---
   useEffect(() => {
@@ -3103,82 +3010,6 @@ const App: React.FC = () => {
               style={{ background: levelUpNotif.color }}
             >
               Shukriya!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MILESTONE REWARD NOTIFICATION (Level 8 / 10 / 12) */}
-      {milestoneRewardNotif && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none">
-          <style>{`
-            @keyframes milestoneGlow{0%,100%{box-shadow:0 0 40px ${milestoneRewardNotif.color}50,0 0 80px ${milestoneRewardNotif.color}20}50%{box-shadow:0 0 60px ${milestoneRewardNotif.color}80,0 0 120px ${milestoneRewardNotif.color}40}}
-            @keyframes milestonePop{0%{transform:scale(0.4) translateY(80px);opacity:0}60%{transform:scale(1.06) translateY(-6px);opacity:1}80%{transform:scale(0.97)}100%{transform:scale(1) translateY(0);opacity:1}}
-            @keyframes milestoneFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-            @keyframes milestoneShine{0%{background-position:200% center}100%{background-position:-200% center}}
-          `}</style>
-          <div
-            className="pointer-events-auto mx-4 rounded-3xl p-7 text-center shadow-2xl"
-            style={{
-              background: milestoneRewardNotif.bg,
-              border: `2px solid ${milestoneRewardNotif.color}60`,
-              animation: 'milestonePop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards, milestoneGlow 2.5s ease-in-out 0.6s infinite',
-              maxWidth: 340,
-            }}
-          >
-            {/* Crown / trophy icon */}
-            <div className="text-6xl mb-2" style={{ animation: 'milestoneFloat 2.5s ease-in-out infinite' }}>
-              {milestoneRewardNotif.level === 8 ? '💎' : milestoneRewardNotif.level === 10 ? '👑' : milestoneRewardNotif.level === 12 ? '🔮' : milestoneRewardNotif.level === 13 ? '⚜️' : milestoneRewardNotif.level === 14 ? '🌠' : '💠'}
-            </div>
-
-            {/* Badge */}
-            <div
-              className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-3"
-              style={{ background: `${milestoneRewardNotif.color}25`, color: milestoneRewardNotif.color, border: `1px solid ${milestoneRewardNotif.color}40` }}
-            >
-              🏆 Milestone Reward — Level {milestoneRewardNotif.level}
-            </div>
-
-            <p
-              className="text-2xl font-black mb-1"
-              style={{
-                background: `linear-gradient(90deg, #fff, ${milestoneRewardNotif.color}, #fff)`,
-                backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'milestoneShine 3s linear infinite',
-              }}
-            >
-              {milestoneRewardNotif.label} Special Gift!
-            </p>
-            <p className="text-white/50 text-xs mb-5">Is milestone tak pahunche ke liye aapko special rewards mile hain 🎁</p>
-
-            {/* Reward boxes */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div
-                className="rounded-2xl p-3 flex flex-col items-center gap-1"
-                style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${milestoneRewardNotif.color}30` }}
-              >
-                <span className="text-2xl">🪙</span>
-                <span className="text-white font-black text-lg">+{milestoneRewardNotif.credits.toLocaleString('en-IN')}</span>
-                <span className="text-white/40 text-[10px] uppercase tracking-wider">Credits</span>
-              </div>
-              <div
-                className="rounded-2xl p-3 flex flex-col items-center gap-1"
-                style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${milestoneRewardNotif.color}30` }}
-              >
-                <span className="text-2xl">📈</span>
-                <span className="text-white font-black text-lg">+{milestoneRewardNotif.boostPercent}%</span>
-                <span className="text-white/40 text-[10px] uppercase tracking-wider">Daily Limit Boost</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setMilestoneRewardNotif(null)}
-              className="w-full py-3 rounded-xl text-sm font-black text-white transition-all active:scale-95"
-              style={{ background: `linear-gradient(135deg, ${milestoneRewardNotif.color}, ${milestoneRewardNotif.color}bb)` }}
-            >
-              Shukriya! 🙏
             </button>
           </div>
         </div>

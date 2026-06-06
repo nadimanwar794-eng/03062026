@@ -60,7 +60,7 @@ export const StudentSidebar: React.FC<Props> = ({ isOpen, onClose, onNavigate, u
         <div className="fixed inset-0 z-[100] flex">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity"
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
             ></div>
 

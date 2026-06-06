@@ -1,18 +1,17 @@
 /**
  * Score System — daily limits, subscription multipliers, activity milestones
- * Daily score limit: 5000 pts (Free) / 7000 pts (Basic) / 10000 pts (Ultra)
- * After limit is reached: score continues at 0.5× rate (not stopped)
+ * Daily score limit: 1500 pts (Free) / 2500 pts (Basic) / 3500 pts (Ultra)
  * Milestones: 20%=5, 40%=10, 60%=15, 80%=20, 100%=25 base pts
  * Multipliers: Free=1x, Basic=1.2x (+20%), Ultra=1.5x (+50%)
  */
 
-export const DAILY_SCORE_LIMIT = 5000;
+export const DAILY_SCORE_LIMIT = 1500;
 
-/** Fixed daily score limits by tier (Free=5000, Basic=7000, Ultra=10000) */
+/** Fixed daily score limits by tier (Free=1500, Basic=2500, Ultra=3500) */
 const DAILY_TIER_LIMITS: Record<string, number> = {
-  FREE:  5000,
-  BASIC: 7000,
-  ULTRA: 10000,
+  FREE:  1500,
+  BASIC: 2500,
+  ULTRA: 3500,
 };
 
 /** Dynamic daily score limit based on subscription + optional permanent limit boost */
@@ -20,18 +19,12 @@ export const getDailyScoreLimit = (
   subscriptionLevel?: string,
   isPremium?: boolean,
   scoreLimitBoostPercent?: number,
-  eventExtraPoints?: number,
 ): number => {
-  const tierKey = isPremium ? (subscriptionLevel ?? 'BASIC') : 'FREE';
-  const base = DAILY_TIER_LIMITS[tierKey] ?? DAILY_TIER_LIMITS['FREE'];
-  let limit = base;
+  const base = isPremium ? (DAILY_TIER_LIMITS[subscriptionLevel ?? 'FREE'] ?? 1500) : 1500;
   if (scoreLimitBoostPercent && scoreLimitBoostPercent > 0) {
-    limit = Math.round(base * (1 + scoreLimitBoostPercent / 100));
+    return Math.round(base * (1 + scoreLimitBoostPercent / 100));
   }
-  if (eventExtraPoints && eventExtraPoints > 0) {
-    limit += eventExtraPoints;
-  }
-  return limit;
+  return base;
 };
 
 export const SCORE_MULTIPLIERS: Record<string, number> = {
@@ -71,9 +64,8 @@ export const getRemainingDailyScore = (
   subscriptionLevel?: string,
   isPremium?: boolean,
   scoreLimitBoostPercent?: number,
-  eventExtraPoints?: number,
 ): number =>
-  Math.max(0, getDailyScoreLimit(subscriptionLevel, isPremium, scoreLimitBoostPercent, eventExtraPoints) - getDailyScoreEarned(userId));
+  Math.max(0, getDailyScoreLimit(subscriptionLevel, isPremium, scoreLimitBoostPercent) - getDailyScoreEarned(userId));
 
 /** Get active score boost % for a user (returns 0 if expired or not set) */
 export const getActiveBoost = (user: { scoreBoostPercent?: number; scoreBoostExpiry?: string }): number => {
@@ -129,10 +121,7 @@ export const logScoreActivity = (userId: string, activity: string, pts: number):
 
 /**
  * Attempt to earn score. Applies daily limit, multiplier, and booster.
- * - Within daily limit: full score, saved to daily counter in localStorage.
- * - After daily limit is reached: 0.5× score (study is rewarded but at half rate).
- *   The half-score is NOT added to the localStorage counter so the limit badge stays accurate.
- * Returns actual score earned (always ≥ 0).
+ * Returns actual score earned (may be less than requested if near daily limit).
  */
 export const tryEarnScore = (
   userId: string,
@@ -141,19 +130,10 @@ export const tryEarnScore = (
   isPremium: boolean | undefined,
   boostPercent = 0,
   activity?: string,
-  scoreLimitBoostPercent?: number,
-  eventExtraPoints?: number,
 ): number => {
-  const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium, scoreLimitBoostPercent, eventExtraPoints);
+  const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium);
+  if (remaining <= 0) return 0;
   const calc = calculateScore(baseScore, subscriptionLevel, isPremium, boostPercent);
-
-  if (remaining <= 0) {
-    // Limit reached — give 0.5× score without incrementing the daily counter
-    const halfScore = Math.max(1, Math.floor(calc * 0.5));
-    if (activity) logScoreActivity(userId, activity + '_HALF', halfScore);
-    return halfScore;
-  }
-
   const actual = Math.min(calc, remaining);
   try {
     const key = getTodayKey(userId);
@@ -204,8 +184,6 @@ export const awardMilestone = (
   subscriptionLevel: string | undefined,
   isPremium: boolean | undefined,
   boostPercent = 0,
-  scoreLimitBoostPercent?: number,
-  eventExtraPoints?: number,
 ): { earned: number; milestonePercent: number } | null => {
   const hit = checkMilestone(prevPercent, newPercent, subscriptionLevel, isPremium, boostPercent);
   if (!hit) return null;
@@ -218,7 +196,7 @@ export const awardMilestone = (
   if (awarded.has(hit.milestonePercent)) return null;
 
   // Award it
-  const earned = tryEarnScore(userId, hit.baseScore, subscriptionLevel, isPremium, boostPercent, undefined, scoreLimitBoostPercent, eventExtraPoints);
+  const earned = tryEarnScore(userId, hit.baseScore, subscriptionLevel, isPremium, boostPercent);
   if (earned > 0) {
     awarded.add(hit.milestonePercent);
     try { localStorage.setItem(trackerKey, JSON.stringify([...awarded])); } catch {}

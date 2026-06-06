@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "IIC – Ideal Inspiration Classes"
+title = "IIC App"
 version = "1.0.0"
 id = "artifacts/iic-app"
 router = "path"

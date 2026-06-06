@@ -130,7 +130,6 @@ type AdminTab =
   | 'BOOK_NOTES_MANAGER' // NEW – separate from homework
   | 'CLASS_NOTES_MANAGER' // NEW – Class 6-12 school notes
   | 'DAILY_GK_MANAGER' // NEW
-  | 'LIBRARY_NOTES_MANAGER' // NEW – Library books notes upload
   | 'TEACHERS' // NEW
   | 'TRENDING_NOTES_MANAGER' // NEW: Live trending important notes
   | 'GLOBAL_CHAT' // NEW: Chat moderation
@@ -518,19 +517,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [cnCopyTargetBook, setCnCopyTargetBook] = useState('');
   const [cnCopying, setCnCopying] = useState(false);
   const [cnBookHtmlNotes, setCnBookHtmlNotes] = useState<Record<string, string>>({});
-  // ── LIBRARY NOTES MANAGER state ──
-  const [lnmSelBook, setLnmSelBook] = useState<string>('LUCENT');
-  const [lnmSelSubject, setLnmSelSubject] = useState<string>('');
-  const [lnmChapters, setLnmChapters] = useState<{id:string;title:string}[]>([]);
-  const [lnmLoadingChapters, setLnmLoadingChapters] = useState(false);
-  const [lnmNewChapter, setLnmNewChapter] = useState('');
-  const [lnmSavingChapter, setLnmSavingChapter] = useState(false);
-  const [lnmSelChapterId, setLnmSelChapterId] = useState<string|null>(null);
-  const [lnmFreeNotes, setLnmFreeNotes] = useState('');
-  const [lnmSavingNotes, setLnmSavingNotes] = useState(false);
-  const [lnmDeletingId, setLnmDeletingId] = useState<string|null>(null);
-  const [lnmPages, setLnmPages] = useState<any[]>([{ id: Date.now().toString(), pageNo: '1', chunkNotes: '', htmlNotes: '' }]);
-  const [lnmIsSaving, setLnmIsSaving] = useState(false);
   const [autoSplitText, setAutoSplitText] = useState('');
   const [showAutoSplit, setShowAutoSplit] = useState(false);
   const [lucentSmartPasteText, setLucentSmartPasteText] = useState('');
@@ -1311,7 +1297,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           
           manualMcqData: editingMcqs,
           weeklyTestMcqData: editingTestMcqs,
-          type: VIRTUAL_BOARD_CONFIG[selBoard] ? 'MULTI_TAB' : aiGenType,
+          type: aiGenType,
           content: finalContent,
 
           // SAVE NEW TOPIC CONTENT
@@ -1820,6 +1806,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
+
 
 
 
@@ -2533,29 +2520,15 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       alert("Full Syllabus Copied to Clipboard!");
   };
 
-  // ── VIRTUAL BOARD CONFIG ──────────────────────────────────────────────────
-  // Boards that use unified MULTI_TAB content (not the school CBSE/BSEB syllabus)
-  const VIRTUAL_BOARD_CONFIG: Record<string, { emoji: string; label: string; classLevel: string; subjects: { id: string; name: string }[] }> = {
-    LUCENT:   { emoji: '📖', label: 'Lucent GK',         classLevel: 'BOOK',        subjects: [{ id: 'history', name: 'History / इतिहास' }, { id: 'geography', name: 'Geography / भूगोल' }, { id: 'polity', name: 'Polity / राजनीति' }, { id: 'economy', name: 'Economy / अर्थशास्त्र' }, { id: 'science', name: 'Science / विज्ञान' }, { id: 'art_culture', name: 'Art & Culture / कला' }] },
-    COMPBOOK: { emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',        subjects: [{ id: 'sar_sangrah', name: 'Sar Sangrah / सार संग्रह' }, { id: 'speedy_science', name: 'Speedy Science' }, { id: 'speedy_social', name: 'Speedy Social Science' }] },
-    GK:       { emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       subjects: [{ id: 'general_knowledge', name: 'General Knowledge / सामान्य ज्ञान' }, { id: 'current_affairs', name: 'Current Affairs / करंट अफेयर्स' }] },
-    HOMEWORK: { emoji: '📝', label: 'Homework',          classLevel: 'COMPETITION', subjects: [{ id: 'mcq_practice', name: 'MCQ Practice' }, { id: 'class_notes', name: 'Class Notes / कक्षा नोट्स' }] },
-  };
-
   const handleSubjectClick = async (s: Subject) => {
       setSelSubject(s);
       setIsLoadingChapters(true);
       try {
-          const vbConfig = VIRTUAL_BOARD_CONFIG[selBoard];
-          if (vbConfig) {
-              // Virtual board — load custom syllabus keyed by virtual board + subject
-              const ch = await getCustomSyllabus(`${selBoard}-${vbConfig.classLevel}-${s.name}-English`);
-              setSelChapters(Array.isArray(ch) ? ch : []);
-          } else {
-              const lang = selBoard === 'BSEB' ? 'Hindi' : 'English';
-              const ch = await fetchChapters(selBoard, selClass, selStream, s, lang);
-              setSelChapters(ch);
-          }
+          const lang = selBoard === 'BSEB' ? 'Hindi' : 'English';
+          const ch = await fetchChapters(selBoard, selClass, selStream, s, lang);
+          setSelChapters(ch);
+          
+
       } catch (e) { console.error(e); setSelChapters([]); }
       setIsLoadingChapters(false);
   };
@@ -3427,82 +3400,27 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   );
 
   const SubjectSelector = () => {
-      // 1. BOARD INDICATOR + VIRTUAL BOARD QUICK-SELECT
-      const renderBoards = () => {
-          const vbCfg = VIRTUAL_BOARD_CONFIG[selBoard];
-          return (
-            <div className="mb-4">
-              {/* Top row: current board badge + visibility toggle */}
-              <div className="flex items-center justify-between mb-3">
-                <div className={`px-3 py-1.5 rounded-xl text-xs font-black tracking-widest border-2 flex items-center gap-2 ${vbCfg ? 'bg-purple-50 text-purple-700 border-purple-200' : selBoard === 'CBSE' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
-                  {vbCfg ? <BookOpen size={13}/> : selBoard === 'CBSE' ? <Book size={13}/> : <Globe size={13}/>}
-                  BOARD: {selBoard}
-                </div>
-                <button
-                  onClick={() => setShowVisibilityControls(!showVisibilityControls)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showVisibilityControls ? 'bg-slate-800 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-600'}`}
-                >
-                  {showVisibilityControls ? <EyeOff size={14} /> : <Eye size={14} />}
-                  {showVisibilityControls ? 'Hide Controls' : 'Visibility Mode'}
-                </button>
-              </div>
-
-              {/* Virtual board quick-select pills */}
-              <div className="flex flex-wrap gap-2">
-                <p className="w-full text-[10px] font-bold text-slate-500 uppercase mb-0.5">Quick Upload — Books & GK</p>
-                {Object.entries(VIRTUAL_BOARD_CONFIG).map(([boardId, cfg]) => (
-                  <button
-                    key={boardId}
-                    onClick={() => {
-                      setSelBoard(boardId as any);
-                      setSelClass(cfg.classLevel as any);
-                      setSelSubject(null);
-                      setSelChapters([]);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 transition-all border ${
-                      selBoard === boardId
-                        ? 'bg-purple-600 text-white border-purple-600 shadow-md scale-105'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300 hover:text-purple-600'
-                    }`}
-                  >
-                    <span>{cfg.emoji}</span>
-                    {cfg.label}
-                  </button>
-                ))}
-                {vbCfg && (
-                  <button
-                    onClick={() => {
-                      setSelBoard(adminBoardContext);
-                      setSelClass('10');
-                      setSelSubject(null);
-                      setSelChapters([]);
-                    }}
-                    className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all"
-                  >
-                    ← Back to {adminBoardContext}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-      };
+      // 1. BOARD INDICATOR (Controlled via Header)
+      const renderBoards = () => (
+          <div className="flex items-center justify-between mb-4">
+             <div className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest border-2 flex items-center gap-2 ${selBoard === 'CBSE' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
+                {selBoard === 'CBSE' ? <Book size={14}/> : <Globe size={14}/>}
+                CURRENT BOARD: {selBoard}
+             </div>
+             
+             {/* VISIBILITY TOGGLE BUTTON */}
+             <button 
+                onClick={() => setShowVisibilityControls(!showVisibilityControls)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showVisibilityControls ? 'bg-slate-800 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-600'}`}
+             >
+                {showVisibilityControls ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showVisibilityControls ? 'Hide Controls' : 'Visibility Mode'}
+             </button>
+          </div>
+      );
 
       // 2. CLASS BUTTONS (Explicit List)
-      const renderClasses = () => {
-          // Virtual board: class is auto-assigned — show info badge only
-          const vbCfg = VIRTUAL_BOARD_CONFIG[selBoard];
-          if (vbCfg) {
-              return (
-                  <div className="mb-4">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Auto-Assigned Class</p>
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black bg-purple-50 text-purple-700 border border-purple-200">
-                          <BookOpen size={13} />
-                          Class: {vbCfg.classLevel}
-                      </div>
-                  </div>
-              );
-          }
-          return (
+      const renderClasses = () => (
           <div className="mb-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Select Class</p>
               <div className="flex flex-wrap gap-2">
@@ -3553,7 +3471,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               </div>
           </div>
       );
-      };
 
       // 3. STREAM BUTTONS (Conditional)
       const renderStreams = () => {
@@ -3577,29 +3494,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       };
 
       // 4. SUBJECT BUTTONS
-      const renderSubjects = () => {
-          const vbCfg = VIRTUAL_BOARD_CONFIG[selBoard];
-          const subjects: { id: string; name: string }[] = vbCfg
-              ? vbCfg.subjects
-              : getSubjectsList(selClass, selStream, selBoard);
-          return (
+      const renderSubjects = () => (
           <div className="mb-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">
-                  {vbCfg ? `${vbCfg.emoji} ${vbCfg.label} Subjects` : 'Select Subject'}
-              </p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">Select Subject</p>
               <div className="flex flex-wrap gap-2">
-                  {subjects.map(s => {
-                      const isHidden = !vbCfg && (localSettings.hiddenSubjects || []).includes(s.id);
+                  {getSubjectsList(selClass, selStream, selBoard).map(s => {
+                      const isHidden = (localSettings.hiddenSubjects || []).includes(s.id);
                       return (
                       <div key={s.id} className="relative">
                           <button 
                               onClick={() => handleSubjectClick(s)}
-                              className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${selSubject?.id === s.id ? 'bg-green-600 text-white border-green-600 shadow-md scale-105' : vbCfg ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' : 'bg-white border-slate-200 text-slate-700 hover:bg-green-50'} ${isHidden ? 'opacity-50 grayscale' : ''}`}
+                              className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${selSubject?.id === s.id ? 'bg-green-600 text-white border-green-600 shadow-md scale-105' : 'bg-white border-slate-200 text-slate-700 hover:bg-green-50'} ${isHidden ? 'opacity-50 grayscale' : ''}`}
                           >
                               {selSubject?.id === s.id && <CheckCircle size={12} />}
                               {s.name}
                           </button>
-                          {showVisibilityControls && !vbCfg && (
+                          {showVisibilityControls && (
                               <button 
                                   onClick={(e) => {
                                       e.stopPropagation();
@@ -3615,8 +3525,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   )})}
               </div>
           </div>
-          );
-      };
+      );
 
       return (
           <div className="mb-8 bg-slate-50 p-4 rounded-3xl border border-slate-200 shadow-inner">
@@ -6806,70 +6715,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   💡 Tip: PNG transparent background ke saath best dikhta hai. Max 1 MB. Changes "Save Settings" press karne ke baad apply honge.
                               </p>
                           </div>
-
-                      {/* ============================================================ */}
-                      {/* SPLASH DURATION — per-tier loading screen time (seconds)   */}
-                      {/* Stored: splashDurationFree / splashDurationBasic / splashDurationUltra */}
-                      {/* ============================================================ */}
-                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 mb-3">
-                          <div className="flex items-center justify-between mb-3">
-                              <label className="text-xs font-bold uppercase text-amber-700">⏱️ Loading Screen Duration</label>
-                              <span className="text-[10px] text-amber-600 font-semibold">Per subscription tier (seconds)</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2">
-                              {/* FREE */}
-                              <div className="bg-white rounded-xl border-2 border-sky-200 p-2.5 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                      <span className="text-base">☁️</span>
-                                      <span className="text-[10px] font-black uppercase text-sky-700">FREE</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                      <input
-                                          type="number" min={3} max={30}
-                                          value={localSettings.splashDurationFree ?? 5}
-                                          onChange={e => setLocalSettings({ ...localSettings, splashDurationFree: Math.min(30, Math.max(3, parseInt(e.target.value) || 5)) })}
-                                          className="w-full p-1.5 text-center text-sm font-black rounded-lg border-2 border-sky-200 text-sky-800 bg-sky-50 focus:outline-none focus:border-sky-400"
-                                      />
-                                      <span className="text-[10px] font-bold text-sky-500 shrink-0">sec</span>
-                                  </div>
-                              </div>
-                              {/* BASIC */}
-                              <div className="bg-white rounded-xl border-2 border-blue-200 p-2.5 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                      <span className="text-base">💎</span>
-                                      <span className="text-[10px] font-black uppercase text-blue-700">BASIC</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                      <input
-                                          type="number" min={3} max={30}
-                                          value={localSettings.splashDurationBasic ?? 5}
-                                          onChange={e => setLocalSettings({ ...localSettings, splashDurationBasic: Math.min(30, Math.max(3, parseInt(e.target.value) || 5)) })}
-                                          className="w-full p-1.5 text-center text-sm font-black rounded-lg border-2 border-blue-200 text-blue-800 bg-blue-50 focus:outline-none focus:border-blue-400"
-                                      />
-                                      <span className="text-[10px] font-bold text-blue-500 shrink-0">sec</span>
-                                  </div>
-                              </div>
-                              {/* ULTRA */}
-                              <div className="bg-white rounded-xl border-2 border-amber-300 p-2.5 flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                      <span className="text-base">👑</span>
-                                      <span className="text-[10px] font-black uppercase text-amber-700">ULTRA</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                      <input
-                                          type="number" min={3} max={30}
-                                          value={localSettings.splashDurationUltra ?? 5}
-                                          onChange={e => setLocalSettings({ ...localSettings, splashDurationUltra: Math.min(30, Math.max(3, parseInt(e.target.value) || 5)) })}
-                                          className="w-full p-1.5 text-center text-sm font-black rounded-lg border-2 border-amber-200 text-amber-800 bg-amber-50 focus:outline-none focus:border-amber-400"
-                                      />
-                                      <span className="text-[10px] font-bold text-amber-500 shrink-0">sec</span>
-                                  </div>
-                              </div>
-                          </div>
-                          <p className="text-[10px] text-amber-600 mt-2 leading-snug">
-                              💡 Min 3 sec, Max 30 sec. Default 5 sec. Save Settings ke baad apply hoga.
-                          </p>
-                      </div>
 
                       {/* AI Model Control */}
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
@@ -17334,263 +17179,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               </div>
           </div>
       )}
-
-      {/* ══════════════════════════════════════════════
-          LIBRARY NOTES MANAGER
-          Admin se Library ki books ke chapters aur notes upload karein
-          Jo chapters yahan add honge woh LibraryView mein dikhenge
-      ══════════════════════════════════════════════ */}
-      {activeTab === 'LIBRARY_NOTES_MANAGER' && (() => {
-          const LIBRARY_BOOKS = [
-              { id: 'LUCENT',   emoji: '📖', label: 'Lucent GK',         classLevel: 'BOOK',        subjects: ['History / इतिहास','Geography / भूगोल','Polity / राजनीति','Economy / अर्थशास्त्र','Science / विज्ञान','Art & Culture / कला'] },
-              { id: 'COMPBOOK', emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',        subjects: ['Sar Sangrah / सार संग्रह','Speedy Science','Speedy Social Science'] },
-              { id: 'GK',       emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       subjects: ['General Knowledge / सामान्य ज्ञान','Current Affairs / करंट अफेयर्स'] },
-              { id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes',  classLevel: 'COMPETITION', subjects: ['MCQ Practice','Class Notes / कक्षा नोट्स'] },
-          ];
-          const bookCfg = LIBRARY_BOOKS.find(b => b.id === lnmSelBook) || LIBRARY_BOOKS[0];
-          const syllabusKey = lnmSelSubject ? `${lnmSelBook}-${bookCfg.classLevel}-${lnmSelSubject}-English` : '';
-
-          const loadChapters = async (bookId: string, subject: string) => {
-              if (!subject) return;
-              const cfg = LIBRARY_BOOKS.find(b => b.id === bookId) || LIBRARY_BOOKS[0];
-              const key = `${bookId}-${cfg.classLevel}-${subject}-English`;
-              setLnmLoadingChapters(true);
-              setLnmSelChapterId(null);
-              setLnmFreeNotes('');
-              try {
-                  const ch = await getCustomSyllabus(key);
-                  setLnmChapters(Array.isArray(ch) ? ch : []);
-              } catch { setLnmChapters([]); }
-              setLnmLoadingChapters(false);
-          };
-
-          const handleLnmDeleteChapter = async (chId: string) => {
-              if (!confirm('Is chapter ko delete karna chahte hain?')) return;
-              setLnmDeletingId(chId);
-              try {
-                  const updated = lnmChapters.filter(c => c.id !== chId);
-                  await saveCustomSyllabus(syllabusKey, updated);
-                  setLnmChapters(updated);
-                  if (lnmSelChapterId === chId) { setLnmSelChapterId(null); setLnmFreeNotes(''); }
-              } catch { setAlertConfig({ isOpen: true, message: '❌ Delete nahi hua.' }); }
-              setLnmDeletingId(null);
-          };
-
-          const handleLnmSave = async () => {
-              if (!lnmNewChapter.trim()) return setAlertConfig({ isOpen: true, message: '⚠️ Chapter ka title zaroor daalein.' });
-              if (!lnmSelSubject) return setAlertConfig({ isOpen: true, message: '⚠️ Subject chunein.' });
-              const validPages = lnmPages.filter(p => p.pageNo?.trim() && (p.chunkNotes?.trim() || p.htmlNotes?.trim() || (p.mcqs && p.mcqs.length > 0) || p.videoUrl?.trim() || p.audioUrl?.trim() || p.pdfUrl?.trim()));
-              if (validPages.length === 0) return setAlertConfig({ isOpen: true, message: '⚠️ Kam se kam ek page ke notes ya MCQ add karein.' });
-              setLnmIsSaving(true);
-              try {
-                  const chId = `ch_${Date.now()}`;
-                  const newCh = { id: chId, title: lnmNewChapter.trim() };
-                  const updatedChapters = [...lnmChapters, newCh];
-                  await saveCustomSyllabus(syllabusKey, updatedChapters);
-                  setLnmChapters(updatedChapters);
-                  const contentKey = `nst_content_${lnmSelBook}_${bookCfg.classLevel}_${lnmSelSubject}_${chId}`;
-                  const contentData = {
-                      type: 'MULTI_TAB',
-                      title: lnmNewChapter.trim(),
-                      subtitle: `${bookCfg.label} · ${lnmSelSubject}`,
-                      pages: validPages,
-                      freeNotesHtml: validPages[0]?.htmlNotes || validPages[0]?.chunkNotes || '',
-                  };
-                  await saveChapterData(contentKey, contentData);
-                  setLnmNewChapter('');
-                  setLnmPages([{ id: Date.now().toString(), pageNo: '1', chunkNotes: '', htmlNotes: '' }]);
-                  setAlertConfig({ isOpen: true, message: `✅ Chapter "${newCh.title}" Library mein save ho gaya!` });
-              } catch (e: any) {
-                  setAlertConfig({ isOpen: true, message: `❌ Save nahi hua — ${e?.message || 'dobara try karein'}` });
-              }
-              setLnmIsSaving(false);
-          };
-
-          return (
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right overflow-hidden">
-                  <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50">
-                      <button onClick={() => setActiveTab('DASHBOARD')} className="bg-white p-2 rounded-full hover:bg-slate-100 border border-slate-200"><ArrowLeft size={20} /></button>
-                      <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-black text-slate-800">📚 Library Notes Manager</h3>
-                          <p className="text-xs text-slate-500 font-medium">Class 6-12 jaisi notes — Library ki books mein add karein</p>
-                      </div>
-                  </div>
-
-                  <div className="p-5 space-y-5">
-                      {/* Book + Subject Row */}
-                      <div className="grid grid-cols-2 gap-3">
-                          <div>
-                              <label className="text-[10px] font-black text-violet-700 uppercase block mb-1.5">📚 Book Chunein</label>
-                              <select
-                                  value={lnmSelBook}
-                                  onChange={e => { setLnmSelBook(e.target.value); setLnmSelSubject(''); setLnmChapters([]); setLnmSelChapterId(null); }}
-                                  className="w-full p-2.5 border-2 border-violet-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-violet-500 bg-white"
-                              >
-                                  {LIBRARY_BOOKS.map(b => <option key={b.id} value={b.id}>{b.emoji} {b.label}</option>)}
-                              </select>
-                          </div>
-                          <div>
-                              <label className="text-[10px] font-black text-violet-700 uppercase block mb-1.5">📗 Subject Chunein</label>
-                              <select
-                                  value={lnmSelSubject}
-                                  onChange={e => { setLnmSelSubject(e.target.value); loadChapters(lnmSelBook, e.target.value); }}
-                                  className="w-full p-2.5 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-violet-400 bg-white"
-                              >
-                                  <option value="">— Subject —</option>
-                                  {bookCfg.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                              </select>
-                          </div>
-                      </div>
-
-                      {/* Chapter Title */}
-                      <div>
-                          <label className="text-[10px] font-black text-slate-500 uppercase block mb-1.5">📖 Chapter / Lesson Title *</label>
-                          <input
-                              type="text"
-                              value={lnmNewChapter}
-                              onChange={e => setLnmNewChapter(e.target.value)}
-                              className="w-full p-2.5 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-violet-500"
-                              placeholder="e.g. Chapter 1: Mughal Samrajya, Chapter 3: Photosynthesis…"
-                          />
-                      </div>
-
-                      {/* Multi-page editor */}
-                      <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                              <label className="text-[10px] font-black text-slate-500 uppercase">📄 Pages ({lnmPages.length})</label>
-                              <button
-                                  type="button"
-                                  onClick={() => setLnmPages([...lnmPages, { id: Date.now().toString(), pageNo: String(lnmPages.length + 1), chunkNotes: '', htmlNotes: '' }])}
-                                  className="text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-lg hover:bg-violet-100"
-                              >+ Page Add Karein</button>
-                          </div>
-
-                          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                              {lnmPages.map((pg, pgIdx) => (
-                                  <div key={pg.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 relative">
-                                      {lnmPages.length > 1 && (
-                                          <button type="button" onClick={() => { const u=[...lnmPages]; u.splice(pgIdx,1); setLnmPages(u); }} className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 rounded"><Trash2 size={13}/></button>
-                                      )}
-                                      <div className="grid grid-cols-2 gap-2">
-                                          <div>
-                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Page No.</label>
-                                              <input type="text" value={pg.pageNo} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], pageNo: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-violet-400" placeholder="1" />
-                                          </div>
-                                          <div>
-                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Date</label>
-                                              <input type="date" value={pg.date || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], date: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-violet-400" />
-                                          </div>
-                                      </div>
-
-                                      {/* Read Mode */}
-                                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
-                                          <label className="text-[9px] font-black text-amber-700 uppercase block mb-1">📖 Read Mode Notes (TTS ke liye — plain text)</label>
-                                          <textarea value={pg.chunkNotes || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], chunkNotes: e.target.value}; setLnmPages(u); }} className="w-full p-2 border border-amber-200 rounded text-sm outline-none min-h-[90px] resize-y focus:border-amber-500 bg-white leading-relaxed" placeholder="Plain text notes — students yahan sunenge (TTS). Formatting nahi hogi." />
-                                      </div>
-
-                                      {/* Write Mode */}
-                                      <div className="bg-teal-50 border border-teal-200 rounded-lg p-2">
-                                          <label className="text-[9px] font-black text-teal-700 uppercase block mb-1">🎨 Write Mode Notes (HTML formatted)</label>
-                                          <textarea value={pg.htmlNotes || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], htmlNotes: e.target.value}; setLnmPages(u); }} className="w-full p-2 border border-teal-200 rounded text-sm outline-none min-h-[110px] resize-y focus:border-teal-500 bg-white font-mono" placeholder={'<h2>Topic</h2>\n<p>HTML formatted notes — <b>bold</b>, <ul><li>list</li></ul>, tables sab supported hai.</p>'} />
-                                      </div>
-
-                                      {/* Media Links */}
-                                      <div className="bg-rose-50 border border-rose-200 rounded-lg p-2 space-y-2">
-                                          <p className="text-[9px] font-black text-rose-700 uppercase">🎬 Media Links (Google Drive ya YouTube)</p>
-                                          <div>
-                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">▶ Video URL</label>
-                                              <input type="url" value={pg.videoUrl || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], videoUrl: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-rose-200 rounded text-xs outline-none focus:border-rose-500 bg-white" placeholder="https://drive.google.com/file/d/... ya YouTube link" />
-                                          </div>
-                                          <div>
-                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">🎵 Audio URL</label>
-                                              <input type="url" value={pg.audioUrl || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], audioUrl: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-rose-200 rounded text-xs outline-none focus:border-rose-500 bg-white" placeholder="https://drive.google.com/file/d/... (audio file)" />
-                                          </div>
-                                          <div>
-                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">📄 PDF URL</label>
-                                              <input type="url" value={pg.pdfUrl || ''} onChange={e => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], pdfUrl: e.target.value}; setLnmPages(u); }} className="w-full p-1.5 border border-rose-200 rounded text-xs outline-none focus:border-rose-500 bg-white" placeholder="https://drive.google.com/file/d/... (PDF file)" />
-                                          </div>
-                                          <p className="text-[8px] text-rose-600">💡 Google Drive links: File ko "Anyone with the link" se share karein.</p>
-                                      </div>
-
-                                      {/* MCQ Section */}
-                                      <div className="border-t border-slate-200 pt-2">
-                                          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-                                              <label className="text-[9px] font-bold text-emerald-700 uppercase">📝 Page MCQs ({(pg.mcqs||[]).length})</label>
-                                              <div className="flex gap-1">
-                                                  <button type="button" onClick={() => setLucentPageBulk(prev => { const cp={...prev}; cp[pg.id]===undefined ? cp[pg.id]='' : delete cp[pg.id]; return cp; })} className="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-amber-600">📋 Bulk Paste</button>
-                                                  <button type="button" onClick={() => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], mcqs:[...(u[pgIdx].mcqs||[]), {id:`mcq_${Date.now()}_${Math.random()}`,question:'',options:['','','',''],correctAnswer:0}]}; setLnmPages(u); }} className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-emerald-700 flex items-center gap-1"><Plus size={10}/> Add MCQ</button>
-                                              </div>
-                                          </div>
-                                          {lucentPageBulk[pg.id] !== undefined && (
-                                              <div className="bg-amber-50 border border-amber-200 rounded p-2 mb-2 space-y-1.5">
-                                                  <textarea value={lucentPageBulk[pg.id]} onChange={e => setLucentPageBulk(prev=>({...prev,[pg.id]:e.target.value}))} placeholder={"**प्रश्न:** ...?\nA) ...\nB) ...\nC) ...\nD) ...\n**सही उत्तर:** B) ..."} className="w-full p-1.5 border border-amber-300 rounded text-[11px] font-mono outline-none h-32 focus:border-amber-500" />
-                                                  <div className="flex gap-1">
-                                                      <button type="button" onClick={() => { const raw=(lucentPageBulk[pg.id]||'').trim(); if(!raw)return; const parsed=parseMCQText(normalizeMcqPaste(raw)); if(!parsed.questions?.length)return setAlertConfig({isOpen:true,message:'❌ Parse fail — format check karein.'}); const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], mcqs:[...(u[pgIdx].mcqs||[]),...parsed.questions.map(q=>({id:`mcq_${Date.now()}_${Math.random()}`,question:(q.question||'').replace(/<br\/?>/g,'\n').trim(),options:(q.options||['','','','']).slice(0,4),correctAnswer:q.correctAnswer??0}))]}; setLnmPages(u); setLucentPageBulk(prev=>{const cp={...prev};delete cp[pg.id];return cp;}); setAlertConfig({isOpen:true,message:'✅ MCQs add ho gaye!'}); }} className="flex-1 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-700">Parse & Add All</button>
-                                                      <button type="button" onClick={() => setLucentPageBulk(prev=>{const cp={...prev};delete cp[pg.id];return cp;})} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300">Cancel</button>
-                                                  </div>
-                                              </div>
-                                          )}
-                                          {(pg.mcqs||[]).map((mcq: any, mIdx: number) => (
-                                              <div key={mcq.id||mIdx} className="bg-white border border-emerald-100 rounded p-2 mb-2 space-y-1.5 relative">
-                                                  <button type="button" onClick={() => { const u=[...lnmPages]; u[pgIdx]={...u[pgIdx], mcqs:(u[pgIdx].mcqs||[]).filter((_: any,i: number)=>i!==mIdx)}; setLnmPages(u); }} className="absolute top-1 right-1 p-0.5 text-red-400 hover:text-red-600 rounded"><Trash2 size={11}/></button>
-                                                  <input type="text" value={mcq.question} onChange={e => { const u=[...lnmPages]; const ms=[...(u[pgIdx].mcqs||[])]; ms[mIdx]={...ms[mIdx],question:e.target.value}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setLnmPages(u); }} className="w-full p-1.5 pr-6 border border-slate-200 rounded text-xs outline-none focus:border-emerald-500" placeholder={`Q${mIdx+1}: Question likhein?`} />
-                                                  <div className="grid grid-cols-2 gap-1">
-                                                      {(mcq.options||['','','','']).map((opt: string, oi: number) => (
-                                                          <div key={oi} className="flex items-center gap-1">
-                                                              <input type="radio" name={`lnm-correct-${pg.id}-${mIdx}`} checked={(mcq.correctAnswer??0)===oi} onChange={() => { const u=[...lnmPages]; const ms=[...(u[pgIdx].mcqs||[])]; ms[mIdx]={...ms[mIdx],correctAnswer:oi}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setLnmPages(u); }} className="shrink-0" />
-                                                              <input type="text" value={opt} onChange={e => { const u=[...lnmPages]; const ms=[...(u[pgIdx].mcqs||[])]; const opts=[...(ms[mIdx].options||['','','',''])]; opts[oi]=e.target.value; ms[mIdx]={...ms[mIdx],options:opts}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setLnmPages(u); }} className="w-full p-1 border border-slate-200 rounded text-[11px] outline-none focus:border-emerald-500" placeholder={`Option ${String.fromCharCode(65+oi)}`} />
-                                                          </div>
-                                                      ))}
-                                                  </div>
-                                              </div>
-                                          ))}
-                                      </div>
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
-
-                      {/* Save Button */}
-                      <button
-                          onClick={handleLnmSave}
-                          disabled={lnmIsSaving || !lnmSelSubject || !lnmNewChapter.trim()}
-                          className="w-full py-3 bg-violet-600 text-white rounded-xl font-black text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
-                      >
-                          {lnmIsSaving ? <><Loader2 size={16} className="animate-spin"/> Saving…</> : <><Save size={16}/> Library mein Save Karein</>}
-                      </button>
-
-                      {/* Existing Chapters History */}
-                      {lnmSelSubject && (
-                          <div className="border-t border-slate-100 pt-4">
-                              <div className="flex items-center justify-between mb-3">
-                                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                                      Existing Chapters {lnmLoadingChapters ? '…' : `(${lnmChapters.length})`}
-                                  </p>
-                              </div>
-                              {lnmLoadingChapters ? (
-                                  <div className="flex items-center gap-2 py-4 justify-center text-violet-500"><Loader2 size={16} className="animate-spin"/><span className="text-sm font-bold">Load ho raha hai...</span></div>
-                              ) : lnmChapters.length === 0 ? (
-                                  <p className="text-center text-sm text-slate-400 py-4">Abhi koi chapter nahi — upar se add karein</p>
-                              ) : (
-                                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                                      {lnmChapters.map((ch, i) => (
-                                          <div key={ch.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-violet-100 bg-violet-50">
-                                              <div className="w-6 h-6 rounded-lg bg-violet-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">{i+1}</div>
-                                              <p className="flex-1 text-sm font-bold text-slate-800 truncate">{ch.title}</p>
-                                              <button onClick={() => handleLnmDeleteChapter(ch.id)} disabled={lnmDeletingId === ch.id} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0">
-                                                  {lnmDeletingId === ch.id ? <Loader2 size={13} className="animate-spin"/> : <Trash2 size={13}/>}
-                                              </button>
-                                          </div>
-                                      ))}
-                                  </div>
-                              )}
-                          </div>
-                      )}
-                  </div>
-              </div>
-          );
-      })()}
-
     </div>
   );
 };

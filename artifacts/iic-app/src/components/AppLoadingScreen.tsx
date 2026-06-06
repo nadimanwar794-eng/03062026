@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { BookOpen, HelpCircle, Video, Headphones, BrainCircuit, BarChart2, WifiOff, Zap } from 'lucide-react';
 import { APP_VERSION } from '../constants';
 import { getSplashFontById, ensureGoogleFontLoaded } from '../utils/splashFonts';
 
@@ -8,574 +9,351 @@ interface AppLoadingScreenProps {
   subscriptionLevel?: 'FREE' | 'BASIC' | 'ULTRA';
 }
 
-// ─── PER-TIER THEME TOKENS ──────────────────────────────────────────────────
-const TIER_THEMES = {
-  FREE: {
-    // Sky Blue Dark — same BASIC effects but in sky/cyan palette on deep navy
-    bg: 'linear-gradient(160deg,#040e1f 0%,#071828 40%,#051422 70%,#030c18 100%)',
-    starColor: 'rgba(56,189,248,0.65)',
-    shootColor: 'linear-gradient(90deg,transparent,#38bdf8,rgba(125,211,252,0.90))',
-    auroraTop: 'linear-gradient(180deg,rgba(14,165,233,0.38) 0%,rgba(56,189,248,0.18) 50%,transparent 100%)',
-    auroraBot: 'linear-gradient(0deg,rgba(6,182,212,0.28) 0%,rgba(14,165,233,0.12) 40%,transparent 100%)',
-    ambientGlow: 'radial-gradient(ellipse 70% 60% at 50% 38%,rgba(14,165,233,0.24) 0%,rgba(56,189,248,0.12) 50%,transparent 75%)',
-    ring1: 'conic-gradient(from 0deg,transparent 0deg,rgba(14,165,233,0.90) 45deg,transparent 90deg,rgba(14,165,233,0.45) 200deg,transparent 245deg,transparent 360deg)',
-    ring2: 'conic-gradient(from 130deg,transparent 0deg,rgba(125,211,252,0.65) 35deg,transparent 70deg,transparent 360deg)',
-    ring3: 'conic-gradient(from 250deg,transparent 0deg,rgba(6,182,212,0.55) 30deg,transparent 60deg,transparent 360deg)',
-    sweep: 'conic-gradient(from 0deg,rgba(14,165,233,0.28),transparent 65deg)',
-    burstBorder1: 'rgba(14,165,233,0.90)',
-    burstBorder2: 'rgba(125,211,252,0.60)',
-    orbitColors: ['#0ea5e9','#7dd3fc','#06b6d4'] as const,
-    orbitShadows: ['rgba(14,165,233,0.90)','rgba(125,211,252,0.85)','rgba(6,182,212,0.85)'] as const,
-    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 12px rgba(14,165,233,0.50))} 50%{filter:drop-shadow(0 0 28px rgba(14,165,233,0.90)) drop-shadow(0 0 12px rgba(56,189,248,0.40))}',
-    logoGlowStatic: 'drop-shadow(0 0 12px rgba(14,165,233,0.55))',
-    nameGrad: 'linear-gradient(90deg,#bae6fd,#38bdf8,#0ea5e9,#bae6fd)',
-    devGrad: 'linear-gradient(90deg,#7dd3fc,#38bdf8,#0ea5e9,#7dd3fc)',
-    msgColor: 'rgba(186,230,253,0.60)',
-    barGrad: 'linear-gradient(90deg,#0369a1,#0ea5e9,#38bdf8,#06b6d4)',
-    barGlowKf: '0%,100%{box-shadow:0 0 6px rgba(14,165,233,0.55)} 50%{box-shadow:0 0 20px rgba(14,165,233,0.95),0 0 40px rgba(14,165,233,0.40)}',
-    percentColor: 'rgba(125,211,252,0.90)',
-    cornerColor: 'rgba(14,165,233,0.45)',
-    cornerDot: 'rgba(56,189,248,0.75)',
-    separatorGrad: 'linear-gradient(90deg,transparent,rgba(14,165,233,0.55),transparent)',
-    devByColor: 'rgba(125,211,252,0.38)',
-    taglineColor: 'rgba(56,189,248,0.65)',
-    dotColors: ['#0ea5e9','#7dd3fc','#06b6d4'] as const,
-    dotShadows: ['rgba(14,165,233,0.85)','rgba(125,211,252,0.85)','rgba(6,182,212,0.85)'] as const,
-    radialBehind: 'radial-gradient(circle,rgba(14,165,233,0.20) 0%,rgba(6,182,212,0.10) 50%,transparent 75%)',
-    badge: '☁️ SKY',
-    badgeColor: '#38bdf8',
-  },
-  BASIC: {
-    // Electric Blue — professional, cool, confident
-    bg: 'linear-gradient(160deg,#080f2e 0%,#0f1b3d 40%,#0c1a35 70%,#071028 100%)',
-    starColor: 'rgba(96,165,250,0.60)',
-    shootColor: 'linear-gradient(90deg,transparent,#60a5fa,rgba(147,197,253,0.9))',
-    auroraTop: 'linear-gradient(180deg,rgba(59,130,246,0.35) 0%,rgba(96,165,250,0.18) 50%,transparent 100%)',
-    auroraBot: 'linear-gradient(0deg,rgba(67,56,202,0.28) 0%,rgba(59,130,246,0.12) 40%,transparent 100%)',
-    ambientGlow: 'radial-gradient(ellipse 70% 60% at 50% 38%,rgba(59,130,246,0.22) 0%,rgba(96,165,250,0.10) 50%,transparent 75%)',
-    ring1: 'conic-gradient(from 0deg,transparent 0deg,rgba(59,130,246,0.90) 45deg,transparent 90deg,rgba(59,130,246,0.45) 200deg,transparent 245deg,transparent 360deg)',
-    ring2: 'conic-gradient(from 130deg,transparent 0deg,rgba(147,197,253,0.65) 35deg,transparent 70deg,transparent 360deg)',
-    ring3: 'conic-gradient(from 250deg,transparent 0deg,rgba(99,102,241,0.55) 30deg,transparent 60deg,transparent 360deg)',
-    sweep: 'conic-gradient(from 0deg,rgba(59,130,246,0.28),transparent 65deg)',
-    burstBorder1: 'rgba(59,130,246,0.90)',
-    burstBorder2: 'rgba(147,197,253,0.60)',
-    orbitColors: ['#3b82f6','#93c5fd','#6366f1'] as const,
-    orbitShadows: ['rgba(59,130,246,0.90)','rgba(147,197,253,0.85)','rgba(99,102,241,0.85)'] as const,
-    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 12px rgba(59,130,246,0.50))} 50%{filter:drop-shadow(0 0 28px rgba(59,130,246,0.85)) drop-shadow(0 0 12px rgba(147,197,253,0.35))}',
-    logoGlowStatic: 'drop-shadow(0 0 12px rgba(59,130,246,0.50))',
-    nameGrad: 'linear-gradient(90deg,#bfdbfe,#60a5fa,#818cf8,#bfdbfe)',
-    devGrad: 'linear-gradient(90deg,#93c5fd,#60a5fa,#3b82f6,#93c5fd)',
-    msgColor: 'rgba(191,219,254,0.55)',
-    barGrad: 'linear-gradient(90deg,#1d4ed8,#3b82f6,#93c5fd,#6366f1)',
-    barGlowKf: '0%,100%{box-shadow:0 0 6px rgba(59,130,246,0.55)} 50%{box-shadow:0 0 20px rgba(59,130,246,0.95),0 0 40px rgba(59,130,246,0.40)}',
-    percentColor: 'rgba(147,197,253,0.85)',
-    cornerColor: 'rgba(59,130,246,0.45)',
-    cornerDot: 'rgba(96,165,250,0.70)',
-    separatorGrad: 'linear-gradient(90deg,transparent,rgba(59,130,246,0.55),transparent)',
-    devByColor: 'rgba(147,197,253,0.35)',
-    taglineColor: 'rgba(147,197,253,0.60)',
-    dotColors: ['#3b82f6','#93c5fd','#6366f1'] as const,
-    dotShadows: ['rgba(59,130,246,0.80)','rgba(147,197,253,0.80)','rgba(99,102,241,0.80)'] as const,
-    radialBehind: 'radial-gradient(circle,rgba(59,130,246,0.18) 0%,rgba(99,102,241,0.08) 50%,transparent 75%)',
-    badge: '💎 BASIC',
-    badgeColor: '#60a5fa',
-  },
-  ULTRA: {
-    // Deep Violet + Rose Gold — royal, ultra premium, exclusive
-    bg: 'linear-gradient(160deg,#0a0118 0%,#110228 40%,#0d0120 70%,#080012 100%)',
-    starColor: 'rgba(232,121,249,0.60)',
-    shootColor: 'linear-gradient(90deg,transparent,#e879f9,rgba(251,191,218,0.90))',
-    auroraTop: 'linear-gradient(180deg,rgba(168,85,247,0.38) 0%,rgba(232,121,249,0.16) 50%,transparent 100%)',
-    auroraBot: 'linear-gradient(0deg,rgba(251,113,133,0.28) 0%,rgba(244,63,94,0.12) 40%,transparent 100%)',
-    ambientGlow: 'radial-gradient(ellipse 70% 60% at 50% 38%,rgba(168,85,247,0.22) 0%,rgba(232,121,249,0.10) 50%,transparent 75%)',
-    ring1: 'conic-gradient(from 0deg,transparent 0deg,rgba(232,121,249,0.95) 40deg,transparent 80deg,rgba(232,121,249,0.45) 195deg,transparent 235deg,transparent 360deg)',
-    ring2: 'conic-gradient(from 130deg,transparent 0deg,rgba(251,191,218,0.65) 30deg,transparent 60deg,transparent 360deg)',
-    ring3: 'conic-gradient(from 250deg,transparent 0deg,rgba(168,85,247,0.60) 35deg,transparent 70deg,transparent 360deg)',
-    sweep: 'conic-gradient(from 0deg,rgba(232,121,249,0.28),transparent 60deg)',
-    burstBorder1: 'rgba(232,121,249,0.90)',
-    burstBorder2: 'rgba(251,191,218,0.60)',
-    orbitColors: ['#e879f9','#fbbfda','#a855f7'] as const,
-    orbitShadows: ['rgba(232,121,249,0.95)','rgba(251,191,218,0.85)','rgba(168,85,247,0.90)'] as const,
-    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 12px rgba(232,121,249,0.55))} 50%{filter:drop-shadow(0 0 30px rgba(232,121,249,0.90)) drop-shadow(0 0 14px rgba(168,85,247,0.40))}',
-    logoGlowStatic: 'drop-shadow(0 0 14px rgba(232,121,249,0.50))',
-    nameGrad: 'linear-gradient(90deg,#fbbfda,#e879f9,#c084fc,#fb7185,#fbbfda)',
-    devGrad: 'linear-gradient(90deg,#fbbfda,#e879f9,#c084fc,#fbbfda)',
-    msgColor: 'rgba(251,191,218,0.55)',
-    barGrad: 'linear-gradient(90deg,#9333ea,#c026d3,#e879f9,#fbbfda,#fb7185)',
-    barGlowKf: '0%,100%{box-shadow:0 0 6px rgba(232,121,249,0.60)} 50%{box-shadow:0 0 22px rgba(232,121,249,1.0),0 0 44px rgba(232,121,249,0.40)}',
-    percentColor: 'rgba(251,191,218,0.90)',
-    cornerColor: 'rgba(232,121,249,0.42)',
-    cornerDot: 'rgba(232,121,249,0.75)',
-    separatorGrad: 'linear-gradient(90deg,transparent,rgba(232,121,249,0.55),transparent)',
-    devByColor: 'rgba(251,191,218,0.35)',
-    taglineColor: 'rgba(196,132,252,0.70)',
-    dotColors: ['#e879f9','#fbbfda','#a855f7'] as const,
-    dotShadows: ['rgba(232,121,249,0.90)','rgba(251,191,218,0.80)','rgba(168,85,247,0.90)'] as const,
-    radialBehind: 'radial-gradient(circle,rgba(168,85,247,0.18) 0%,rgba(232,121,249,0.08) 50%,transparent 75%)',
-    badge: '💜 ULTRA',
-    badgeColor: '#e879f9',
-  },
-} as const;
+type ThemeVariant = 'black' | 'blue' | 'light';
 
-const MESSAGES_BY_TIER: Record<string, string[]> = {
-  FREE: [
-    '🌊 Apka safar shuru ho raha hai...',
-    '📚 Lessons load ho rahe hain...',
-    '✨ Aaj kuch naya seekhein!',
-    '💫 Gyan ki roshni aa rahi hai...',
-    '🎯 Aapka swagat hai IIC mein!',
-    '💡 Seekhna hi asli kamyabi hai',
-    '🌱 Har din thoda aur seekho',
-    '🚀 Chalo, shuru karte hain!',
-  ],
-  BASIC: [
-    '💎 Blue plan active — premium experience!',
-    '📘 Apke lessons ready hain...',
-    '🔵 Smart learners choose Blue!',
-    '⚡ Fast access loading...',
-    '📊 Aapki progress sync ho rahi hai',
-    '🎯 Premium content aa raha hai',
-    '💡 Seekhte raho, badhte raho!',
-    '🌀 Sabse best experience ke liye tayyar ho!',
-  ],
-  ULTRA: [
-    '💜 Ultra plan — royal experience aapka intezar kar raha hai!',
-    '✨ Exclusive content unlock ho raha hai...',
-    '🏆 Aap IIC ke elite learner hain!',
-    '💫 Unlimited access — your galaxy awaits',
-    '🌟 Ultra members ke liye khas content',
-    '💜 Premium features activate ho rahe hain',
-    '👑 Elite-level learning shuru hota hai',
-    '🔮 The finest just got finer — welcome back!',
-  ],
-};
-
-function readSettings() {
-  try { const s = localStorage.getItem('nst_system_settings'); return s ? JSON.parse(s) : {}; }
-  catch { return {}; }
+function detectTheme(): ThemeVariant {
+  try {
+    const isDark = localStorage.getItem('nst_dark_mode') === 'true';
+    if (!isDark) return 'light';
+    const type = localStorage.getItem('nst_dark_theme_type') || 'black';
+    return type === 'blue' ? 'blue' : 'black';
+  } catch {
+    return 'black';
+  }
 }
 
-export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
-  onComplete,
-  subscriptionLevel = 'FREE',
-}) => {
-  const settings = useMemo(readSettings, []);
+const THEME_STYLES: Record<ThemeVariant, {
+  bg: string; text: string; subtext: string; boxBg: string; boxBorder: string;
+  trackBg: string; bar: string; badge: string;
+}> = {
+  black: {
+    bg: 'bg-black',
+    text: 'text-white',
+    subtext: 'text-gray-500',
+    boxBg: 'bg-gray-900',
+    boxBorder: 'border-gray-800',
+    trackBg: 'bg-gray-900',
+    bar: 'from-indigo-500 via-violet-500 to-purple-600',
+    badge: 'text-gray-500',
+  },
+  blue: {
+    bg: 'bg-[#050d1f]',
+    text: 'text-white',
+    subtext: 'text-blue-400/70',
+    boxBg: 'bg-blue-950/60',
+    boxBorder: 'border-blue-900/60',
+    trackBg: 'bg-blue-950',
+    bar: 'from-blue-500 via-indigo-500 to-purple-500',
+    badge: 'text-blue-400/60',
+  },
+  light: {
+    bg: 'bg-white',
+    text: 'text-slate-900',
+    subtext: 'text-slate-500',
+    boxBg: 'bg-slate-50',
+    boxBorder: 'border-slate-200',
+    trackBg: 'bg-slate-200',
+    bar: 'from-blue-500 via-indigo-500 to-purple-500',
+    badge: 'text-slate-400',
+  },
+};
 
-  const tier = subscriptionLevel === 'ULTRA' ? 'ULTRA' : subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
-  const T = TIER_THEMES[tier];
-  const MESSAGES = MESSAGES_BY_TIER[tier];
-
-  const appName: string = settings.appShortName || settings.appName || 'IIC';
-  const developerName: string = (settings.developerName || 'Nafim Anwar').toString().trim() || 'Nafim Anwar';
-  const appTagline: string = (settings.appTagline || '').toString().trim();
-  const appNameSize: number = (() => {
-    const r = Number(settings.appShortNameSize);
-    return Number.isFinite(r) && r > 0 ? Math.min(96, Math.max(28, r)) : 52;
-  })();
-  const splashFontId: string = settings.splashFontId || localStorage.getItem('nst_splash_font_id') || 'default';
-  const logoEnabled: boolean = settings.splashLogoEnabled !== false;
-  const logoUrl: string = settings.splashLogoUrl || '/splash-logo.png';
-  const logoSize: number = (() => {
-    const r = Number(settings.splashLogoSize);
-    return Number.isFinite(r) && r > 0 ? Math.min(220, Math.max(60, r)) : 130;
-  })();
-
-  const activeFont = getSplashFontById(splashFontId);
-  useEffect(() => { if (activeFont.gfontParam) ensureGoogleFontLoaded(activeFont.gfontParam); }, [activeFont.gfontParam]);
-
-  // Per-tier duration from admin settings (seconds → ms), default 5s, clamped 3–30s
-  const durationMs: number = (() => {
-    const raw =
-      tier === 'ULTRA' ? settings.splashDurationUltra :
-      tier === 'BASIC' ? settings.splashDurationBasic :
-                         settings.splashDurationFree;
-    const secs = Number(raw);
-    if (Number.isFinite(secs) && secs >= 3) return Math.min(30, secs) * 1000;
-    return 5000;
-  })();
-
-  const [imgFailed, setImgFailed] = useState(false);
+export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, isPremium = false, subscriptionLevel = 'FREE' }) => {
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<0 | 1 | 2>(0);
-  const [msgIndex, setMsgIndex] = useState(0);
-  const [msgVisible, setMsgVisible] = useState(true);
+  const [stepPhase1, setStepPhase1] = useState(-1);
+  const [stepPhase2, setStepPhase2] = useState(-1);
+  const [logoTapped, setLogoTapped] = useState(false);
+
+  const [themeVariant] = useState<ThemeVariant>(detectTheme);
+
+  const [appName] = useState(() => {
+    try {
+      const settingsRaw = localStorage.getItem('nst_system_settings');
+      const settingsObj = settingsRaw ? JSON.parse(settingsRaw) : null;
+      // Prefer short name (used as the splash logo word) — falls back to long name, then "IIC".
+      return settingsObj?.appShortName || settingsObj?.appName || 'IIC';
+    } catch {
+      return 'IIC';
+    }
+  });
+
+  // Admin-controlled developer name shown in the bottom "Developed by …" badge.
+  // Reads from systemSettings.developerName (stored in localStorage by Admin > General Settings).
+  const [developerName] = useState<string>(() => {
+    try {
+      const settingsRaw = localStorage.getItem('nst_system_settings');
+      const settingsObj = settingsRaw ? JSON.parse(settingsRaw) : null;
+      const name = (settingsObj?.developerName ?? '').toString().trim();
+      return name || 'Nadim Anwar';
+    } catch {
+      return 'Nadim Anwar';
+    }
+  });
+
+  // Admin-controlled font-size for the splash short name (in pixels).
+  // Reads from systemSettings.appShortNameSize. Clamped to [24, 120].
+  const [appNameSize] = useState<number>(() => {
+    try {
+      const settingsRaw = localStorage.getItem('nst_system_settings');
+      const settingsObj = settingsRaw ? JSON.parse(settingsRaw) : null;
+      const raw = Number(settingsObj?.appShortNameSize);
+      if (Number.isFinite(raw) && raw > 0) return Math.min(120, Math.max(24, raw));
+      return 30; // default = matches old text-3xl
+    } catch {
+      return 30;
+    }
+  });
+
+  // === Splash Font (admin-controlled, read from system settings) ===
+  // Falls back to a legacy localStorage choice (`nst_splash_font_id`) for
+  // users who picked one before the picker was moved into Admin > General
+  // Settings, then defaults to "default".
+  const [splashFontId] = useState<string>(() => {
+    try {
+      const settingsRaw = localStorage.getItem('nst_system_settings');
+      const settingsObj = settingsRaw ? JSON.parse(settingsRaw) : null;
+      const adminChoice = settingsObj?.splashFontId;
+      if (adminChoice) return adminChoice as string;
+      return localStorage.getItem('nst_splash_font_id') || 'default';
+    } catch {
+      return 'default';
+    }
+  });
+  const activeFont = getSplashFontById(splashFontId);
+
+  // === Splash LOGO (admin-controlled) ===
+  // When enabled (default), the splash shows an <img> instead of the gradient
+  // short-name text. Admin can upload a custom logo (stored as data: URL) or
+  // remove it (which falls back to the text rendering).
+  const [splashLogo] = useState<{ enabled: boolean; url: string; size: number }>(() => {
+    try {
+      const settingsRaw = localStorage.getItem('nst_system_settings');
+      const s = settingsRaw ? JSON.parse(settingsRaw) : null;
+      const enabled = s?.splashLogoEnabled !== false; // default ON
+      const url = (s?.splashLogoUrl as string) || '/splash-logo.png';
+      const rawSize = Number(s?.splashLogoSize);
+      const size = Number.isFinite(rawSize) && rawSize > 0
+        ? Math.min(260, Math.max(60, rawSize))
+        : 140;
+      return { enabled, url, size };
+    } catch {
+      return { enabled: true, url: '/splash-logo.png', size: 140 };
+    }
+  });
+
+  // Lazy-load the chosen Google Font on mount AND whenever it changes.
+  useEffect(() => {
+    if (activeFont.gfontParam) ensureGoogleFontLoaded(activeFont.gfontParam);
+  }, [activeFont.gfontParam]);
+
   const onCompleteRef = useRef(onComplete);
+  const appNameRef = useRef(appName);
+
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  useEffect(() => { appNameRef.current = appName; }, [appName]);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 80);
-    const t2 = setTimeout(() => setPhase(2), 520);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const duration = 2000;
+    const intervalTime = 50;
+    const steps = duration / intervalTime;
+    let currentStep = Math.floor((progress / 100) * steps);
+
+    const timer = setInterval(() => {
+      currentStep++;
+      const currentProgress = Math.min(Math.floor((currentStep / steps) * 100), 100);
+      setProgress(currentProgress);
+
+      if (currentProgress < 50) {
+        if (currentProgress >= 10) setStepPhase1(0);
+        if (currentProgress >= 20) setStepPhase1(1);
+        if (currentProgress >= 30) setStepPhase1(2);
+        if (currentProgress >= 40) setStepPhase1(3);
+      }
+
+      if (currentProgress >= 50) {
+        setStepPhase1(-1);
+        if (currentProgress >= 50) setStepPhase2(0);
+        if (currentProgress >= 60) setStepPhase2(1);
+        if (currentProgress >= 70) setStepPhase2(2);
+        if (currentProgress >= 80) setStepPhase2(3);
+      }
+
+      if (currentStep >= steps) {
+        clearInterval(timer);
+        try {
+          const utterance = new SpeechSynthesisUtterance('Welcome to ' + appNameRef.current);
+          utterance.lang = 'en-US';
+          utterance.rate = 1;
+          utterance.pitch = 1;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+        } catch {}
+        setTimeout(() => {
+          onCompleteRef.current();
+        }, 300);
+      }
+    }, intervalTime);
+
+    return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const TOTAL = durationMs;
-    const TICK = 50;
-    let elapsed = 0;
-    const id = setInterval(() => {
-      elapsed += TICK;
-      const t = Math.min(elapsed / TOTAL, 1);
-      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      setProgress(Math.floor(eased * 100));
-      if (elapsed >= TOTAL) { clearInterval(id); setTimeout(() => onCompleteRef.current(), 200); }
-    }, TICK);
-    return () => clearInterval(id);
-  }, []);
+  const handleLogoTap = () => {
+    if (logoTapped) return;
+    try { if (navigator.vibrate) navigator.vibrate(40); } catch {}
+    setLogoTapped(true);
+    setTimeout(() => setLogoTapped(false), 600);
+  };
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setMsgVisible(false);
-      setTimeout(() => { setMsgIndex(i => (i + 1) % MESSAGES.length); setMsgVisible(true); }, 380);
-    }, 1600);
-    return () => clearInterval(id);
-  }, [MESSAGES.length]);
+  const t = THEME_STYLES[themeVariant];
 
-  // Stars — ULTRA: 65, BASIC: 42, FREE: 0 (simple/clean look)
-  const starCount = tier === 'ULTRA' ? 65 : 42;
-  const stars = useMemo(() => Array.from({ length: starCount }, () => ({
-    x: Math.random() * 100, y: Math.random() * 100,
-    r: 0.8 + Math.random() * 1.8,
-    dur: 1.4 + Math.random() * 2.8, delay: Math.random() * 3.5,
-    opacity: 0.25 + Math.random() * 0.55,
-  })), [starCount]);
-
-  const [shootIdx, setShootIdx] = useState(-1);
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    const sch = () => { t = setTimeout(() => { setShootIdx(i => (i + 1) % 3); setTimeout(() => setShootIdx(-1), 800); sch(); }, 1800 + Math.random() * 2200); };
-    sch();
-    return () => clearTimeout(t);
-  }, []);
-
-  const shoots = useMemo(() => [
-    { x: 12, y: 15, angle: 32 }, { x: 62, y: 8, angle: 24 }, { x: 78, y: 30, angle: 38 },
-  ], []);
-
-  const fontStyle = activeFont.family ? { fontFamily: activeFont.family } : {};
-  const lsStyle = activeFont.letterSpacing ? { letterSpacing: activeFont.letterSpacing } : {};
-
-  // ring mask helper
-  const ringMask = (sz: number) => `radial-gradient(circle,transparent ${sz / 2 - 3}px,black ${sz / 2 - 1}px)`;
-  const R1 = logoSize + 52, R2 = logoSize + 86, R3 = logoSize + 122;
+  const iconColor1 = themeVariant === 'light' ? 'text-blue-500' : 'text-blue-400';
+  const iconColor2 = themeVariant === 'light' ? 'text-violet-600' : 'text-purple-400';
+  const iconColor3 = themeVariant === 'light' ? 'text-rose-500' : 'text-rose-400';
+  const iconColor4 = themeVariant === 'light' ? 'text-emerald-600' : 'text-emerald-400';
+  const iconColor5 = themeVariant === 'light' ? 'text-amber-500' : 'text-amber-400';
+  const iconColor6 = themeVariant === 'light' ? 'text-indigo-600' : 'text-indigo-400';
+  const iconColor7 = themeVariant === 'light' ? 'text-teal-600' : 'text-teal-400';
+  const iconColor8 = themeVariant === 'light' ? 'text-orange-500' : 'text-orange-400';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden', background: T.bg, touchAction: 'none', userSelect: 'none' }}>
-      <style>{`
-        @keyframes _twinkle { 0%,100%{opacity:var(--so);transform:scale(1)} 50%{opacity:calc(var(--so)*0.18);transform:scale(0.55)} }
-        @keyframes _shoot { 0%{transform:translateX(0) translateY(0) scaleX(0);opacity:0} 10%{opacity:1;transform:translateX(0) translateY(0) scaleX(1)} 100%{transform:translateX(170px) translateY(105px) scaleX(1);opacity:0} }
-        @keyframes _aurora_t { 0%,100%{transform:translateX(-18%) scaleY(1);opacity:0.6} 50%{transform:translateX(18%) scaleY(1.4);opacity:0.9} }
-        @keyframes _aurora_b { 0%,100%{transform:translateX(12%) scaleY(1);opacity:0.5} 50%{transform:translateX(-12%) scaleY(1.5);opacity:0.75} }
-        @keyframes _logo_in { 0%{opacity:0;transform:scale(0.55) translateY(14px)} 65%{opacity:1;transform:scale(1.06) translateY(-2px)} 82%{transform:scale(0.97) translateY(1px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
-        @keyframes _logo_glow { ${T.logoGlowKeyframe} }
-        @keyframes _ring1 { from{transform:translate(-50%,-50%) rotate(0deg)} to{transform:translate(-50%,-50%) rotate(360deg)} }
-        @keyframes _ring2 { from{transform:translate(-50%,-50%) rotate(0deg)} to{transform:translate(-50%,-50%) rotate(-360deg)} }
-        @keyframes _ring3 { from{transform:translate(-50%,-50%) rotate(20deg)} to{transform:translate(-50%,-50%) rotate(380deg)} }
-        @keyframes _burst1 { 0%{transform:translate(-50%,-50%) scale(0.3);opacity:0.9} 100%{transform:translate(-50%,-50%) scale(3.8);opacity:0} }
-        @keyframes _burst2 { 0%{transform:translate(-50%,-50%) scale(0.3);opacity:0.65} 100%{transform:translate(-50%,-50%) scale(3.0);opacity:0} }
-        @keyframes _orbit { from{transform:rotate(var(--oa)) translateX(var(--od)) rotate(calc(-1*var(--oa)))} to{transform:rotate(calc(var(--oa)+360deg)) translateX(var(--od)) rotate(calc(-360deg - var(--oa)))} }
-        @keyframes _sweep { from{transform:translate(-50%,-50%) rotate(0deg)} to{transform:translate(-50%,-50%) rotate(360deg)} }
-        @keyframes _pulse_ring { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.12} 50%{transform:translate(-50%,-50%) scale(1.06);opacity:0.28} }
-        @keyframes _name_in { from{opacity:0;transform:translateY(22px);filter:blur(8px)} to{opacity:1;transform:translateY(0);filter:blur(0)} }
-        @keyframes _dev_in { from{opacity:0;transform:translateY(14px) scale(0.92)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes _shimmer { from{background-position:300% center} to{background-position:-300% center} }
-        @keyframes _msg_in  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes _msg_out { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-8px)} }
-        @keyframes _bar_glow { ${T.barGlowKf} }
-        @keyframes _corner_in { from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
-        @keyframes _dot_bounce { 0%,100%{transform:translateY(0);opacity:0.5} 50%{transform:translateY(-6px);opacity:1} }
-        @keyframes _radial_pulse { 0%,100%{opacity:0.10;transform:translate(-50%,-50%) scale(1)} 50%{opacity:0.22;transform:translate(-50%,-50%) scale(1.09)} }
-        @keyframes _badge_in { from{opacity:0;transform:translateY(-10px) scale(0.85)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes _grid_move { from{transform:translateY(0)} to{transform:translateY(40px)} }
-      `}</style>
+    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${t.bg} ${t.text} overflow-hidden w-full mx-auto`}>
 
-      {/* ─── ULTRA: faint grid lines ─── */}
-      {tier === 'ULTRA' && (
-        <div style={{
-          position: 'absolute', inset: 0, opacity: 0.04, pointerEvents: 'none', zIndex: 0,
-          backgroundImage: 'linear-gradient(rgba(249,200,70,0.6) 1px,transparent 1px),linear-gradient(90deg,rgba(249,200,70,0.6) 1px,transparent 1px)',
-          backgroundSize: '48px 48px',
-          animation: '_grid_move 8s linear infinite',
-        }} />
-      )}
 
-      {/* ─── Stars ─── */}
-      {stars.map((s, i) => (
-        <div key={i} style={{
-          position: 'absolute', left: `${s.x}%`, top: `${s.y}%`,
-          width: s.r * 2, height: s.r * 2, borderRadius: '50%',
-          background: tier === 'FREE' ? `rgba(14,165,233,${s.opacity})` : '#fff',
-          boxShadow: `0 0 ${s.r * 4}px ${T.starColor}`,
-          animation: `_twinkle ${s.dur}s ease-in-out ${s.delay}s infinite`,
-          ['--so' as any]: s.opacity, pointerEvents: 'none', zIndex: 1,
-        }} />
-      ))}
-
-      {/* ─── Shooting stars — BASIC / ULTRA only ─── */}
-      {tier !== 'FREE' && shoots.map((sh, i) => (
-        <div key={i} style={{
-          position: 'absolute', left: `${sh.x}%`, top: `${sh.y}%`,
-          width: 100, height: 2,
-          background: T.shootColor,
-          borderRadius: 999,
-          transform: `rotate(${sh.angle}deg)`,
-          transformOrigin: 'left center',
-          animation: shootIdx === i ? '_shoot 0.75s ease-out forwards' : 'none',
-          pointerEvents: 'none', zIndex: 2,
-        }} />
-      ))}
-
-      {/* ─── Aurora top ─── */}
-      <div style={{
-        position: 'absolute', top: 0, left: '-20%', right: '-20%', height: 190,
-        background: T.auroraTop, filter: 'blur(20px)',
-        animation: '_aurora_t 7s ease-in-out infinite', pointerEvents: 'none', zIndex: 1,
-      }} />
-      {/* ─── Aurora bottom ─── */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: '-20%', right: '-20%', height: 165,
-        background: T.auroraBot, filter: 'blur(18px)',
-        animation: '_aurora_b 9s ease-in-out infinite', pointerEvents: 'none', zIndex: 1,
-      }} />
-
-      {/* ─── Radial ambient glow behind logo ─── */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        width: 400, height: 400, borderRadius: '50%',
-        background: T.radialBehind,
-        animation: '_radial_pulse 5s ease-in-out infinite',
-        pointerEvents: 'none', zIndex: 1,
-      }} />
-
-      {/* ─── HUD corners — BASIC / ULTRA only ─── */}
-      {phase > 0 && tier !== 'FREE' && [
-        { top: 18, left: 18, r: 0 }, { top: 18, right: 18, r: 90 },
-        { bottom: 18, right: 18, r: 180 }, { bottom: 18, left: 18, r: 270 },
-      ].map((c, i) => (
-        <svg key={i} width="34" height="34" style={{
-          position: 'absolute', ...c, transform: `rotate(${c.r}deg)`,
-          animation: `_corner_in 0.5s ease ${0.25 + i * 0.07}s both`,
-          pointerEvents: 'none', zIndex: 3,
-        }}>
-          <path d="M3 31 L3 3 L31 3" fill="none" stroke={T.cornerColor} strokeWidth="1.8" strokeLinecap="round"/>
-          <circle cx="3" cy="3" r="2.5" fill={T.cornerDot}/>
-        </svg>
-      ))}
-
-      {/* ─── Tier badge (top-center) ─── */}
-      {phase === 2 && (
-        <div style={{
-          position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
-          animation: '_badge_in 0.5s ease 0.8s both',
-          zIndex: 10, pointerEvents: 'none',
-        }}>
-          <span style={{
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.18em',
-            color: T.badgeColor,
-            padding: '2px 10px', borderRadius: 999,
-            border: `1px solid ${T.badgeColor}44`,
-            background: `${T.badgeColor}10`,
-          }}>{T.badge}</span>
-        </div>
-      )}
-
-      {/* ─── Burst halos ─── */}
-      {phase > 0 && <>
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: logoSize + 12, height: logoSize + 12, borderRadius: '50%',
-          border: `2px solid ${T.burstBorder1}`,
-          animation: '_burst1 1.2s ease-out 0.1s forwards',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: logoSize + 12, height: logoSize + 12, borderRadius: '50%',
-          border: `1.5px solid ${T.burstBorder2}`,
-          animation: '_burst2 1.5s ease-out 0.25s forwards',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-      </>}
-
-      {/* ─── Spinning arc rings ─── */}
-      {/* BASIC: R1 + R2 only (no radar/pulse). ULTRA: all 3 + radar + pulse. FREE: none */}
-      {phase === 2 && tier !== 'FREE' && <>
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: R1, height: R1, borderRadius: '50%',
-          background: T.ring1,
-          WebkitMask: ringMask(R1), mask: ringMask(R1),
-          animation: '_ring1 2.8s linear infinite',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: R2, height: R2, borderRadius: '50%',
-          background: T.ring2,
-          WebkitMask: ringMask(R2), mask: ringMask(R2),
-          animation: '_ring2 4.6s linear infinite',
-          pointerEvents: 'none', zIndex: 4,
-        }} />
-        {tier === 'ULTRA' && <>
-          <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            width: R3, height: R3, borderRadius: '50%',
-            background: T.ring3,
-            WebkitMask: ringMask(R3), mask: ringMask(R3),
-            animation: '_ring3 6.8s linear infinite',
-            pointerEvents: 'none', zIndex: 4,
-          }} />
-          {/* Radar sweep */}
-          <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            width: R2, height: R2, borderRadius: '50%',
-            background: T.sweep,
-            WebkitMask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
-            mask: `radial-gradient(circle,transparent ${R2 / 2 - 46}px,black ${R2 / 2 - 1}px)`,
-            animation: '_sweep 3.5s linear infinite',
-            pointerEvents: 'none', zIndex: 4,
-          }} />
-          {/* Outer pulse ring */}
-          <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            width: R3 + 38, height: R3 + 38, borderRadius: '50%',
-            border: `1px solid ${T.burstBorder1}28`,
-            animation: '_pulse_ring 4s ease-in-out infinite 1s',
-            pointerEvents: 'none', zIndex: 4,
-          }} />
-        </>}
-      </>}
-
-      {/* ─── Orbiting dots: FREE=none, BASIC=2, ULTRA=3 ─── */}
-      {phase === 2 && tier !== 'FREE' && [
-        { angle: 0,   dist: logoSize / 2 + 28, dur: 2.8 },
-        { angle: 120, dist: logoSize / 2 + 45, dur: 4.5 },
-        { angle: 240, dist: logoSize / 2 + 63, dur: 6.6 },
-      ].slice(0, tier === 'BASIC' ? 2 : 3).map((d, i) => (
-        <div key={i} style={{
-          position: 'absolute', top: 'calc(50% - 6px)', left: 'calc(50% - 6px)',
-          width: 12, height: 12, borderRadius: '50%',
-          background: T.orbitColors[i], boxShadow: `0 0 10px 4px ${T.orbitShadows[i]}`,
-          animation: `_orbit ${d.dur}s linear infinite`,
-          ['--oa' as any]: `${d.angle}deg`, ['--od' as any]: `${d.dist}px`,
-          pointerEvents: 'none', zIndex: 5,
-        }} />
-      ))}
-
-      {/* ─── LOGO — absolutely centered on screen ─── */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 10,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-      }}>
-        {/* Logo image */}
-        {logoEnabled && !imgFailed && (
-          <div style={{ animation: phase > 0 ? '_logo_in 0.9s ease both' : 'none', opacity: phase === 0 ? 0 : 1 }}>
-            <img
-              src={logoUrl}
-              alt="Logo"
-              onError={() => setImgFailed(true)}
-              style={{
-                width: logoSize, height: logoSize,
-                objectFit: 'contain',
-                borderRadius: 20,
-                filter: T.logoGlowStatic,
-                animation: phase === 2 ? '_logo_glow 2.8s ease-in-out infinite' : 'none',
-                display: 'block',
-              }}
-            />
-          </div>
-        )}
-
-        {/* App name text */}
-        <div style={{ animation: phase > 0 ? '_name_in 0.7s ease 0.3s both' : 'none', opacity: phase === 0 ? 0 : 1 }}>
-          <h1 style={{
-            fontSize: Math.min(appNameSize * 1.6, 140), fontWeight: 900, margin: 0,
-            color: tier === 'FREE' ? '#0ea5e9' : tier === 'BASIC' ? '#93c5fd' : '#fde68a',
-            textAlign: 'center', lineHeight: 1.0,
-            textShadow: tier === 'ULTRA'
-              ? '0 0 24px rgba(249,200,70,0.70), 0 2px 8px rgba(0,0,0,0.5)'
-              : tier === 'BASIC'
-              ? '0 0 20px rgba(59,130,246,0.70), 0 2px 8px rgba(0,0,0,0.5)'
-              : '0 0 18px rgba(14,165,233,0.60), 0 2px 8px rgba(0,0,0,0.3)',
-            ...fontStyle, ...lsStyle,
-          }}>{appName}</h1>
-        </div>
+      {/* Animated background gradient */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+        <div className={`absolute top-[-10%] left-[-10%] w-[120%] h-[120%] ${
+          themeVariant === 'blue'
+            ? 'bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.4)_0%,transparent_55%)]'
+            : themeVariant === 'black'
+            ? 'bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.25)_0%,transparent_55%)]'
+            : 'bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.15)_0%,transparent_55%)]'
+        } animate-[spin_15s_linear_infinite]`} />
       </div>
 
-      {/* ─── INFO BLOCK — tagline + messages + dots, below IIC text ─── */}
-      {phase === 2 && (
-        <div style={{
-          position: 'absolute',
-          top: `calc(50% + ${(logoEnabled && !imgFailed ? logoSize / 2 : 0) + Math.min(appNameSize * 1.6, 140) * 0.58 + 24}px)`,
-          left: '50%', transform: 'translateX(-50%)',
-          zIndex: 10,
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          width: '90vw', maxWidth: 320,
-        }}>
-          {/* Tagline (if set) */}
-          {appTagline ? (
-            <p style={{
-              margin: '0 0 10px', fontSize: 9, fontWeight: 700, letterSpacing: '0.24em',
-              textTransform: 'uppercase', color: T.taglineColor,
-              animation: '_name_in 0.6s ease 0.3s both',
-            }}>{appTagline}</p>
-          ) : null}
-
-          {/* Rotating message — BASIC / ULTRA only */}
-          {tier !== 'FREE' && (
-            <div style={{ height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: '100%', marginBottom: 10 }}>
-              <p style={{
-                margin: 0, fontSize: 11, fontWeight: 600, color: T.msgColor, textAlign: 'center',
-                animation: msgVisible ? '_msg_in 0.4s ease both' : '_msg_out 0.35s ease both',
-              }}>{MESSAGES[msgIndex]}</p>
-            </div>
+      <div className="relative z-10 flex flex-col items-center w-full px-8">
+        {/* Logo / App Name — tappable for scale-up animation */}
+        <button
+          type="button"
+          onClick={handleLogoTap}
+          className="relative overflow-hidden mb-12 text-center animate-in slide-in-from-bottom-4 duration-700 fade-in focus:outline-none select-none rounded-2xl"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {splashLogo.enabled && splashLogo.url ? (
+            // === Image LOGO (admin-controlled, default ON) ===
+            <img
+              src={splashLogo.url}
+              alt={appName}
+              draggable={false}
+              onError={(e) => {
+                // Agar uploaded logo load nahi hua to default pe wapas chala jaye.
+                const img = e.currentTarget as HTMLImageElement;
+                if (img.src.indexOf('/splash-logo.png') === -1) {
+                  img.src = '/splash-logo.png';
+                }
+              }}
+              className={`mb-2 mx-auto object-contain transition-transform duration-300 ease-out drop-shadow-xl ${
+                logoTapped ? 'scale-[2.2]' : 'scale-100'
+              }`}
+              style={{
+                width: `${splashLogo.size}px`,
+                height: `${splashLogo.size}px`,
+                maxWidth: '70vw',
+              }}
+            />
+          ) : (
+            // === Fallback: gradient short-name text (when admin disables logo) ===
+            <h1
+              className={`font-black tracking-tight mb-2 uppercase text-center leading-tight transition-transform duration-300 ease-out bg-clip-text text-transparent ${
+                logoTapped ? 'scale-[2.2]' : 'scale-100'
+              } ${
+                subscriptionLevel === 'ULTRA'
+                  ? 'bg-gradient-to-r from-slate-400 via-slate-300 to-slate-500'
+                  : subscriptionLevel === 'BASIC'
+                    ? 'bg-gradient-to-r from-blue-500 via-indigo-600 to-blue-700'
+                    : themeVariant === 'light'
+                      ? 'bg-gradient-to-r from-sky-500 to-cyan-600'
+                      : 'bg-gradient-to-r from-sky-400 to-cyan-500'
+              }`}
+              style={{
+                fontSize: `${appNameSize}px`,
+                ...(activeFont.family ? { fontFamily: activeFont.family } : {}),
+                ...(activeFont.letterSpacing ? { letterSpacing: activeFont.letterSpacing } : {}),
+              }}
+            >
+              {appName}
+            </h1>
           )}
+          <p className={`text-xs font-bold tracking-widest ${t.subtext} uppercase mt-2 transition-opacity duration-300 ${logoTapped ? 'opacity-0' : 'opacity-100'}`}>
+            Loading your experience...
+          </p>
 
-          {/* Bouncing dots — BASIC / ULTRA only */}
-          {tier !== 'FREE' && (
-            <div style={{ display: 'flex', gap: 7 }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: T.dotColors[i], boxShadow: `0 0 8px ${T.dotShadows[i]}`,
-                  animation: `_dot_bounce 0.9s ease-in-out ${i * 0.18}s infinite`,
-                }} />
-              ))}
+        </button>
+
+        {/* Feature boxes */}
+        <div className="relative w-full h-64 perspective-1000 mb-4">
+          {/* Phase 1 */}
+          <div className={`absolute inset-0 grid grid-cols-2 gap-4 w-full transition-all duration-500 ${progress < 50 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase1 >= 0 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <BookOpen size={32} className={`${iconColor1} mb-3`} />
+              <span className={`font-bold tracking-wide ${t.text}`}>Notes</span>
             </div>
-          )}
-        </div>
-      )}
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase1 >= 1 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <HelpCircle size={32} className={`${iconColor2} mb-3`} />
+              <span className={`font-bold tracking-wide ${t.text}`}>MCQ</span>
+            </div>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase1 >= 2 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <Video size={32} className={`${iconColor3} mb-3`} />
+              <span className={`font-bold tracking-wide ${t.text}`}>Video</span>
+            </div>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase1 >= 3 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <Headphones size={32} className={`${iconColor4} mb-3`} />
+              <span className={`font-bold tracking-wide ${t.text}`}>Audio</span>
+            </div>
+          </div>
 
-      {/* ─── BOTTOM PROGRESS ─── */}
-      <div style={{ position: 'absolute', bottom: 28, left: 0, right: 0, padding: '0 28px', zIndex: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.taglineColor }}>Loading</span>
-          <span style={{ fontSize: 11, fontWeight: 900, fontFamily: 'monospace', color: T.percentColor }}>{progress}%</span>
-        </div>
-
-        {/* Bar */}
-        <div style={{ width: '100%', height: 4, background: tier === 'FREE' ? 'rgba(14,165,233,0.12)' : 'rgba(255,255,255,0.06)', borderRadius: 999, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${progress}%`,
-            background: T.barGrad, borderRadius: 999,
-            transition: 'width 80ms linear',
-            animation: '_bar_glow 2.2s ease-in-out infinite',
-            position: 'relative',
-          }}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.38) 50%,transparent 100%)',
-              backgroundSize: '60% 100%', animation: '_shimmer 1.6s linear infinite', borderRadius: 999,
-            }} />
+          {/* Phase 2 */}
+          <div className={`absolute inset-0 grid grid-cols-2 gap-4 w-full transition-all duration-500 ${progress >= 50 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase2 >= 0 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <BrainCircuit size={32} className={`${iconColor5} mb-3`} />
+              <span className={`font-bold tracking-wide text-center leading-tight ${t.text}`}>Smart<br />Revision</span>
+            </div>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase2 >= 1 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <BarChart2 size={32} className={`${iconColor6} mb-3`} />
+              <span className={`font-bold tracking-wide text-center leading-tight ${t.text}`}>Leader<br />board</span>
+            </div>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase2 >= 2 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <WifiOff size={32} className={`${iconColor7} mb-3`} />
+              <span className={`font-bold tracking-wide text-center leading-tight ${t.text}`}>Offline<br />Mode</span>
+            </div>
+            <div className={`flex flex-col items-center justify-center p-6 rounded-2xl ${t.boxBg} border ${t.boxBorder} shadow-lg transition-all duration-500 transform ${stepPhase2 >= 3 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'}`}>
+              <Zap size={32} className={`${iconColor8} mb-3`} />
+              <span className={`font-bold tracking-wide text-center leading-tight ${t.text}`}>Level<br />System</span>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-          <span style={{ fontSize: 8, fontWeight: 600, color: T.devByColor, letterSpacing: '0.08em' }}>
-            Developed by <span style={{ fontWeight: 800, color: T.devByColor }}>{developerName}</span>
-          </span>
-          <span style={{ fontSize: 8, fontFamily: 'monospace', fontWeight: 700, color: T.devByColor, letterSpacing: '0.03em' }}>v{APP_VERSION}</span>
+        {/* Progress section */}
+        <div className="w-full flex flex-col items-center mt-4">
+          <div className="flex flex-col items-center justify-center mb-2">
+            <div className={`text-4xl font-black font-mono tracking-tighter drop-shadow-md ${t.text}`}>
+              {progress}%
+            </div>
+          </div>
+          <div className={`w-full h-2 ${t.trackBg} rounded-full overflow-hidden mb-2 shadow-inner`}>
+            <div
+              className={`h-full bg-gradient-to-r ${t.bar} rounded-full transition-all duration-100 ease-linear shadow-sm`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <p className={`text-[11px] font-bold ${t.badge} tracking-wide`}>
+              Developed by {developerName}
+            </p>
+            <span className={t.badge}>|</span>
+            <p className={`text-[11px] ${t.badge} font-mono font-bold tracking-widest`}>
+              v{APP_VERSION}
+            </p>
+          </div>
         </div>
       </div>
     </div>

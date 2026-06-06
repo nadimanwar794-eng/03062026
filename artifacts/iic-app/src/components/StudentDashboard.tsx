@@ -5,7 +5,6 @@ import { FeatureHints, FeatureTipsList } from "./FeatureHints";
 import { TopBarEffectsLayer } from "../utils/topBarEffects";
 import { getLevelInfo, getNextLevelInfo, getLevelProgress, LEVEL_INFO, ACTIVITY_SCORES, getLevelTopBarEffects, getLevelLimitBonus, getLevelDailyLimits, getLevelDailyLimitsWithOverride, getEffectiveDailyLimit, UNLIMITED, getMaxReadingSeconds } from "../utils/levelSystem";
 import { tryEarnScore, awardMilestone, getDailyScoreEarned, DAILY_SCORE_LIMIT, getDailyScoreLimit, getActiveBoost, logScoreActivity } from "../utils/scoreSystem";
-import { getTodayBonusPreview, getLevel100BonusLabel, PROGRESS_BONUS_TABLE, LIMIT_TOUCH_MULTIPLIERS } from "../utils/progressBonusEngine";
 import { ScoreHistoryDashboard } from "./ScoreHistoryDashboard";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
 import { LevelLeaderboard } from "./LevelLeaderboard";
@@ -67,7 +66,6 @@ import { generateDailyChallengeQuestions } from "../utils/challengeGenerator";
 import { searchNotesByWords, searchNotesByTitle, type NoteSearchResult } from "../utils/noteSearcher";
 import { generateMorningInsight } from "../services/morningInsight";
 import { LessonActionModal } from "./LessonActionModal";
-import { LibraryView } from "./LibraryView";
 import { PullToRefresh } from "./PullToRefresh";
 import pLimit from "p-limit";
 import { RedeemSection } from "./RedeemSection";
@@ -221,7 +219,6 @@ import { OfflineDownloads } from "./OfflineDownloads";
 import { ThemeCustomizer } from "./ThemeCustomizer";
 import AppFeedback from "./AppFeedback";
 import { saveOfflineItem } from "../utils/offlineStorage";
-import { NAME_EFFECTS_LIST, getNameEffectStyle } from "../utils/nameEffects";
 import { NotificationPrompt } from "./NotificationPrompt";
 // @ts-ignore
 import jsPDF from "jspdf";
@@ -497,22 +494,8 @@ export const StudentDashboard: React.FC<Props> = ({
     ) {
       setShowAllNotesCatalog(false);
       onTabChange("AI_HUB");
-      setTabTransitionKey(k => k + 1);
-      setTabTransitionDir('right');
       return;
     }
-    // Determine transition direction based on tab order
-    const TAB_ORDER = ['HOME','HOMEWORK','REVISION_V2','GK','VIDEO','PROFILE','APP_STORE','HISTORY','LEADERBOARD','STORE'];
-    const prevIdx = TAB_ORDER.indexOf(activeTab as string);
-    const nextIdx = TAB_ORDER.indexOf(tab as string);
-    if (prevIdx === -1 || nextIdx === -1) {
-      setTabTransitionDir('fade');
-    } else if (nextIdx > prevIdx) {
-      setTabTransitionDir('right');
-    } else {
-      setTabTransitionDir('left');
-    }
-    setTabTransitionKey(k => k + 1);
     onTabChange(tab);
   };
 
@@ -1178,7 +1161,7 @@ export const StudentDashboard: React.FC<Props> = ({
       if (!isCorrect) {
         // Wrong answer → +1 score, reset streak
         localStorage.setItem(streakKey, '0');
-        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', (freshUser as any).scoreLimitBoostPercent);
+        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG');
         if (earned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + earned });
         }
@@ -1190,15 +1173,15 @@ export const StudentDashboard: React.FC<Props> = ({
         let bonusMsg = '';
         // Streak milestone: every 5 consecutive → +10 bonus (checked first for display priority)
         if (newStreak % 5 === 0) {
-          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5', (freshUser as any).scoreLimitBoostPercent);
+          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5');
           bonusMsg = `⚡ ${newStreak} Streak! +10 Bonus Score!`;
         } else if (newStreak % 3 === 0) {
           // Every 3 consecutive (but not a multiple of 5) → +5 bonus
-          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3', (freshUser as any).scoreLimitBoostPercent);
+          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3');
           bonusMsg = `🔥 ${newStreak} Streak! +5 Bonus Score!`;
         }
         if (bonusMsg) showAlert(bonusMsg, 'SUCCESS');
-        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', (freshUser as any).scoreLimitBoostPercent);
+        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT');
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + totalEarned });
@@ -1845,8 +1828,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showFeatureLimitsModal, setShowFeatureLimitsModal] = useState(false);
   const [showLevelLeaderboard, setShowLevelLeaderboard] = useState(false);
   const [levelUpCelebration, setLevelUpCelebration] = useState<{level: number; emoji: string; label: string} | null>(null);
-  const [tabTransitionKey, setTabTransitionKey] = useState(0);
-  const [tabTransitionDir, setTabTransitionDir] = useState<'right' | 'left' | 'fade'>('right');
   const [limitsViewPlan, setLimitsViewPlan] = useState<'FREE' | 'BASIC' | 'ULTRA'>('FREE');
   const [showRulesPage, setShowRulesPage] = useState(false);
   const [showLoginHistory, setShowLoginHistory] = useState(false);
@@ -1859,8 +1840,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const [profileWhite, setProfileWhite] = useState(() => localStorage.getItem(`nst_pw_${user.id}`) === '1');
   const [nameFxOff, setNameFxOff] = useState(() => { try { return localStorage.getItem('nst_name_fx_off') === '1'; } catch { return false; } });
   const [cardFxOff, setCardFxOff] = useState(() => { try { return localStorage.getItem('nst_card_fx_off') === '1'; } catch { return false; } });
-  const [nameEffectId, setNameEffectId] = useState<string>(() => { try { return localStorage.getItem('nst_name_effect') || 'auto'; } catch { return 'auto'; } });
-  const [showProfileEffects, setShowProfileEffects] = useState(false);
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
   const [showLevelChooser, setShowLevelChooser] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -1913,7 +1892,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showAllNotesCatalog, setShowAllNotesCatalog] = useState<
     "PREMIUM" | "DEEP_DIVE" | "VIDEO" | "AUDIO" | false
   >(false);
-  const [showLibrary, setShowLibrary] = useState(false);
   const [catalogChapterCounts, setCatalogChapterCounts] = useState<
     Record<string, number>
   >({});
@@ -2272,13 +2250,13 @@ export const StudentDashboard: React.FC<Props> = ({
     (async () => {
       const data = await tryFetchData();
       if (data) {
-        const readNotes = !!(data.freeNotes || data.topicNotes?.length || data.content || data.teachingStrategyNotes || data.chunkNotes || data.notes || data.unifiedChunkNotes || data.unifiedHtmlNotes);
+        const readNotes = !!(data.freeNotes || data.topicNotes?.length || data.content || data.teachingStrategyNotes || data.chunkNotes || data.notes);
         const writeNotes = !!(data.freeNotesHtml || data.htmlNotes || data.premiumNotes);
         const notes = readNotes || writeNotes;
-        const pdf = !!(data.freeLink || data.premiumLink || data.schoolPdfLink || data.competitionPdfLink || data.pdfUrl || data.pdfList?.length || data.unifiedPdfUrl);
-        const video = !!(data.videoPlaylist?.length || data.schoolVideoPlaylist?.length || data.topicVideos?.length || data.premiumVideoLink || data.freeVideoLink || data.unifiedVideoUrl);
-        const audio = !!(data.audioPlaylist?.length || data.unifiedAudioUrl);
-        const mcq = !!(data.manualMcqData?.length || data.weeklyTestMcqData?.length || data.mcqList?.length || data.unifiedManualMcqData?.length);
+        const pdf = !!(data.freeLink || data.premiumLink || data.schoolPdfLink || data.competitionPdfLink || data.pdfUrl || data.pdfList?.length);
+        const video = !!(data.videoPlaylist?.length || data.schoolVideoPlaylist?.length || data.topicVideos?.length || data.premiumVideoLink || data.freeVideoLink);
+        const audio = !!(data.audioPlaylist?.length);
+        const mcq = !!(data.manualMcqData?.length || data.weeklyTestMcqData?.length || data.mcqList?.length);
         const pdfUrl = data.schoolPdfLink || data.freeLink || data.premiumLink || data.competitionPdfLink || data.pdfUrl || null;
         setCourseAvailability({ notes, readNotes, writeNotes, pdf, video, mcq, audio });
         setCoursePdfUrl(pdfUrl);
@@ -2415,7 +2393,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const tiers = newTier - lucentLastAwardedTierRef.current;
         lucentLastAwardedTierRef.current = newTier;
         const freshU = userRef.current;
-        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getActiveBoost(freshU), undefined, (freshU as any).scoreLimitBoostPercent);
+        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getActiveBoost(freshU));
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
           handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
@@ -2515,16 +2493,14 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
   const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'choose'>('notes');
   const [hwImmersive, setHwImmersive] = useState(false);
-  const [hwSaved, setHwSaved] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
   const [showWMUnlockPrompt, setShowWMUnlockPrompt] = useState(false);
   const [pendingWMCallback, setPendingWMCallback] = useState<(() => void) | null>(null);
   const [wmDontShowChecked, setWmDontShowChecked] = useState(false);
-  // Reset focus mode and save state when homework is closed or changes
+  // Reset focus mode when homework is closed
   useEffect(() => {
     if (!hwActiveHwId) setHwImmersive(false);
-    setHwSaved(false);
   }, [hwActiveHwId]);
   const [hwHtmlTtsPlaying, setHwHtmlTtsPlaying] = useState(false);
   const [noteZoom, setNoteZoom] = useState<number>(1.0);
@@ -5580,7 +5556,7 @@ export const StudentDashboard: React.FC<Props> = ({
         hwGoToRef.current = goToHw as any;
 
         return (
-          <div className="fixed inset-0 z-[200] bg-white flex flex-col h-[100dvh] w-screen animate-in fade-in" style={{ isolation: 'isolate' }}>
+          <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in fade-in">
             {/* Reading progress bar (notes mode only) */}
             {effectiveMode === 'notes' && (
               <div className="absolute top-0 left-0 right-0 h-1 bg-slate-200/60 z-[60] pointer-events-none">
@@ -5677,7 +5653,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
             {/* CHOOSER OVERLAY — appears when both notes and MCQ exist and user hasn't picked yet */}
             {effectiveMode === 'choose' && (
-              <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50">
+              <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50">
                 <div className="w-full max-w-md">
                   {/* App logo + name + developer + version */}
                   <div className="flex flex-col items-center mb-8">
@@ -5732,7 +5708,7 @@ export const StudentDashboard: React.FC<Props> = ({
             {effectiveMode !== 'choose' && (
             <div
               ref={hwScrollContainerRef}
-              className={`flex-1 min-h-0 overflow-y-auto ${!hwImmersive ? 'pb-[72px]' : ''}`}
+              className={`flex-1 overflow-y-auto ${!hwImmersive ? 'pb-[72px]' : ''}`}
               onScroll={(e) => {
                 const t = e.currentTarget;
                 const max = t.scrollHeight - t.clientHeight;
@@ -5828,21 +5804,6 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={`hw-reader-${activeHw.id}-chunk`}
                         onBack={goBack}
                         onMoreOptions={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
-                        hideInlineSearch={true}
-                        onSaveOffline={async () => {
-                          try {
-                            const title = activeHw.title || 'Notes';
-                            const subtitle = activeHw.targetSubject || (syllabusMode === 'COMPETITION' ? 'Competition' : `Class ${activeSessionClass || ''}`);
-                            const id = `hw_${activeHw.id || title.replace(/\s+/g,'_').slice(0,30)}`;
-                            const chunkSrc = (activeHw as any).chunkNotes;
-                            const htmlSrc = (activeHw as any).htmlNotes;
-                            const content = chunkSrc?.trim() || htmlSrc?.trim() || '';
-                            await saveOfflineItem({ id, type: 'NOTE', title, subtitle, data: { kind: 'HW_CHUNK', chunkNotes: content, hwId: activeHw.id, targetSubject: activeHw.targetSubject } });
-                            setHwSaved(true);
-                            try { (window as any).__toast?.({ type: 'success', message: 'Saved offline ✓' }); } catch {}
-                          } catch { }
-                        }}
-                        isSavedOffline={hwSaved}
                         isUltraUser={_isUltraUser}
                         ultraHtmlRemaining={_isUltraUser ? ultraHtmlRemaining : undefined}
                         isBasicUser={_isBasicUser}
@@ -5952,7 +5913,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           subscriptionLevel: user.subscriptionLevel || 'FREE',
                           isPremium: !!(user.isPremium || (user.subscriptionLevel && user.subscriptionLevel !== 'FREE')),
                           boostPercent: getActiveBoost(user),
-                          scoreLimitBoostPercent: (user as any).scoreLimitBoostPercent,
                           onScoreEarned: (pts: number, activity: string) => {
                             if (pts <= 0) return;
                             const cur = userRef.current;
@@ -7739,6 +7699,8 @@ export const StudentDashboard: React.FC<Props> = ({
 
               const _c612Bg  = settings?.homeClass612CardBg     || tierTheme.profileCardBg;
               const _c612Bdr = settings?.homeClass612CardBorder  || tierTheme.primary;
+              const _cmpBg   = settings?.homeCompetitionCardBg   || tierTheme.profileCardBg;
+              const _cmpBdr  = settings?.homeCompetitionCardBorder || tierTheme.primary;
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjectCount = getSubjectsList(c, _stream, _board).length;
@@ -7778,31 +7740,36 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                   </div>
 
-
-                  {/* ── LIBRARY CARD ── */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="flex-1 h-px bg-slate-100" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Books & GK Library</span>
-                      <span className="flex-1 h-px bg-slate-100" />
-                    </div>
-                    <button
-                      onClick={() => setShowLibrary(true)}
-                      className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50"
-                    >
-                      <div className="flex items-center justify-between px-4 py-4">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-indigo-500 mb-1">📚 Library</p>
-                          <h3 className="text-xl font-black leading-tight mb-1 text-slate-800">Lucent · GK · Books</h3>
-                          <p className="text-[11px] text-slate-500 font-medium mb-3">Lucent GK · Competition Books · Daily GK · Notes</p>
-                          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black text-white bg-indigo-600">
-                            Browse Library →
-                          </span>
-                        </div>
-                        <div className="text-[52px] leading-none shrink-0 select-none">📚</div>
+                  {/* ── COMPETITIVE · GOVT. EXAMS ── */}
+                  {isHomeSectionVisible('home_govt_exams', settings) && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="flex-1 h-px bg-slate-100" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Competitive · Govt. Exams</span>
+                        <span className="flex-1 h-px bg-slate-100" />
                       </div>
-                    </button>
-                  </div>
+                      <button
+                        onClick={() => { hapticStrong(); setSyllabusMode('COMPETITION'); setActiveSessionClass('COMPETITION'); setActiveSessionBoard(_board); setContentViewStep('SUBJECTS'); setInitialParentSubject(null); setClass612SubjectView(null); setHomeworkSubjectView(null); setLucentCategoryView(false); onTabChange('COURSES'); }}
+                        className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm"
+                        style={{ background: _cmpBg, border: `2px solid ${_cmpBdr}` }}
+                      >
+                        <div className="flex items-center justify-between px-4 py-4">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: _cmpBdr }}>Competitive Mode</p>
+                            <h3 className="text-[24px] font-black leading-tight mb-1 text-slate-800">Govt. Exams</h3>
+                            <div className="mb-3">
+                              <span className="text-[11px] font-bold text-slate-700">7 Books</span>
+                              <span className="text-[10px] text-slate-400 ml-1.5">SSC · UPSC · Railway · BPSC · BSSC · Police</span>
+                            </div>
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black text-white" style={{ background: _cmpBdr }}>
+                              Tap to open →
+                            </span>
+                          </div>
+                          <div className="text-[56px] leading-none shrink-0 select-none">🏛️</div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
 
                   {/* ── QUICK ACTION CARDS 3×2 ── */}
                   <div>
@@ -8325,44 +8292,51 @@ export const StudentDashboard: React.FC<Props> = ({
       const _profileIsLight = profileWhite || _isLightBgEarly;
 
       // ── Level-based name effect (uses _displayLvl so user can pick any unlocked level's style) ──
-      // Name visually upgrades ONLY at milestone levels: 4, 7, 10, 12, 15.
-      // Between milestones the style stays locked at the previous milestone's look.
       const _nameStyle = ((): React.CSSProperties => {
         const lvl = _displayLvl.level;
-        const milestoneLvl = lvl >= 15 ? 15 : lvl >= 12 ? 12 : lvl >= 10 ? 10 : lvl >= 7 ? 7 : lvl >= 4 ? 4 : lvl;
-        const milestoneLvlInfo = LEVEL_INFO.find(l => l.level === milestoneLvl);
-        const col = milestoneLvlInfo?.nameColor || _displayLvl.color;
+        const col = _displayLvl.nameColor || _displayLvl.color;
         const glow = _displayLvl.glowColor;
-        // ── Custom effect chosen by user (non-auto) ──
-        const _chosenEffect = NAME_EFFECTS_LIST.find(e => e.id === nameEffectId);
-        if (!nameFxOff && _chosenEffect && nameEffectId !== 'auto' && lvl >= _chosenEffect.minLevel) {
-          return getNameEffectStyle(nameEffectId, col, glow, _profileIsLight);
-        }
         if (_profileIsLight || nameFxOff) {
-          return { color: milestoneLvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
+          return { color: lvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
         }
-        if (milestoneLvl <= 3) return { color: '#ffffff' };
-        if (milestoneLvl === 4) return { color: col, textShadow: `0 0 14px ${glow}` };
-        // Gradient text — one style per milestone only
+        if (lvl <= 2) return { color: '#ffffff' };
+        if (lvl <= 4) return { color: col, textShadow: `0 0 14px ${glow}` };
+        if (lvl <= 6) return {
+          color: col,
+          animation: 'name-fx-glow 2.2s ease-in-out infinite',
+          ['--name-glow' as any]: glow,
+        };
+        // Gradient text definitions per level
         const grads: Record<number, string> = {
           7:  'linear-gradient(135deg,#c084fc,#a855f7,#7c3aed,#c084fc)',
+          8:  'linear-gradient(135deg,#fde68a,#f59e0b,#d97706,#fde68a)',
+          9:  'linear-gradient(135deg,#fde047,#eab308,#facc15,#fde047)',
           10: 'linear-gradient(135deg,#fb923c,#f59e0b,#fbbf24,#fb923c)',
+          11: 'linear-gradient(135deg,#34d399,#06b6d4,#818cf8,#c084fc,#34d399)',
           12: 'linear-gradient(135deg,#a78bfa,#c084fc,#f472b6,#a78bfa)',
+          13: 'linear-gradient(135deg,#f9a8d4,#ec4899,#f43f5e,#ef4444,#f9a8d4)',
+          14: 'linear-gradient(135deg,#fda4af,#f43f5e,#ef4444,#f97316,#fda4af)',
           15: 'linear-gradient(135deg,#ffffff,#a5f3fc,#c4b5fd,#f9a8d4,#ffffff)',
         };
+        const anim7_8  = 'name-fx-shimmer 4s linear infinite';
+        const anim9_10 = 'name-fx-shimmer 3s linear infinite, name-fx-rainbow 7s ease infinite';
+        const anim11_12= 'name-fx-shimmer 2.5s linear infinite, name-fx-rainbow 5s ease infinite';
+        const anim13_14= 'name-fx-shimmer 2s linear infinite, name-fx-fire 1.8s ease-in-out infinite';
+        const anim15   = 'name-fx-shimmer 1.8s linear infinite, name-fx-absolute 4s ease infinite';
         const animMap: Record<number, string> = {
-          7:  'name-fx-shimmer 4s linear infinite',
-          10: 'name-fx-shimmer 3s linear infinite, name-fx-rainbow 7s ease infinite',
-          12: 'name-fx-shimmer 2.5s linear infinite, name-fx-rainbow 5s ease infinite',
-          15: 'name-fx-shimmer 1.8s linear infinite, name-fx-absolute 4s ease infinite',
+          7: anim7_8, 8: anim7_8,
+          9: anim9_10, 10: anim9_10,
+          11: anim11_12, 12: anim11_12,
+          13: anim13_14, 14: anim13_14,
+          15: anim15,
         };
         return {
-          background: grads[milestoneLvl] || `linear-gradient(135deg,${col},${col}88,${col})`,
+          background: grads[lvl] || `linear-gradient(135deg,${col},${col}88,${col})`,
           backgroundSize: '200% auto',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-          animation: animMap[milestoneLvl] || 'name-fx-shimmer 4s linear infinite',
+          animation: animMap[lvl] || anim7_8,
         } as React.CSSProperties;
       })();
 
@@ -8428,124 +8402,32 @@ export const StudentDashboard: React.FC<Props> = ({
               {/* ─── Avatar ─── */}
               <div className="flex justify-center mb-4">
                 <div className="relative">
-                  {/* ── GRADUATED LEVEL RING SYSTEM ── */}
-                  {!cardFxOff && (() => {
-                    const _rl = _displayLvl.level;
-                    const _rc = _displayLvl.color;
-                    const _rg = _displayLvl.glowColor;
-
-                    if (_displayLvl.legendaryAura) {
-                      // L15 — Rainbow legendary (3 rings)
-                      return (<>
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-22px', background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc,#c4b5fd,#a5f3fc)', animation: 'spin 1.8s linear infinite', borderRadius: '50%', opacity: 0.45 }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-13px', background: 'conic-gradient(from 120deg,#f9a8d4,#a5f3fc,#c4b5fd,#fde68a,#f9a8d4)', animation: 'spin 2.5s linear infinite reverse', borderRadius: '50%', opacity: 0.7 }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-6px', background: 'conic-gradient(from 240deg,#c4b5fd,#a5f3fc,#f9a8d4,#fde68a,#c4b5fd)', animation: 'spin 3.5s linear infinite', borderRadius: '50%', opacity: 0.85 }} />
-                      </>);
-                    }
-                    if (_rl >= 14) {
-                      // L14 — 3 rings, strong glow + pulse
-                      return (<>
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-20px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}cc, ${_rc}00)`, animation: 'spin 2s linear infinite', borderRadius: '50%', boxShadow: `0 0 22px 5px ${_rg}80`, animationName: 'spin, levelRingGlow' }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-13px', background: `conic-gradient(from 180deg, ${_rc}00, ${_rc}bb, ${_rc}00)`, animation: 'spin 3s linear infinite reverse', borderRadius: '50%' }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-7px', background: `conic-gradient(from 90deg, ${_rc}00, ${_rc}99, ${_rc}00)`, animation: 'spin 4.5s linear infinite', borderRadius: '50%' }} />
-                      </>);
-                    }
-                    if (_rl >= 13) {
-                      // L13 — 3 rings
-                      return (<>
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-18px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}bb, ${_rc}00)`, animation: 'spin 2.5s linear infinite', borderRadius: '50%' }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-11px', background: `conic-gradient(from 180deg, ${_rc}00, ${_rc}aa, ${_rc}00)`, animation: 'spin 3.5s linear infinite reverse', borderRadius: '50%' }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-5px', background: `conic-gradient(from 90deg, ${_rc}00, ${_rc}88, ${_rc}00)`, animation: 'spin 5s linear infinite', borderRadius: '50%' }} />
-                      </>);
-                    }
-                    if (_rl >= 11) {
-                      // L11-L12 — 2 rings (mota feel)
-                      const _rSpd1 = _rl >= 12 ? '2.2s' : '3s';
-                      const _rSpd2 = _rl >= 12 ? '3.2s' : '4.5s';
-                      const _rOp = _rl >= 12 ? 'cc' : 'aa';
-                      return (<>
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-15px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}${_rOp}, ${_rc}55, ${_rc}${_rOp}, ${_rc}00)`, animation: `spin ${_rSpd1} linear infinite`, borderRadius: '50%', boxShadow: _rl >= 12 ? `0 0 14px 3px ${_rg}55` : 'none' }} />
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-7px', background: `conic-gradient(from 180deg, ${_rc}00, ${_rc}99, ${_rc}00)`, animation: `spin ${_rSpd2} linear infinite reverse`, borderRadius: '50%' }} />
-                      </>);
-                    }
-                    if (_rl >= 10) {
-                      // L10 — 1 prominent ring (new unlock!)
-                      return (
-                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-12px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}dd, ${_rc}55, ${_rc}dd, ${_rc}00)`, animation: 'spin 3.5s linear infinite', borderRadius: '50%', boxShadow: `0 0 12px 3px ${_rg}50` }} />
-                      );
-                    }
-                    if (_rl >= 6) {
-                      // L6-L9 — subtle single spinning ring
-                      return (
-                        <div className="absolute -inset-2 rounded-full pointer-events-none" style={{ background: `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`, animation: 'spin 4s linear infinite', borderRadius: '50%' }} />
-                      );
-                    }
-                    return null;
-                  })()}
-                  {/* Inner separator ring (card bg color — creates visual gap between rings and avatar) */}
-                  <div className="absolute rounded-full pointer-events-none" style={{
-                    inset: _displayLvl.legendaryAura ? '-1px' : _displayLvl.level >= 14 ? '-4px' : _displayLvl.level >= 11 ? '-3px' : _displayLvl.level >= 10 ? '-2px' : '-1px',
+                  {/* Outer glow halo */}
+                  <div className="absolute -inset-2 rounded-full pointer-events-none" style={{
+                    background: `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
+                    animation: !cardFxOff && _displayLvl.level >= 6 ? 'spin 4s linear infinite' : 'none',
+                    borderRadius: '50%',
+                  }} />
+                  {/* Inner ring */}
+                  <div className="absolute -inset-1 rounded-full pointer-events-none" style={{
                     background: `${_pCard}`,
                     borderRadius: '50%',
                   }} />
-                  {/* ── GAMING BADGE: App Logo always in center ── */}
-                  <div className="relative w-[108px] h-[108px] rounded-full overflow-hidden flex items-center justify-center" style={{
-                    background: !cardFxOff && _displayLvl.legendaryAura
-                      ? 'linear-gradient(145deg,rgba(165,243,252,0.18),rgba(196,181,253,0.12))'
-                      : `linear-gradient(145deg, ${tierTheme.primary}45, ${tierTheme.primary}12)`,
-                    border: !cardFxOff
-                      ? (_displayLvl.legendaryAura
-                          ? '3px solid rgba(165,243,252,0.85)'
-                          : _displayLvl.level >= 4
-                            ? `3px solid ${_displayLvl.color}dd`
-                            : `3px solid ${tierTheme.primary}cc`)
-                      : `3px solid ${tierTheme.primary}cc`,
-                    boxShadow: !cardFxOff
-                      ? (_displayLvl.legendaryAura
-                          ? '0 0 0 1.5px rgba(165,243,252,0.35), 0 10px 50px rgba(165,243,252,0.55), 0 4px 16px rgba(0,0,0,0.6)'
-                          : _displayLvl.level >= 10
-                            ? `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 44px ${_displayLvl.glowColor}55, 0 4px 14px rgba(0,0,0,0.55)`
-                            : `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`)
-                      : `0 4px 12px rgba(0,0,0,0.4)`,
+                  {/* Avatar image */}
+                  <div className="relative w-[104px] h-[104px] rounded-full overflow-hidden flex items-center justify-center" style={{
+                    background: `linear-gradient(145deg, ${tierTheme.primary}40, ${tierTheme.primary}10)`,
+                    border: `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
+                    boxShadow: `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
                   }}>
-                    {/* App logo — always the main gaming badge */}
-                    {settings?.appLogo
-                      ? <img src={settings.appLogo} alt="IIC" className="w-full h-full object-cover" />
-                      : <span className="text-5xl font-black select-none" style={{ color: !cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color : tierTheme.primary }}>
-                          {(settings as any)?.appShortName?.charAt(0) || (settings as any)?.appName?.charAt(0) || 'I'}
-                        </span>
+                    {user.photoURL && user.avatarChoice === 'gmail'
+                      ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                      : settings?.appLogo
+                        ? <img src={settings.appLogo} alt="logo" className="w-full h-full object-cover" />
+                        : <span className="text-5xl font-black select-none" style={{ color: !cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color : tierTheme.primary }}>
+                            {(user.name || 'S').charAt(0).toUpperCase()}
+                          </span>
                     }
-                    {/* User photo — small corner badge if they chose Gmail avatar */}
-                    {user.photoURL && user.avatarChoice === 'gmail' && (
-                      <div className="absolute bottom-1 right-1 w-[30px] h-[30px] rounded-full overflow-hidden"
-                        style={{ border: `2.5px solid ${_pCard}`, boxShadow: '0 2px 8px rgba(0,0,0,0.45)' }}>
-                        <img src={user.photoURL} alt="You" className="w-full h-full object-cover" />
-                      </div>
-                    )}
                   </div>
-
-                  {/* L10+ level emoji floats below avatar as badge */}
-                  {!cardFxOff && _displayLvl.level >= 10 && (
-                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full"
-                      style={{
-                        background: _displayLvl.legendaryAura
-                          ? 'linear-gradient(90deg,rgba(165,243,252,0.25),rgba(196,181,253,0.25))'
-                          : `${_displayLvl.color}28`,
-                        border: _displayLvl.legendaryAura
-                          ? '1px solid rgba(165,243,252,0.5)'
-                          : `1px solid ${_displayLvl.color}66`,
-                        backdropFilter: 'blur(8px)',
-                        boxShadow: `0 2px 10px ${_displayLvl.glowColor}44`,
-                      }}>
-                      <span className="text-[11px] leading-none">{_displayLvl.emoji}</span>
-                      <span className="text-[9px] font-black leading-none" style={{ color: _displayLvl.legendaryAura ? '#a5f3fc' : _displayLvl.color }}>L{_displayLvl.level}</span>
-                    </div>
-                  )}
-
-                  {/* L15: crown above avatar */}
-                  {_displayLvl.legendaryAura && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl" style={{ filter: 'drop-shadow(0 0 8px rgba(165,243,252,0.9))', animation: 'name-fx-absolute 4s ease infinite' }}>💠</div>
-                  )}
                 </div>
               </div>
 
@@ -8576,60 +8458,6 @@ export const StudentDashboard: React.FC<Props> = ({
                   {tierTheme.emoji} {_pTierLabel}
                 </span>
               </div>
-
-              {/* ─── L15 ACHIEVEMENT PLAQUE ─── */}
-              {_displayLvl.legendaryAura && (
-                <button
-                  onClick={() => setShowScorePanel(true)}
-                  className="mx-4 mb-3 rounded-2xl overflow-hidden w-[calc(100%-2rem)] active:scale-[0.98] transition-transform text-left"
-                  style={{ border: '1px solid rgba(165,243,252,0.3)', boxShadow: '0 0 30px rgba(165,243,252,0.15)' }}
-                >
-                  <style>{`
-                    @keyframes absoluteShimmer{0%{background-position:200% center}100%{background-position:-200% center}}
-                    @keyframes starPulse{0%,100%{opacity:0.6;transform:scale(0.9)}50%{opacity:1;transform:scale(1.2)}}
-                  `}</style>
-                  {/* Top banner */}
-                  <div className="px-4 py-2.5 text-center" style={{ background: 'linear-gradient(135deg,rgba(165,243,252,0.12),rgba(196,181,253,0.12),rgba(249,168,212,0.12))' }}>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      {['✦','💠','✦'].map((s,i) => (
-                        <span key={i} className="text-sm" style={{ animation: `starPulse 2s ease-in-out infinite ${i*0.4}s`, display:'inline-block' }}>{s}</span>
-                      ))}
-                    </div>
-                    <p className="text-[10px] font-black tracking-[0.25em] uppercase" style={{ background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'absoluteShimmer 4s linear infinite' }}>
-                      ✦ ABSOLUTE LEGEND ✦
-                    </p>
-                    <p className="text-[9px] font-semibold mt-0.5" style={{ color: 'rgba(165,243,252,0.6)' }}>Maximum Level Achieved — The Pinnacle of Learning</p>
-                  </div>
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 divide-x" style={{ borderTop: '1px solid rgba(165,243,252,0.12)', divideColor: 'rgba(165,243,252,0.12)' }}>
-                    {[
-                      { label: 'Level', val: '15 MAX' },
-                      { label: 'Discount', val: `${_pLvl.discount}% OFF` },
-                      { label: 'Multiplier', val: '5×' },
-                    ].map(({ label, val }) => (
-                      <div key={label} className="py-2 text-center">
-                        <p className="text-[9px] font-black" style={{ color: 'rgba(165,243,252,0.5)', letterSpacing: '0.1em' }}>{label}</p>
-                        <p className="text-[11px] font-black" style={{ color: 'rgba(165,243,252,0.9)' }}>{val}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {/* XP + progress row */}
-                  <div className="px-4 py-3 flex items-center gap-3" style={{ borderTop: '1px solid rgba(165,243,252,0.10)', background: 'rgba(165,243,252,0.04)' }}>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') && (
-                        <span className="text-[8px] font-bold text-slate-400 bg-slate-200/20 px-1.5 py-0.5 rounded-full">Admin</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold mb-1.5 tabular-nums" style={{ color: 'rgba(165,243,252,0.75)' }}>{_pRawScore.toLocaleString('en-IN')} XP</p>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(165,243,252,0.10)' }}>
-                        <div className="h-full rounded-full" style={{ width: '100%', background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4)', boxShadow: '0 0 8px rgba(165,243,252,0.6)' }} />
-                      </div>
-                    </div>
-                    <ChevronRight size={14} style={{ color: 'rgba(165,243,252,0.45)' }} className="shrink-0" />
-                  </div>
-                </button>
-              )}
 
               {/* ─── Info row: join date + days ─── */}
               <div className="flex items-center justify-center gap-3 mb-4" style={{ color: _pTxtSubColor }}>
@@ -8697,8 +8525,7 @@ export const StudentDashboard: React.FC<Props> = ({
               }} />
             </div>
 
-            {/* ── LEVEL CARD — hidden when L15 ABSOLUTE LEGEND is active ── */}
-            {!_displayLvl.legendaryAura && (
+            {/* ── LEVEL CARD ── */}
             <button
               onClick={() => setShowScorePanel(true)}
               className="w-full flex items-center gap-4 px-5 py-4 active:scale-[0.98] transition-transform"
@@ -8732,7 +8559,6 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
               <ChevronRight size={16} style={{ color: _pTxtMutedColor }} className="shrink-0" />
             </button>
-            )}
 
             {/* ── USER ID + EMAIL ROW ── */}
             <div className="flex gap-0 border-t" style={{ borderColor: `${tierTheme.primary}18` }}>
@@ -8792,122 +8618,6 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>XP Score</div>
             </div>
           </div>
-
-          {/* ── MIDNIGHT PROGRESS BONUS PREVIEW ── */}
-          {(() => {
-            if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') return null;
-            const _pbLevel = _pLvl.level;
-            if (_pbLevel < 4) return null;
-            const _pbLimit = getDailyScoreLimit(user.isPremium ? (user.subscriptionLevel || 'BASIC') : 'FREE', user.isPremium, user.scoreLimitBoostPercent);
-            const _pbEarned = getDailyScoreEarned(user.id);
-            const preview = getTodayBonusPreview(_pbLevel, _pbEarned, _pbLimit);
-            const isL9Plus = preview.isMultiplierLevel;
-            const limitMult = isL9Plus ? LIMIT_TOUCH_MULTIPLIERS[_pbLevel] : null;
-            const hasBrackets = !!PROGRESS_BONUS_TABLE[_pbLevel];
-            const pct = preview.progressPct;
-            const accentColor = isL9Plus ? '#a855f7' : tierTheme.primary;
-            const bonusScore = preview.currentBonusScore;
-            const bonusPct = preview.currentBonusPct;
-
-            return (
-              <div className="px-3 mb-3">
-                <div className="rounded-2xl overflow-hidden" style={{ background: _pCard, border: `1px solid ${accentColor}30`, boxShadow: `0 4px 20px ${accentColor}12` }}>
-                  {/* Header */}
-                  <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: `${accentColor}14`, borderBottom: `1px solid ${accentColor}20` }}>
-                    <span className="text-[14px]">🌙</span>
-                    <span className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: accentColor }}>Midnight Progress Bonus</span>
-                    <span className="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${accentColor}20`, color: accentColor }}>L{_pbLevel}</span>
-                  </div>
-
-                  <div className="px-4 py-3">
-                    {/* Today's progress bar */}
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className={`text-[9px] font-bold uppercase tracking-wider ${_pTxtSub}`}>Aaj ka Score</span>
-                      <span className="text-[10px] font-black tabular-nums" style={{ color: accentColor }}>{_pbEarned.toLocaleString('en-IN')} / {_pbLimit.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden mb-2.5" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, background: `linear-gradient(90deg, ${accentColor}cc, ${accentColor})` }} />
-                    </div>
-
-                    {isL9Plus ? (
-                      /* L9+ — limit-touch multiplier */
-                      <div>
-                        {pct >= 100 ? (
-                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[16px]">🚀</span>
-                              <div>
-                                <p className="text-[11px] font-black" style={{ color: accentColor }}>
-                                  {limitMult ? `${limitMult}× Multiplier Active!` : 'Multiplier Active!'}
-                                </p>
-                                <p className="text-[10px] font-bold" style={{ color: `${accentColor}b0` }}>
-                                  +{bonusScore.toLocaleString('en-IN')} XP bonus at midnight
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accentColor}18` }}>
-                            <p className="text-[10px] font-bold" style={{ color: `${accentColor}90` }}>
-                              Reach <span className="font-black" style={{ color: accentColor }}>100% limit</span> to unlock{' '}
-                              {limitMult ? <span className="font-black">{limitMult}× multiplier</span> : 'the multiplier'} bonus
-                            </p>
-                            {preview.scoreToNextBracket != null && preview.scoreToNextBracket > 0 && (
-                              <p className="text-[9px] font-bold mt-1" style={{ color: `${accentColor}70` }}>
-                                {preview.scoreToNextBracket.toLocaleString('en-IN')} XP aur chahiye
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* L4–L8 — bracket bonus */
-                      <div>
-                        {bonusScore > 0 ? (
-                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35` }}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-[11px] font-black" style={{ color: accentColor }}>
-                                  +{bonusPct}% Bracket Reached 🎯
-                                </p>
-                                <p className="text-[10px] font-bold" style={{ color: `${accentColor}b0` }}>
-                                  +{bonusScore.toLocaleString('en-IN')} XP expected at midnight
-                                </p>
-                              </div>
-                              <span className="text-[22px]">{pct >= 100 ? '🏆' : pct >= 70 ? '🔥' : pct >= 40 ? '⚡' : '✨'}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accentColor}18` }}>
-                            <p className="text-[10px] font-bold" style={{ color: `${accentColor}90` }}>
-                              Aaj padho aur midnight bonus unlock karo!
-                            </p>
-                          </div>
-                        )}
-                        {/* Next bracket teaser */}
-                        {preview.nextBracketPct != null && preview.nextBonusPct != null && (
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-px" style={{ background: `${accentColor}20` }} />
-                            <span className="text-[9px] font-bold" style={{ color: `${accentColor}70` }}>
-                              Next: +{preview.nextBonusPct}% at {Math.round(preview.nextBracketPct * _pbLimit / 100).toLocaleString('en-IN')} XP ({preview.nextBracketPct}%)
-                            </span>
-                            <div className="flex-1 h-px" style={{ background: `${accentColor}20` }} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Level-100% bonus label */}
-                    {hasBrackets && (
-                      <p className="text-[9px] font-bold mt-1.5" style={{ color: `${accentColor}60` }}>
-                        {getLevel100BonusLabel(_pbLevel)} at 100% — keep going!
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
 
           {/* ── SUBSCRIPTION COUNTDOWN ── */}
           {user.isPremium && user.subscriptionEndDate && user.subscriptionTier !== 'LIFETIME' && !isNaN(new Date(user.subscriptionEndDate).getTime()) && (() => {
@@ -9321,31 +9031,6 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
             </button>
 
-            {/* ── Name Effect Style Chooser ── */}
-            {!nameFxOff && (
-              <button
-                onClick={() => setShowProfileEffects(true)}
-                className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
-                style={{ borderBottom: _pSep }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{
-                  background: `${_pLvl.color}22`,
-                  border: `1px solid ${_pLvl.color}55`,
-                }}>
-                  <span className="text-base leading-none">🎨</span>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className={`text-sm font-bold ${_pTxt}`}>Name Style</p>
-                  <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
-                    {(() => {
-                      const ef = NAME_EFFECTS_LIST.find(e => e.id === nameEffectId);
-                      return ef ? `${ef.emoji} ${ef.name} — tap to change` : '⚡ Auto — tap to change';
-                    })()}
-                  </p>
-                </div>
-                <ChevronRight size={14} style={{ color: _pTxtMutedColor }} className="shrink-0" />
-              </button>
-            )}
-
             {/* ── Card Effect Toggle ── */}
             <button
               onClick={() => {
@@ -9498,7 +9183,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             border: isSelected ? `1.5px solid ${li.color}88` : '1.5px solid rgba(255,255,255,0.07)',
                           }}>
                           <span className="text-[22px] leading-none">{li.emoji}</span>
-                          <span className="text-[9px] font-black uppercase tracking-wider leading-none" style={{ color: (() => { const m = [4,7,10,12,15].filter(ml => li.level >= ml).pop(); return m ? (LEVEL_INFO.find(l => l.level === m)?.nameColor || li.color) : li.color; })() }}>{li.label}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider leading-none" style={{ color: li.nameColor || li.color }}>{li.label}</span>
                           <span className="text-[8px] font-semibold" style={{ color: _pTxtSubColor }}>L{li.level}</span>
                           {isSelected && (
                             <span className="text-[7px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${li.color}44`, color: li.color }}>
@@ -9719,11 +9404,11 @@ export const StudentDashboard: React.FC<Props> = ({
   <ThemeProvider theme={_extendedTheme}>
     <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
       <NotificationPrompt />
-      {/* ADMIN SWITCH BUTTON — only visible inside content (Notes/MCQ player), NOT in competition viewer */}
+      {/* ADMIN SWITCH BUTTON — only visible inside content (Notes/MCQ player or HW notes) */}
       {(user.role === "ADMIN" ||
         user.role === "SUB_ADMIN" ||
         isImpersonating) &&
-        contentViewStep === "PLAYER" && !hwActiveHwId && (
+        (contentViewStep === "PLAYER" || !!hwActiveHwId) && (
         <div className="fixed bottom-36 right-4 z-50 flex flex-col gap-3 items-end">
           <button
             onClick={() => setIsLayoutEditing(!isLayoutEditing)}
@@ -9747,7 +9432,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* NEW GLOBAL TOP BAR */}
       <div
         id="top-banner-container"
-        className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-300 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || !!hwActiveHwId || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
+        className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-300 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
         style={{ background: tierTheme.topBarGrad, paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Main Header Row */}
@@ -9760,62 +9445,20 @@ export const StudentDashboard: React.FC<Props> = ({
             <button className="p-1 rounded-lg transition-colors hover:bg-white/20 -ml-1 shrink-0">
               <Menu size={20} className="text-white" />
             </button>
-            {(() => {
-              const _tbLvl = _userLevel;
-              const _tbColor = _userLevelInfo.color;
-              const _tbGlow = _userLevelInfo.glowColor;
-              const _hasRing = _tbLvl >= 10;
-              const _isLegendary = _userLevelInfo.legendaryAura;
-              const _ringStyle: React.CSSProperties = _isLegendary ? {
-                background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc)',
-                animation: 'spin 2.5s linear infinite',
-                inset: '-3px', borderRadius: '50%', position: 'absolute', pointerEvents: 'none',
-              } : _tbLvl >= 13 ? {
-                background: `conic-gradient(from 0deg, ${_tbColor}00, ${_tbColor}ee, ${_tbColor}00)`,
-                animation: 'spin 2s linear infinite',
-                inset: '-3px', borderRadius: '50%', position: 'absolute', pointerEvents: 'none',
-                boxShadow: `0 0 8px 2px ${_tbGlow}70`,
-              } : _tbLvl >= 10 ? {
-                background: `conic-gradient(from 0deg, ${_tbColor}00, ${_tbColor}cc, ${_tbColor}00)`,
-                animation: 'spin 3s linear infinite',
-                inset: '-3px', borderRadius: '50%', position: 'absolute', pointerEvents: 'none',
-              } : {};
-              const _imgEl = user.photoURL && user.avatarChoice === 'gmail' ? (
-                <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
-              ) : settings?.appLogo ? (
-                <img src={settings.appLogo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
-              ) : (
-                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 border-2 border-white text-white shrink-0 shadow">
-                  <BrainCircuit size={16} />
-                </div>
-              );
-              return _imgEl;
-            })()}
+            {user.photoURL && user.avatarChoice === 'gmail' ? (
+              <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
+            ) : settings?.appLogo ? (
+              <img src={settings.appLogo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
+            ) : (
+              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 border-2 border-white text-white shrink-0 shadow">
+                <BrainCircuit size={16} />
+              </div>
+            )}
             <div className="flex items-center gap-1 min-w-0">
-              {tierTheme.tier === 'ultra' ? (
-                <>
-                  <style>{`@keyframes _tbGoldShimmer{0%{background-position:200% center}100%{background-position:-200% center}}`}</style>
-                  <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap" style={{
-                    background: 'linear-gradient(90deg,#fde68a,#fbbf24,#f59e0b,#fde68a,#e2e8f0,#fde68a)',
-                    backgroundSize: '250% auto',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    animation: '_tbGoldShimmer 3s linear infinite',
-                    filter: 'drop-shadow(0 0 6px rgba(251,191,36,0.55))',
-                  }}>
-                    {settings?.appShortName || settings?.appName || "IIC"}
-                  </span>
-                  <BadgeCheck size={16} style={{ color: '#fbbf24', filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.7))' }} className="shrink-0" fill="rgba(251,191,36,0.25)" />
-                </>
-              ) : (
-                <>
-                  <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
-                    {settings?.appShortName || settings?.appName || "IIC"}
-                  </span>
-                  <BadgeCheck size={16} className="text-blue-200 shrink-0" fill="rgba(191,219,254,0.35)" />
-                </>
-              )}
+              <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
+                {settings?.appShortName || settings?.appName || "IIC"}
+              </span>
+              <BadgeCheck size={16} className="text-blue-200 shrink-0" fill="rgba(191,219,254,0.35)" />
             </div>
           </div>
 
@@ -10293,17 +9936,14 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
                 {showDotsMenu && (
                   <>
-                    {/* Backdrop — portalled to body so it escapes top-bar stacking context */}
-                    {createPortal(
-                      <div
-                        className="fixed inset-0 z-[99998]"
-                        onClick={() => setShowDotsMenu(false)}
-                        onTouchStart={() => setShowDotsMenu(false)}
-                      />,
-                      document.body
-                    )}
-                    {/* Dropdown panel — portalled so it escapes stacking context */}
-                    {createPortal(<div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
+                    {/* Backdrop — tap anywhere outside to close */}
+                    <div
+                      className="fixed inset-0 z-[99998] bg-black/30 backdrop-blur-[2px] animate-in fade-in duration-150"
+                      onClick={() => setShowDotsMenu(false)}
+                      onTouchStart={() => setShowDotsMenu(false)}
+                    />
+                    {/* Dropdown panel */}
+                    <div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
                       {/* Close button row */}
                       <div className="flex items-center justify-between px-4 pt-3 pb-1">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Menu</span>
@@ -10395,7 +10035,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         </div>
                       </div>
 
-                    </div>, document.body)}
+                    </div>
                   </>
                 )}
               </div>
@@ -10823,71 +10463,31 @@ export const StudentDashboard: React.FC<Props> = ({
                 ))}
                 {/* Level up badge */}
                 <div style={{ animation: 'levelUpPop 3s ease forwards', textAlign: 'center', zIndex: 1 }} className="pointer-events-auto" onClick={() => setLevelUpCelebration(null)}>
-                  {levelUpCelebration.level === 15 ? (
-                    /* ── L15 ABSOLUTE LEGEND — Grand Achievement Card ── */
-                    <div className="rounded-3xl px-8 py-7 shadow-2xl text-center" style={{
-                      background: 'linear-gradient(135deg,#0a0a1a,#0d1a2e,#0a0a1a)',
-                      border: '2px solid rgba(165,243,252,0.4)',
-                      boxShadow: '0 0 80px rgba(165,243,252,0.35), 0 0 40px rgba(196,181,253,0.25)',
-                      minWidth: '280px',
-                    }}>
-                      {/* Sparkle row */}
-                      <div className="flex justify-center gap-3 mb-2">
-                        {['✦','✦','✦','✦','✦'].map((s,i) => (
-                          <span key={i} className="text-[11px]" style={{ color: ['#a5f3fc','#c4b5fd','#f9a8d4','#c4b5fd','#a5f3fc'][i], animation: `starPulse 1.8s ease-in-out infinite ${i*0.25}s`, display:'inline-block' }}>{s}</span>
-                        ))}
-                      </div>
-                      {/* Crown + emoji */}
-                      <div className="text-5xl mb-1" style={{ filter: 'drop-shadow(0 0 16px rgba(165,243,252,0.9))' }}>💠</div>
-                      {/* MAX LEVEL label */}
-                      <p className="text-[9px] font-black tracking-[0.3em] uppercase mb-1" style={{ color: 'rgba(165,243,252,0.5)' }}>Maximum Level Reached</p>
-                      {/* ABSOLUTE LEGEND */}
-                      <p className="text-2xl font-black mb-0" style={{ background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize:'200% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'absoluteShimmer 3s linear infinite' }}>
-                        ABSOLUTE LEGEND
-                      </p>
-                      <p className="text-[11px] font-black mb-3" style={{ color: 'rgba(165,243,252,0.6)' }}>The Pinnacle of Learning</p>
-                      {/* Achievement cards */}
-                      <div className="space-y-2">
-                        {[
-                          '🏆 MAX Level 15 — You are among the elite',
-                          '💎 30% Store Discount — Maximum ever',
-                          '✦ Rainbow Name — Unique in Leaderboard',
-                          '⚡ 5× Limit Multiplier — Full Power',
-                          '💠 ABSOLUTE AURA — Cosmic profile ring',
-                        ].map((b,i) => (
-                          <div key={i} className="rounded-xl px-3 py-1.5 text-[11px] font-bold text-left" style={{ background: 'rgba(165,243,252,0.08)', border: '1px solid rgba(165,243,252,0.15)', color: 'rgba(165,243,252,0.85)' }}>{b}</div>
-                        ))}
-                      </div>
-                      <p className="text-[9px] mt-3" style={{ color: 'rgba(165,243,252,0.3)' }}>Tap to dismiss</p>
+                  <div className="rounded-3xl px-8 py-6 shadow-2xl border-2 border-white/30 text-center" style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', boxShadow: '0 0 60px rgba(168,85,247,0.6)' }}>
+                    <div className="text-5xl mb-2">🎉</div>
+                    <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">Level Up!</p>
+                    <p className="text-5xl mb-1">{levelUpCelebration.emoji}</p>
+                    <p className="text-white text-2xl font-black">Level {levelUpCelebration.level}</p>
+                    <p className="text-white/70 text-sm font-bold">{levelUpCelebration.label}</p>
+                    {/* Level Benefits */}
+                    <div className="mt-3 space-y-1.5">
+                      {(() => {
+                        const lvlInfo = LEVEL_INFO.find(l => l.level === levelUpCelebration.level);
+                        if (!lvlInfo) return null;
+                        const benefits: string[] = [];
+                        if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
+                        if (lvlInfo.nameColor) benefits.push(`🎨 Colored name in Leaderboard`);
+                        const ld = getLevelDailyLimits(lvlInfo.level);
+                        benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
+                        const bonus = getLevelLimitBonus(lvlInfo.level);
+                        if (bonus.bonusLoginCredits > 0) benefits.push(`🎁 +${bonus.bonusLoginCredits} bonus login credits`);
+                        return benefits.map((b, i) => (
+                          <div key={i} className="bg-white/15 rounded-xl px-3 py-1.5 text-white text-[11px] font-bold">{b}</div>
+                        ));
+                      })()}
                     </div>
-                  ) : (
-                    /* ── Normal Level Up Card ── */
-                    <div className="rounded-3xl px-8 py-6 shadow-2xl border-2 border-white/30 text-center" style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', boxShadow: '0 0 60px rgba(168,85,247,0.6)' }}>
-                      <div className="text-5xl mb-2">🎉</div>
-                      <p className="text-white/80 text-sm font-bold uppercase tracking-widest mb-1">Level Up!</p>
-                      <p className="text-5xl mb-1">{levelUpCelebration.emoji}</p>
-                      <p className="text-white text-2xl font-black">Level {levelUpCelebration.level}</p>
-                      <p className="text-white/70 text-sm font-bold">{levelUpCelebration.label}</p>
-                      {/* Level Benefits */}
-                      <div className="mt-3 space-y-1.5">
-                        {(() => {
-                          const lvlInfo = LEVEL_INFO.find(l => l.level === levelUpCelebration.level);
-                          if (!lvlInfo) return null;
-                          const benefits: string[] = [];
-                          if (lvlInfo.discount > 0) benefits.push(`🏷️ ${lvlInfo.discount}% Discount on purchases`);
-                          if (lvlInfo.nameColor || lvlInfo.legendaryAura) benefits.push(lvlInfo.legendaryAura ? `✦ ABSOLUTE Rainbow Name — Leaderboard mein unique!` : `🎨 Colored name in Leaderboard`);
-                          const ld = getLevelDailyLimits(lvlInfo.level);
-                          benefits.push(`📈 MCQ limit: ${ld.mcq.free} free · ${ld.mcq.basic} basic · ${ld.mcq.ultra} ultra/day`);
-                          const bonus = getLevelLimitBonus(lvlInfo.level);
-                          if (bonus.bonusLoginCredits > 0) benefits.push(`🎁 +${bonus.bonusLoginCredits} bonus login credits`);
-                          return benefits.map((b, i) => (
-                            <div key={i} className="bg-white/15 rounded-xl px-3 py-1.5 text-white text-[11px] font-bold">{b}</div>
-                          ));
-                        })()}
-                      </div>
-                      <p className="text-white/50 text-[10px] mt-3">Tap to dismiss</p>
-                    </div>
-                  )}
+                    <p className="text-white/50 text-[10px] mt-3">Tap to dismiss</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -14143,119 +13743,6 @@ export const StudentDashboard: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ── NAME EFFECT PICKER MODAL ── */}
-      {showProfileEffects && (() => {
-        const _eLvl = _userLevel;
-        const _eCol = _userLevelInfo.color;
-        const _eGlow = _userLevelInfo.glowColor;
-        const _isDk = document.documentElement.classList.contains('dark-mode') || document.documentElement.classList.contains('dark-mode-blue');
-        const _eBg = _isDk ? '#0f1117' : '#1a1f2e';
-        const _eCard = _isDk ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)';
-        const _previewStyle = (() => {
-          const ef = NAME_EFFECTS_LIST.find(e => e.id === nameEffectId);
-          if (!ef || nameEffectId === 'auto') return { color: '#ffffff' };
-          return getNameEffectStyle(nameEffectId, _eCol, _eGlow, false);
-        })();
-        return (
-          <div
-            className="fixed inset-0 flex items-end z-[110]"
-            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
-            onClick={() => setShowProfileEffects(false)}
-          >
-            <div
-              className="w-full rounded-t-3xl flex flex-col"
-              style={{ background: _eBg, maxHeight: '88vh' }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }} />
-              </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <h3 className="text-base font-black text-white">🎨 Name Style Choose Karo</h3>
-                  <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    Level {_eLvl} pe unlock hue effects dikha rahe hain
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowProfileEffects(false)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.10)' }}>
-                  <X size={15} className="text-white/60" />
-                </button>
-              </div>
-
-              {/* Live Preview */}
-              <div className="mx-5 mb-4 p-4 rounded-2xl text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Live Preview</p>
-                <h2 className="font-black text-[22px] leading-none tracking-tight" style={_previewStyle}>
-                  {(user.name || 'Student').toUpperCase()}
-                </h2>
-              </div>
-
-              {/* Effects Grid */}
-              <div className="overflow-y-auto px-5 pb-8" style={{ flex: 1 }}>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {NAME_EFFECTS_LIST.map(effect => {
-                    const isUnlocked = _eLvl >= effect.minLevel;
-                    const isSelected = nameEffectId === effect.id;
-                    const previewSt = isUnlocked
-                      ? getNameEffectStyle(effect.id === 'auto' ? 'plain' : effect.id, _eCol, _eGlow, false)
-                      : { color: 'rgba(255,255,255,0.2)' };
-                    return (
-                      <button
-                        key={effect.id}
-                        onClick={() => {
-                          if (!isUnlocked) return;
-                          setNameEffectId(effect.id);
-                          try { localStorage.setItem('nst_name_effect', effect.id); } catch {}
-                        }}
-                        disabled={!isUnlocked}
-                        className="p-3 rounded-2xl text-left transition-all active:scale-95"
-                        style={{
-                          background: isSelected ? `${_eCol}20` : _eCard,
-                          border: isSelected ? `1.5px solid ${_eCol}88` : '1px solid rgba(255,255,255,0.08)',
-                          opacity: isUnlocked ? 1 : 0.5,
-                          boxShadow: isSelected ? `0 0 16px ${_eGlow}30` : 'none',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {/* Top row: emoji + badges */}
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-lg leading-none">{effect.emoji}</span>
-                          <div className="flex items-center gap-1">
-                            {isSelected && (
-                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full"
-                                style={{ background: _eCol, color: '#000' }}>ON</span>
-                            )}
-                            {!isUnlocked && (
-                              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
-                                style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.45)' }}>
-                                🔒 L{effect.minLevel}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {/* Effect name */}
-                        <p className="text-[11px] font-black text-white leading-none mb-0.5">{effect.name}</p>
-                        <p className="text-[9px] mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{effect.desc}</p>
-                        {/* Name preview in this effect */}
-                        <p className="text-[11px] font-black truncate" style={previewSt}>
-                          {(user.name || 'STUDENT').toUpperCase()}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* NAME CHANGE MODAL */}
       {showNameChangeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
@@ -14335,12 +13822,7 @@ export const StudentDashboard: React.FC<Props> = ({
               or Teacher Store) never blanks the whole dashboard — the user can
               tap "Go to Home" and recover instead of seeing a white screen. */}
           <ErrorBoundary key={activeTab + '-eb'}>
-            <div
-              key={tabTransitionKey}
-              className={tabTransitionDir === 'right' ? 'tab-page-enter' : tabTransitionDir === 'left' ? 'tab-page-enter-left' : 'tab-page-fade'}
-            >
-              {renderMainContent()}
-            </div>
+            {renderMainContent()}
           </ErrorBoundary>
         </div>
       </div>
@@ -14575,7 +14057,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
-        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${showLibrary || activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
+        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
         style={{
           background: tierTheme.navBg,
           borderTop: `1px solid ${(tierTheme as any).navBorderColor || tierTheme.primary + '22'}`,
@@ -15113,7 +14595,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
         return (
           <>
-            <div className="fixed inset-0 z-[9998] bg-black/10 backdrop-blur-[3px] animate-in fade-in duration-200" onClick={() => setShowSidebar(false)} />
+            <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
             <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
               {/* User Profile */}
@@ -16031,17 +15513,7 @@ export const StudentDashboard: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ── LIBRARY OVERLAY ── */}
-      {showLibrary && (
-        <div className="fixed inset-0 z-[250] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom-full duration-300">
-          <LibraryView
-            user={user}
-            settings={settings}
-            onBack={() => setShowLibrary(false)}
-          />
-        </div>
-      )}
-
+      {/* EXTERNAL APP OVERLAY */}
       {activeExternalApp && (
         <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom-full duration-300">
           <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-slate-200 shadow-sm shrink-0">
@@ -16744,7 +16216,6 @@ export const StudentDashboard: React.FC<Props> = ({
                     onBack={closeLucentViewer}
                     triggerControlsRef={lucentControlsRef}
                     onMoreOptions={() => setContentPickerPopup({ type: 'LUCENT', entry, pageIdx: safeIndex })}
-                    hideInlineSearch={true}
                     onSaveOffline={() => handleLucentSaveOffline(false)}
                     isSavedOffline={lucentSaved}
                     isUltraUser={_isUltraUser}
@@ -16847,7 +16318,6 @@ export const StudentDashboard: React.FC<Props> = ({
                       subscriptionLevel: user.subscriptionLevel || 'FREE',
                       isPremium: !!(user.isPremium || (user.subscriptionLevel && user.subscriptionLevel !== 'FREE')),
                       boostPercent: getActiveBoost(user),
-                      scoreLimitBoostPercent: (user as any).scoreLimitBoostPercent,
                       onScoreEarned: (pts: number, activity: string) => {
                         if (pts <= 0) return;
                         const cur = userRef.current;
@@ -20185,12 +19655,12 @@ RULES:
                     },
                     {
                       emoji: '🎨',
-                      title: (_fl.nameColor || _fl.legendaryAura) ? (_fl.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠' : 'Colored Username 🔥') : 'Username Color: Normal',
-                      desc: (_fl.nameColor || _fl.legendaryAura)
-                        ? (_fl.legendaryAura ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega' : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega')
+                      title: _fl.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
+                      desc: _fl.nameColor
+                        ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
                         : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
-                      color: _fl.legendaryAura ? '#a5f3fc' : (_fl.nameColor ?? '#475569'),
-                      active: !!(_fl.nameColor || _fl.legendaryAura),
+                      color: _fl.nameColor ?? '#475569',
+                      active: !!_fl.nameColor,
                     },
                     {
                       emoji: '🏆',
@@ -20506,184 +19976,43 @@ RULES:
                   </div>
                 </div>
 
-                {/* Level Roadmap — organized vertical list */}
-                {(() => {
-                  // Helper: compute short unlock chips for each level
-                  const getLevelUnlocks = (lv: typeof LEVEL_INFO[0]): { icon: string; text: string; color: string }[] => {
-                    const prev = lv.level > 1 ? LEVEL_INFO[lv.level - 2] : null;
-                    const chips: { icon: string; text: string; color: string }[] = [];
-
-                    // L1 base
-                    if (lv.level === 1) {
-                      chips.push({ icon: '🏆', text: 'Leaderboard Entry', color: '#eab308' });
-                      chips.push({ icon: '📊', text: 'Score Tracking', color: '#10b981' });
-                      chips.push({ icon: '🎉', text: 'Discount + Credit Events', color: '#f59e0b' });
-                    }
-                    // Discount change
-                    const prevDisc = prev?.discount ?? 0;
-                    if (lv.discount !== prevDisc && lv.discount > 0) {
-                      chips.push({ icon: '🏷️', text: `${lv.discount}% Store Discount ${lv.discount > prevDisc ? `(+${lv.discount - prevDisc}%)` : ''}`, color: '#10b981' });
-                    }
-                    // Animation change
-                    const prevAnim = prev?.animationIntensity ?? 0;
-                    if (lv.animationIntensity !== prevAnim && lv.animationIntensity > 0) {
-                      const animLabels = ['', 'Subtle shimmer ✨', 'Glow effect 🌟', 'Strong glow + sparks 💫', 'Legendary 🌈'];
-                      chips.push({ icon: '✨', text: `Top Bar: ${animLabels[lv.animationIntensity]}`, color: '#818cf8' });
-                    }
-                    // Colored name unlock
-                    const prevHasColor = !!(prev?.nameColor || prev?.legendaryAura);
-                    if ((lv.nameColor || lv.legendaryAura) && !prevHasColor) {
-                      chips.push({ icon: '🎨', text: lv.legendaryAura ? 'Rainbow Username 💠' : 'Colored Username 🔥', color: lv.nameColor ?? '#a5f3fc' });
-                    }
-                    // Elite badge
-                    if (lv.level === 5) chips.push({ icon: '💎', text: 'Elite Status Badge', color: lv.color });
-                    // Events
-                    if (lv.level === 3) chips.push({ icon: '📈', text: 'Limit Boost Event', color: '#10b981' });
-                    if (lv.level === 5) chips.push({ icon: '🚀', text: 'Score Boost Event', color: '#f97316' });
-                    if (lv.level === 7) chips.push({ icon: '🎨', text: 'Theme Studio Event', color: '#8b5cf6' });
-                    // Milestone rewards
-                    const milestoneMap: Record<number, { icon: string; cr: number; boost: number; color: string }> = {
-                      8:  { icon: '💎', cr: 500,   boost: 10, color: '#f59e0b' },
-                      10: { icon: '👑', cr: 1000,  boost: 15, color: '#fb923c' },
-                      12: { icon: '🔮', cr: 2000,  boost: 20, color: '#8b5cf6' },
-                      13: { icon: '⚜️', cr: 3000,  boost: 25, color: '#ec4899' },
-                      14: { icon: '🌠', cr: 5000,  boost: 30, color: '#f43f5e' },
-                      15: { icon: '💠', cr: 10000, boost: 50, color: '#a5f3fc' },
-                    };
-                    if (milestoneMap[lv.level]) {
-                      const m = milestoneMap[lv.level];
-                      chips.push({ icon: m.icon, text: `🏆 +${m.cr.toLocaleString('en-IN')} CR + ${m.boost}% Limit Boost`, color: m.color });
-                    }
-                    if (lv.level === 8) chips.push({ icon: '🪙', text: 'Credit Free Event', color: '#06b6d4' });
-                    if (lv.level === 10) chips.push({ icon: '🌍', text: 'Global Free Access Event', color: '#10b981' });
-                    // L6 perks
-                    if (lv.level === 6) {
-                      chips.push({ icon: '💰', text: 'Sunday Streak Recovery Bonus', color: '#f59e0b' });
-                      chips.push({ icon: '✍️', text: 'Extended Write Mode', color: '#8b5cf6' });
-                    }
-                    // Reading time bonus
-                    if (lv.level === 9) chips.push({ icon: '⏱️', text: 'Reading Time Bonus + Notes Unlimited', color: '#f59e0b' });
-                    else if (lv.level > 9) chips.push({ icon: '⏱️', text: `Max Reading: ${getMaxReadingSeconds(lv.level)}s`, color: '#f59e0b' });
-
-                    return chips;
-                  };
-
-                  const futureLevels = LEVEL_INFO.filter(l => l.level > lvl.level);
-                  const unlockedLevels = LEVEL_INFO.filter(l => l.level <= lvl.level);
-
-                  return (
-                    <div className="rounded-2xl overflow-hidden border border-white/10">
-                      <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                        <p className="text-[10px] font-black text-white uppercase tracking-widest">🗺️ Level Roadmap</p>
-                        <p className="text-[9px] text-slate-500">Tap karo detail dekhne ke liye</p>
-                      </div>
-
-                      {/* Current level highlight */}
-                      <button onClick={() => setSelectedLevelDetail(lvl)} className="w-full px-4 py-3 flex items-center gap-3 active:bg-white/5 transition-colors border-b border-white/8"
-                        style={{ background: `linear-gradient(90deg, ${lvl.color}18, transparent)` }}>
-                        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shrink-0 relative"
-                          style={{ background: `${lvl.color}28`, border: `2px solid ${lvl.color}`, boxShadow: `0 0 16px ${lvl.glowColor}` }}>
-                          {lvl.emoji}
-                          <div className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full text-[7px] font-black text-white" style={{ background: lvl.color }}>YOU</div>
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="text-[11px] font-black" style={{ color: lvl.color }}>Level {lvl.level} · {lvl.label}</span>
-                            <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-emerald-500/20 text-emerald-400">Current</span>
+                {/* Level Roadmap — horizontal scroll chips */}
+                <div className="rounded-2xl overflow-hidden border border-white/10">
+                  <div className="px-4 py-2.5 border-b border-white/6" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">🏅 Level Roadmap</p>
+                  </div>
+                  <div className="flex overflow-x-auto scrollbar-none gap-2.5 p-4">
+                    {LEVEL_INFO.map(l => {
+                      const isCurrentLevel = lvl.level === l.level;
+                      const isUnlocked = totalScore >= l.minScore;
+                      return (
+                        <button key={l.level} onClick={() => setSelectedLevelDetail(l)}
+                          className="flex-shrink-0 flex flex-col items-center gap-1.5 w-[60px] active:scale-95 transition-transform"
+                          style={{ opacity: isUnlocked ? 1 : 0.5 }}>
+                          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl relative"
+                            style={{
+                              background: isCurrentLevel ? `${l.color}30` : isUnlocked ? `${l.color}14` : 'rgba(255,255,255,0.04)',
+                              border: isCurrentLevel ? `2px solid ${l.color}` : `1px solid ${l.color}28`,
+                              boxShadow: isCurrentLevel ? `0 0 14px ${l.glowColor}` : 'none',
+                            }}>
+                            {l.emoji}
+                            {isCurrentLevel && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: l.color }}>
+                                <span style={{ fontSize: '6px', color: 'white', fontWeight: 900 }}>YOU</span>
+                              </div>
+                            )}
                           </div>
-                          <p className="text-[9px] text-slate-500">{totalScore.toLocaleString('en-IN')} pts</p>
-                        </div>
-                        <span className="text-slate-600 text-xs">›</span>
-                      </button>
-
-                      {/* Future levels — clearly organized */}
-                      {futureLevels.length > 0 && (
-                        <div>
-                          <div className="px-4 py-2 border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">🔒 Future Levels — Aage kya milega</p>
-                          </div>
-                          {futureLevels.map((l, idx) => {
-                            const chips = getLevelUnlocks(l);
-                            const ptsNeeded = Math.max(0, l.minScore - totalScore);
-                            const progressPct = Math.min(99, Math.round((totalScore / l.minScore) * 100));
-                            return (
-                              <button key={l.level} onClick={() => setSelectedLevelDetail(l)}
-                                className="w-full px-4 py-3 flex items-start gap-3 active:bg-white/5 transition-colors text-left"
-                                style={{ borderBottom: idx < futureLevels.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                                {/* Left: level icon + connector line */}
-                                <div className="flex flex-col items-center shrink-0">
-                                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                                    style={{ background: `${l.color}12`, border: `1.5px solid ${l.color}35` }}>
-                                    {l.emoji}
-                                  </div>
-                                  {idx < futureLevels.length - 1 && (
-                                    <div className="w-px h-3 mt-1" style={{ background: `${l.color}25` }} />
-                                  )}
-                                </div>
-                                {/* Content */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] font-black" style={{ color: l.color }}>Level {l.level}</span>
-                                      <span className="text-[10px] font-bold text-slate-400">· {l.label}</span>
-                                    </div>
-                                    <span className="text-[9px] text-slate-600 shrink-0">›</span>
-                                  </div>
-                                  {/* Score needed */}
-                                  <div className="mb-2">
-                                    <div className="flex items-center justify-between mb-0.5">
-                                      <p className="text-[9px] text-slate-600">{ptsNeeded.toLocaleString('en-IN')} pts aur chahiye</p>
-                                      <p className="text-[9px] font-bold" style={{ color: l.color }}>{progressPct}%</p>
-                                    </div>
-                                    <div className="h-1 rounded-full overflow-hidden bg-white/8">
-                                      <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: `linear-gradient(90deg, ${l.color}70, ${l.color})` }} />
-                                    </div>
-                                  </div>
-                                  {/* Unlock chips */}
-                                  {chips.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1">
-                                      {chips.map((chip, ci) => (
-                                        <span key={ci} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                                          style={{ background: `${chip.color}18`, color: chip.color, border: `1px solid ${chip.color}35` }}>
-                                          {chip.icon} {chip.text}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="text-[9px] text-slate-600 italic">Daily limits + score accumulation</p>
-                                  )}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Already unlocked levels (collapsed, just chips) */}
-                      {unlockedLevels.filter(l => l.level < lvl.level).length > 0 && (
-                        <div>
-                          <div className="px-4 py-2 border-t border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">✅ Unlock ho chuke levels</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2 p-3">
-                            {unlockedLevels.filter(l => l.level < lvl.level).map(l => (
-                              <button key={l.level} onClick={() => setSelectedLevelDetail(l)}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform"
-                                style={{ background: `${l.color}14`, border: `1px solid ${l.color}30` }}>
-                                <span className="text-sm">{l.emoji}</span>
-                                <span className="text-[9px] font-black" style={{ color: l.color }}>L{l.level} {l.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="px-4 pb-2.5 pt-1">
-                        <p className="text-[8px] text-slate-700 text-center">Kisi bhi level pe tap karo — full detail dekhne ke liye</p>
-                      </div>
-                    </div>
-                  );
-                })()}
+                          <p className="text-[8px] font-black leading-none text-center" style={{ color: isCurrentLevel ? l.color : isUnlocked ? '#cbd5e1' : '#475569' }}>L{l.level}</p>
+                          <p className="text-[7px] text-center leading-tight" style={{ color: l.discount > 0 ? '#10b981' : '#475569' }}>{l.discount > 0 ? `${l.discount}%` : '—'}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="px-4 pb-3 flex items-center justify-between">
+                    <p className="text-[8px] text-slate-600">← Swipe · Kisi bhi level pe tap karo</p>
+                    <p className="text-[8px] text-emerald-600 font-bold">Green % = store discount</p>
+                  </div>
+                </div>
 
                 <div className="h-4" />
                 </React.Fragment>}
@@ -20712,200 +20041,145 @@ RULES:
         const animActive = l.animationIntensity > 0;
         // Progress toward this level
         const progressPct = isUnlocked ? 100 : Math.round((totalScore / Math.max(1, l.minScore)) * 100);
-        // Benefits — only show what is NEW or CHANGED at THIS level vs previous level
-        const prevLd  = l.level > 1 ? getLevelDailyLimits(l.level - 1) : null;
-        const currLd  = getLevelDailyLimits(l.level);
-        const prevLvlInfo = l.level > 1 ? LEVEL_INFO[l.level - 2] : null; // 0-indexed
-
-        type Benefit = { emoji: string; title: string; desc: string; color?: string; active: boolean };
-        const benefits: Benefit[] = [];
-
-        // ── L1 base unlocks (shown only on level 1) ──
-        if (l.level === 1) {
-          benefits.push(
-            { emoji: '🏆', title: 'Level Leaderboard Entry', desc: 'Sabhi users ke saath global level leaderboard mein rank dikhegi', color: '#eab308', active: true },
-            { emoji: '📊', title: 'Activity Score Tracking', desc: 'MCQ, video, PDF, audio se daily score earn karo — level up karo. Notes/PDF/Video/Audio: har 30 sec pe +5 pts milenge, max 5 min tak.', color: '#10b981', active: true },
-            { emoji: '🎁', title: 'Level-Up Celebration', desc: 'Level change hone pe special popup aur benefits card dikhega', color: '#f59e0b', active: true },
-            { emoji: '🏷️', title: '🎉 Discount Event — Unlocked!', desc: 'Ab discount sale events ka full fayda uthao — store pe special % off milega', color: '#f59e0b', active: true },
-            { emoji: '🎁', title: '🎉 Credit Bonus Event — Unlocked!', desc: 'MCQ prizes aur gifts pe extra % bonus credits — yahan se shuru', color: '#22c55e', active: true },
-          );
-        }
-
-        // ── Discount — show only when it changes ──
-        const prevDiscount = prevLvlInfo?.discount ?? 0;
-        if (l.discount !== prevDiscount) {
-          if (l.discount > 0) {
-            benefits.push({
-              emoji: '🏷️',
-              title: `Store Discount: ${l.discount}% ${l.discount > prevDiscount ? `(+${l.discount - prevDiscount}% badha!)` : ''}`,
-              desc: `Sabhi store purchases pe automatic ${l.discount}% off — coins, subscriptions sab`,
-              color: l.color,
-              active: true,
-            });
-          }
-        }
-
-        // ── Top Bar Animation — show only when intensity changes ──
-        const prevAnim = prevLvlInfo?.animationIntensity ?? 0;
-        if (l.animationIntensity !== prevAnim) {
-          benefits.push({
+        // Benefits list
+        const benefits = [
+          {
+            emoji: '🏷️',
+            title: l.discount > 0 ? `${l.discount}% Store Discount` : 'Store Discount: Nahi',
+            desc: l.discount > 0
+              ? `Sabhi store purchases pe automatic ${l.discount}% off — coins, subscriptions sab`
+              : 'Koi discount nahi milega — Level 2 se shuru hoga (3%)',
+            color: l.discount > 0 ? l.color : undefined,
+            active: l.discount > 0,
+          },
+          {
             emoji: '✨',
-            title: l.animationIntensity > 0 ? `Top Bar Animation Unlock: ${animLabels[l.animationIntensity]}` : 'Top Bar Animation Removed',
-            desc: l.animationIntensity > 0
-              ? `Aapke top bar pe dynamic animation effect dikhega — subscription se independent`
-              : 'Koi top bar animation nahi',
-            color: '#818cf8',
-            active: l.animationIntensity > 0,
-          });
-        }
-
-        // ── Colored Username — show only at levels where it first appears/changes ──
-        const prevHasColor = !!(prevLvlInfo?.nameColor || prevLvlInfo?.legendaryAura);
-        const currHasColor = !!(l.nameColor || l.legendaryAura);
-        if (currHasColor && !prevHasColor) {
-          benefits.push({
+            title: animActive ? `Top Bar Animation: ${animLabels[l.animationIntensity]}` : 'Top Bar Animation: Nahi',
+            desc: animActive
+              ? 'Aapke top bar pe dynamic animation effect dikhega — subscription se independent'
+              : 'Koi top bar animation nahi — Level 2 se unlock hoga',
+            color: animActive ? '#818cf8' : undefined,
+            active: animActive,
+          },
+          {
             emoji: '🎨',
-            title: l.legendaryAura ? '✦ ABSOLUTE Rainbow Name 💠 — Unlocked!' : 'Colored Username 🔥 — Unlocked!',
-            desc: l.legendaryAura
-              ? 'L15 exclusive — naam leaderboard mein rainbow shimmer ke saath dikhega'
-              : 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega',
-            color: l.legendaryAura ? '#a5f3fc' : l.nameColor,
+            title: l.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
+            desc: l.nameColor
+              ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
+              : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
+            color: l.nameColor,
+            active: !!l.nameColor,
+          },
+          {
+            emoji: '🏆',
+            title: 'Level Leaderboard Entry',
+            desc: 'Sabhi users ke saath global level leaderboard mein rank dikhegi',
+            color: '#eab308',
             active: true,
-          });
-        }
-
-        // ── Elite Badge — only at L5 ──
-        if (l.level === 5) {
-          benefits.push({ emoji: '💎', title: 'Elite Status Badge — Unlocked!', desc: 'Leaderboard mein special Elite badge ke saath dikho ge', color: l.color, active: true });
-        }
-
-        // ── Sunday Streak Bonus — show at L6 (unlock) and when it increases ──
-        if (l.level >= 6) {
-          const curr = getLevelLimitBonus(l.level).bonusLoginCredits;
-          const prev = l.level > 6 ? getLevelLimitBonus(l.level - 1).bonusLoginCredits : 0;
-          if (curr !== prev) {
-            benefits.push({
-              emoji: '💰',
-              title: l.level === 6
-                ? `Sunday Streak Recovery Bonus — Unlocked! +${curr} CR`
-                : `Sunday Streak Bonus Badha: +${curr} CR (+${curr - prev})`,
-              desc: `Sunday ke pehle login pe streak tootne par ${curr} extra credits milenge — L6+ exclusive perk!`,
-              color: '#f59e0b',
-              active: true,
-            });
-          }
-        }
-
-        // ── Credit Write Mode — show at L6 (unlock) and when it increases ──
-        if (l.level >= 6) {
-          const curr = getLevelLimitBonus(l.level).creditWriteMax;
-          const prev = l.level > 6 ? getLevelLimitBonus(l.level - 1).creditWriteMax : 100;
-          if (curr !== prev) {
-            benefits.push({
-              emoji: '✍️',
-              title: l.level === 6
-                ? `Extended Write Mode — Unlocked! ${curr}/day`
-                : `Write Mode Limit Badhi: ${curr}/day (+${curr - prev})`,
-              desc: `Credit se unlock kiye ja sakne wale Write Mode sessions aaj ke liye ${curr} tak badh jaate hain`,
-              color: '#8b5cf6',
-              active: true,
-            });
-          }
-        }
-
-        // ── Reading Time Bonus — at L9 (unlock) and each level after ──
-        if (l.level >= 9) {
-          const secs = getMaxReadingSeconds(l.level);
-          benefits.push({
+          },
+          {
+            emoji: '📊',
+            title: 'Activity Score Tracking',
+            desc: 'MCQ, video, PDF, audio se daily score earn karo — level up karo. Notes/PDF/Video/Audio: har 30 sec pe +5 pts milenge, max 5 min tak.',
+            color: '#10b981',
+            active: true,
+          },
+          {
             emoji: '⏱️',
-            title: l.level === 9
-              ? `Reading Time Bonus — Unlocked! Max ${secs}s`
-              : `Reading Time +30s Bonus: Max ${secs}s (${Math.floor(secs/60)}m ${secs%60}s)`,
-            desc: `Notes/PDF/Video/Audio padhne ka max scoring time ${secs} seconds — base 300s + ${(l.level-8)*30}s bonus`,
+            title: l.level >= 9 ? `Reading Time Bonus: Max ${getMaxReadingSeconds(l.level)}s (${Math.floor(getMaxReadingSeconds(l.level)/60)}m ${getMaxReadingSeconds(l.level)%60}s) 🔥` : 'Reading Time Bonus: Level 9 se unlock hoga',
+            desc: l.level >= 9
+              ? `Level ${l.level} bonus: Notes/PDF/Video/Audio padhne ka max time ${getMaxReadingSeconds(l.level)} seconds (base 300s + ${(l.level-8)*30}s bonus). Har level pe +30 sec milte hain.`
+              : 'Level 8 (GrandMaster) ke baad har level pe max reading/watching time +30 sec badhta hai — zyada time mein zyada score earn kar sakte ho.',
+            color: l.level >= 9 ? '#f59e0b' : undefined,
+            active: l.level >= 9,
+          },
+          {
+            emoji: '🎁',
+            title: 'Level-Up Celebration',
+            desc: 'Level change hone pe special popup aur benefits card dikhega',
             color: '#f59e0b',
             active: true,
-          });
-        }
-
-        // ── Milestone Rewards (L8, L10, L12, L13, L14, L15) ──
-        if (l.level === 8) {
-          benefits.push({ emoji: '💎', title: '🏆 Milestone Reward: +500 Credits + 10% Daily Limit Boost!', desc: 'GrandMaster milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#f59e0b', active: true });
-          benefits.push({ emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Level 8 pe Credit Free events ka fayda — bina coins ke content unlock karo', color: '#06b6d4', active: true });
-        }
-        if (l.level === 10) {
-          benefits.push({ emoji: '👑', title: '🏆 Milestone Reward: +1,000 Credits + 15% Daily Limit Boost!', desc: 'Mythic milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#fb923c', active: true });
-          benefits.push({ emoji: '🌍', title: '🎉 Global Free Access Event — Unlocked!', desc: 'Level 10 pe Global Free Access events mein sab kuch bilkul free!', color: '#10b981', active: true });
-        }
-        if (l.level === 12) {
-          benefits.push({ emoji: '🔮', title: '🏆 Milestone Reward: +2,000 Credits + 20% Daily Limit Boost!', desc: 'Legend milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#8b5cf6', active: true });
-        }
-        if (l.level === 13) {
-          benefits.push({ emoji: '⚜️', title: '🏆 Milestone Reward: +3,000 Credits + 25% Daily Limit Boost!', desc: 'Immortal milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#ec4899', active: true });
-        }
-        if (l.level === 14) {
-          benefits.push({ emoji: '🌠', title: '🏆 Milestone Reward: +5,000 Credits + 30% Daily Limit Boost!', desc: 'Divine milestone pe ek baar ka special reward — credits aur daily score limit boost permanently milti hai', color: '#f43f5e', active: true });
-        }
-        if (l.level === 15) {
-          benefits.push({ emoji: '💠', title: '🏆 ABSOLUTE Milestone Reward: +10,000 Credits + 50% Daily Limit Boost!', desc: 'Absolute — sabse bada milestone! Ek baar ka legendary reward — maximum credits aur daily score limit boost permanently milti hai 🌈', color: '#a5f3fc', active: true });
-        }
-
-        // ── Event unlocks (level-specific, not 8/10 already added above) ──
-        if (l.level === 3) benefits.push({ emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: 'Level 3 mil gaya! Ab Limit Boost events mein daily score limit extra badhegi', color: '#10b981', active: true });
-        if (l.level === 5) benefits.push({ emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Level 5 pe Score Boost events fully active — boosted scores + Theme Studio perk', color: '#f97316', active: true });
-        if (l.level === 7) benefits.push({ emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Level 7 pe Theme Studio events access milega — app ka look customize karo', color: '#8b5cf6', active: true });
-
-        // ── Daily Limits: only show rows that CHANGED vs previous level ──
-        if (prevLd) {
-          type LimitRow = { icon: string; label: string; change: string; color: string };
-          const changedRows: LimitRow[] = [];
-          const fmtV = (v: number) => v >= UNLIMITED ? '∞' : String(v);
-          const chk = (icon: string, label: string, pF: number, cF: number, pB: number, cB: number, pU: number, cU: number) => {
-            if (cF !== pF || cB !== pB || cU !== pU) {
-              const parts: string[] = [];
-              if (cF !== pF) parts.push(`🆓 ${fmtV(pF)}→${fmtV(cF)}`);
-              if (cB !== pB) parts.push(`🔵 ${fmtV(pB)}→${fmtV(cB)}`);
-              if (cU !== pU) parts.push(`⚡ ${fmtV(pU)}→${fmtV(cU)}`);
-              changedRows.push({ icon, label, change: parts.join('  '), color: '#06b6d4' });
-            }
-          };
-          chk('❓', 'MCQ Practice',    prevLd.mcq.free, currLd.mcq.free, prevLd.mcq.basic, currLd.mcq.basic, prevLd.mcq.ultra, currLd.mcq.ultra);
-          chk('📥', 'Downloads',       prevLd.dl.free, currLd.dl.free, prevLd.dl.basic, currLd.dl.basic, prevLd.dl.ultra, currLd.dl.ultra);
-          chk('🎬', 'Video Lectures',  prevLd.video.free, currLd.video.free, prevLd.video.basic, currLd.video.basic, prevLd.video.ultra, currLd.video.ultra);
-          chk('📄', 'PDF / Notes',     prevLd.pdf.free, currLd.pdf.free, prevLd.pdf.basic, currLd.pdf.basic, prevLd.pdf.ultra, currLd.pdf.ultra);
-          chk('📖', 'Notes Reading',   prevLd.notes.free, currLd.notes.free, prevLd.notes.basic, currLd.notes.basic, prevLd.notes.ultra, currLd.notes.ultra);
-          chk('🔊', 'Audio / TTS',     prevLd.tts.free, currLd.tts.free, prevLd.tts.basic, currLd.tts.basic, prevLd.tts.ultra, currLd.tts.ultra);
-          chk('🃏', 'Flashcards',      prevLd.flashcard.free, currLd.flashcard.free, prevLd.flashcard.basic, currLd.flashcard.basic, prevLd.flashcard.ultra, currLd.flashcard.ultra);
-          chk('✍️', 'Write Mode',      prevLd.write.free, currLd.write.free, prevLd.write.basic, currLd.write.basic, prevLd.write.ultra, currLd.write.ultra);
-          if (changedRows.length > 0) {
-            changedRows.forEach(r => benefits.push({
-              emoji: r.icon,
-              title: `${r.label} Limit Badhi!`,
-              desc: r.change,
-              color: r.color,
+          },
+          // ── Level-based Daily Limits (Free / Basic / Ultra) ──
+          (() => {
+            const ld = getLevelDailyLimits(l.level);
+            const l1 = getLevelDailyLimits(1);
+            const hasBonus = ld.mcq.free > l1.mcq.free;
+            return {
+              emoji: '📈',
+              title: `Daily Limits — 🆓${ld.mcq.free} · 🔵${ld.mcq.basic} · ⚡${ld.mcq.ultra} MCQ/day`,
+              desc: hasBonus
+                ? `Is level pe aapki daily MCQ limit: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Downloads: Free=${ld.dl.free}, Basic=${ld.dl.basic}, Ultra=${ld.dl.ultra}/day. Video/PDF (Basic=${ld.video.basic}, Ultra=${ld.video.ultra} free/day).`
+                : `Is level pe aapki daily MCQ limit: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Higher levels mein ye limits badhti jaayengi.`,
+              color: hasBonus ? '#06b6d4' : undefined,
               active: true,
-            }));
-          }
-        } else {
-          // L1 — show base limits
-          benefits.push({
-            emoji: '📈',
-            title: `Base Daily Limits — 🆓${currLd.mcq.free} · 🔵${currLd.mcq.basic} · ⚡${currLd.mcq.ultra} MCQ/day`,
-            desc: `Starting limits: MCQ Free=${currLd.mcq.free}, Basic=${currLd.mcq.basic}, Ultra=${currLd.mcq.ultra}. Downloads Free=${currLd.dl.free}/Basic=${currLd.dl.basic}/Ultra=${currLd.dl.ultra}/day.`,
-            color: '#06b6d4',
+            };
+          })(),
+          // ── L6+ new perks ──
+          ...(l.level >= 6 ? [{
+            emoji: '💰',
+            title: `Sunday Streak Recovery Bonus: +${getLevelLimitBonus(l.level).bonusLoginCredits} CR`,
+            desc: `Sunday ke pehle login pe streak tootne par ${getLevelLimitBonus(l.level).bonusLoginCredits} extra credits milenge — L6+ exclusive perk!`,
+            color: '#f59e0b',
             active: true,
-          });
-        }
-
-        // If nothing new at this level, show a placeholder
-        if (benefits.length === 0) {
-          benefits.push({
-            emoji: '📊',
-            title: 'Daily Limits continue to scale',
-            desc: `Is level pe koi nayi cheez unlock nahi hoti — lekin aapke limits aur score accumulate hote rahe.`,
-            color: undefined,
+          }] : []),
+          ...(l.level >= 6 ? [{
+            emoji: '✍️',
+            title: `Extended Credit Write Mode: ${getLevelLimitBonus(l.level).creditWriteMax}/day`,
+            desc: `Credit se unlock kiye ja sakne wale Write Mode sessions aaj ke liye ${getLevelLimitBonus(l.level).creditWriteMax} tak badh jaate hain (base: 100) — L6 = 120, L7 = 130, L8 = 150.`,
+            color: '#8b5cf6',
             active: true,
-          });
-        }
+          }] : []),
+          ...(l.level >= 5 ? [{
+            emoji: '💎',
+            title: 'Elite Status Badge',
+            desc: 'Leaderboard mein special Elite/Legend badge ke saath dikh-o ge',
+            color: l.color,
+            active: true,
+          }] : []),
+          ...(l.level === 8 ? [{
+            emoji: '🌈',
+            title: 'MAX LEVEL — Legend',
+            desc: 'Aap sabse upar ho! 20% max discount + legendary animation permanently unlock',
+            color: '#10b981',
+            active: true,
+          }] : []),
+          // ── Events newly unlocking at this level ──
+          ...(l.level === 1 ? [
+            { emoji: '🏷️', title: '🎉 Discount Event — Unlocked!', desc: 'Ab discount sale events ka full fayda uthao — store pe special % off milega', color: '#f59e0b', active: true },
+            { emoji: '🎁', title: '🎉 Credit Bonus Event — Unlocked!', desc: 'MCQ prizes aur gifts pe extra % bonus credits — yahan se shuru', color: '#22c55e', active: true },
+          ] : []),
+          ...(l.level === 3 ? [
+            { emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: `Level 3 mil gaya! Ab Limit Boost events mein daily score limit extra badhegi`, color: '#10b981', active: true },
+          ] : []),
+          ...(l.level === 5 ? [
+            { emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Level 5 pe Score Boost events fully active — boosted scores + Theme Studio perk', color: '#f97316', active: true },
+          ] : []),
+          ...(l.level === 7 ? [
+            { emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Level 7 pe Theme Studio events access milega — app ka look customize karo', color: '#8b5cf6', active: true },
+          ] : []),
+          ...(l.level === 8 ? [
+            { emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Level 8 pe Credit Free events ka fayda — bina coins ke content unlock karo', color: '#06b6d4', active: true },
+          ] : []),
+          ...(l.level === 10 ? [
+            { emoji: '🌍', title: '🎉 Global Free Access Event — Unlocked!', desc: 'Level 10 pe Global Free Access events mein sab kuch bilkul free!', color: '#10b981', active: true },
+          ] : []),
+          // ── Events summary for all levels ──
+          {
+            emoji: '🎪',
+            title: 'Events Access Summary',
+            desc: [
+              l.level >= 1 ? '✓ Discount + Credit Bonus' : '🔒 Discount/Credit Bonus (L1)',
+              l.level >= 3 ? '✓ Limit Boost' : `🔒 Limit Boost (L3)`,
+              l.level >= 5 ? '✓ Score Boost' : `🔒 Score Boost (L5)`,
+              l.level >= 7 ? '✓ Theme Studio' : `🔒 Theme Studio (L7)`,
+              l.level >= 8 ? '✓ Credit Free' : `🔒 Credit Free (L8)`,
+              l.level >= 10 ? '✓ Global Free' : `🔒 Global Free (L10)`,
+            ].join(' · '),
+            color: '#6366f1',
+            active: true,
+          },
+        ];
         return (
           <div className="fixed inset-0 z-[9999] flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.8)' }} onClick={() => setSelectedLevelDetail(null)}>
             <div className="bg-[#111] rounded-t-3xl w-full max-h-[88vh] overflow-y-auto no-scrollbar" onClick={e => e.stopPropagation()}>

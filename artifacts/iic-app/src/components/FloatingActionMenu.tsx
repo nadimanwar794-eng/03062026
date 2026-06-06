@@ -251,7 +251,7 @@ export const FloatingActionMenu: React.FC<Props> = ({ settings, user, isFlashSal
 
                 {/* Backdrop */}
                 <div
-                    className="absolute inset-0"
+                    className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
                     onClick={() => setIsOpen(false)}
                 ></div>
 

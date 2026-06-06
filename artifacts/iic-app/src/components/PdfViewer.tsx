@@ -28,7 +28,6 @@ interface Props {
   subscriptionLevel?: string;
   isPremium?: boolean;
   boostPercent?: number;
-  scoreLimitBoostPercent?: number;
   onScoreEarned?: (pts: number) => void;
 }
 
@@ -61,7 +60,7 @@ const MILESTONE_SCORES = [
 
 export const PdfViewer: React.FC<Props> = ({
   url, title, onBack, sessionKey,
-  userId, subscriptionLevel, isPremium, boostPercent = 0, scoreLimitBoostPercent = 0, onScoreEarned,
+  userId, subscriptionLevel, isPremium, boostPercent = 0, onScoreEarned,
 }) => {
   const key = sessionKey || btoa(url).replace(/[^a-z0-9]/gi, '').slice(0, 24);
 
@@ -135,7 +134,7 @@ export const PdfViewer: React.FC<Props> = ({
     const pct = Math.round((currentPage / totalPages) * 100);
     for (const ms of MILESTONE_SCORES) {
       if (pct >= ms.pct && !awardedMilestones.has(ms.pct)) {
-        const earned = tryEarnScore(userId, ms.base, subscriptionLevel, isPremium, boostPercent, 'PDF_MILESTONE', scoreLimitBoostPercent);
+        const earned = tryEarnScore(userId, ms.base, subscriptionLevel, isPremium, boostPercent, 'PDF_MILESTONE');
         if (earned > 0) {
           const updated = new Set([...awardedMilestones, ms.pct]);
           setAwardedMilestones(updated);

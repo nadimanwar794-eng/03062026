@@ -601,17 +601,6 @@ export const ALL_FEATURES: Feature[] = [
         color: 'teal'
     },
     {
-        id: 'ADMIN_LIBRARY_NOTES',
-        label: 'Library Notes Manager',
-        group: 'CONTENT',
-        surfaceLevel: 3,
-        adminVisible: true,
-        adminTab: 'LIBRARY_NOTES_MANAGER',
-        requiredPermission: 'MANAGE_CONTENT',
-        icon: 'LibraryBig',
-        color: 'violet'
-    },
-    {
         id: 'ADMIN_TRENDING_NOTES',
         label: 'Trending Notes',
         group: 'CONTENT',

@@ -282,14 +282,8 @@ export const LevelLeaderboard: React.FC<Props> = ({ user, settings, onBack }) =>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-black truncate"
-                        style={(() => {
-                          const ml = lvl.level >= 15 ? 15 : lvl.level >= 12 ? 12 : lvl.level >= 10 ? 10 : lvl.level >= 7 ? 7 : lvl.level >= 4 ? 4 : 0;
-                          if (!ml) return { color: 'white' };
-                          const mInfo = LEVEL_INFO.find(l => l.level === ml);
-                          if (mInfo?.legendaryAura) return { background: 'linear-gradient(135deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'name-fx-shimmer 1.8s linear infinite' } as React.CSSProperties;
-                          return { color: mInfo?.nameColor || lvl.color };
-                        })()}>
-                        {lvl.legendaryAura ? `✦ ${u.name} ✦` : u.name}
+                        style={{ color: lvl.nameColor || (lvl.level >= 4 ? lvl.color : 'white') }}>
+                        {u.name}
                         {isMe && <span className="text-[9px] text-slate-400 font-normal ml-1">(You)</span>}
                       </p>
                       {u.subscriptionLevel === 'ULTRA' && (
@@ -337,15 +331,7 @@ export const LevelLeaderboard: React.FC<Props> = ({ user, settings, onBack }) =>
                 <div className="rounded-2xl p-4 text-center"
                   style={{ background: `linear-gradient(135deg, ${lvl.color}15, ${lvl.color}06)`, border: `1px solid ${lvl.color}40`, boxShadow: `0 0 28px ${lvl.glowColor}` }}>
                   <div className="text-4xl mb-2" style={{ filter: `drop-shadow(0 0 10px ${lvl.glowColor})` }}>{lvl.emoji}</div>
-                  <p className="font-black text-xl mb-0.5"
-                    style={(() => {
-                      if (lvl.legendaryAura) return { background: 'linear-gradient(135deg,#a5f3fc,#c4b5fd,#f9a8d4,#a5f3fc)', backgroundSize: '200% auto', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'name-fx-shimmer 1.8s linear infinite' } as React.CSSProperties;
-                      const ml = lvl.level >= 12 ? 12 : lvl.level >= 10 ? 10 : lvl.level >= 7 ? 7 : lvl.level >= 4 ? 4 : 0;
-                      const mInfo = LEVEL_INFO.find(l => l.level === ml);
-                      return { color: mInfo?.nameColor || lvl.color };
-                    })()}>
-                    {lvl.legendaryAura ? `✦ ${selectedUser.name} ✦` : selectedUser.name}
-                  </p>
+                  <p className="font-black text-xl mb-0.5" style={{ color: lvl.nameColor || lvl.color }}>{selectedUser.name}</p>
                   <p className="text-[10px] text-slate-500 mb-2">{selectedUser.displayId || selectedUser.id.substring(0, 8)}</p>
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border mb-2"
                     style={{ background: `${lvl.color}20`, borderColor: `${lvl.color}50` }}>
