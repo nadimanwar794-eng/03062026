@@ -673,6 +673,10 @@ export interface SystemSettings {
   splashLogoEnabled?: boolean;   // Default true — show image instead of text on splash
   splashLogoUrl?: string;        // Public path or data: URL. Default '/splash-logo.png'
   splashLogoSize?: number;       // Rendered width in pixels (clamped 60-260). Default 140.
+  // === Loading-screen DURATION (seconds, per subscription tier) ===
+  splashDurationFree?: number;   // Seconds for FREE users. Default 5.
+  splashDurationBasic?: number;  // Seconds for BASIC users. Default 5.
+  splashDurationUltra?: number;  // Seconds for ULTRA users. Default 5.
   // Universal Video — when true, hides the bottom Video tab and shows a Video icon in the top header instead.
   universalVideoInTopBar?: boolean;
   // NEW Revision Hub V2 — auto-finds notes for weak topics tracked from MCQ attempts.

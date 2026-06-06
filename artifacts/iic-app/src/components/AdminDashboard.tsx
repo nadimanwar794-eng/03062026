@@ -6716,6 +6716,70 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               </p>
                           </div>
 
+                      {/* ============================================================ */}
+                      {/* SPLASH DURATION — per-tier loading screen time (seconds)   */}
+                      {/* Stored: splashDurationFree / splashDurationBasic / splashDurationUltra */}
+                      {/* ============================================================ */}
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 mb-3">
+                          <div className="flex items-center justify-between mb-3">
+                              <label className="text-xs font-bold uppercase text-amber-700">⏱️ Loading Screen Duration</label>
+                              <span className="text-[10px] text-amber-600 font-semibold">Per subscription tier (seconds)</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                              {/* FREE */}
+                              <div className="bg-white rounded-xl border-2 border-sky-200 p-2.5 flex flex-col gap-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                      <span className="text-base">☁️</span>
+                                      <span className="text-[10px] font-black uppercase text-sky-700">FREE</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                      <input
+                                          type="number" min={3} max={30}
+                                          value={localSettings.splashDurationFree ?? 5}
+                                          onChange={e => setLocalSettings({ ...localSettings, splashDurationFree: Math.min(30, Math.max(3, parseInt(e.target.value) || 5)) })}
+                                          className="w-full p-1.5 text-center text-sm font-black rounded-lg border-2 border-sky-200 text-sky-800 bg-sky-50 focus:outline-none focus:border-sky-400"
+                                      />
+                                      <span className="text-[10px] font-bold text-sky-500 shrink-0">sec</span>
+                                  </div>
+                              </div>
+                              {/* BASIC */}
+                              <div className="bg-white rounded-xl border-2 border-blue-200 p-2.5 flex flex-col gap-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                      <span className="text-base">💎</span>
+                                      <span className="text-[10px] font-black uppercase text-blue-700">BASIC</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                      <input
+                                          type="number" min={3} max={30}
+                                          value={localSettings.splashDurationBasic ?? 5}
+                                          onChange={e => setLocalSettings({ ...localSettings, splashDurationBasic: Math.min(30, Math.max(3, parseInt(e.target.value) || 5)) })}
+                                          className="w-full p-1.5 text-center text-sm font-black rounded-lg border-2 border-blue-200 text-blue-800 bg-blue-50 focus:outline-none focus:border-blue-400"
+                                      />
+                                      <span className="text-[10px] font-bold text-blue-500 shrink-0">sec</span>
+                                  </div>
+                              </div>
+                              {/* ULTRA */}
+                              <div className="bg-white rounded-xl border-2 border-amber-300 p-2.5 flex flex-col gap-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                      <span className="text-base">👑</span>
+                                      <span className="text-[10px] font-black uppercase text-amber-700">ULTRA</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                      <input
+                                          type="number" min={3} max={30}
+                                          value={localSettings.splashDurationUltra ?? 5}
+                                          onChange={e => setLocalSettings({ ...localSettings, splashDurationUltra: Math.min(30, Math.max(3, parseInt(e.target.value) || 5)) })}
+                                          className="w-full p-1.5 text-center text-sm font-black rounded-lg border-2 border-amber-200 text-amber-800 bg-amber-50 focus:outline-none focus:border-amber-400"
+                                      />
+                                      <span className="text-[10px] font-bold text-amber-500 shrink-0">sec</span>
+                                  </div>
+                              </div>
+                          </div>
+                          <p className="text-[10px] text-amber-600 mt-2 leading-snug">
+                              💡 Min 3 sec, Max 30 sec. Default 5 sec. Save Settings ke baad apply hoga.
+                          </p>
+                      </div>
+
                       {/* AI Model Control */}
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
                         <div className="flex items-center gap-2 mb-4 text-blue-700 dark:text-blue-400 font-bold">

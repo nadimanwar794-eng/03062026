@@ -26,8 +26,8 @@ const TIER_THEMES = {
     burstBorder2: 'rgba(99,102,241,0.60)',
     orbitColors: ['#0ea5e9','#818cf8','#38bdf8'] as const,
     orbitShadows: ['rgba(14,165,233,0.85)','rgba(129,140,248,0.85)','rgba(56,189,248,0.85)'] as const,
-    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 18px rgba(14,165,233,0.6)) drop-shadow(0 0 36px rgba(14,165,233,0.25))} 50%{filter:drop-shadow(0 0 48px rgba(14,165,233,0.95)) drop-shadow(0 0 80px rgba(14,165,233,0.40)) drop-shadow(0 0 20px rgba(99,102,241,0.30))}',
-    logoGlowStatic: 'drop-shadow(0 0 18px rgba(14,165,233,0.60))',
+    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 12px rgba(14,165,233,0.50))} 50%{filter:drop-shadow(0 0 26px rgba(14,165,233,0.80)) drop-shadow(0 0 12px rgba(99,102,241,0.35))}',
+    logoGlowStatic: 'drop-shadow(0 0 12px rgba(14,165,233,0.45))',
     nameGrad: 'linear-gradient(90deg,#0369a1,#0ea5e9,#6366f1,#0369a1)',
     devGrad: 'linear-gradient(90deg,#0369a1,#0ea5e9,#38bdf8,#0369a1)',
     msgColor: 'rgba(15,23,42,0.55)',
@@ -61,8 +61,8 @@ const TIER_THEMES = {
     burstBorder2: 'rgba(147,197,253,0.60)',
     orbitColors: ['#3b82f6','#93c5fd','#6366f1'] as const,
     orbitShadows: ['rgba(59,130,246,0.90)','rgba(147,197,253,0.85)','rgba(99,102,241,0.85)'] as const,
-    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 18px rgba(59,130,246,0.55)) drop-shadow(0 0 36px rgba(59,130,246,0.20))} 50%{filter:drop-shadow(0 0 50px rgba(59,130,246,1.0)) drop-shadow(0 0 90px rgba(59,130,246,0.40)) drop-shadow(0 0 22px rgba(147,197,253,0.35))}',
-    logoGlowStatic: 'drop-shadow(0 0 18px rgba(59,130,246,0.60))',
+    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 12px rgba(59,130,246,0.50))} 50%{filter:drop-shadow(0 0 28px rgba(59,130,246,0.85)) drop-shadow(0 0 12px rgba(147,197,253,0.35))}',
+    logoGlowStatic: 'drop-shadow(0 0 12px rgba(59,130,246,0.50))',
     nameGrad: 'linear-gradient(90deg,#bfdbfe,#60a5fa,#818cf8,#bfdbfe)',
     devGrad: 'linear-gradient(90deg,#93c5fd,#60a5fa,#3b82f6,#93c5fd)',
     msgColor: 'rgba(191,219,254,0.55)',
@@ -96,8 +96,8 @@ const TIER_THEMES = {
     burstBorder2: 'rgba(226,232,240,0.55)',
     orbitColors: ['#f9c846','#e2e8f0','#a78bfa'] as const,
     orbitShadows: ['rgba(249,200,70,0.95)','rgba(226,232,240,0.80)','rgba(167,139,250,0.90)'] as const,
-    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 20px rgba(249,200,70,0.55)) drop-shadow(0 0 8px rgba(245,158,11,0.40))} 50%{filter:drop-shadow(0 0 55px rgba(249,200,70,1.0)) drop-shadow(0 0 100px rgba(249,200,70,0.45)) drop-shadow(0 0 25px rgba(167,139,250,0.35))}',
-    logoGlowStatic: 'drop-shadow(0 0 20px rgba(249,200,70,0.60))',
+    logoGlowKeyframe: '0%,100%{filter:drop-shadow(0 0 12px rgba(249,200,70,0.50))} 50%{filter:drop-shadow(0 0 28px rgba(249,200,70,0.80)) drop-shadow(0 0 12px rgba(167,139,250,0.30))}',
+    logoGlowStatic: 'drop-shadow(0 0 12px rgba(249,200,70,0.45))',
     nameGrad: 'linear-gradient(90deg,#fde68a,#e2e8f0,#c4b5fd,#fbbf24,#fde68a)',
     devGrad: 'linear-gradient(90deg,#fde68a,#fbbf24,#f9c846,#fde68a)',
     msgColor: 'rgba(253,230,138,0.48)',
@@ -183,6 +183,18 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const activeFont = getSplashFontById(splashFontId);
   useEffect(() => { if (activeFont.gfontParam) ensureGoogleFontLoaded(activeFont.gfontParam); }, [activeFont.gfontParam]);
 
+  // Per-tier duration from admin settings (seconds → ms), default 5s, clamped 3–30s
+  const durationMs: number = (() => {
+    const raw =
+      tier === 'ULTRA' ? settings.splashDurationUltra :
+      tier === 'BASIC' ? settings.splashDurationBasic :
+                         settings.splashDurationFree;
+    const secs = Number(raw);
+    if (Number.isFinite(secs) && secs >= 3) return Math.min(30, secs) * 1000;
+    return 5000;
+  })();
+
+  const [imgFailed, setImgFailed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<0 | 1 | 2>(0);
   const [msgIndex, setMsgIndex] = useState(0);
@@ -197,7 +209,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   }, []);
 
   useEffect(() => {
-    const TOTAL = 10000;
+    const TOTAL = durationMs;
     const TICK = 50;
     let elapsed = 0;
     const id = setInterval(() => {
@@ -457,10 +469,17 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         {/* Logo */}
         <div style={{ animation: phase > 0 ? '_logo_in 0.85s cubic-bezier(0.34,1.56,0.64,1) both' : 'none', opacity: phase === 0 ? 0 : undefined }}>
           <div style={{ animation: phase === 2 ? '_logo_glow 3.5s ease-in-out infinite 0.5s' : 'none', filter: T.logoGlowStatic }}>
-            {logoEnabled && logoUrl ? (
-              <img src={logoUrl} alt={appName} draggable={false}
-                onError={e => { const t = e.currentTarget as HTMLImageElement; if (!t.src.includes('/splash-logo.png')) t.src = '/splash-logo.png'; }}
-                style={{ width: logoSize, height: logoSize, maxWidth: '68vw', objectFit: 'contain', borderRadius: 24, display: 'block' }}
+            {logoEnabled && logoUrl && !imgFailed ? (
+              <img
+                src={logoUrl}
+                alt={appName}
+                draggable={false}
+                onError={() => setImgFailed(true)}
+                style={{
+                  width: logoSize, height: logoSize,
+                  maxWidth: '68vw', objectFit: 'contain',
+                  borderRadius: 24, display: 'block',
+                }}
               />
             ) : (
               <h1 style={{
