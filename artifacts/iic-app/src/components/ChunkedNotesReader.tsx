@@ -1603,7 +1603,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               <span style={{ fontSize: 16 }}>💡</span>
               <div style={{ flex: 1 }}>
                 <span style={{ color: '#7dd3fc', fontSize: 12, fontWeight: 900 }}>Better Learning Tip</span>
-                <span style={{ color: '#475569', fontSize: 9, marginLeft: 6 }}>App ki taraf se</span>
+                <span style={{ color: '#475569', fontSize: 9, marginLeft: 6 }}>From the App</span>
               </div>
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
@@ -1617,8 +1617,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
             {/* Body */}
             <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.5, marginBottom: 10 }}>
-              Bahut topics manually tap kar rahe hain —{' '}
-              <span style={{ color: '#e2e8f0', fontWeight: 700 }}>TTS Auto Reading</span> try karoge?
+              Unusual Touch Activity Detected. Touch Protection has been enabled.
+              Please avoid excessive tapping. For the best experience, use{' '}
+              <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Auto TTS Reading</span>.
             </div>
 
             {/* Action buttons */}
@@ -1636,7 +1637,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   cursor: 'pointer',
                 }}
               >
-                🎙️ TTS Start Karo
+                🎙️ Start TTS Reading
               </button>
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
@@ -1647,7 +1648,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   border: '1px solid #ffffff15', cursor: 'pointer',
                 }}
               >
-                Abhi Nahi
+                Not Now
               </button>
             </div>
           </div>

@@ -154,7 +154,7 @@ export const LessonView: React.FC<Props> = ({
     const desktopWasOn = isDesktopModeOn();
     const result = await rotateScreen();
     if (!result) {
-      setRotateToast('Is device mein screen rotation supported nahi hai');
+      setRotateToast('Screen rotation is not supported on this device');
       setTimeout(() => setRotateToast(null), 2500);
     } else {
       // Re-apply desktop mode after rotation settles (rotation can reset viewport)
@@ -363,7 +363,7 @@ export const LessonView: React.FC<Props> = ({
         questions: localMcqData,
       }
     });
-    setAlertConfig({ isOpen: true, message: '✅ Notes offline save ho gaye! Offline tab mein dekho.', type: 'SUCCESS' });
+    setAlertConfig({ isOpen: true, message: '✅ Notes saved offline! Check the Offline tab.', type: 'SUCCESS' });
   };
 
   // FLOATING IMMERSIVE BUTTON — always rendered via portal into document.body
@@ -536,11 +536,11 @@ export const LessonView: React.FC<Props> = ({
                       setNotesViewMode('styled');
                   } else {
                       if (!user || !onUpdateUser) {
-                          setAlertConfig({ isOpen: true, message: `HTML Notes unlock karne ke liye ${HTML_UNLOCK_COST} coins chahiye.` });
+                          setAlertConfig({ isOpen: true, message: `You need ${HTML_UNLOCK_COST} coins to unlock HTML Notes.` });
                           return;
                       }
                       if (getTotalCredits(user) < HTML_UNLOCK_COST) {
-                          setAlertConfig({ isOpen: true, message: `HTML Notes unlock karne ke liye ${HTML_UNLOCK_COST} coins chahiye. Aapke paas sirf ${getTotalCredits(user)} coins hain.` });
+                          setAlertConfig({ isOpen: true, message: `You need ${HTML_UNLOCK_COST} coins to unlock HTML Notes. You only have ${getTotalCredits(user)} coins.` });
                           return;
                       }
                       const updatedUser = applyDeduction(user, HTML_UNLOCK_COST)!;
@@ -1742,13 +1742,13 @@ export const LessonView: React.FC<Props> = ({
                                        const currScore = percent;
                                        const diff = currScore - prevScore;
 
-                                       if (diff > 10) overallComparison = `### 🌟 Outstanding Progress!\nBohot badhiya improvement hai! Pichhli baar **${prevScore}%** tha, ish baar **${currScore}%** aaya hai.`;
-                                       else if (diff > 0) overallComparison = `### 👍 Good Improvement\nSahi ja rahe ho! Score ${prevScore}% se badh kar ${currScore}% ho gaya hai.`;
-                                       else if (diff < -10) overallComparison = `### 📉 Needs Attention\nBeta, score kaafi gir gaya (${prevScore}% -> ${currScore}%). Kya samajh nahi aaya?`;
-                                       else if (diff < 0) overallComparison = `### ⚠️ Slight Drop\nThoda dhyan do. Pichhli baar ${prevScore}% tha, ish baar ${currScore}% ho gaya. Consistency zaroori hai.`;
-                                       else overallComparison = `### ⚖️ Consistent Performance\nConsistency achhi hai (**${currScore}%**), par hume ab next level pe jana hai.`;
+                                       if (diff > 10) overallComparison = `### 🌟 Outstanding Progress!\nExcellent improvement! Last time **${prevScore}%**, this time **${currScore}%**.`;
+                                       else if (diff > 0) overallComparison = `### 👍 Good Improvement\nYou're on the right track! Score went from ${prevScore}% to ${currScore}%.`;
+                                       else if (diff < -10) overallComparison = `### 📉 Needs Attention\nScore dropped significantly (${prevScore}% -> ${currScore}%). What was difficult?`;
+                                       else if (diff < 0) overallComparison = `### ⚠️ Slight Drop\nPay a bit more attention. Last time ${prevScore}%, this time ${currScore}%. Consistency matters.`;
+                                       else overallComparison = `### ⚖️ Consistent Performance\nGreat consistency (**${currScore}%**), but let's aim even higher now.`;
                                    } else {
-                                       overallComparison = `### 👋 Welcome!\nFirst attempt hai! Chalo dekhte hain kahan improvement ki zarurat hai.`;
+                                       overallComparison = `### 👋 Welcome!\nThis is your first attempt! Let's see where there's room to improve.`;
                                    }
 
                                    msg += overallComparison + "\n\n";
@@ -1763,11 +1763,11 @@ export const LessonView: React.FC<Props> = ({
                                            const accuracy = (stats.correct / stats.total) * 100;
 
                                            if (accuracy >= 80) {
-                                               msg += `- ✅ **${topic}**: Shabash! Yahan pakad mazboot hai (${Math.round(accuracy)}%).\n`;
+                                               msg += `- ✅ **${topic}**: Well done! Strong grasp here (${Math.round(accuracy)}%).\n`;
                                            } else if (accuracy >= 50) {
-                                               msg += `- ⚖️ **${topic}**: Thik hai (${Math.round(accuracy)}%), par thoda aur revision chahiye.\n`;
+                                               msg += `- ⚖️ **${topic}**: Decent (${Math.round(accuracy)}%), but needs a bit more revision.\n`;
                                            } else {
-                                               msg += `- ❌ **${topic}**: Yahan dikkat hai (${Math.round(accuracy)}%). Is topic ko dubara padhna padega.\n`;
+                                               msg += `- ❌ **${topic}**: Needs work (${Math.round(accuracy)}%). Review this topic again.\n`;
                                            }
                                        });
                                    }

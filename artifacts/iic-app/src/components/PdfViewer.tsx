@@ -176,7 +176,7 @@ export const PdfViewer: React.FC<Props> = ({
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().catch(() => showToast('Fullscreen supported nahi hai'));
+      containerRef.current?.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
     } else {
       document.exitFullscreen();
     }
@@ -264,7 +264,7 @@ export const PdfViewer: React.FC<Props> = ({
             className="bg-white rounded-2xl p-5 mx-4 w-full max-w-xs shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <p className="font-black text-slate-800 mb-3 text-center">📄 Kaunse page par jaana hai?</p>
+            <p className="font-black text-slate-800 mb-3 text-center">📄 Which page do you want to go to?</p>
             <input
               ref={jumpInputRef}
               type="number"
@@ -281,7 +281,7 @@ export const PdfViewer: React.FC<Props> = ({
               onClick={handleJump}
               className="w-full py-2 rounded-xl bg-indigo-600 text-white font-black active:scale-95 transition"
             >
-              Jao ▶
+              Go ▶
             </button>
           </div>
         </div>
@@ -298,8 +298,8 @@ export const PdfViewer: React.FC<Props> = ({
             className="bg-white rounded-2xl p-5 mx-4 w-full max-w-xs shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <p className="font-black text-slate-800 mb-1 text-center">📚 Total Pages Set Karein</p>
-            <p className="text-xs text-slate-500 text-center mb-3">PDF ke last page ka number enter karein</p>
+            <p className="font-black text-slate-800 mb-1 text-center">📚 Set Total Pages</p>
+            <p className="text-xs text-slate-500 text-center mb-3">Enter the last page number of the PDF</p>
             <input
               type="number"
               min={1}
@@ -418,7 +418,7 @@ export const PdfViewer: React.FC<Props> = ({
                 onClick={() => setShowMoreMenu(false)}
               >
                 <ExternalLink size={15} className="text-indigo-400" />
-                Browser mein kholein
+                Open in Browser
               </a>
             </div>
           )}

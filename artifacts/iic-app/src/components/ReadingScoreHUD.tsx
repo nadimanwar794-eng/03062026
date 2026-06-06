@@ -202,8 +202,8 @@ export const ReadingScoreHUD: React.FC<Props> = ({
               </span>
             </div>
             <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>
-              Topic par <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span> rukne ke baad<br />
-              <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span> milega
+              Stay on a topic for <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span><br />
+              to earn <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div
@@ -251,7 +251,7 @@ export const ReadingScoreHUD: React.FC<Props> = ({
                 </div>
                 <div style={{ color: '#cbd5e1', fontSize: 9, marginTop: 3 }}>
                   {state.isPaused
-                    ? 'Aage padhein to resume hoga'
+                    ? 'Keep reading to resume'
                     : '10% reading progress needed'}
                 </div>
               </div>

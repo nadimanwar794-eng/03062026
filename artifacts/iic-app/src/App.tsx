@@ -251,7 +251,7 @@ const App: React.FC = () => {
         apiKeys: [],
         welcomeTitle: 'Unlock Smart Learning', 
         welcomeMessage: 'Experience the power of AI-driven education. Our AI filters out the noise of traditional textbooks to deliver only the essential, high-yield topics you need for success. Study smarter, not harder.',
-        marqueeLines: ["Welcome to Leon karo Classes", "Learn Smart", "Contact Admin for Credits"], 
+        marqueeLines: ["Welcome to Leon Classes", "Learn Smart", "Contact Admin for Credits"], 
         liveMessage1: 'Experience the power of AI-driven education.', 
         liveMessage2: 'Start learning today!', 
         bannerConfig: {
@@ -545,7 +545,7 @@ const App: React.FC = () => {
                       const _wExp  = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 ghante
                       const _wMsg: any = {
                           id: _wId,
-                          text: `🎁 Level ${_wlvl} Weekly Sunday Bonus!\n\nIs hafte ka special reward aaya hai!\n\n💰 ${_wAmt} Bonus Credits — 12 ghante mein expire ho jayenge\n\nYe credits Store, MCQ unlock, Theme Studio sabhi jagah use ho sakte hain!\n\nNeeche "Claim Karo" dabao.`,
+                          text: `🎁 Level ${_wlvl} Weekly Sunday Bonus!\n\nYour special reward for this week is here!\n\n💰 ${_wAmt} Bonus Credits — expires in 12 hours\n\nThese credits can be used in Store, MCQ unlock, Theme Studio and more!\n\nTap "Claim" below.`,
                           date: new Date().toISOString(),
                           read: false,
                           type: 'GIFT',
@@ -672,13 +672,13 @@ const App: React.FC = () => {
                       } else if (chosen.type === 'DISCOUNT') {
                           const rgIdD = rgId + '-disc';
                           if (!(updatedUser.inbox || []).some((m: any) => m.id === rgIdD)) {
-                              const discMsg: any = { id: rgIdD, text: `🎲 Lucky Login Gift!\n\n${chosen.label || 'Aapko special discount mila!'}\n\n🏷️ Aaj aapke login par ${chosen.discountPercent || 10}% store discount mila!\n\nStore mein jao aur enjoy karo!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
+                              const discMsg: any = { id: rgIdD, text: `🎲 Lucky Login Gift!\n\n${chosen.label || 'You received a special discount!'}\n\n🏷️ Today's login earned you a ${chosen.discountPercent || 10}% store discount!\n\nHead to the Store and enjoy!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
                               updatedUser.inbox = [discMsg, ...(updatedUser.inbox || [])]; hasUpdates = true;
                           }
                       } else if (chosen.type === 'EFFECT') {
                           const rgIdE = rgId + '-eff';
                           if (!(updatedUser.inbox || []).some((m: any) => m.id === rgIdE)) {
-                              const effMsg: any = { id: rgIdE, text: `🎲 Lucky Effect Gift!\n\n${chosen.label || 'Special animation effect mila!'}\n\n✨ Aapko yeh animation mila: ${chosen.effectId || ''}\n\nRedeem section mein dalein ya admin se contact karein!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
+                              const effMsg: any = { id: rgIdE, text: `🎲 Lucky Effect Gift!\n\n${chosen.label || 'You received a special animation effect!'}\n\n✨ Your animation: ${chosen.effectId || ''}\n\nEnter it in the Redeem section or contact admin!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
                               updatedUser.inbox = [effMsg, ...(updatedUser.inbox || [])]; hasUpdates = true;
                           }
                       }
@@ -1331,7 +1331,7 @@ const App: React.FC = () => {
                     // Add code to inbox as special message
                     const codeMsg: any = {
                         id: `code-${activeReward.id}`,
-                        text: `🎁 Engagement Reward Code: Aapko ek special redeem code mila! Code: ${genCode} | Valid ${codeExpiryHours} hours | ${ar.redeemCodeType === 'CREDITS' ? `+${ar.redeemCodeAmount} Credits` : ar.redeemCodeType === 'SUBSCRIPTION' ? `${ar.redeemCodeSubTier} ${ar.redeemCodeSubLevel} Plan` : ar.redeemCodeType === 'DISCOUNT' ? `${ar.redeemCodeDiscountPercent}% Discount` : 'Special Unlock'} | Store mein ja ke Redeem karo!`,
+                        text: `🎁 Engagement Reward Code: You received a special redeem code! Code: ${genCode} | Valid ${codeExpiryHours} hours | ${ar.redeemCodeType === 'CREDITS' ? `+${ar.redeemCodeAmount} Credits` : ar.redeemCodeType === 'SUBSCRIPTION' ? `${ar.redeemCodeSubTier} ${ar.redeemCodeSubLevel} Plan` : ar.redeemCodeType === 'DISCOUNT' ? `${ar.redeemCodeDiscountPercent}% Discount` : 'Special Unlock'} | Go to the Store to redeem!`,
                         date: new Date().toISOString(),
                         read: false,
                         type: 'GIFT',

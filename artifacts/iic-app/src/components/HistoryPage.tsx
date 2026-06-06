@@ -553,7 +553,7 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                             type="text"
                             value={starSearch}
                             onChange={e => { setStarSearch(e.target.value); stopStarRead(); }}
-                            placeholder="Notes mein search karo..."
+                            placeholder="Search notes..."
                             className="w-full pl-8 pr-8 py-2.5 text-xs font-semibold bg-amber-50 border border-amber-200 rounded-xl text-slate-700 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300 transition-all"
                         />
                         {starSearch && (
@@ -570,14 +570,14 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                 {starredNotes.length === 0 ? (
                     <div className="text-center py-14 bg-amber-50 rounded-2xl border border-amber-100">
                         <Star size={40} className="text-amber-300 mx-auto mb-3" />
-                        <p className="font-bold text-slate-600 text-sm">Koi important note nahi mili.</p>
-                        <p className="text-xs text-slate-400 mt-1">Note padhte waqt ⭐ dabao — yahan dikhega.</p>
+                        <p className="font-bold text-slate-600 text-sm">No important notes saved yet.</p>
+                        <p className="text-xs text-slate-400 mt-1">Tap ⭐ while reading a note — it will appear here.</p>
                     </div>
                 ) : filtered.length === 0 ? (
                     <div className="text-center py-10 bg-amber-50 rounded-2xl border border-amber-100">
                         <Search size={32} className="text-amber-300 mx-auto mb-3" />
-                        <p className="font-bold text-slate-600 text-sm">Koi match nahi mila.</p>
-                        <p className="text-xs text-slate-400 mt-1">Doosra word try karo.</p>
+                        <p className="font-bold text-slate-600 text-sm">No match found.</p>
+                        <p className="text-xs text-slate-400 mt-1">Try a different word.</p>
                     </div>
                 ) : (
                     filtered.map((note, idx) => {
@@ -643,7 +643,7 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                 {loginSessions.length === 0 ? (
                     <div className="text-center py-10 text-slate-400">
                         <p className="text-2xl mb-2">🕐</p>
-                        <p className="font-bold text-sm">Koi login history nahi mili</p>
+                        <p className="font-bold text-sm">No login history found</p>
                     </div>
                 ) : loginSessions.map((s, i) => {
                     const isCurrent = i === 0;
@@ -737,8 +737,8 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                 {creditHistory.length === 0 ? (
                     <div className="text-center py-12 bg-amber-50 rounded-2xl border border-amber-100">
                         <p className="text-3xl mb-2">💰</p>
-                        <p className="font-bold text-slate-600 text-sm">Koi credit transaction nahi mili</p>
-                        <p className="text-xs text-slate-400 mt-1">Spin karo, login bonus lo — yahan dikhega</p>
+                        <p className="font-bold text-slate-600 text-sm">No credit transactions yet</p>
+                        <p className="text-xs text-slate-400 mt-1">Spin, earn login bonuses — they'll appear here</p>
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -804,8 +804,8 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                             <h4 className="text-lg font-black leading-tight">My Mistake</h4>
                             <p className="text-xs text-white/90 mt-0.5">
                                 {mistakes.length === 0
-                                    ? 'Abhi koi galti save nahin hui. MCQ test do — galat answers yahan automatically jud jayenge.'
-                                    : `${mistakes.length} galt question save hain. Practice karke clean karein!`}
+                                    ? 'No mistakes saved yet. Take an MCQ test — wrong answers will be added here automatically.'
+                                    : `${mistakes.length} incorrect questions saved. Practice to clear them!`}
                             </p>
                         </div>
                     </div>
@@ -1029,7 +1029,7 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                       <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
                           <Target size={42} className="mx-auto mb-3 opacity-30" />
                           <p className="text-sm font-bold text-slate-600">No mistakes yet — keep learning!</p>
-                          <p className="text-xs text-slate-400 mt-1">Galat MCQs apne aap yahan aa jayengi.</p>
+                          <p className="text-xs text-slate-400 mt-1">Wrong MCQs will appear here automatically.</p>
                       </div>
                     ) : (
                       <div className="text-center py-8 text-slate-500 text-sm">No mistakes match your search.</div>
@@ -1363,14 +1363,14 @@ const ReadingProgressSection: React.FC<ReadingSectionProps> = ({
             {totalCount === 0 && doneEntries.length === 0 ? (
                 <div className="text-center text-slate-500 py-12">
                     <BookOpen size={42} className="mx-auto mb-3 text-slate-300" />
-                    <p className="font-bold text-slate-700">Abhi tak kuch nahi padha.</p>
-                    <p className="text-xs mt-1">Koi note ya chapter padhna shuru karein — yahan progress save hogi.</p>
+                    <p className="font-bold text-slate-700">Nothing read yet.</p>
+                    <p className="text-xs mt-1">Start reading any note or chapter — your progress will be saved here.</p>
                 </div>
             ) : totalFiltered === 0 && searchText ? (
                 <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
                     <Search size={30} className="text-slate-300 mx-auto mb-3" />
-                    <p className="font-bold text-slate-600 text-sm">Koi match nahi mila.</p>
-                    <p className="text-xs text-slate-400 mt-1">Doosra word ya filter try karein.</p>
+                    <p className="font-bold text-slate-600 text-sm">No match found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Try a different word or filter.</p>
                 </div>
             ) : (
                 <div className="space-y-5">
@@ -1588,8 +1588,8 @@ const FlashcardsActivitySection: React.FC<FlashcardsActivitySectionProps> = ({
             {isEmpty && (
                 <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
                     <Layers size={36} className="mx-auto text-slate-300 mb-2" />
-                    <p className="font-black text-slate-700">Abhi tak koi activity nahi</p>
-                    <p className="text-xs mt-1">Flashcards open karein ya koi note padhein — yahan record dikhega.</p>
+                    <p className="font-black text-slate-700">No activity yet</p>
+                    <p className="text-xs mt-1">Open flashcards or read a note — your record will appear here.</p>
                 </div>
             )}
 

@@ -865,7 +865,7 @@ export const StudentDashboard: React.FC<Props> = ({
     if (user.role === 'ADMIN') { await downloadFn(); return true; }
     if (_dlHtmlUsed >= _dlHtmlLimit) {
       showAlert(
-        `Aaj ke ${_dlHtmlLimit} HTML download complete ho gaye! 🔒 Kal vapas aao ya plan upgrade karo.\n\n` +
+        `Today's ${_dlHtmlLimit} HTML downloads are done! 🔒 Come back tomorrow or upgrade your plan.\n\n` +
         `Free: 2/day · Basic: 5/day · Ultra: 10/day`,
         'WARNING'
       );
@@ -998,7 +998,7 @@ export const StudentDashboard: React.FC<Props> = ({
       };
       handleUserUpdate(updatedUser);
       showAlert(
-        "Aapki subscription khatam ho gayi. Ab aap Free Plan pe hain.",
+        "Your subscription has expired. You are now on the Free Plan.",
         "ERROR",
         "Plan Expired",
       );
@@ -1087,7 +1087,7 @@ export const StudentDashboard: React.FC<Props> = ({
     const expiresAt = new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString(); // 36 hours
     const discMsg: any = {
       id: msgId,
-      text: `🎉 Aapne kal bahut achha padha! Iss mehnat ka inaam — Store mein ${discountPct}% OFF!\n\nNeeche "Claim Karo" button dabao — discount seedha Store mein apply ho jayega. Koi code daalne ki zaroorat nahi!`,
+      text: `🎉 Great studying yesterday! Here's your reward — ${discountPct}% OFF in the Store!\n\nTap the "Claim" button below — the discount will be applied directly to the Store. No code needed!`,
       date: new Date().toISOString(),
       read: false,
       type: 'STORE_DISCOUNT',
@@ -1117,7 +1117,7 @@ export const StudentDashboard: React.FC<Props> = ({
           _subValid && freshUser.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
         const mcqLimGate = getEffectiveDailyLimit('mcq', getLevelInfo(freshUser.totalScore || 0).level, _tier, settings);
         if (mcqLimGate < UNLIMITED && prevTotal >= mcqLimGate) {
-          showAlert(`🚫 Daily MCQ Limit khatam! (${prevTotal}/${mcqLimGate}) — Kal reset hoga.`, 'INFO');
+          showAlert(`🚫 Daily MCQ limit reached! (${prevTotal}/${mcqLimGate}) — Resets tomorrow.`, 'INFO');
           return false;
         }
       }
@@ -1149,7 +1149,7 @@ export const StudentDashboard: React.FC<Props> = ({
           if (left <= 10 && left > 0) {
             showAlert(`📊 Daily MCQ Limit: ${total}/${mcqLim} — ${left} remaining`, 'INFO');
           } else if (left === 0) {
-            showAlert(`🚫 Daily MCQ Limit khatam! (${mcqLim}/${mcqLim}) — Kal dobara milega.`, 'INFO');
+            showAlert(`🚫 Daily MCQ limit reached! (${mcqLim}/${mcqLim}) — Resets tomorrow.`, 'INFO');
           }
         }
       }
@@ -1203,7 +1203,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
       const rewardMsg: any = {
         id: `mcq-prize-${Date.now()}`,
-        text: `🎯 MCQ Prize! Aaj ${total} MCQs solve kiye aur ${pct.toFixed(0)}% score kiya!\n\n${applicableRule.label}`,
+        text: `🎯 MCQ Prize! You solved ${total} MCQs today and scored ${pct.toFixed(0)}%!\n\n${applicableRule.label}`,
         date: new Date().toISOString(),
         read: false,
         type: 'REWARD',
@@ -1235,15 +1235,15 @@ export const StudentDashboard: React.FC<Props> = ({
       // PDF blocked for Free users at L1-L4 (lim === 0)
       if (lim === 0 && feature === 'pdf') {
         const needsLevel = tier === 'FREE'
-          ? '🔒 PDF Level 5 se milega! Level badhao ya Basic/Ultra lo.'
-          : '🔒 PDF access unavailable. Store se subscription lein!';
+          ? '🔒 Unlocks at Level 5! Keep leveling up or upgrade to Basic/Ultra.'
+          : '🔒 PDF access unavailable. Get a subscription from the Store!';
         showAlert(needsLevel, 'INFO');
         return false;
       }
       const used = parseInt(localStorage.getItem(storageKey) || '0', 10);
       if (used >= lim) {
         const label = feature === 'video' ? 'Video' : feature === 'pdf' ? 'PDF' : 'Audio/TTS';
-        showAlert(`🚫 Aaj ki ${label} limit khatam (${used}/${lim}). Kal reset hoga!`, 'INFO');
+        showAlert(`🚫 Today's ${label} limit reached (${used}/${lim}). Resets tomorrow!`, 'INFO');
         return false;
       }
       localStorage.setItem(storageKey, String(used + 1));
@@ -1293,7 +1293,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
       const inboxMsg: any = {
         id: `bc-${bc.id}`,
-        text: `${bc.title || '🎁 Admin ka Special Gift!'}\n\n${bc.message}\n\n🎁 Reward: ${typeLabel}`,
+        text: `${bc.title || '🎁 Special Gift from Admin!'}\n\n${bc.message}\n\n🎁 Reward: ${typeLabel}`,
         date: new Date().toISOString(),
         read: false,
         type: 'REDEEM_CODE',
@@ -1430,7 +1430,7 @@ export const StudentDashboard: React.FC<Props> = ({
         if (!_gfMeets) {
           const lastShown = parseInt(localStorage.getItem(`last_global_free_locked_${user.id}`) || "0");
           if (now - lastShown > 4 * 60 * 60 * 1000) {
-            addAppNotification("Special Event 🔒", `🌍 Global Free Access event chal raha hai, par yeh Level ${EVENT_MIN_LEVELS.globalFreeAccess}+ ke liye hai! (Tumhara Level: ${_gfLevel})`, "INFO");
+            addAppNotification("Special Event 🔒", `🌍 Global Free Access event is active, but it requires Level ${EVENT_MIN_LEVELS.globalFreeAccess}+! (Your Level: ${_gfLevel})`, "INFO");
             localStorage.setItem(`last_global_free_locked_${user.id}`, now.toString());
           }
         } else {
@@ -1450,7 +1450,7 @@ export const StudentDashboard: React.FC<Props> = ({
         if (!_cfMeets) {
           const lastShown = parseInt(localStorage.getItem(`last_credit_free_locked_${user.id}`) || "0");
           if (now - lastShown > 4 * 60 * 60 * 1000) {
-            addAppNotification("Special Event 🔒", `⚡ Credit Free event chal raha hai, par yeh Level ${EVENT_MIN_LEVELS.creditFree}+ ke liye hai! (Tumhara Level: ${_cfLevel})`, "INFO");
+            addAppNotification("Special Event 🔒", `⚡ Credit Free event is active, but it requires Level ${EVENT_MIN_LEVELS.creditFree}+! (Your Level: ${_cfLevel})`, "INFO");
             localStorage.setItem(`last_credit_free_locked_${user.id}`, now.toString());
           }
         } else {
@@ -1474,7 +1474,7 @@ export const StudentDashboard: React.FC<Props> = ({
           if (now - lastShown > interval) {
             addAppNotification(
               cbEv.eventName || "Credit Bonus Event",
-              `🎁 CREDIT BONUS EVENT LIVE! Credits kamao toh ${cbEv.bonusPercent}% extra milenge!`,
+              `🎁 CREDIT BONUS EVENT LIVE! Earn credits and get ${cbEv.bonusPercent}% extra!`,
               "SUCCESS",
             );
             localStorage.setItem(`last_credit_bonus_${user.id}`, now.toString());
@@ -2382,8 +2382,8 @@ export const StudentDashboard: React.FC<Props> = ({
       ? 'WRITE_ACTIVE_5MIN'
       : lucentActiveTab === 'VIDEO' ? 'VIDEO' : lucentActiveTab === 'AUDIO' ? 'AUDIO_TTS' : 'READ_NOTES_TIME';
     const rewardReason = isWriteMode
-      ? 'Notes Likha'
-      : lucentActiveTab === 'VIDEO' ? 'Video Dekha' : lucentActiveTab === 'AUDIO' ? 'Audio Suna' : 'PDF Padha';
+      ? 'Notes Written'
+      : lucentActiveTab === 'VIDEO' ? 'Video Watched' : lucentActiveTab === 'AUDIO' ? 'Audio Listened' : 'PDF Read';
 
     const timer = setInterval(() => {
       if (lucentReadSecsRef.current >= maxSecs) return;
@@ -2525,7 +2525,7 @@ export const StudentDashboard: React.FC<Props> = ({
     rotateFullscreenRef.current = true;
     const result = await rotateScreen();
     rotateFullscreenRef.current = false;
-    if (result === null) showAlert('Is device mein screen auto-rotate support nahi hai. Phone ko manually ghuma sakte hain.', 'WARNING');
+    if (result === null) showAlert('Screen auto-rotate is not supported on this device. Please rotate manually.', 'WARNING');
   };
   const [lucentHtmlTtsPlaying, setLucentHtmlTtsPlaying] = useState(false);
   const [hwActivePdf, setHwActivePdf] = useState<string | null>(null);
@@ -3211,14 +3211,14 @@ export const StudentDashboard: React.FC<Props> = ({
         subj = subs.find(s => s.name.toLowerCase().replace(/[-\s]+/g, ' ').trim() === wanted);
       }
       if (!subj) {
-        showAlert('Iss chapter ka subject is class mein available nahi hai.', 'ERROR');
+        showAlert('This chapter\'s subject is not available for this class.', 'ERROR');
         return;
       }
       const lang = (user.preferredLanguage || 'English') as any;
       const chapters = await fetchChapters(board, cls as any, stream, subj, lang);
       const chapter = chapters.find(c => c.id === hit.chapterId);
       if (!chapter) {
-        showAlert('Chapter milana mushkil hai. Shayad syllabus update ho gaya hai.', 'ERROR');
+        showAlert('Could not find this chapter. The syllabus may have been updated.', 'ERROR');
         return;
       }
       // Stash the search query so the next reader auto-scrolls / highlights
@@ -3239,7 +3239,7 @@ export const StudentDashboard: React.FC<Props> = ({
       } as any);
     } catch (err) {
       console.error('[search] openChapterFromNoteHit failed', err);
-      showAlert('Chapter kholne mein dikkat aayi.', 'ERROR');
+      showAlert('Could not open this chapter.', 'ERROR');
     }
   };
 
@@ -3252,11 +3252,11 @@ export const StudentDashboard: React.FC<Props> = ({
       const wanted = (hit.subjectName || '').toLowerCase().replace(/[-\s]+/g, ' ').trim();
       let subj = subs.find(s => s.name.toLowerCase() === hit.subjectName?.toLowerCase());
       if (!subj) subj = subs.find(s => s.name.toLowerCase().replace(/[-\s]+/g, ' ').trim() === wanted);
-      if (!subj) { showAlert('Iss chapter ka subject is class mein available nahi hai.', 'ERROR'); return; }
+      if (!subj) { showAlert('This chapter\'s subject is not available for this class.', 'ERROR'); return; }
       const lang = (user.preferredLanguage || 'English') as any;
       const chapters = await fetchChapters(board, cls as any, stream, subj, lang);
       const chapter = chapters.find(c => c.id === hit.chapterId);
-      if (!chapter) { showAlert('Chapter milana mushkil hai.', 'ERROR'); return; }
+      if (!chapter) { showAlert('Could not find this chapter.', 'ERROR'); return; }
       setPendingReadQuery(homeSearchQuery.trim());
       openRecentChapter({
         id: `mcqsearch_${chapter.id}`,
@@ -3270,7 +3270,7 @@ export const StudentDashboard: React.FC<Props> = ({
       } as any);
     } catch (err) {
       console.error('[search] openChapterFromMcqHit failed', err);
-      showAlert('Chapter kholne mein dikkat aayi.', 'ERROR');
+      showAlert('Could not open this chapter.', 'ERROR');
     }
   };
 
@@ -3310,7 +3310,7 @@ export const StudentDashboard: React.FC<Props> = ({
     }
     // Check content lock — requires valid redeem code
     if (_lucentIsLocked(entry)) {
-      showAlert('🔒 Yeh lesson locked hai! Admin se Redeem Code maangein aur Profile → Redeem tab mein enter karein.', 'INFO');
+      showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
       return;
     }
     const tier: 'FREE' | 'BASIC' | 'ULTRA' = _isUltraUser ? 'ULTRA' : _isBasicUser ? 'BASIC' : 'FREE';
@@ -3324,23 +3324,23 @@ export const StudentDashboard: React.FC<Props> = ({
     }
     // Limit reached
     if (tier === 'FREE') {
-      showAlert(`📖 Aaj ke liye padhne ki limit khatam ho gayi (${lim} notes). Basic/Ultra plan upgrade karein ya kal aayein!`, 'INFO');
+      showAlert(`📖 Today's reading limit reached (${lim} notes). Upgrade to Basic/Ultra or come back tomorrow!`, 'INFO');
       return;
     }
     // Paid user: offer credit unlock
     const totalCR = getTotalCredits(user);
     if (totalCR < CN_CREDIT_COST) {
-      showAlert(`📖 Aaj ki reading limit khatam ho gayi (${lim} notes). Credits bhi kam hain (${totalCR} CR). Kal reset hoga!`, 'INFO');
+      showAlert(`📖 Today's reading limit reached (${lim} notes). Low credits (${totalCR} CR). Resets tomorrow!`, 'INFO');
       return;
     }
     const updatedUser = applyDeduction(user, CN_CREDIT_COST);
     if (!updatedUser) {
-      showAlert('Credit deduction mein error. Dobara try karein.', 'ERROR');
+      showAlert('Credit deduction failed. Please try again.', 'ERROR');
       return;
     }
     handleUserUpdate(updatedUser);
     try { localStorage.setItem(_cnDailyKey, String(used + 1)); } catch {}
-    showAlert(`✅ ${CN_CREDIT_COST} CR use hoye — extra note unlock!`, 'SUCCESS');
+    showAlert(`✅ ${CN_CREDIT_COST} CR used — extra note unlocked!`, 'SUCCESS');
     setLucentNoteViewer(entry);
     setLucentPageIndex(pageIdx);
   };
@@ -3569,7 +3569,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const alreadySaved = prev.some(n => n.noteKey === noteKey && n.topicText === topicText);
       if (alreadySaved) {
         // Already saved → show a soft message and return prev unchanged.
-        try { showAlert('Yeh note pehle se saved hai. Remove karne ke liye Saved Notes page me swipe karein.', 'INFO'); } catch {}
+        try { showAlert('This note is already saved. Swipe to remove it in the Saved Notes page.', 'INFO'); } catch {}
         return prev;
       }
       const updated = [
@@ -4070,7 +4070,7 @@ export const StudentDashboard: React.FC<Props> = ({
       await set(ref(rtdb, `redeem_codes/${code}`), codeObj);
       setGeneratedContentCode(code);
     } catch (e) {
-      alert('Code generate karne mein error: ' + e);
+      alert('Error generating code: ' + e);
     } finally {
       setContentCodeGenerating(false);
     }
@@ -4163,12 +4163,12 @@ export const StudentDashboard: React.FC<Props> = ({
         // New discount: 5% for 1 hour
         const newDisc = { percent: 5, expiresAt: new Date(now + 60 * 60 * 1000).toISOString(), visits };
         localStorage.setItem(discKey, JSON.stringify(newDisc));
-        showAlert('🎉 Store Visit Discount! 5% OFF — 1 ghante ke liye active!', 'SUCCESS', 'Discount Active!');
+        showAlert('🎉 Store Visit Discount! 5% OFF — Active for 1 hour!', 'SUCCESS', 'Discount Active!');
       } else if (existing.percent < 10 && visits >= 5) {
         // Upgrade to 10% after 5 visits
         const upgraded = { ...existing, percent: 10, visits };
         localStorage.setItem(discKey, JSON.stringify(upgraded));
-        showAlert('🔥 5 Store Visits! Discount 10% OFF ho gaya — 1 ghante tak valid!', 'SUCCESS', 'Discount Upgraded!');
+        showAlert('🔥 5 Store Visits! Discount upgraded to 10% OFF — Valid for 1 hour!', 'SUCCESS', 'Discount Upgraded!');
       } else {
         const updated = { ...existing, visits };
         localStorage.setItem(discKey, JSON.stringify(updated));
@@ -4207,7 +4207,7 @@ export const StudentDashboard: React.FC<Props> = ({
     const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
     const newMsg = {
       id: `disc-code-${Date.now()}`,
-      text: `🎉 ${event.eventName} Special Offer!\n\nAapke liye ${event.discountPercent}% discount ka coupon code taiyar hai!\n\n📋 Code: ${event.couponCode}\n\n✅ Kaise Use Karein:\n1. Neeche "Redeem" tab pe jao\n2. Yeh code enter karo: ${event.couponCode}\n3. Apply karo — discount seedha Store mein dikha dega!\n\n⏰ Jaldi karein, offer limited time ke liye hai!`,
+      text: `🎉 ${event.eventName} Special Offer!\n\nYour exclusive ${event.discountPercent}% discount coupon is ready!\n\n📋 Code: ${event.couponCode}\n\n✅ How to Use:\n1. Go to the "Redeem" tab below\n2. Enter this code: ${event.couponCode}\n3. Apply it — the discount will appear in the Store!\n\n⏰ Hurry, this offer is for a limited time!`,
       date: new Date().toISOString(),
       read: false,
       type: 'TEXT' as const,
@@ -4370,7 +4370,7 @@ export const StudentDashboard: React.FC<Props> = ({
         updatedUser.totalScore = (user.totalScore || 0) + 5;
         successMsg = applyBonus
           ? `🎯 MCQ Prize! +${finalCoin} Coins (${coinAmt} + ${bonusCoin} Bonus 🎉)!`
-          : `🎯 MCQ Prize! +${coinAmt} Coins earn kiye!`;
+          : `🎯 MCQ Prize! +${coinAmt} Coins earned!`;
         triggerRewardEffect(finalCoin, applyBonus ? `+${finalCoin} Coins 🎉 Bonus!` : `+${coinAmt} Coins 🎯`);
         try { recordCreditTx(user.id, finalCoin, 'EARN_GIFT', `MCQ Prize: +${finalCoin} CR${applyBonus ? ` (${_cbEv?.bonusPercent}% Bonus Event)` : ''}`, updatedUser.credits); } catch {}
       } else {
@@ -5182,8 +5182,8 @@ export const StudentDashboard: React.FC<Props> = ({
             {classLessons.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <span className="text-5xl">📚</span>
-                <p className={`text-base font-black ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Koi lesson nahi mila</p>
-                <p className={`text-xs text-center ${isDarkMode ? 'text-slate-400' : 'text-slate-400'}`}>Admin ne is subject ke liye abhi koi lesson add nahi kiya hai.</p>
+                <p className={`text-base font-black ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>No lessons found</p>
+                <p className={`text-xs text-center ${isDarkMode ? 'text-slate-400' : 'text-slate-400'}`}>Admin hasn't added any lessons for this subject yet.</p>
               </div>
             ) : (
               classLessons.map(entry => {
@@ -5201,7 +5201,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     <button
                       onClick={() => {
                         if (_isLocked) {
-                          showAlert('🔒 Yeh lesson locked hai! Admin se Redeem Code maangein aur Profile → Redeem tab mein enter karein.', 'INFO');
+                          showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
                           return;
                         }
                         setLucentPageListViewer(entry);
@@ -5217,7 +5217,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
                         {_isLocked ? (
-                          <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Redeem Code se unlock karein</p>
+                          <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
                         ) : (
                           <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                             <span>{entry.pages.length} page{entry.pages.length !== 1 ? 's' : ''}</span>
@@ -5236,7 +5236,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         className={`w-full border-t px-3 py-2 flex items-center gap-2 active:scale-[0.99] transition-all ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}
                       >
                         <GitCompare size={13} style={{ color: tierTheme.primary }} />
-                        <span className="text-[11px] font-black" style={{ color: tierTheme.primary }}>📌 {topicNames.length} Topic{topicNames.length > 1 ? 's' : ''} — Compare karein</span>
+                        <span className="text-[11px] font-black" style={{ color: tierTheme.primary }}>📌 {topicNames.length} Topic{topicNames.length > 1 ? 's' : ''} — Compare</span>
                       </button>
                     )}
                     {user.role === 'ADMIN' && (
@@ -5245,7 +5245,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         className={`w-full border-t px-3 py-2 flex items-center gap-2 bg-amber-50 active:scale-[0.99] transition-all ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}
                       >
                         <span className="text-[11px]">🎫</span>
-                        <span className="text-[11px] font-black text-amber-700">Redeem Code Generate karein</span>
+                        <span className="text-[11px] font-black text-amber-700">Generate Redeem Code</span>
                       </button>
                     )}
                   </div>
@@ -5403,7 +5403,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <button
                     onClick={() => {
                       if (_isEntryLocked) {
-                        showAlert('🔒 Yeh lesson locked hai! Admin se Redeem Code maangein aur Profile → Redeem tab mein enter karein.', 'INFO');
+                        showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
                         return;
                       }
                       setLucentPageListViewer(entry);
@@ -5417,7 +5417,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <p className={`text-sm font-black ${theme.textDeep} truncate`}>{entry.lessonTitle}</p>
                       <p className="text-[11px] text-slate-500 font-bold mt-0.5">
                         {_isEntryLocked
-                          ? <span className="text-red-500 font-black">🔒 Locked — Redeem Code se unlock karein</span>
+                          ? <span className="text-red-500 font-black">🔒 Locked — Unlock with Redeem Code</span>
                           : <>{entry.pages.length} page{entry.pages.length === 1 ? '' : 's'}{topicNames.length > 0 ? ` • ${topicNames.length} topic${topicNames.length > 1 ? 's' : ''}` : ''}{entry.pages.some(p => p.mcqs && p.mcqs.length > 0) ? ' • MCQs' : ''}</>
                         }
                       </p>
@@ -5431,7 +5431,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       className={`w-full border-t ${theme.border} px-3 py-2 flex items-center gap-2 ${theme.bgSoft} active:scale-[0.99] transition-all`}
                     >
                       <GitCompare size={13} className={theme.text} />
-                      <span className={`text-[11px] font-black ${theme.text}`}>📌 {topicNames.length} Topic{topicNames.length > 1 ? 's' : ''} — Compare karein</span>
+                      <span className={`text-[11px] font-black ${theme.text}`}>📌 {topicNames.length} Topic{topicNames.length > 1 ? 's' : ''} — Compare</span>
                     </button>
                   )}
                   {/* Admin-only: Generate time-limited redeem code for this lesson */}
@@ -5441,7 +5441,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       className={`w-full border-t ${theme.border} px-3 py-2 flex items-center gap-2 bg-amber-50 active:scale-[0.99] transition-all`}
                     >
                       <span className="text-[11px]">🎫</span>
-                      <span className="text-[11px] font-black text-amber-700">Redeem Code Generate karein</span>
+                      <span className="text-[11px] font-black text-amber-700">Generate Redeem Code</span>
                     </button>
                   )}
                 </div>
@@ -5452,7 +5452,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 onClick={() => setLucentLessonsPage(p => p + 6)}
                 className={`w-full py-3 rounded-2xl border-2 border-dashed ${theme.border} ${theme.text} font-bold text-xs flex items-center justify-center gap-2 hover:opacity-80 active:scale-[0.98] transition-all`}
               >
-                <ChevronDown size={14} /> Load More ({subjectLucentLessons.length - lucentLessonsPage} aur lessons)
+                <ChevronDown size={14} /> Load More ({subjectLucentLessons.length - lucentLessonsPage} more lessons)
               </button>
             )}
           </div>
@@ -5765,10 +5765,10 @@ export const StudentDashboard: React.FC<Props> = ({
                       <span className="text-base shrink-0">📌</span>
                       <div className="min-w-0">
                         <p className="text-[11px] font-black text-indigo-800 leading-tight">
-                          Yeh topic {continuationPages.length + 1} pages mein hai
+                          This topic spans {continuationPages.length + 1} pages
                         </p>
                         <p className="text-[10px] text-indigo-600 leading-tight">
-                          Saare pages ke notes mila ke ek saath dikh rahe hain — topic poora hone tak
+                          All pages combined — stay until the topic is complete
                         </p>
                       </div>
                     </div>
@@ -5793,8 +5793,8 @@ export const StudentDashboard: React.FC<Props> = ({
                           ) : (
                             <div className="bg-slate-50 rounded-2xl p-8 text-center border border-slate-200 mx-4 mt-4">
                               <FileText size={32} className="text-slate-300 mx-auto mb-2" />
-                              <p className="text-sm font-bold text-slate-500">HTML notes abhi add nahi hue</p>
-                              <p className="text-xs text-slate-400 mt-1">Admin se HTML/CSS formatted notes add karwayein</p>
+                              <p className="text-sm font-bold text-slate-500">HTML notes not added yet</p>
+                              <p className="text-xs text-slate-400 mt-1">Ask admin to add HTML/CSS formatted notes</p>
                             </div>
                           )}
                         </div>
@@ -6123,7 +6123,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">📊 Result</p>
                               <div className="flex items-end gap-3">
                                 <span className="text-5xl font-black leading-none">{pct}%</span>
-                                <span className="text-base font-bold opacity-90 mb-1">{right}/{totalQ} Sahi</span>
+                                <span className="text-base font-bold opacity-90 mb-1">{right}/{totalQ} Correct</span>
                               </div>
                               <p className="text-sm font-black mt-1 opacity-90">{grade.label}</p>
                               <div className="grid grid-cols-3 gap-2 mt-3">
@@ -6132,17 +6132,17 @@ export const StudentDashboard: React.FC<Props> = ({
                                   <div className="text-lg font-black">{totalQ}</div>
                                 </div>
                                 <div className="bg-white/20 rounded-xl py-2 text-center">
-                                  <div className="text-[9px] font-black uppercase opacity-80">✅ Sahi</div>
+                                  <div className="text-[9px] font-black uppercase opacity-80">✅ Correct</div>
                                   <div className="text-lg font-black">{right}</div>
                                 </div>
                                 <div className="bg-white/20 rounded-xl py-2 text-center">
-                                  <div className="text-[9px] font-black uppercase opacity-80">❌ Galat</div>
+                                  <div className="text-[9px] font-black uppercase opacity-80">❌ Wrong</div>
                                   <div className="text-lg font-black">{wrong}</div>
                                 </div>
                               </div>
                             </div>
                             {/* Per-question review */}
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center mb-3">📋 Har Question ka Review</p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center mb-3">📋 Per-Question Review</p>
                             <div className="space-y-3">
                               {mcqs.map((mq, qi) => {
                                 const sel = hwAnswers[`${hwKey}_${qi}`];
@@ -6153,7 +6153,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                     <div className={`px-4 py-2 flex items-center gap-2 ${isCorrect ? 'bg-emerald-100' : 'bg-rose-100'}`}>
                                       <span className="text-lg">{isCorrect ? '✅' : '❌'}</span>
                                       <span className={`text-[10px] font-black uppercase tracking-wider ${isCorrect ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                        Q{qi + 1} — {isCorrect ? 'Sahi' : 'Galat'}
+                                        Q{qi + 1} — {isCorrect ? 'Correct' : 'Wrong'}
                                       </span>
                                     </div>
                                     <div className="px-4 py-3 space-y-2">
@@ -6171,8 +6171,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                             <div key={oi} className={optCls}>
                                               <span className="font-black shrink-0">{String.fromCharCode(65+oi)}.</span>
                                               <span className="flex-1">{opt}</span>
-                                              {isCorrectOpt && <span className="text-green-600 font-black text-xs shrink-0">✓ Sahi</span>}
-                                              {isUserPick && !isCorrectOpt && <span className="text-red-600 font-black text-xs shrink-0">✗ Tumhara</span>}
+                                              {isCorrectOpt && <span className="text-green-600 font-black text-xs shrink-0">✓ Correct</span>}
+                                              {isUserPick && !isCorrectOpt && <span className="text-red-600 font-black text-xs shrink-0">✗ Your pick</span>}
                                             </div>
                                           );
                                         })}
@@ -6202,7 +6202,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   setHwManualSubmitted(prev => { const n = { ...prev }; delete n[hwKey]; return n; });
                                 }}
                                 className={`flex-1 text-[13px] font-black ${theme.text} ${theme.bgSoft} py-3 rounded-2xl active:scale-95 transition-all`}
-                              >🔄 Phir se Try Karo</button>
+                              >🔄 Try Again</button>
                               {effectiveNextHw && (
                                 <button
                                   onClick={() => goToHw(effectiveNextHw)}
@@ -6230,7 +6230,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               <div className="flex items-end gap-3 mt-1">
                                 <span className="text-5xl font-black leading-none">{pct}%</span>
                                 <div className="mb-1">
-                                  <div className="text-base font-bold opacity-90">{right}/{attempted} Sahi</div>
+                                  <div className="text-base font-bold opacity-90">{right}/{attempted} Correct</div>
                                   <div className="text-xs font-black opacity-80 bg-white/20 rounded-lg px-2 py-0.5 mt-0.5">🏆 Score: {totalScore} pts</div>
                                 </div>
                               </div>
@@ -6241,11 +6241,11 @@ export const StudentDashboard: React.FC<Props> = ({
                                   <div className="text-base font-black">{attempted}</div>
                                 </div>
                                 <div className="bg-white/20 rounded-xl py-2 text-center">
-                                  <div className="text-[8px] font-black uppercase opacity-80">✅ Sahi</div>
+                                  <div className="text-[8px] font-black uppercase opacity-80">✅ Correct</div>
                                   <div className="text-base font-black">{right}</div>
                                 </div>
                                 <div className="bg-white/20 rounded-xl py-2 text-center">
-                                  <div className="text-[8px] font-black uppercase opacity-80">❌ Galat</div>
+                                  <div className="text-[8px] font-black uppercase opacity-80">❌ Wrong</div>
                                   <div className="text-base font-black">{wrong}</div>
                                 </div>
                                 <div className="bg-white/20 rounded-xl py-2 text-center">
@@ -6253,14 +6253,14 @@ export const StudentDashboard: React.FC<Props> = ({
                                   <div className="text-base font-black">{totalScore}</div>
                                 </div>
                               </div>
-                              <div className="mt-2 text-[9px] opacity-70 text-center">✅ Sahi = 2 pts &nbsp;·&nbsp; ❌ Galat = 1 pt</div>
+                              <div className="mt-2 text-[9px] opacity-70 text-center">✅ Correct = 2 pts &nbsp;·&nbsp; ❌ Wrong = 1 pt</div>
                             </div>
                             {/* Action buttons */}
                             <div className="flex flex-col gap-2">
                               <button
                                 onClick={() => setHwShowAnalysis(hwKey)}
                                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
-                              >📋 Review Dekho — Har Question ka Detail</button>
+                              >📋 Review — Per-Question Details</button>
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => {
@@ -6274,7 +6274,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                     setHwManualSubmitted(prev => { const n = { ...prev }; delete n[hwKey]; return n; });
                                   }}
                                   className={`flex-1 text-[13px] font-black ${theme.text} ${theme.bgSoft} py-3 rounded-2xl active:scale-95 transition-all`}
-                                >🔄 Phir se Try Karo</button>
+                                >🔄 Try Again</button>
                                 {effectiveNextHw && (
                                   <button
                                     onClick={() => goToHw(effectiveNextHw)}
@@ -6316,7 +6316,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   <div className="h-full bg-amber-400 transition-all rounded-full" style={{ width: `${(attempted / submitThreshold) * 100}%` }} />
                                 </div>
                               </div>
-                              <span className="text-[10px] font-black text-amber-600 shrink-0">{attempted}/{submitThreshold} — {submitThreshold - attempted} aur karo</span>
+                              <span className="text-[10px] font-black text-amber-600 shrink-0">{attempted}/{submitThreshold} — {submitThreshold - attempted} more to go</span>
                             </div>
                           ) : (
                             <button
@@ -6379,7 +6379,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             </div>
                             {isAnswered && (
                               <div className="mt-3 px-3 py-2 rounded-xl text-[11px] font-black bg-slate-100 text-slate-500 text-center">
-                                ✅ Jawab lock — next question par jao
+                                ✅ Answer locked — go to next question
                               </div>
                             )}
                           </div>
@@ -6702,8 +6702,8 @@ export const StudentDashboard: React.FC<Props> = ({
               {filteredHw.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
                   <BookOpen size={36} className={`${theme.text} mx-auto mb-2 opacity-60`} />
-                  <p className="text-sm font-bold text-slate-600">Abhi koi note add nahi hua</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Admin jab is book me page add karega, yahaan dikhega.</p>
+                  <p className="text-sm font-bold text-slate-600">No notes added yet</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Notes will appear here when admin adds pages to this book.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -6822,7 +6822,7 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
               <div>
                 <h2 className="text-xl font-black text-slate-800">📚 Books</h2>
-                <p className="text-xs text-slate-500">Ek book choose karo</p>
+                <p className="text-xs text-slate-500">Choose a book</p>
               </div>
             </div>
 
@@ -6830,8 +6830,8 @@ export const StudentDashboard: React.FC<Props> = ({
               {uniqueBooks.length === 0 ? (
                 <div className="text-center py-16 text-slate-400">
                   <p className="text-3xl mb-3">📭</p>
-                  <p className="font-bold text-slate-600">Abhi koi notes nahi hain</p>
-                  <p className="text-xs mt-1">Admin ne notes add kiye baad mein yahan aayenge.</p>
+                  <p className="font-bold text-slate-600">No notes available</p>
+                  <p className="text-xs mt-1">Notes will appear here once admin adds them.</p>
                 </div>
               ) : uniqueBooks.map(bookName => {
                 const count = competitionNotes.filter(n => (n.bookName?.trim() || 'Lucent') === bookName).length;
@@ -6909,7 +6909,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 if (subjectEntries.length === 1) {
                   const entry = subjectEntries[0];
                   if (_lucentIsLocked(entry)) {
-                    showAlert('🔒 Yeh lesson locked hai! Admin se Redeem Code maangein aur Profile → Redeem tab mein enter karein.', 'INFO');
+                    showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
                     return;
                   }
                   setLucentCategoryView(false);
@@ -8162,7 +8162,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 ? (
                   <div className="mx-4 text-center py-10 bg-red-50 rounded-2xl border border-red-200">
                     <Ban size={36} className="mx-auto text-red-400 mb-3" />
-                    <p className="text-sm font-bold text-red-500">Admin ne game band kar diya hai.</p>
+                    <p className="text-sm font-bold text-red-500">Game has been disabled by admin.</p>
                   </div>
                 )
                 : (
@@ -8175,7 +8175,7 @@ export const StudentDashboard: React.FC<Props> = ({
               : (
                 <div className="mx-4 text-center py-14 bg-slate-50 rounded-2xl border border-slate-200">
                   <Gamepad2 size={36} className="mx-auto text-slate-300 mb-3" />
-                  <p className="text-sm font-bold text-slate-400">Game abhi disabled hai admin ke taraf se.</p>
+                  <p className="text-sm font-bold text-slate-400">Game is currently disabled by admin.</p>
                 </div>
               )
           }
@@ -8661,7 +8661,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className={`text-sm font-bold ${_pTxt}`}>Theme Studio</p>
-                      <p className={`text-[10px] mt-0.5 ${_pTxtMuted}`}>App ka theme customize karo</p>
+                      <p className={`text-[10px] mt-0.5 ${_pTxtMuted}`}>Customize your app theme</p>
                     </div>
                     <ChevronRight size={14} style={{ color: _pTxtMutedColor }} className="shrink-0" />
                   </button>
@@ -8699,7 +8699,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         </p>
                         <p className={`text-[10px] mt-0.5 text-violet-400/80`}>
                           {_endsAt ? `${new Date(_endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} tak — ` : ''}
-                          {_days ? `${_days} din ke liye theme customize karo` : 'App ka theme apne hisaab se banao!'}
+                          {_days ? `Customize your theme for ${_days} days` : 'Make the app your own!'}
                         </p>
                       </div>
                       <ChevronRight size={14} style={{ color: 'rgba(139,92,246,0.7)' }} className="shrink-0" />
@@ -8729,7 +8729,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <span className="text-base">🎨</span>
                   <div>
                     <p className={`text-sm font-bold ${_pTxt}`}>Themes</p>
-                    <p className={`text-[10px] ${_pTxtMuted}`}>Ek theme choose karo aur apply karo</p>
+                    <p className={`text-[10px] ${_pTxtMuted}`}>Choose a theme and apply it</p>
                   </div>
                 </div>
                 <div className="px-3 pb-3 space-y-2">
@@ -8942,16 +8942,16 @@ export const StudentDashboard: React.FC<Props> = ({
                         const updated = { ...user } as any;
                         delete updated.useDefaultTheme;
                         handleUserUpdate(updated);
-                        showAlert('🔒 App default theme lock ho gaya! Admin themes ab override nahi karenge.', 'SUCCESS');
+                        showAlert('🔒 App default theme locked! Admin themes will no longer override yours.', 'SUCCESS');
                       } else {
                         // Allow admin themes
                         await updateDoc(uRef, { useDefaultTheme: false });
                         const updated = { ...user, useDefaultTheme: false } as any;
                         handleUserUpdate(updated);
-                        showAlert('🔓 Admin themes allow kar diye! Admin jo theme set kare woh aapko milegi.', 'SUCCESS');
+                        showAlert('🔓 Admin themes enabled! You will now receive the theme set by admin.', 'SUCCESS');
                       }
                     } catch {
-                      showAlert('❌ Theme setting update nahi hui', 'ERROR');
+                      showAlert('❌ Theme setting could not be updated', 'ERROR');
                     }
                   }}
                   className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
@@ -8968,8 +8968,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     </p>
                     <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
                       {_adminAllowed
-                        ? 'Admin jo theme broadcast kare woh aapko milegi — tap karke lock karo'
-                        : 'Aapka tier ka default theme chal raha hai — admin override nahi kar sakta'}
+                        ? 'You receive the theme broadcast by admin — tap to lock your own'
+                        : 'Your tier default theme is active — admin cannot override it'}
                     </p>
                   </div>
                   {/* Toggle pill */}
@@ -9005,8 +9005,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 <p className={`text-sm font-bold ${_pTxt}`}>Name Effect</p>
                 <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
                   {nameFxOff
-                    ? `Plain text — ${_pLvl.emoji} Level ${_pLvl.level} effect off hai`
-                    : `${_pLvl.emoji} Level ${_pLvl.level} (${_pLvl.label}) — animated effect chal raha hai`}
+                    ? `Plain text — ${_pLvl.emoji} Level ${_pLvl.level} effect off`
+                    : `${_pLvl.emoji} Level ${_pLvl.level} (${_pLvl.label}) — animated effect active`}
                 </p>
               </div>
               <div className="shrink-0 w-10 h-5 rounded-full relative transition-all"
@@ -9087,7 +9087,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (key && key.startsWith(`nst_credit_skip_${user.id}_`)) keysToRemove.push(key);
                 }
                 keysToRemove.forEach(k => localStorage.removeItem(k));
-                showAlert('Settings reset ho gayi!', 'SUCCESS');
+                showAlert('Settings reset successfully!', 'SUCCESS');
               }}
               className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
               style={{ borderBottom: _pSep }}>
@@ -9120,7 +9120,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold text-red-400">Logout</p>
-                  <p className="text-[10px] text-red-400/50 mt-0.5">Is device se sign out karo</p>
+                  <p className="text-[10px] text-red-400/50 mt-0.5">Sign out from this device</p>
                 </div>
                 <ChevronRight size={15} className="text-red-900/40 shrink-0" />
               </button>
@@ -9143,7 +9143,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 <div className="sticky top-0 px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: _pCard, borderBottom: _pSep }}>
                   <div>
                     <p className={`font-black text-[15px] ${_pTxt}`}>Level Style Chooser</p>
-                    <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>Kisi bhi unlock level ka naam/card effect choose karo</p>
+                    <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>Choose a name/card effect for any unlocked level</p>
                   </div>
                   <button onClick={() => setShowLevelChooser(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.10)' }}>
                     <X size={14} style={{ color: _pTxtSubColor }} />
@@ -9551,7 +9551,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       style={hasEndingEvent
                         ? { background: 'rgba(239,68,68,0.22)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.55)', boxShadow: '0 0 8px rgba(239,68,68,0.45)' }
                         : { background: 'rgba(245,158,11,0.25)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.5)' }}
-                      title={hasEndingEvent ? 'Event khatam hone wala hai!' : `${activeEvents.length} event(s) active`}
+                      title={hasEndingEvent ? 'An event is ending soon!' : `${activeEvents.length} event(s) active`}
                     >
                       <span className="text-[11px] leading-none">⚡</span>
                       <span>{activeEvents.length}</span>
@@ -9563,7 +9563,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       onClick={() => setShowEventDrawer(true)}
                       className="relative inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-black shrink-0 active:scale-90 transition-all"
                       style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)' }}
-                      title={`Event aa raha hai: ${upcomingEvents[0].label}`}
+                      title={`Upcoming event: ${upcomingEvents[0].label}`}
                     >
                       <span className="text-[11px] leading-none">📅</span>
                       <span>{cdText(upcomingEvents[0].startsAt)}</span>
@@ -9586,9 +9586,9 @@ export const StudentDashboard: React.FC<Props> = ({
                                 <p className="text-[10px]" style={{ color: hasEndingEvent ? '#fca5a5' : '#fbbf24' }}>
                                   {activeEvents.length > 0
                                     ? hasEndingEvent
-                                      ? `⚠️ Koi event khatam hone wala hai!`
-                                      : `${activeEvents.length} event${activeEvents.length > 1 ? 's' : ''} abhi active hai!`
-                                    : `${upcomingEvents.length} event aa raha hai jaldi!`}
+                                      ? `⚠️ An event is ending soon!`
+                                      : `${activeEvents.length} event${activeEvents.length > 1 ? 's' : ''} currently active!`
+                                    : `${upcomingEvents.length} event${upcomingEvents.length > 1 ? 's' : ''} coming soon!`}
                                 </p>
                               </div>
                             </div>
@@ -9604,8 +9604,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                 style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
                                 <span className="text-2xl">📅</span>
                                 <div>
-                                  <p className="font-black text-white text-sm">Koi event abhi active nahi</p>
-                                  <p className="text-[10px] text-indigo-400 mt-0.5">Neeche dekho — aane wale events ki list hai!</p>
+                                  <p className="font-black text-white text-sm">No events active right now</p>
+                                  <p className="text-[10px] text-indigo-400 mt-0.5">Check below — see upcoming events!</p>
                                 </div>
                               </div>
                             )}
@@ -9629,7 +9629,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                     <span className="text-2xl shrink-0 grayscale">{ev.split(' ')[0]}</span>
                                     <div className="flex-1 min-w-0">
                                       <p className="font-black text-slate-400 text-sm">{ev.slice(ev.indexOf(' ') + 1)}</p>
-                                      <p className="text-[10px] text-slate-500 mt-0.5">🔒 Level {_evMinLvl}+ chahiye • Tumhara Level: {_userLevel}</p>
+                                      <p className="text-[10px] text-slate-500 mt-0.5">🔒 Requires Level {_evMinLvl}+ • Your Level: {_userLevel}</p>
                                     </div>
                                     <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-500 shrink-0">LOCKED</span>
                                   </div>
@@ -9648,7 +9648,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                 const evName = (settings as any)?.scoreBoostEvent?.eventName || 'Score Boost Event';
                                 const endsAt = (settings as any)?.scoreBoostEvent?.endsAt;
                                 const exampleActivities = [
-                                  { label: 'MCQ Sahi Jawab', base: 2 },
+                                  { label: 'MCQ Correct Answer', base: 2 },
                                   { label: 'Video / Notes', base: 10 },
                                   { label: 'Daily Login', base: 10 },
                                   { label: 'Streak Bonus (5x)', base: 10 },
@@ -9670,7 +9670,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                     </div>
                                     {isEndingSoon && endCountdown && (
                                       <div className="px-4 pb-2">
-                                        <p className="text-[9px] font-black text-red-400">⏰ {endCountdown} — jaldi use karo!</p>
+                                        <p className="text-[9px] font-black text-red-400">⏰ {endCountdown} — use it soon!</p>
                                       </div>
                                     )}
                                     <div className="px-4 pb-3 space-y-1.5 border-t border-orange-500/15 pt-2">
@@ -9717,7 +9717,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                     </div>
                                     {isEndingSoon && endCountdown && (
                                       <div className="px-4 pb-2">
-                                        <p className="text-[9px] font-black text-red-400">⏰ {endCountdown} — jaldi use karo!</p>
+                                        <p className="text-[9px] font-black text-red-400">⏰ {endCountdown} — use it soon!</p>
                                       </div>
                                     )}
                                     <div className="px-4 pb-3 space-y-1.5 border-t border-emerald-500/15 pt-2">
@@ -9751,14 +9751,14 @@ export const StudentDashboard: React.FC<Props> = ({
                                       <div className="flex-1 min-w-0">
                                         <p className="font-black text-white text-sm">{tsEvent?.eventName || 'Theme Studio Event'}</p>
                                         <p className="text-[10px] text-violet-400/80 mt-0.5">
-                                          {endsAt ? `${new Date(endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' })} tak — ` : ''}App ka theme apne hisaab se banao!
+                                          {endsAt ? `Until ${new Date(endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' })} — ` : ''}Make the app your own!
                                         </p>
                                       </div>
                                       <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${isEndingSoon ? 'bg-red-500/20 text-red-400' : 'bg-violet-500/20 text-violet-300'}`}>{isEndingSoon ? 'ENDING' : 'LIVE'}</span>
                                     </div>
                                     <div className="px-4 pb-3.5">
                                       {isEndingSoon && endCountdown && (
-                                        <p className="text-[9px] font-black text-red-400 mb-2">⏰ {endCountdown} — jaldi kholo!</p>
+                                        <p className="text-[9px] font-black text-red-400 mb-2">⏰ {endCountdown} — open now!</p>
                                       )}
                                       <button
                                         onClick={() => { setShowEventDrawer(false); themeOpenerRef.current = 'HOME'; onTabChange('THEME_CUSTOMIZER' as any); }}
@@ -9780,8 +9780,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                   <div className="flex-1 min-w-0">
                                     <p className="font-black text-white text-sm">{ev.slice(ev.indexOf(' ') + 1)}</p>
                                     {isEndingSoon && endCountdown
-                                      ? <p className="text-[10px] font-black text-red-400 mt-0.5">⏰ {endCountdown} — jaldi use karo!</p>
-                                      : <p className="text-[10px] text-amber-400 mt-0.5">Abhi active — enjoy karo! 🎉</p>}
+                                      ? <p className="text-[10px] font-black text-red-400 mt-0.5">⏰ {endCountdown} — use it soon!</p>
+                                      : <p className="text-[10px] text-amber-400 mt-0.5">Currently active — enjoy! 🎉</p>}
                                   </div>
                                   <span className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${isEndingSoon ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                     {isEndingSoon ? 'ENDING' : 'LIVE'}
@@ -9796,10 +9796,10 @@ export const StudentDashboard: React.FC<Props> = ({
                                 if (hist.length === 0) return null;
                                 return (
                                   <div className="mt-3 pt-3 border-t border-white/6">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-2">📋 Purane Events (7 din)</p>
+                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-2">📋 Past Events (7 days)</p>
                                     {hist.slice().reverse().map((h: any, hi: number) => {
                                       const daysAgo = Math.floor((Date.now() - h.expiredAt) / 86400000);
-                                      const expLabel = daysAgo === 0 ? 'Aaj khatam hua' : `${daysAgo} din pehle khatam`;
+                                      const expLabel = daysAgo === 0 ? 'Ended today' : `Ended ${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`;
                                       const startFmt = h.startsAt ? new Date(h.startsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
                                       const endFmt = h.endsAt ? new Date(h.endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
                                       return (
@@ -9828,8 +9828,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                   const h = Math.floor(ms / 3600000);
                                   const m = Math.floor((ms % 3600000) / 60000);
                                   const s = Math.floor((ms % 60000) / 1000);
-                                  const cdLabel = h >= 1 ? `${h}h ${m}m mein` : `${m}m ${s}s mein`;
-                                  const endLabel = uev.endsAt ? new Date(uev.endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) + ' tak' : '';
+                                  const cdLabel = h >= 1 ? `in ${h}h ${m}m` : `in ${m}m ${s}s`;
+                                  const endLabel = uev.endsAt ? 'until ' + new Date(uev.endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
                                   return (
                                     <div key={ui} className="flex items-center gap-3 rounded-2xl px-3 py-2.5 mb-1.5"
                                       style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
@@ -9840,7 +9840,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                       </div>
                                       <div className="text-right shrink-0">
                                         <p className="text-[9px] font-black text-indigo-400">{cdLabel}</p>
-                                        <p className="text-[8px] text-slate-600">shuru hoga</p>
+                                        <p className="text-[8px] text-slate-600">starts soon</p>
                                       </div>
                                     </div>
                                   );
@@ -9866,14 +9866,14 @@ export const StudentDashboard: React.FC<Props> = ({
                                         {personalDiscount > 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">+{personalDiscount}% Personal</span>}
                                         {subBonus > 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">+{subBonus}% Subscriber</span>}
                                       </div>
-                                      <p className="text-[9px] text-slate-500 mt-1">Store mein sabhi purchases pe</p>
+                                      <p className="text-[9px] text-slate-500 mt-1">On all Store purchases</p>
                                     </div>
                                     <span className="text-base font-black text-emerald-400 shrink-0">{total}% OFF</span>
                                   </div>
                                 </div>
                               );
                             })()}
-                            <p className="text-[10px] text-slate-600 text-center pt-2">Yeh events admin ke dwara set kiye gaye hain.</p>
+                            <p className="text-[10px] text-slate-600 text-center pt-2">These events are set by admin.</p>
                           </div>
                         </div>
                       </div>
@@ -11498,7 +11498,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <p className="font-black text-sm">Full Book Compare</p>
                         <span className="text-[8px] font-black bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">ULTRA</span>
                       </div>
-                      <p className="text-[11px] text-purple-200">Topic select karo — common aur extra points dekho</p>
+                      <p className="text-[11px] text-purple-200">Select a topic — see common and extra points</p>
                     </div>
                     <ChevronRight size={15} className="text-purple-300 shrink-0 relative z-10" />
                   </button>
@@ -11967,7 +11967,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
         const saveDraft = () => {
           if (!compMcqDraft.question.trim()) {
-            showAlert('Question khaali nahi ho sakta.', 'ERROR');
+            showAlert('Question cannot be empty.', 'ERROR');
             return;
           }
           const filledOpts = compMcqDraft.options.map(o => o.trim());
@@ -12025,7 +12025,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             subtitle: `Practice MCQ Maker · ${allMcqs.length} questions`,
                           });
                         });
-                        if (_dlOkComp) showAlert(`📥 ${allMcqs.length} MCQs offline save ho gaye!`, 'SUCCESS');
+                        if (_dlOkComp) showAlert(`📥 ${allMcqs.length} MCQs saved offline!`, 'SUCCESS');
                       } catch (e) {
                         showAlert('Download failed. Please try again.', 'ERROR');
                       }
@@ -12243,8 +12243,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                 : 'bg-rose-100 text-rose-800 border border-rose-200'
                             }`}>
                               {compMcqSelected === current.correctAnswer
-                                ? '✅ Sahi answer!'
-                                : `❌ Galat. Sahi answer: Option ${String.fromCharCode(65 + current.correctAnswer)}`}
+                                ? '✅ Correct answer!'
+                                : `❌ Wrong. Correct answer: Option ${String.fromCharCode(65 + current.correctAnswer)}`}
                             </div>
                             {/* Share this MCQ to community chat */}
                             <button
@@ -12257,7 +12257,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               }}
                               className="mt-2 w-full py-2.5 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-violet-100"
                             >
-                              <Send size={14} /> Community Chat mein Share Karo
+                              <Send size={14} /> Share to Community Chat
                             </button>
                             </>
                           )}
@@ -12888,7 +12888,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         const result = awardMilestone(user.id, gkSessionKey, prevTtsPct, pct, user.subscriptionLevel, user.isPremium, getActiveBoost(user));
                         if (result && result.earned > 0) { logScoreActivity(user.id, 'NOTES_GK_TTS', result.earned); handleUserUpdate({ ...user, totalScore: (user.totalScore || 0) + result.earned }); }
                         prevTtsPct = pct;
-                        if (result && result.earned > 0) triggerRewardEffect(result.earned, `+${result.earned} pts 🎧 GK TTS Padha!`);
+                        if (result && result.earned > 0) triggerRewardEffect(result.earned, `+${result.earned} pts 🎧 GK TTS Read!`);
                       });
                     }
                   }}
@@ -13013,12 +13013,12 @@ export const StudentDashboard: React.FC<Props> = ({
                                   onClick={() => setGkMcqRevealedSet(prev => { const s = new Set(prev); s.add(revKey); return s; })}
                                   className="w-full py-2 text-xs font-black text-violet-600 border border-violet-200 rounded-lg bg-violet-50 hover:bg-violet-100 active:scale-[0.98] transition-all"
                                 >
-                                  👁 Jawab Dekhein
+                                  👁 Show Answer
                                 </button>
                               ) : (
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                                   <p className="text-xs font-black text-emerald-700">
-                                    ✓ Sahi Jawab: {mcq.options?.[mcq.correctAnswer] ?? String(mcq.correctAnswer)}
+                                    ✓ Correct Answer: {mcq.options?.[mcq.correctAnswer] ?? String(mcq.correctAnswer)}
                                   </p>
                                   {mcq.explanation && (
                                     <p className="text-[11px] text-emerald-600 mt-1">{mcq.explanation}</p>
@@ -13221,7 +13221,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   </div>
                   <div>
                     <h3 className="text-base font-black">Content Request</h3>
-                    <p className="text-[11px] text-pink-100">Admin ko demand bhejo</p>
+                    <p className="text-[11px] text-pink-100">Send a request to Admin</p>
                   </div>
                 </div>
                 <button onClick={() => setShowRequestModal(false)} className="bg-white/20 p-1.5 rounded-full hover:bg-white/30 transition-all">
@@ -13269,7 +13269,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
               {/* Content Type */}
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Kya chahiye?</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1 block">What do you need?</label>
                 <div className="grid grid-cols-5 gap-1">
                   {(['PDF','VIDEO','MCQ','NOTES','ANY'] as const).map((t) => (
                     <button
@@ -13306,7 +13306,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 <button
                   onClick={() => {
                     if (!requestData.subject.trim() || !requestData.topic.trim()) {
-                      showAlert("Subject aur Lesson ka naam zaroori hai", "ERROR");
+                      showAlert("Subject and lesson name are required", "ERROR");
                       return;
                     }
                     const request = {
@@ -13328,13 +13328,13 @@ export const StudentDashboard: React.FC<Props> = ({
                       .then(() => {
                         setShowRequestModal(false);
                         setRequestData({ subject: '', topic: '', pageNo: '', type: 'PDF', note: '' });
-                        showAlert("✅ Request bhej di gayi! Admin dekhega.", "SUCCESS");
+                        showAlert("✅ Request sent! Admin will review it.", "SUCCESS");
                       })
-                      .catch(() => showAlert("Request bhejne mein fail hua. Dobara try karo.", "ERROR"));
+                      .catch(() => showAlert("Failed to send request. Please try again.", "ERROR"));
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold shadow-lg transition-all"
                 >
-                  Bhejo 🚀
+                  Send 🚀
                 </button>
               </div>
             </div>
@@ -13489,7 +13489,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const openTopicCompare = (topicName: string) => {
           const hits = buildTopicHits(topicName);
           if (hits.length === 0) {
-            alert('Is topic ke notes kisi aur book mein nahi mile.');
+            alert('No notes for this topic were found in other books.');
             return;
           }
           setCompareHits(hits);
@@ -13528,7 +13528,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 onClick={() => setLucentLessonCompareTab('full')}
                 className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${lucentLessonCompareTab === 'full' ? 'bg-white shadow text-violet-700' : 'text-slate-500'}`}
               >
-                <BookOpen size={12} /> Pura Lesson
+                <BookOpen size={12} /> Full Lesson
               </button>
             </div>
 
@@ -13538,12 +13538,12 @@ export const StudentDashboard: React.FC<Props> = ({
               {lucentLessonCompareTab === 'topics' && (
                 <div className="px-3 pt-3 space-y-2">
                   <p className="text-[10px] text-slate-400 font-bold px-1">
-                    Kisi bhi topic pe tap karein — us topic ke notes sab books se compare honge
+                    Tap any topic — compare its notes across all books
                   </p>
                   {topicsInLesson.length === 0 && (
                     <div className="text-center py-12 text-slate-400">
-                      <p className="font-bold">Koi tagged topic nahi mila</p>
-                      <p className="text-sm mt-1">Admin ko pages mein topicName tag karna hoga</p>
+                      <p className="font-bold">No tagged topics found</p>
+                      <p className="text-sm mt-1">Admin needs to add topicName tags to pages</p>
                     </div>
                   )}
                   {topicsInLesson.map(({ topicName, pages }) => {
@@ -13645,7 +13645,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                     ) : (
                       <div className="text-center py-12 text-slate-400">
-                        <p className="font-bold">Koi HTML content nahi mila</p>
+                        <p className="font-bold">No HTML content found</p>
                       </div>
                     )
                   ) : (
@@ -13670,7 +13670,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                     ) : (
                       <div className="text-center py-12 text-slate-400">
-                        <p className="font-bold">Koi content nahi mila</p>
+                        <p className="font-bold">No content found</p>
                       </div>
                     )
                   )}
@@ -14180,15 +14180,15 @@ export const StudentDashboard: React.FC<Props> = ({
             };
 
             const NAV_TAB_INFO: Record<string, {emoji: string; desc: string}> = {
-              HOME:               { emoji: '🏠', desc: 'Notes, Videos, MCQs aur poora syllabus' },
-              HOMEWORK:           { emoji: '📚', desc: 'Admin ke assignments aur homework' },
-              COMMUNITY_SUPPORT:  { emoji: '💬', desc: 'Community chat aur support' },
-              IMPORTANT:          { emoji: '⭐', desc: 'Starred aur important notes' },
-              APP_STORE:          { emoji: '📱', desc: 'Admin ke recommended apps' },
-              PROFILE:            { emoji: '👤', desc: 'Profile, credits aur settings' },
-              REVISION_V2:        { emoji: '🔁', desc: 'Spaced revision aur weak topics' },
+              HOME:               { emoji: '🏠', desc: 'Notes, Videos, MCQs and full syllabus' },
+              HOMEWORK:           { emoji: '📚', desc: 'Admin assignments and homework' },
+              COMMUNITY_SUPPORT:  { emoji: '💬', desc: 'Community chat and support' },
+              IMPORTANT:          { emoji: '⭐', desc: 'Starred and important notes' },
+              APP_STORE:          { emoji: '📱', desc: 'Admin recommended apps' },
+              PROFILE:            { emoji: '👤', desc: 'Profile, credits and settings' },
+              REVISION_V2:        { emoji: '🔁', desc: 'Spaced revision and weak topics' },
               COMPRE:             { emoji: '📖', desc: 'Full book comparison tool' },
-              GK:                 { emoji: '🌍', desc: 'Daily GK aur current affairs' },
+              GK:                 { emoji: '🌍', desc: 'Daily GK and current affairs' },
               VIDEO:              { emoji: '🎬', desc: 'Educational videos' },
             };
             const showNavTabTooltip = (id: string, label: string) => {
@@ -14814,8 +14814,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 if (msgs.length === 0) return (
                   <div className="text-center py-14 flex flex-col items-center">
                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300"><Mail size={32} /></div>
-                    <p className="text-slate-500 font-bold text-sm">Koi message nahi</p>
-                    <p className="text-slate-400 text-xs mt-1">Admin se gifts aur rewards yahan aayenge</p>
+                    <p className="text-slate-500 font-bold text-sm">No messages</p>
+                    <p className="text-slate-400 text-xs mt-1">Gifts and rewards from admin will appear here</p>
                   </div>
                 );
                 return msgs.map((msg, idx) => {
@@ -14885,11 +14885,11 @@ export const StudentDashboard: React.FC<Props> = ({
                             handleUserUpdate({ ...latestUser, storeDiscount: newDiscount, inbox: updatedInbox });
                             setShowInbox(false);
                             onTabChange('STORE');
-                            showAlert(`🎟️ ${msg.discountPercent}% discount Store mein apply ho gaya! Abhi upgrade karo.`, 'SUCCESS', 'Discount Active!');
+                            showAlert(`🎟️ ${msg.discountPercent}% discount applied to Store! Upgrade now.`, 'SUCCESS', 'Discount Active!');
                           }}
                           className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
                         >
-                          <span>🎟️</span> Discount Claim Karo — Store Mein Apply Hoga
+                          <span>🎟️</span> Claim Discount — Will Apply in Store
                           <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{msg.discountPercent}% OFF</span>
                         </button>
                       )}
@@ -14979,7 +14979,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   {cdText && (
                                     <div className={`flex items-center gap-1 text-[11px] font-black mb-2 ${isAboutToExpire ? 'text-red-600' : 'text-amber-600'}`}>
                                       <span>⏱</span>
-                                      <span>{cdText} — jaldi claim karo!</span>
+                                      <span>{cdText} — claim it soon!</span>
                                     </div>
                                   )}
                                   {/* Gift badge chips */}
@@ -15008,8 +15008,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         ) : (
                           <div className="text-center py-10 flex flex-col items-center">
                             <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-3 text-amber-300 text-3xl">🎁</div>
-                            <p className="text-slate-500 font-bold text-sm">Abhi koi pending reward nahi</p>
-                            <p className="text-slate-400 text-xs mt-1">Padhte raho, rewards milenge!</p>
+                            <p className="text-slate-500 font-bold text-sm">No pending rewards</p>
+                            <p className="text-slate-400 text-xs mt-1">Keep reading — rewards are coming!</p>
                           </div>
                         )}
                   </div>
@@ -15027,8 +15027,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 if (recentHistory.length === 0) return (
                   <div className="text-center py-14 flex flex-col items-center">
                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300 text-3xl">📜</div>
-                    <p className="text-slate-500 font-bold text-sm">Koi history nahi abhi</p>
-                    <p className="text-slate-400 text-xs mt-1">Jab bhi reward claim karoge yahan dikhega (7 din tak)</p>
+                    <p className="text-slate-500 font-bold text-sm">No history yet</p>
+                    <p className="text-slate-400 text-xs mt-1">Claimed rewards appear here for 7 days</p>
                   </div>
                 );
                 return (
@@ -15097,11 +15097,11 @@ export const StudentDashboard: React.FC<Props> = ({
                   { icon: '📖', label: 'Notes', free: '✓ Unlimited', basic: '✓ Unlimited', ultra: '✓ Unlimited' },
                   { icon: '📝', label: 'MCQ Practice', free: `${mcqFreeLimit}/day`, basic: `${mcqBasicLimit}/day`, ultra: `${mcqUltraLimit}/day` },
                   { icon: '🎬', label: 'Video Lectures', free: 'Coins needed', basic: `${vidBasic}/day free`, ultra: `${vidUltra}/day free` },
-                  { icon: '📄', label: 'PDF Access', free: 'L1-L4: 🔒, L5: 1/day → badhta hai', basic: 'L1: 1/day → level pe badhe', ultra: 'L1: 3/day → level pe badhe' },
-                  { icon: '✍️', label: 'Write Mode (free views)', free: `${htmlCost} CR/view (no free)`, basic: `${basicHtmlLimit}/day free, phir CR`, ultra: `${ultraHtmlLimitModal}/day free, phir CR` },
+                  { icon: '📄', label: 'PDF Access', free: 'L1-L4: 🔒, L5: 1/day → grows with level', basic: 'L1: 1/day → grows with level', ultra: 'L1: 3/day → grows with level' },
+                  { icon: '✍️', label: 'Write Mode (free views)', free: `${htmlCost} CR/view (no free)`, basic: `${basicHtmlLimit}/day free, then CR`, ultra: `${ultraHtmlLimitModal}/day free, then CR` },
                   { icon: '💎', label: 'Write Mode (after limit)', free: `${htmlCost} CR/use`, basic: `10 CR/use`, ultra: `10 CR/use` },
                   { icon: '📥', label: 'HTML Downloads', free: `${dlFree}/day`, basic: `${dlBasic}/day`, ultra: `${dlUltra}/day` },
-                  { icon: '🗓️', label: 'Sunday Bonus (streak tootne pe)', free: `+${freeBonus} CR`, basic: `+${basicBonus} CR`, ultra: `+${ultraBonus} CR` },
+                  { icon: '🗓️', label: 'Sunday Bonus (on streak break)', free: `+${freeBonus} CR`, basic: `+${basicBonus} CR`, ultra: `+${ultraBonus} CR` },
                   { icon: '🔊', label: 'Audio / TTS', free: '✓ Free', basic: '✓ Free', ultra: '✓ Free' },
                 ];
 
@@ -15114,7 +15114,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <span className="text-lg">✍️</span>
                         <div>
                           <p className="font-black text-sm text-slate-800">Write Mode — Credit System</p>
-                          <p className="text-[10px] text-slate-500">Free views khatam hone ke baad credit lagta hai</p>
+                          <p className="text-[10px] text-slate-500">Credits apply after free views run out</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -15126,16 +15126,16 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="bg-white rounded-xl p-2 text-center border border-teal-100">
                           <p className="text-[9px] font-black text-sky-500 uppercase">Basic</p>
                           <p className="font-black text-sky-600 text-xs mt-0.5">{basicHtmlLimit}/day free</p>
-                          <p className="text-[9px] text-slate-400">Phir 10 CR/use</p>
+                          <p className="text-[9px] text-slate-400">Then 10 CR/use</p>
                         </div>
                         <div className="bg-white rounded-xl p-2 text-center border border-teal-100">
                           <p className="text-[9px] font-black text-violet-500 uppercase">Ultra Notes</p>
                           <p className="font-black text-violet-600 text-xs mt-0.5">{ultraHtmlLimitModal}/day free</p>
-                          <p className="text-[9px] text-slate-400">Phir 10 CR/use</p>
+                          <p className="text-[9px] text-slate-400">Then 10 CR/use</p>
                         </div>
                       </div>
                       <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                        <p className="text-[9px] text-amber-700 font-bold">💡 Escalating Cost: Har 10 credit unlocks ke baad +5 CR (max 20 CR) · Max 100 unlocks/day</p>
+                        <p className="text-[9px] text-amber-700 font-bold">💡 Escalating Cost: Every 10 credit unlocks adds +5 CR (max 20 CR) · Max 100 unlocks/day</p>
                       </div>
                     </div>
 
@@ -15145,7 +15145,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <span className="text-lg">📝</span>
                         <div>
                           <p className="font-black text-sm text-slate-800">MCQ Practice — Daily Limits</p>
-                          <p className="text-[10px] text-slate-500">Tier ke hisaab se alag limit</p>
+                          <p className="text-[10px] text-slate-500">Limit varies by tier</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -15157,12 +15157,12 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="bg-white rounded-xl p-2 text-center border border-emerald-100">
                           <p className="text-[9px] font-black text-sky-500 uppercase">Basic</p>
                           <p className="font-black text-sky-600 text-sm mt-0.5">{mcqBasicLimit}/day</p>
-                          <p className="text-[9px] text-slate-400">Phir 5 CR/30 Qs</p>
+                          <p className="text-[9px] text-slate-400">Then 5 CR/30 Qs</p>
                         </div>
                         <div className="bg-white rounded-xl p-2 text-center border border-emerald-100">
                           <p className="text-[9px] font-black text-violet-500 uppercase">Ultra</p>
                           <p className="font-black text-violet-600 text-sm mt-0.5">{mcqUltraLimit}/day</p>
-                          <p className="text-[9px] text-slate-400">Phir 5 CR/30 Qs</p>
+                          <p className="text-[9px] text-slate-400">Then 5 CR/30 Qs</p>
                         </div>
                       </div>
                     </div>
@@ -15172,7 +15172,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 text-blue-600 text-xl">🎉</div>
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-sm text-slate-800">Signup Bonus</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">Sirf pehli baar join karne pe — ek baar milega</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Only on first join — earned once</p>
                         </div>
                         <span className="font-black text-blue-700 text-base shrink-0">+{signupAmt} CR</span>
                       </div>
@@ -15182,8 +15182,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center shrink-0 text-green-600 text-lg">🌅</div>
                           <div>
-                            <p className="font-black text-sm text-slate-800">Roz Login Bonus</p>
-                            <p className="text-[10px] text-slate-500">Har roz app kholne pe — sirf 1 baar milega</p>
+                            <p className="font-black text-sm text-slate-800">Daily Login Bonus</p>
+                            <p className="text-[10px] text-slate-500">Once per day when you open the app</p>
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-green-100">
@@ -15209,7 +15209,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shrink-0 text-purple-600 text-xl">📚</div>
                           <div className="flex-1 min-w-0">
                             <p className="font-black text-sm text-slate-800">{r.label || `${mins} Min Study Reward`}</p>
-                            <p className="text-[11px] text-slate-500 mt-0.5">{mins} minute padhne pe milega</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">Earned after reading for {mins} minutes</p>
                           </div>
                           <span className="font-black text-purple-700 text-base shrink-0 text-right">
                             {r.type === 'COINS' ? `+${r.amount} CR` : `${r.subTier || ''} ${r.subLevel || ''}`}
@@ -15227,7 +15227,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             <div className="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center shrink-0 text-orange-600 text-lg">🎯</div>
                             <div>
                               <p className="font-black text-sm text-slate-800">MCQ Prize System</p>
-                              <p className="text-[10px] text-slate-500">Daily {minMcq}+ MCQ solve karo aur % ke hisab se prize pao!</p>
+                              <p className="text-[10px] text-slate-500">Solve {minMcq}+ MCQs daily and earn prizes based on your %!</p>
                             </div>
                           </div>
                           <div className="space-y-1 pt-1 border-t border-orange-100">
@@ -15244,7 +15244,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             ))}
                           </div>
                           <p className="text-[10px] text-slate-500 pt-1 border-t border-orange-100">
-                            📌 Rules: Daily minimum {minMcq} MCQ solve karna zaroori hai reward ke liye.
+                            📌 Rules: You must solve a minimum of {minMcq} MCQs daily to earn the reward.
                           </p>
                         </div>
                       );
@@ -15252,8 +15252,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     {engRewards.filter(r => r.enabled).length === 0 && !hasAnyLoginBonus && signupAmt === 0 && (settings?.mcqRewardRules || []).filter(r => r.enabled).length === 0 && (
                       <div className="text-center py-14 flex flex-col items-center">
                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3 text-slate-300"><Trophy size={30} /></div>
-                        <p className="text-slate-500 font-bold text-sm">Abhi koi active reward nahi</p>
-                        <p className="text-slate-400 text-xs mt-1">Admin rewards set karega tab yahan dikhenge</p>
+                        <p className="text-slate-500 font-bold text-sm">No active rewards right now</p>
+                        <p className="text-slate-400 text-xs mt-1">Rewards will appear here once admin sets them</p>
                       </div>
                     )}
                   </div>
@@ -15270,13 +15270,13 @@ export const StudentDashboard: React.FC<Props> = ({
 
                 const handleContentItemClick = (item: ContentNotifItem) => {
                   const entry = _allLucentNotes.find(e => e.id === item.entryId);
-                  if (!entry) { showAlert('Content nahi mila. Refresh karein.', 'ERROR'); return; }
+                  if (!entry) { showAlert('Content not found. Please refresh.', 'ERROR'); return; }
                   if (item.requiredTier === 'ULTRA' && !_isUltraUser && user.role !== 'ADMIN') {
-                    showAlert('यह content Ultra plan mein available hai! Store se upgrade karein. ⚡', 'INFO');
+                    showAlert('This content is available in the Ultra plan! Upgrade from Store. ⚡', 'INFO');
                     return;
                   }
                   if (item.requiredTier === 'BASIC' && !_isBasicUser && !_isUltraUser && user.role !== 'ADMIN') {
-                    showAlert('यह content Basic / Ultra plan mein available hai! Store se upgrade karein. 🔵', 'INFO');
+                    showAlert('This content is available in Basic / Ultra plan! Upgrade from Store. 🔵', 'INFO');
                     return;
                   }
                   markContentItemSeen(user.id, item.id);
@@ -15290,8 +15290,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 if (allNotifications.length === 0 && _newContentFiltered.length === 0 && inboxRewardMsgs.length === 0) return (
                   <div className="text-center py-14 flex flex-col items-center">
                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300"><Bell size={32} /></div>
-                    <p className="text-slate-500 font-bold text-sm">Koi update nahi</p>
-                    <p className="text-slate-400 text-xs mt-1">Admin ke announcements yahan aayenge</p>
+                    <p className="text-slate-500 font-bold text-sm">No updates</p>
+                    <p className="text-slate-400 text-xs mt-1">Admin announcements will appear here</p>
                   </div>
                 );
 
@@ -15373,7 +15373,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                     onClick={() => { setShowInbox(false); setTimeout(() => { setInboxTab('REWARDS'); setShowInbox(true); }, 100); }}
                                     className="mt-2 text-[11px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1.5 rounded-full active:scale-95 transition-transform"
                                   >
-                                    Claim karein →
+                                    Claim →
                                   </button>
                                 )}
                               </div>
@@ -15452,7 +15452,7 @@ export const StudentDashboard: React.FC<Props> = ({
             <div className="px-5 pb-5 pt-3 border-t border-slate-100 shrink-0 flex gap-2">
               {inboxTab === 'MESSAGES' && unreadCount > 0 && (
                 <button onClick={markInboxRead} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors">
-                  Sab padha hua mark karo
+                  Mark all as read
                 </button>
               )}
               {inboxTab === 'UPDATES' && (unreadNotifCount + _newContentCount) > 0 && (
@@ -15465,7 +15465,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   }}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors"
                 >
-                  Sab dekha hua mark karo
+                  Mark all as seen
                 </button>
               )}
             </div>
@@ -15963,7 +15963,7 @@ export const StudentDashboard: React.FC<Props> = ({
               await saveOfflineItem({ id, type: 'NOTE', title, subtitle: `Lucent · ${entry.subject || ''} · Read Mode`, data: { kind: 'LUCENT_CHUNK', chunkNotes: currentPage?.chunkNotes || currentPage?.content || '', lessonTitle: entry.lessonTitle, subject: entry.subject, pageNo: currentPage?.pageNo } });
             }
             setLucentSaved(true);
-            showAlert('✅ Offline save ho gaya! Offline tab mein dekho.', 'SUCCESS');
+            showAlert('✅ Saved offline! Check the Offline tab.', 'SUCCESS');
             setTimeout(() => setLucentSaved(false), 3000);
           } catch { showAlert('Save failed. Please try again.', 'ERROR'); }
         };
@@ -16112,7 +16112,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <button
                         onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                        title="Content Switch karein"
+                        title="Switch Content"
                       >
                         <LayoutGrid size={14} />
                       </button>
@@ -16164,8 +16164,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       ) : (
                         <div className="bg-slate-50 rounded-2xl p-8 text-center border border-slate-200 mx-4 mt-4">
                           <FileText size={32} className="text-slate-300 mx-auto mb-2" />
-                          <p className="text-sm font-bold text-slate-500">HTML notes abhi add nahi hue</p>
-                          <p className="text-xs text-slate-400 mt-1">Admin se HTML/CSS formatted notes add karwayein</p>
+                          <p className="text-sm font-bold text-slate-500">HTML notes not added yet</p>
+                          <p className="text-xs text-slate-400 mt-1">Ask admin to add HTML/CSS formatted notes</p>
                         </div>
                       )}
                     </div>
@@ -16328,7 +16328,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               Page {lucentNextPageAfterTopic.pageNo}
                               {lucentNextPageAfterTopic.topicName ? ` — ${lucentNextPageAfterTopic.topicName}` : ''}
                             </p>
-                            <p className="text-[10px] text-indigo-500">Next topic continue ho raha hai →</p>
+                            <p className="text-[10px] text-indigo-500">Continuing to next topic →</p>
                           </div>
                           <ChevronRight size={20} className="text-indigo-400 shrink-0" />
                         </button>
@@ -16342,11 +16342,11 @@ export const StudentDashboard: React.FC<Props> = ({
                             <BookOpen size={18} className="text-indigo-600" />
                           </div>
                           <div className="flex-1 text-left min-w-0">
-                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">📖 Page khatam — continue karein</p>
+                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">📖 Page done — continue</p>
                             <p className="text-sm font-black text-indigo-800">
-                              Page {entry.pages[safeIndex + 1]?.pageNo} ke notes →
+                              Page {entry.pages[safeIndex + 1]?.pageNo} notes →
                             </p>
-                            <p className="text-[10px] text-indigo-500">Is page ke notes khatam, agle page pe jaayein</p>
+                            <p className="text-[10px] text-indigo-500">Notes on this page done — move to the next page</p>
                           </div>
                           <ChevronRight size={20} className="text-indigo-400 shrink-0" />
                         </button>
@@ -16360,9 +16360,9 @@ export const StudentDashboard: React.FC<Props> = ({
                             <BookOpen size={18} className="text-purple-600" />
                           </div>
                           <div className="flex-1 text-left min-w-0">
-                            <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">📚 Agli Chapter</p>
+                            <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">📚 Next Chapter</p>
                             <p className="text-sm font-black text-purple-800 truncate">{nextLesson.lessonTitle}</p>
-                            <p className="text-[10px] text-purple-500">Is chapter ke notes khatam — agli chapter shuru karein</p>
+                            <p className="text-[10px] text-purple-500">Chapter done — start the next chapter</p>
                           </div>
                           <ChevronRight size={20} className="text-purple-400 shrink-0" />
                         </button>
@@ -16388,7 +16388,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
               const generateMcqs = async () => {
                 if (!pageText || pageText.length < 30) {
-                  showAlert('Is page mein MCQ banane ke liye text bahut kam hai.', 'ERROR');
+                  showAlert('Not enough text on this page to generate MCQs.', 'ERROR');
                   return;
                 }
                 setLucentMcqLoading(true);
@@ -16454,13 +16454,13 @@ RULES:
                     difficulty: q.difficulty || 'MEDIUM',
                   } as any)).filter(q => q.question && q.options.length === 4);
                   if (cleaned.length === 0) {
-                    showAlert('AI ne valid MCQ nahi diye. Phir try kariye.', 'ERROR');
+                    showAlert('AI did not return valid MCQs. Please try again.', 'ERROR');
                   } else {
                     setLucentMcqsByPage(prev => ({ ...prev, [pageKey]: cleaned }));
                     setLucentMcqRevealed(prev => ({ ...prev, [pageKey]: 0 }));
                   }
                 } catch (e) {
-                  showAlert('MCQ generate karne mein error aa gaya.', 'ERROR');
+                  showAlert('Error generating MCQ questions.', 'ERROR');
                 } finally {
                   setLucentMcqLoading(false);
                 }
@@ -16575,8 +16575,8 @@ RULES:
                         {lucentMcqLoading ? (
                           <>
                             <div className="w-12 h-12 mx-auto rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin mb-3" />
-                            <p className="font-black text-sm text-slate-700">MCQ ban rahe hain...</p>
-                            <p className="text-[11px] text-slate-500 mt-1">AI is page ke points se questions bana raha hai</p>
+                            <p className="font-black text-sm text-slate-700">Generating MCQs...</p>
+                            <p className="text-[11px] text-slate-500 mt-1">AI is generating questions from this page's key points</p>
                           </>
                         ) : (
                           <>
@@ -16734,13 +16734,13 @@ RULES:
                               </div>
                               <p className={`text-base font-black ${grade.color} mb-0.5`}>{grade.label}</p>
                               <p className="text-3xl font-black text-slate-800 mb-0.5">{pct}%</p>
-                              <p className="text-[11px] text-slate-500 mb-3">Tumne {attempted} mein se {right} sahi jawab diye</p>
+                              <p className="text-[11px] text-slate-500 mb-3">You got {right} correct out of {attempted}</p>
                               <div className="grid grid-cols-3 gap-2 mb-3">
                                 <div className="bg-slate-50 rounded-xl py-2"><div className="text-[9px] font-bold text-slate-500 uppercase">Tried</div><div className="text-lg font-black text-slate-800">{attempted}</div></div>
-                                <div className="bg-emerald-50 rounded-xl py-2"><div className="text-[9px] font-bold text-emerald-600 uppercase">✅ Sahi</div><div className="text-lg font-black text-emerald-700">{right}</div></div>
-                                <div className="bg-rose-50 rounded-xl py-2"><div className="text-[9px] font-bold text-rose-600 uppercase">❌ Galat</div><div className="text-lg font-black text-rose-700">{wrong}</div></div>
+                                <div className="bg-emerald-50 rounded-xl py-2"><div className="text-[9px] font-bold text-emerald-600 uppercase">✅ Correct</div><div className="text-lg font-black text-emerald-700">{right}</div></div>
+                                <div className="bg-rose-50 rounded-xl py-2"><div className="text-[9px] font-bold text-rose-600 uppercase">❌ Wrong</div><div className="text-lg font-black text-rose-700">{wrong}</div></div>
                               </div>
-                              {wrong > 0 && <p className="text-[10px] text-rose-600 font-bold bg-rose-50 rounded-xl px-3 py-2 mb-3">⚠️ {wrong} galat jawab "My Mistake" mein save ho gaye!</p>}
+                              {wrong > 0 && <p className="text-[10px] text-rose-600 font-bold bg-rose-50 rounded-xl px-3 py-2 mb-3">⚠️ {wrong} wrong answers saved to "My Mistake"!</p>}
                               <div className="flex gap-2">
                                 <button onClick={() => setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: false }))}
                                   className="flex-1 py-2.5 rounded-2xl bg-slate-100 text-slate-700 font-black text-sm active:scale-95 transition">
@@ -16753,7 +16753,7 @@ RULES:
                               </div>
                             </div>
                             {/* Review — only answered questions */}
-                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-2">📋 Jawab Review ({attempted} questions)</p>
+                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-2">📋 Answer Review ({attempted} questions)</p>
                             <div className="space-y-3">
                               {mcqs.map((q2: any, qi: number) => {
                                 const qKey = `${pageKey}_${qi}`;
@@ -16802,11 +16802,11 @@ RULES:
                               <div className="text-sm font-black text-slate-800">{attempted}</div>
                             </div>
                             <div className="bg-emerald-50 rounded-xl py-2 text-center">
-                              <div className="text-[9px] font-bold text-emerald-600 uppercase">✅ Sahi</div>
+                              <div className="text-[9px] font-bold text-emerald-600 uppercase">✅ Correct</div>
                               <div className="text-sm font-black text-emerald-700">{attempted > 0 ? right : '?'}</div>
                             </div>
                             <div className="bg-rose-50 rounded-xl py-2 text-center">
-                              <div className="text-[9px] font-bold text-rose-600 uppercase">❌ Galat</div>
+                              <div className="text-[9px] font-bold text-rose-600 uppercase">❌ Wrong</div>
                               <div className="text-sm font-black text-rose-700">{attempted > 0 ? wrong : '?'}</div>
                             </div>
                             <div className="bg-indigo-50 rounded-xl py-2 text-center">
@@ -16959,12 +16959,12 @@ RULES:
                     <div
                       className="absolute top-0 right-0 bg-black/80 text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg z-10 select-none"
                       style={{ pointerEvents: 'all', cursor: 'default' }}
-                      title="App mein hi rahein"
+                      title="Stay in the App"
                     >🔒 App</div>
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400 text-center">
-                  📹 Google Drive se video play ho raha hai — kisi ka Gmail login nahi maangega
+                  📹 Video playing from Google Drive — no Gmail login required
                 </p>
               </div>
             )}
@@ -17014,7 +17014,7 @@ RULES:
                   })()}
                 </div>
                 <p className="text-[11px] text-slate-400 text-center">
-                  🎵 Google Drive se audio play ho raha hai — app ke andar hi rahega
+                  🎵 Audio playing from Google Drive — plays within the app
                 </p>
               </div>
             )}
@@ -17059,7 +17059,7 @@ RULES:
                       <div
                         className="absolute top-0 right-0 bg-blue-800/80 text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg z-10 select-none"
                         style={{ pointerEvents: 'all', cursor: 'default' }}
-                        title="App mein hi rahein"
+                        title="Stay in the App"
                       >🔒 App</div>
                     )}
                   </div>
@@ -17096,7 +17096,7 @@ RULES:
             onClick={() => { setLucentImmersive(v => !v); }}
             className={`fixed z-[9999] w-12 h-12 rounded-full shadow-xl flex flex-col items-center justify-center text-white transition-all overflow-hidden border-2 ${lucentImmersive ? 'bg-indigo-700 border-indigo-400' : 'bg-[rgba(15,23,42,0.88)] border-white/40'}`}
             style={{ backdropFilter: 'blur(10px)', bottom: lucentImmersive ? '16px' : '72px', right: '16px' }}
-            title={lucentImmersive ? 'Focus Mode band karo' : 'Focus Mode'}
+            title={lucentImmersive ? 'Exit Focus Mode' : 'Focus Mode'}
           >
             {lucentImmersive ? (
               <>
@@ -17417,7 +17417,7 @@ RULES:
                                 setShowMcqCommunityPopup(true);
                               }}
                               className="shrink-0 p-2 rounded-full transition bg-violet-50 text-violet-700 hover:bg-violet-100"
-                              title="Community MCQ tab mein share karo"
+                              title="Share to Community MCQ tab"
                             >
                               <Send size={14} />
                             </button>
@@ -17596,11 +17596,11 @@ RULES:
                         <p className="text-lg font-black text-slate-800 mt-0.5">{attempted}<span className="text-xs text-slate-400">/{total}</span></p>
                       </div>
                       <div className="px-3 py-3 text-center">
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">✓ Sahi</p>
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">✓ Correct</p>
                         <p className="text-lg font-black text-emerald-700 mt-0.5">{correct}</p>
                       </div>
                       <div className="px-3 py-3 text-center">
-                        <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider">✗ Galat</p>
+                        <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider">✗ Wrong</p>
                         <p className="text-lg font-black text-rose-700 mt-0.5">{wrong}</p>
                       </div>
                     </div>
@@ -17615,7 +17615,7 @@ RULES:
                           onClick={() => setPlayerMcqAnswers({})}
                           className="w-full text-[12px] font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 py-2 rounded-xl active:scale-95 transition-all"
                         >
-                          🔄 Phir se Try Karo
+                          🔄 Try Again
                         </button>
                       </div>
                     )}
@@ -17678,7 +17678,7 @@ RULES:
                 onClick={() => { setInboxTab('REWARDS'); setShowInbox(true); setNotifToast(null); }}
                 className="mt-2 text-[11px] font-black bg-amber-500 text-white px-3 py-1 rounded-full flex items-center gap-1"
               >
-                <Mail size={11} /> Mail → Rewards mein Claim karo
+                <Mail size={11} /> Mail → Claim in Rewards
               </button>
             </div>
             <button onClick={() => setNotifToast(null)} className="p-1 rounded-full hover:bg-black/10 shrink-0">
@@ -17837,7 +17837,7 @@ RULES:
                 <p className="text-[11px] text-white/80 font-semibold mt-0.5">
                   {starredPageTab === 'mine'
                     ? (starredNotes.length === 0
-                        ? 'Notes save karein, yahan dikhenge'
+                        ? 'Save notes — they will appear here'
                         : `${profileStarSearch ? `${filtered.length}/${starredNotes.length}` : starredNotes.length} saved · Tap to read`)
                     : `${globalList.length} popular notes · Live community picks`}
                 </p>
@@ -17864,18 +17864,18 @@ RULES:
                       const count = starredNotes.length;
                       setConfirmDialog({
                         isOpen: true,
-                        message: `${count} saved notes delete ho jaayenge. Ye wapis nahi aayenge.`,
+                        message: `${count} saved notes will be permanently deleted. This cannot be undone.`,
                         onConfirm: () => {
                           stopProfileStarRead();
                           setStarredNotes([]);
                           try { localStorage.removeItem('nst_starred_notes_v1'); } catch {}
-                          showAlert(`Sab ${count} saved notes delete ho gayi.`, 'SUCCESS');
+                          showAlert(`All ${count} saved notes deleted.`, 'SUCCESS');
                           setConfirmDialog(null);
                         },
                       });
                     }}
                     className="p-1.5 rounded-xl bg-red-500/70 hover:bg-red-600 text-white backdrop-blur-sm border border-white/20 active:scale-95 transition-all"
-                    title="Sab saved notes clear karein"
+                    title="Clear all saved notes"
                   >
                     <X size={15} />
                   </button>
@@ -17982,9 +17982,9 @@ RULES:
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-black text-amber-900 uppercase tracking-wider mb-1">Save / Remove Rules</p>
                     <ul className="text-[11px] text-slate-700 leading-relaxed space-y-0.5">
-                      <li>• Ek note sirf <b>ek baar</b> save hoti hai (duplicate save nahi hota).</li>
-                      <li>• Remove karne ke liye note ko <b>left-swipe</b> karein 👈, ya <b>Clear</b> button se sab ek saath delete karein.</li>
-                      <li>• Lesson / Book me dobara ⭐ tap karne se note delete <b>NAHI</b> hogi — accidental loss safe.</li>
+                      <li>• Each note is saved only <b>once</b> (no duplicate saves).</li>
+                      <li>• To remove a note, <b>left-swipe</b> it 👈, or use the <b>Clear</b> button to delete all at once.</li>
+                      <li>• Tapping ⭐ again in a lesson/book does <b>NOT</b> delete the note — safe from accidental loss.</li>
                     </ul>
                   </div>
                 </div>
@@ -17997,17 +17997,17 @@ RULES:
                   <div className="absolute inset-0 bg-amber-300/40 blur-2xl rounded-full" />
                   <Star size={48} className="relative text-amber-400 mx-auto" />
                 </div>
-                <p className="font-black text-slate-700 text-base">Abhi koi note saved nahi hai</p>
-                <p className="text-xs text-slate-500 mt-1 px-6">Lesson padhte waqt ⭐ tap karein, woh yahan aa jayegi.</p>
+                <p className="font-black text-slate-700 text-base">No saved notes yet</p>
+                <p className="text-xs text-slate-500 mt-1 px-6">Tap ⭐ while reading a lesson — it will appear here.</p>
                 {/* Quick shortcut to Trending tab so empty state is actionable */}
                 <button
                   onClick={() => { stopProfileStarRead(); setStarredPageTab('global'); }}
                   className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-xs font-black shadow-md active:scale-95 hover:shadow-lg transition-all"
                 >
                   <TrendingUp size={14} />
-                  Dekho Trending Notes
+                  View Trending Notes
                 </button>
-                <p className="text-[10px] text-amber-700 mt-4 font-semibold">💡 Saved notes ko remove karne ke liye left-swipe 👈</p>
+                <p className="text-[10px] text-amber-700 mt-4 font-semibold">💡 Left-swipe a saved note to remove it 👈</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-10 bg-amber-50 rounded-2xl border border-amber-100">
@@ -18095,7 +18095,7 @@ RULES:
                         {socialCount > 1 && (
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 text-amber-800 text-[10px] font-black"
-                            title={`${socialCount} students ne is note ko Important mark kiya hai`}
+                            title={`${socialCount} students marked this note as Important`}
                           >
                             <Star size={9} className="fill-amber-500 text-amber-500" />
                             {socialCount.toLocaleString('en-IN')} students saved
@@ -18842,7 +18842,7 @@ RULES:
                   <Star size={40} className="text-amber-300 mx-auto mb-3" />
                   <p className="font-bold text-slate-600 text-sm">
                     {globalNotesRange === 'all'
-                      ? 'Abhi koi trending note nahi.'
+                      ? 'No trending notes yet.'
                       : globalNotesRange === 'weekly'
                         ? 'No trending notes this week.'
                         : 'No trending notes this month.'}
@@ -18924,7 +18924,7 @@ RULES:
                     )}
                     {ranked.length > 0 && (
                       <p className="text-center text-[10px] font-bold text-amber-500 pt-1 pb-6">
-                        Aap akele nahi padh rahe — poori community saath padh rahi hai 🌟
+                        You're not studying alone — the whole community is studying with you 🌟
                       </p>
                     )}
                   </>
@@ -19210,7 +19210,7 @@ RULES:
                               </p>
                             )}
                             {isLocked && (
-                              <p className="text-[8px] font-bold mt-0.5 text-slate-600">Is plan pe available nahi</p>
+                              <p className="text-[8px] font-bold mt-0.5 text-slate-600">Not available on this plan</p>
                             )}
                           </div>
 
@@ -19574,8 +19574,8 @@ RULES:
                         <div className="rounded-xl px-3 py-2.5 flex items-center gap-2.5" style={{ background: 'linear-gradient(135deg, #7c3aed18, #4f46e518)', border: '1px solid #7c3aed30' }}>
                           <span className="text-base">⚡</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-black text-violet-300">Basic / Ultra upgrade karo</p>
-                            <p className="text-[8px] text-slate-400 mt-0.5">Zyada limits + higher levels pe aur badhengi</p>
+                            <p className="text-[10px] font-black text-violet-300">Upgrade to Basic / Ultra</p>
+                            <p className="text-[8px] text-slate-400 mt-0.5">More limits unlock at higher levels</p>
                           </div>
                         </div>
                       )}
@@ -19587,7 +19587,7 @@ RULES:
                 {/* ── FEATURES (LEVEL SYSTEM) TAB ── */}
                 {scorePanelTab === 'FEATURES' && (() => {
                   const _fl = lvl;
-                  const animLabels = ['Koi nahi', 'Subtle shimmer ✨', 'Glow effect 🌟', 'Strong glow + sparks 💫', 'Legendary animation 🌈'];
+                  const animLabels = ['None', 'Subtle shimmer ✨', 'Glow effect 🌟', 'Strong glow + sparks 💫', 'Legendary animation 🌈'];
                   const animActive = _fl.animationIntensity > 0;
                   const nextLvlF = LEVEL_INFO[_fl.level]; // next level info (LEVEL_INFO is 0-indexed)
                   const _ld = getLevelDailyLimits(_fl.level);
@@ -19597,19 +19597,19 @@ RULES:
                   const _featureList = [
                     {
                       emoji: '🏷️',
-                      title: _fl.discount > 0 ? `${_fl.discount}% Store Discount` : 'Store Discount: Nahi',
+                      title: _fl.discount > 0 ? `${_fl.discount}% Store Discount` : 'Store Discount: None',
                       desc: _fl.discount > 0
-                        ? `Sabhi store purchases pe automatic ${_fl.discount}% off — coins, subscriptions sab`
-                        : 'Koi discount nahi — Level 3 se shuru hoga',
+                        ? `Automatic ${_fl.discount}% off on all store purchases — coins, subscriptions, everything`
+                        : 'No discount yet — starts at Level 3',
                       color: _fl.discount > 0 ? _fl.color : '#475569',
                       active: _fl.discount > 0,
                     },
                     {
                       emoji: '✨',
-                      title: animActive ? `Top Bar Animation: ${animLabels[_fl.animationIntensity]}` : 'Top Bar Animation: Nahi',
+                      title: animActive ? `Top Bar Animation: ${animLabels[_fl.animationIntensity]}` : 'Top Bar Animation: None',
                       desc: animActive
-                        ? 'Aapke top bar pe dynamic animation effect dikhega — subscription se independent'
-                        : 'Koi top bar animation nahi — Level 3 se unlock hoga',
+                        ? 'A dynamic animation effect displays on your top bar — independent of subscription'
+                        : 'No top bar animation — unlocks at Level 3',
                       color: animActive ? '#818cf8' : '#475569',
                       active: animActive,
                     },
@@ -19617,38 +19617,38 @@ RULES:
                       emoji: '🎨',
                       title: _fl.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
                       desc: _fl.nameColor
-                        ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
-                        : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
+                        ? 'Your name appears in a vibrant color on the leaderboard, chat, and profile'
+                        : 'No special name color — unlocks at Level 4',
                       color: _fl.nameColor ?? '#475569',
                       active: !!_fl.nameColor,
                     },
                     {
                       emoji: '🏆',
                       title: 'Level Leaderboard Entry',
-                      desc: 'Sabhi users ke saath global level leaderboard mein rank dikhegi',
+                      desc: 'Your rank will be visible on the global level leaderboard with all users',
                       color: '#eab308',
                       active: true,
                     },
                     {
                       emoji: '📊',
                       title: 'Activity Score Tracking',
-                      desc: 'MCQ, video, PDF, audio se daily score earn karo — level up karo. Notes/PDF/Video/Audio: har 30 sec pe +5 pts milenge, max 5 min tak.',
+                      desc: 'Earn daily score from MCQs, videos, PDFs, audio — level up. Notes/PDF/Video/Audio: +5 pts every 30 sec, up to 5 min max.',
                       color: '#10b981',
                       active: true,
                     },
                     {
                       emoji: '⏱️',
-                      title: _fl.level >= 9 ? `Reading Time Bonus: Max ${getMaxReadingSeconds(_fl.level)}s (${Math.floor(getMaxReadingSeconds(_fl.level)/60)}m ${getMaxReadingSeconds(_fl.level)%60}s) 🔥` : 'Reading Time Bonus: Level 9 se unlock hoga',
+                      title: _fl.level >= 9 ? `Reading Time Bonus: Max ${getMaxReadingSeconds(_fl.level)}s (${Math.floor(getMaxReadingSeconds(_fl.level)/60)}m ${getMaxReadingSeconds(_fl.level)%60}s) 🔥` : 'Reading Time Bonus: Unlocks at Level 9',
                       desc: _fl.level >= 9
-                        ? `Level ${_fl.level} bonus: Notes/PDF/Video/Audio padhne ka max time ${getMaxReadingSeconds(_fl.level)} seconds (base 300s + ${(_fl.level-8)*30}s bonus). Har level pe +30 sec milte hain.`
-                        : 'Level 8 (GrandMaster) ke baad har level pe max reading/watching time +30 sec badhta hai — zyada time mein zyada score earn kar sakte ho.',
+                        ? `Level ${_fl.level} bonus: Max reading time for Notes/PDF/Video/Audio is ${getMaxReadingSeconds(_fl.level)} seconds (base 300s + ${(_fl.level-8)*30}s bonus). +30 sec per level.`
+                        : 'After Level 8 (GrandMaster), each level adds +30 sec to max reading/watching time — more time means more score.',
                       color: _fl.level >= 9 ? '#f59e0b' : '#475569',
                       active: _fl.level >= 9,
                     },
                     {
                       emoji: '🎁',
                       title: 'Level-Up Celebration',
-                      desc: 'Level change hone pe special popup aur benefits card dikhega',
+                      desc: 'A special popup and benefits card appears when your level changes',
                       color: '#f59e0b',
                       active: true,
                     },
@@ -19657,71 +19657,71 @@ RULES:
                       title: `Daily Limits — 🆓${_ld.mcq.free} · 🔵${_ld.mcq.basic} · ⚡${_ld.mcq.ultra} MCQ/day`,
                       desc: hasBonus
                         ? `Free=${_ld.mcq.free}, Basic=${_ld.mcq.basic}, Ultra=${_ld.mcq.ultra}. Downloads: Free=${_ld.dl.free}, Basic=${_ld.dl.basic}, Ultra=${_ld.dl.ultra}/day. Video/PDF (Basic=${_ld.video.basic}, Ultra=${_ld.video.ultra} free/day).`
-                        : `Is level pe aapki daily MCQ limit: Free=${_ld.mcq.free}, Basic=${_ld.mcq.basic}, Ultra=${_ld.mcq.ultra}. Higher levels mein ye limits badhti jaayengi.`,
+                        : `Daily MCQ limits at this level: Free=${_ld.mcq.free}, Basic=${_ld.mcq.basic}, Ultra=${_ld.mcq.ultra}. Limits increase at higher levels.`,
                       color: hasBonus ? '#06b6d4' : '#475569',
                       active: true,
                     },
                     ...(_fl.level >= 6 ? [{
                       emoji: '💰',
                       title: `Sunday Streak Recovery Bonus: +${_bonusCredits} CR (Sunday first login pe)`,
-                      desc: `Sunday ke pehle login pe streak tootne par ${_bonusCredits} extra credits milenge — L6+ exclusive!`,
+                      desc: `First login on Sunday after a streak break gives ${_bonusCredits} extra credits — L6+ exclusive!`,
                       color: '#f59e0b',
                       active: true,
                     }] : []),
                     ...(_fl.level >= 5 ? [{
                       emoji: '💎',
                       title: 'Elite Status Badge',
-                      desc: 'Leaderboard mein special Elite/Legend badge ke saath dikhoge',
+                      desc: 'You will appear on the leaderboard with a special Elite/Legend badge',
                       color: _fl.color,
                       active: true,
                     }] : []),
                     // ── Event access by level ──
                     {
                       emoji: '🏷️',
-                      title: `Discount Event: ${_fl.level >= EVENT_MIN_LEVELS.specialDiscount ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.specialDiscount}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.specialDiscount} pe unlock — store discount events ka pura fayda milega`,
+                      title: `Discount Event: ${_fl.level >= EVENT_MIN_LEVELS.specialDiscount ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.specialDiscount}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.specialDiscount} — get the full benefit of store discount events`,
                       color: _fl.level >= EVENT_MIN_LEVELS.specialDiscount ? '#f59e0b' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.specialDiscount,
                     },
                     {
                       emoji: '🎁',
-                      title: `Credit Bonus Event: ${_fl.level >= EVENT_MIN_LEVELS.creditBonus ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.creditBonus}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.creditBonus} pe unlock — MCQ prizes aur gifts pe extra % bonus credits milenge`,
+                      title: `Credit Bonus Event: ${_fl.level >= EVENT_MIN_LEVELS.creditBonus ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.creditBonus}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.creditBonus} — earn extra % bonus credits on MCQ prizes and gifts`,
                       color: _fl.level >= EVENT_MIN_LEVELS.creditBonus ? '#22c55e' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.creditBonus,
                     },
                     {
                       emoji: '📈',
-                      title: `Daily Limit Boost Event: ${_fl.level >= EVENT_MIN_LEVELS.dailyLimitBoost ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.dailyLimitBoost}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.dailyLimitBoost} pe unlock — daily score limit boost event ka full fayda milega`,
+                      title: `Daily Limit Boost Event: ${_fl.level >= EVENT_MIN_LEVELS.dailyLimitBoost ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.dailyLimitBoost}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.dailyLimitBoost} — get the full benefit of daily score limit boost events`,
                       color: _fl.level >= EVENT_MIN_LEVELS.dailyLimitBoost ? '#10b981' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.dailyLimitBoost,
                     },
                     {
                       emoji: '🚀',
-                      title: `Score Boost Event: ${_fl.level >= EVENT_MIN_LEVELS.scoreBoost ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.scoreBoost}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.scoreBoost} pe unlock — boosted scores + Theme Studio access event ke dauran`,
+                      title: `Score Boost Event: ${_fl.level >= EVENT_MIN_LEVELS.scoreBoost ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.scoreBoost}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.scoreBoost} — boosted scores + Theme Studio access during the event`,
                       color: _fl.level >= EVENT_MIN_LEVELS.scoreBoost ? '#f97316' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.scoreBoost,
                     },
                     {
                       emoji: '🎨',
-                      title: `Theme Studio Event: ${_fl.level >= EVENT_MIN_LEVELS.themeStudio ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.themeStudio}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.themeStudio} pe unlock — event ke dauran app ka theme customize karo freely`,
+                      title: `Theme Studio Event: ${_fl.level >= EVENT_MIN_LEVELS.themeStudio ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.themeStudio}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.themeStudio} — freely customize the app theme during the event`,
                       color: _fl.level >= EVENT_MIN_LEVELS.themeStudio ? '#8b5cf6' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.themeStudio,
                     },
                     {
                       emoji: '🪙',
-                      title: `Credit Free Event: ${_fl.level >= EVENT_MIN_LEVELS.creditFree ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.creditFree}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.creditFree} pe unlock — event ke dauran bina credits ke content unlock karo`,
+                      title: `Credit Free Event: ${_fl.level >= EVENT_MIN_LEVELS.creditFree ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.creditFree}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.creditFree} — unlock content without credits during the event`,
                       color: _fl.level >= EVENT_MIN_LEVELS.creditFree ? '#06b6d4' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.creditFree,
                     },
                     {
                       emoji: '🌍',
-                      title: `Global Free Access Event: ${_fl.level >= EVENT_MIN_LEVELS.globalFreeAccess ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.globalFreeAccess}+ chahiye`}`,
-                      desc: `Level ${EVENT_MIN_LEVELS.globalFreeAccess} pe unlock — global free access event mein sab kuch free milega`,
+                      title: `Global Free Access Event: ${_fl.level >= EVENT_MIN_LEVELS.globalFreeAccess ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.globalFreeAccess}+ required`}`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.globalFreeAccess} — everything is free during global free access events`,
                       color: _fl.level >= EVENT_MIN_LEVELS.globalFreeAccess ? '#10b981' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.globalFreeAccess,
                     },
@@ -19891,18 +19891,18 @@ RULES:
                   <div className="px-4 py-2.5 border-b border-white/6 flex items-center gap-2.5" style={{ background: 'rgba(99,102,241,0.08)' }}>
                     <span className="text-base">⏱️</span>
                     <div>
-                      <p className="text-[10px] font-black text-indigo-300 leading-tight">Notes · PDF · Video · Audio — Padhne / Dekhne / Sunne ka Score</p>
-                      <p className="text-[9px] font-bold text-slate-400 mt-0.5">Har <span className="text-white font-black">30 sec</span> pe <span className="text-indigo-300 font-black">+5 pts</span> milenge · Max <span className="text-white font-black">5 min</span> tak (Level 8 ke baad +30 sec/level bonus)</p>
+                      <p className="text-[10px] font-black text-indigo-300 leading-tight">Notes · PDF · Video · Audio — Reading / Watching / Listening Score</p>
+                      <p className="text-[9px] font-bold text-slate-400 mt-0.5">Every <span className="text-white font-black">30 sec</span> earns <span className="text-indigo-300 font-black">+5 pts</span> · Max <span className="text-white font-black">5 min</span> (+30 sec/level bonus after Level 8)</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2">
                     {[
-                      { emoji: '📚', label: 'Notes Padhna', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#8b5cf6' },
-                      { emoji: '📄', label: 'PDF Dekhna', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#3b82f6' },
-                      { emoji: '🎬', label: 'Video Dekhna', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#f97316' },
-                      { emoji: '🎵', label: 'Audio Sunna', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#10b981' },
-                      { emoji: '❓', label: 'MCQ Sahi Jawab', pts: '+2 pts each', sub: 'Per correct answer', color: '#ec4899' },
-                      { emoji: '📅', label: 'Daily Login', pts: `+${ACTIVITY_SCORES.DAILY_LOGIN} pts`, sub: 'Roz login karo', color: '#eab308' },
+                      { emoji: '📚', label: 'Reading Notes', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#8b5cf6' },
+                      { emoji: '📄', label: 'Reading PDF', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#3b82f6' },
+                      { emoji: '🎬', label: 'Watching Video', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#f97316' },
+                      { emoji: '🎵', label: 'Listening Audio', pts: '+5 pts / 30 sec', sub: 'Max 5 min', color: '#10b981' },
+                      { emoji: '❓', label: 'MCQ Correct Answer', pts: '+2 pts each', sub: 'Per correct answer', color: '#ec4899' },
+                      { emoji: '📅', label: 'Daily Login', pts: `+${ACTIVITY_SCORES.DAILY_LOGIN} pts`, sub: 'Login every day', color: '#eab308' },
                     ].map((item, i) => (
                       <div key={item.label} className={`flex items-center gap-2.5 px-3.5 py-3 ${i % 2 === 0 ? 'border-r border-white/6' : ''} ${i < 4 ? 'border-b border-white/6' : ''}`}
                         style={{ background: `${item.color}08` }}>
@@ -19931,7 +19931,7 @@ RULES:
                     </div>
                     <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
                       <span className="text-base">💎</span>
-                      <p className="text-[8px] font-bold text-amber-400">Level 8 (GrandMaster) ke baad har level pe max reading time +30 sec badhta hai — zyada time = zyada score!</p>
+                      <p className="text-[8px] font-bold text-amber-400">After Level 8 (GrandMaster), each level adds +30 sec to max reading time — more time = more score!</p>
                     </div>
                   </div>
                 </div>
@@ -19969,7 +19969,7 @@ RULES:
                     })}
                   </div>
                   <div className="px-4 pb-3 flex items-center justify-between">
-                    <p className="text-[8px] text-slate-600">← Swipe · Kisi bhi level pe tap karo</p>
+                    <p className="text-[8px] text-slate-600">← Swipe · Tap any level to view</p>
                     <p className="text-[8px] text-emerald-600 font-bold">Green % = store discount</p>
                   </div>
                 </div>
@@ -19997,7 +19997,7 @@ RULES:
         const maxScoreStr = nextLevelInfo
           ? `${l.minScore.toLocaleString('en-IN')} – ${(nextLevelInfo.minScore - 1).toLocaleString('en-IN')}`
           : `${l.minScore.toLocaleString('en-IN')}+`;
-        const animLabels = ['Koi nahi', 'Subtle shimmer ✨', 'Glow effect 🌟', 'Strong glow + sparks 💫', 'Legendary animation 🌈'];
+        const animLabels = ['None', 'Subtle shimmer ✨', 'Glow effect 🌟', 'Strong glow + sparks 💫', 'Legendary animation 🌈'];
         const animActive = l.animationIntensity > 0;
         // Progress toward this level
         const progressPct = isUnlocked ? 100 : Math.round((totalScore / Math.max(1, l.minScore)) * 100);
@@ -20005,19 +20005,19 @@ RULES:
         const benefits = [
           {
             emoji: '🏷️',
-            title: l.discount > 0 ? `${l.discount}% Store Discount` : 'Store Discount: Nahi',
+            title: l.discount > 0 ? `${l.discount}% Store Discount` : 'Store Discount: None',
             desc: l.discount > 0
-              ? `Sabhi store purchases pe automatic ${l.discount}% off — coins, subscriptions sab`
-              : 'Koi discount nahi milega — Level 2 se shuru hoga (3%)',
+              ? `Automatic ${l.discount}% off on all store purchases — coins, subscriptions, everything`
+              : 'No discount yet — starts at Level 2 (3%)',
             color: l.discount > 0 ? l.color : undefined,
             active: l.discount > 0,
           },
           {
             emoji: '✨',
-            title: animActive ? `Top Bar Animation: ${animLabels[l.animationIntensity]}` : 'Top Bar Animation: Nahi',
+            title: animActive ? `Top Bar Animation: ${animLabels[l.animationIntensity]}` : 'Top Bar Animation: None',
             desc: animActive
-              ? 'Aapke top bar pe dynamic animation effect dikhega — subscription se independent'
-              : 'Koi top bar animation nahi — Level 2 se unlock hoga',
+              ? 'A dynamic animation effect displays on your top bar — independent of subscription'
+              : 'No top bar animation — unlocks at Level 2',
             color: animActive ? '#818cf8' : undefined,
             active: animActive,
           },
@@ -20025,38 +20025,38 @@ RULES:
             emoji: '🎨',
             title: l.nameColor ? 'Colored Username 🔥' : 'Username Color: Normal',
             desc: l.nameColor
-              ? 'Leaderboard, chat aur profile mein aapka naam vibrant color mein dikhega'
-              : 'Naam ka koi special color nahi — Level 4 se unlock hoga',
+              ? 'Your name appears in a vibrant color on the leaderboard, chat, and profile'
+              : 'No special name color — unlocks at Level 4',
             color: l.nameColor,
             active: !!l.nameColor,
           },
           {
             emoji: '🏆',
             title: 'Level Leaderboard Entry',
-            desc: 'Sabhi users ke saath global level leaderboard mein rank dikhegi',
+            desc: 'Your rank will be visible on the global level leaderboard with all users',
             color: '#eab308',
             active: true,
           },
           {
             emoji: '📊',
             title: 'Activity Score Tracking',
-            desc: 'MCQ, video, PDF, audio se daily score earn karo — level up karo. Notes/PDF/Video/Audio: har 30 sec pe +5 pts milenge, max 5 min tak.',
+            desc: 'Earn daily score from MCQs, videos, PDFs, audio — level up. Notes/PDF/Video/Audio: +5 pts every 30 sec, up to 5 min max.',
             color: '#10b981',
             active: true,
           },
           {
             emoji: '⏱️',
-            title: l.level >= 9 ? `Reading Time Bonus: Max ${getMaxReadingSeconds(l.level)}s (${Math.floor(getMaxReadingSeconds(l.level)/60)}m ${getMaxReadingSeconds(l.level)%60}s) 🔥` : 'Reading Time Bonus: Level 9 se unlock hoga',
+            title: l.level >= 9 ? `Reading Time Bonus: Max ${getMaxReadingSeconds(l.level)}s (${Math.floor(getMaxReadingSeconds(l.level)/60)}m ${getMaxReadingSeconds(l.level)%60}s) 🔥` : 'Reading Time Bonus: Unlocks at Level 9',
             desc: l.level >= 9
-              ? `Level ${l.level} bonus: Notes/PDF/Video/Audio padhne ka max time ${getMaxReadingSeconds(l.level)} seconds (base 300s + ${(l.level-8)*30}s bonus). Har level pe +30 sec milte hain.`
-              : 'Level 8 (GrandMaster) ke baad har level pe max reading/watching time +30 sec badhta hai — zyada time mein zyada score earn kar sakte ho.',
+              ? `Level ${l.level} bonus: Max reading time for Notes/PDF/Video/Audio is ${getMaxReadingSeconds(l.level)} seconds (base 300s + ${(l.level-8)*30}s bonus). +30 sec per level.`
+              : 'After Level 8 (GrandMaster), each level adds +30 sec to max reading/watching time — more time means more score.',
             color: l.level >= 9 ? '#f59e0b' : undefined,
             active: l.level >= 9,
           },
           {
             emoji: '🎁',
             title: 'Level-Up Celebration',
-            desc: 'Level change hone pe special popup aur benefits card dikhega',
+            desc: 'A special popup and benefits card appears when your level changes',
             color: '#f59e0b',
             active: true,
           },
@@ -20069,8 +20069,8 @@ RULES:
               emoji: '📈',
               title: `Daily Limits — 🆓${ld.mcq.free} · 🔵${ld.mcq.basic} · ⚡${ld.mcq.ultra} MCQ/day`,
               desc: hasBonus
-                ? `Is level pe aapki daily MCQ limit: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Downloads: Free=${ld.dl.free}, Basic=${ld.dl.basic}, Ultra=${ld.dl.ultra}/day. Video/PDF (Basic=${ld.video.basic}, Ultra=${ld.video.ultra} free/day).`
-                : `Is level pe aapki daily MCQ limit: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Higher levels mein ye limits badhti jaayengi.`,
+                ? `Daily MCQ limits at this level: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Downloads: Free=${ld.dl.free}, Basic=${ld.dl.basic}, Ultra=${ld.dl.ultra}/day. Video/PDF (Basic=${ld.video.basic}, Ultra=${ld.video.ultra} free/day).`
+                : `Daily MCQ limits at this level: Free=${ld.mcq.free}, Basic=${ld.mcq.basic}, Ultra=${ld.mcq.ultra}. Limits increase at higher levels.`,
               color: hasBonus ? '#06b6d4' : undefined,
               active: true,
             };
@@ -20079,21 +20079,21 @@ RULES:
           ...(l.level >= 6 ? [{
             emoji: '💰',
             title: `Sunday Streak Recovery Bonus: +${getLevelLimitBonus(l.level).bonusLoginCredits} CR`,
-            desc: `Sunday ke pehle login pe streak tootne par ${getLevelLimitBonus(l.level).bonusLoginCredits} extra credits milenge — L6+ exclusive perk!`,
+            desc: `First login on Sunday after a streak break gives ${getLevelLimitBonus(l.level).bonusLoginCredits} extra credits — L6+ exclusive perk!`,
             color: '#f59e0b',
             active: true,
           }] : []),
           ...(l.level >= 6 ? [{
             emoji: '✍️',
             title: `Extended Credit Write Mode: ${getLevelLimitBonus(l.level).creditWriteMax}/day`,
-            desc: `Credit se unlock kiye ja sakne wale Write Mode sessions aaj ke liye ${getLevelLimitBonus(l.level).creditWriteMax} tak badh jaate hain (base: 100) — L6 = 120, L7 = 130, L8 = 150.`,
+            desc: `Write Mode sessions unlockable with credits are increased to ${getLevelLimitBonus(l.level).creditWriteMax} for today (base: 100) — L6 = 120, L7 = 130, L8 = 150.`,
             color: '#8b5cf6',
             active: true,
           }] : []),
           ...(l.level >= 5 ? [{
             emoji: '💎',
             title: 'Elite Status Badge',
-            desc: 'Leaderboard mein special Elite/Legend badge ke saath dikh-o ge',
+            desc: 'You will appear on the leaderboard with a special Elite/Legend badge',
             color: l.color,
             active: true,
           }] : []),
@@ -20106,23 +20106,23 @@ RULES:
           }] : []),
           // ── Events newly unlocking at this level ──
           ...(l.level === 1 ? [
-            { emoji: '🏷️', title: '🎉 Discount Event — Unlocked!', desc: 'Ab discount sale events ka full fayda uthao — store pe special % off milega', color: '#f59e0b', active: true },
-            { emoji: '🎁', title: '🎉 Credit Bonus Event — Unlocked!', desc: 'MCQ prizes aur gifts pe extra % bonus credits — yahan se shuru', color: '#22c55e', active: true },
+            { emoji: '🏷️', title: '🎉 Discount Event — Unlocked!', desc: 'Enjoy the full benefit of discount sale events — special % off in the store', color: '#f59e0b', active: true },
+            { emoji: '🎁', title: '🎉 Credit Bonus Event — Unlocked!', desc: 'Earn extra % bonus credits on MCQ prizes and gifts — starting here', color: '#22c55e', active: true },
           ] : []),
           ...(l.level === 3 ? [
-            { emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: `Level 3 mil gaya! Ab Limit Boost events mein daily score limit extra badhegi`, color: '#10b981', active: true },
+            { emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: `Level 3 reached! Daily score limits get boosted further during Limit Boost events`, color: '#10b981', active: true },
           ] : []),
           ...(l.level === 5 ? [
-            { emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Level 5 pe Score Boost events fully active — boosted scores + Theme Studio perk', color: '#f97316', active: true },
+            { emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Score Boost events fully active at Level 5 — boosted scores + Theme Studio perk', color: '#f97316', active: true },
           ] : []),
           ...(l.level === 7 ? [
-            { emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Level 7 pe Theme Studio events access milega — app ka look customize karo', color: '#8b5cf6', active: true },
+            { emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Theme Studio events accessible at Level 7 — customize the app look', color: '#8b5cf6', active: true },
           ] : []),
           ...(l.level === 8 ? [
-            { emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Level 8 pe Credit Free events ka fayda — bina coins ke content unlock karo', color: '#06b6d4', active: true },
+            { emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Credit Free events at Level 8 — unlock content without spending coins', color: '#06b6d4', active: true },
           ] : []),
           ...(l.level === 10 ? [
-            { emoji: '🌍', title: '🎉 Global Free Access Event — Unlocked!', desc: 'Level 10 pe Global Free Access events mein sab kuch bilkul free!', color: '#10b981', active: true },
+            { emoji: '🌍', title: '🎉 Global Free Access Event — Unlocked!', desc: 'At Level 10, everything is completely free during Global Free Access events!', color: '#10b981', active: true },
           ] : []),
           // ── Events summary for all levels ──
           {
@@ -20159,15 +20159,15 @@ RULES:
                   {/* Status badge */}
                   {isCurrentLevel ? (
                     <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-black text-white" style={{ background: l.color }}>
-                      ✅ Aap is level pe ho!
+                      ✅ You are at this level!
                     </div>
                   ) : isUnlocked ? (
                     <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${l.color}22`, color: l.color, border: `1px solid ${l.color}50` }}>
-                      🔓 Aapne unlock kar liya
+                      🔓 Unlocked
                     </div>
                   ) : (
                     <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-black text-slate-300 bg-white/8 border border-white/15">
-                      🔒 {ptsNeeded.toLocaleString('en-IN')} pts aur chahiye
+                      🔒 {ptsNeeded.toLocaleString('en-IN')} more pts needed
                     </div>
                   )}
                   {/* Progress bar if not yet unlocked */}
@@ -20283,8 +20283,8 @@ RULES:
                         <p className="text-[10px] font-black text-white uppercase tracking-widest">📊 Daily Limits — Level {l.level}</p>
                         <p className="text-[9px] text-slate-500 mt-0.5">
                           {l.level >= 9
-                            ? '🟢 Notes & TTS is level pe Unlimited ho gayi hain!'
-                            : 'Level badhne par ye limits badhengi · L9 pe Notes & TTS Unlimited'}
+                            ? '🟢 Notes & TTS are Unlimited at this level!'
+                            : 'Limits increase as you level up · Notes & TTS become Unlimited at L9'}
                         </p>
                       </div>
                       {/* Header */}
@@ -20484,7 +20484,7 @@ RULES:
                 ownMcqLeft === 0 ? '#ef4444' : ownMcqLeft <= 10 ? '#f97316' : '#10b981', true);
             }
             return mkRow('📝','MCQ Practice', null, 0, false, false,
-              `${vpMcq}/day`, viewingFree ? 'Yeh plan mein' : 'Is plan pe milega',
+              `${vpMcq}/day`, viewingFree ? 'On this plan' : 'Available on this plan',
               'text-slate-500', '#94a3b8', false);
           })(),
           // HTML Downloads
@@ -20497,7 +20497,7 @@ RULES:
                 ownDlLeft === 0 ? '#ef4444' : ownDlLeft <= 2 ? '#f97316' : '#10b981', true);
             }
             return mkRow('📥','HTML Downloads', null, 0, false, false,
-              `${vpDl}/day`, 'Is plan pe milega',
+              `${vpDl}/day`, 'Available on this plan',
               'text-slate-500', '#94a3b8', false);
           })(),
           // Write Mode
@@ -20514,11 +20514,11 @@ RULES:
             }
             if (isOwnPlan && viewingFree) {
               return mkRow('✍️', 'Write Mode · 0 free', null, 0, false, true,
-                '0 free', 'Credit se unlock karo', 'text-amber-600', '#f59e0b', false);
+                '0 free', 'Unlock with credits', 'text-amber-600', '#f59e0b', false);
             }
             return mkRow('✍️', wLabel, null, 0, false, viewingFree,
               viewingFree ? '0 free' : `${vpWriteFree}/day free`,
-              viewingFree ? 'Sirf credits se' : 'Is plan pe milega',
+              viewingFree ? 'Credits only' : 'Available on this plan',
               viewingFree ? 'text-amber-600' : 'text-slate-500',
               viewingFree ? '#f59e0b' : '#94a3b8', false);
           })(),
@@ -20588,7 +20588,7 @@ RULES:
               <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100">
                 <div>
                   <h2 className="text-base font-black text-slate-800">Daily Limits & Usage</h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Plan compare karo — apna plan select karo</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Compare plans — select your plan</p>
                 </div>
                 <button onClick={() => setShowFeatureLimitsModal(false)} className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
               </div>
@@ -20602,7 +20602,7 @@ RULES:
                       Level {_userLevel} Bonus Active
                     </p>
                     <p className="text-[9px] text-slate-500 leading-tight">
-                      +{_lvlBonusModal.mcqBonus} MCQ · +{_lvlBonusModal.writeFreeBonus} Write · +{_lvlBonusModal.dlBonus} DL · +{_lvlBonusModal.videoFreeBonus} Video/PDF — ye limits mein already jud gaya hai
+                      +{_lvlBonusModal.mcqBonus} MCQ · +{_lvlBonusModal.writeFreeBonus} Write · +{_lvlBonusModal.dlBonus} DL · +{_lvlBonusModal.videoFreeBonus} Video/PDF — already added to your limits
                     </p>
                   </div>
                   {_lvlBonusModal.bonusLoginCredits > 0 && (
@@ -20643,7 +20643,7 @@ RULES:
               {viewingUltra && (
                 <div className="mx-4 mb-1 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-200 flex items-center gap-2">
                   <span className="text-base">⚡</span>
-                  <p className="text-[11px] font-black text-violet-700">Ultra mein sab Unlimited + High Quality access</p>
+                  <p className="text-[11px] font-black text-violet-700">Ultra — Everything Unlimited + High Quality access</p>
                 </div>
               )}
               {viewingBasic && (
@@ -20655,7 +20655,7 @@ RULES:
               {viewingFree && (
                 <div className="mx-4 mb-1 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-2">
                   <span className="text-base">🆓</span>
-                  <p className="text-[11px] font-black text-slate-600">Free plan — basic access, credits se unlock karo</p>
+                  <p className="text-[11px] font-black text-slate-600">Free plan — basic access, unlock with credits</p>
                 </div>
               )}
 
@@ -20701,7 +20701,7 @@ RULES:
                       onClick={() => { setShowFeatureLimitsModal(false); onTabChange('STORE'); }}
                       className={`w-full py-3 rounded-2xl bg-gradient-to-r ${vpCfg.color} text-white font-black text-sm active:scale-95 transition shadow-lg`}
                     >
-                      {viewingUltra ? '⚡ Ultra pe Upgrade Karo — Sab Unlock' : '🔵 Basic pe Upgrade Karo — Zyada Access'}
+                      {viewingUltra ? '⚡ Upgrade to Ultra — Unlock Everything' : '🔵 Upgrade to Basic — More Access'}
                     </button>
                   ) : user.isPremium ? (
                     <button
@@ -20780,12 +20780,12 @@ RULES:
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-xs font-black text-sky-600">{settings?.basicHtmlDailyLimit ?? 5} free/day</p>
-                  <p className="text-[9px] text-slate-400 mt-1">Phir 10 CR/use</p>
+                  <p className="text-[9px] text-slate-400 mt-1">Then 10 CR/use</p>
                   <p className="text-[9px] text-slate-400">Max 100/day</p>
                 </div>
                 <div className="p-3 text-center">
                   <p className="text-xs font-black text-violet-600">{settings?.ultraHtmlDailyLimit ?? 10} free/day</p>
-                  <p className="text-[9px] text-slate-400 mt-1">Phir 10 CR/use</p>
+                  <p className="text-[9px] text-slate-400 mt-1">Then 10 CR/use</p>
                   <p className="text-[9px] text-slate-400">Ultra Notes ⚡</p>
                 </div>
               </div>
@@ -20911,7 +20911,7 @@ RULES:
                 ))}
                 <div className="flex items-center justify-between bg-rose-50 rounded-xl px-3 py-2">
                   <p className="text-xs font-bold text-slate-700">⏱ Reward Expiry</p>
-                  <span className="text-xs font-black text-rose-700">{settings?.rewardExpiryHours ?? 12} ghante mein expire</span>
+                  <span className="text-xs font-black text-rose-700">Expires in {settings?.rewardExpiryHours ?? 12} hours</span>
                 </div>
               </div>
             </div>
@@ -20921,7 +20921,7 @@ RULES:
               onClick={() => { setShowRulesPage(false); onTabChange('STORE'); }}
               className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
             >
-              🚀 Plan Upgrade karo — Store Dekho
+              🚀 Upgrade Plan — Visit Store
             </button>
           </div>
         </div>
@@ -20940,13 +20940,13 @@ RULES:
 
         const openItem = (item: ContentNotifItem) => {
           const entry = _allLucentNotes.find(e => e.id === item.entryId);
-          if (!entry) { showAlert('Content nahi mila. Refresh karein.', 'ERROR'); return; }
+          if (!entry) { showAlert('Content not found. Please refresh.', 'ERROR'); return; }
           if (item.requiredTier === 'ULTRA' && !_isUltraUser && user.role !== 'ADMIN') {
-            showAlert('यह content Ultra plan mein available hai! Store se upgrade karein. ⚡', 'INFO');
+            showAlert('This content is available in the Ultra plan! Upgrade from Store. ⚡', 'INFO');
             return;
           }
           if (item.requiredTier === 'BASIC' && !_isBasicUser && !_isUltraUser && user.role !== 'ADMIN') {
-            showAlert('यह content Basic / Ultra plan mein available hai! Store se upgrade karein. 🔵', 'INFO');
+            showAlert('This content is available in Basic / Ultra plan! Upgrade from Store. 🔵', 'INFO');
             return;
           }
           markContentItemSeen(user.id, item.id);
@@ -20996,8 +20996,8 @@ RULES:
                 {items.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <span className="text-4xl mb-3">📭</span>
-                    <p className="font-black text-slate-700 text-sm">Koi naya content nahi</p>
-                    <p className="text-xs text-slate-400 mt-1">Last 7 din mein koi naya page nahi aaya</p>
+                    <p className="font-black text-slate-700 text-sm">No new content</p>
+                    <p className="text-xs text-slate-400 mt-1">No new pages added in the last 7 days</p>
                   </div>
                 ) : items.map(item => (
                   <button
@@ -21046,7 +21046,7 @@ RULES:
               {/* Footer */}
               <div className="px-5 pb-4 pt-2 border-t border-slate-50">
                 <p className="text-center text-[10px] text-slate-400">
-                  Subscription ke hisab se content dikhega · {items.length} item{items.length !== 1 ? 's' : ''} available
+                  Content shown based on subscription · {items.length} item{items.length !== 1 ? 's' : ''} available
                 </p>
               </div>
             </div>
@@ -21076,7 +21076,7 @@ RULES:
               </div>
               <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
                 {sessions.length === 0 ? (
-                  <p className="text-center text-slate-400 text-sm py-8">Koi login history nahi mili</p>
+                  <p className="text-center text-slate-400 text-sm py-8">No login history found</p>
                 ) : sessions.map((s, i) => (
                   <div key={s.id} className={`rounded-xl p-3 border ${i === 0 ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
                     <div className="flex items-center justify-between gap-2">
@@ -21167,7 +21167,7 @@ RULES:
                   <span className="text-xl">🗑️</span>
                 </div>
                 <div>
-                  <p className="font-black text-slate-800 text-sm">Delete karein?</p>
+                  <p className="font-black text-slate-800 text-sm">Delete?</p>
                   <p className="text-xs text-slate-500 mt-0.5">{confirmDialog.message}</p>
                 </div>
               </div>
@@ -21226,12 +21226,12 @@ RULES:
                 </h2>
                 <p className="text-white/70 text-[10px] mt-0.5 leading-tight">
                   {isHardBlocked
-                    ? `${WM_PAID_DAILY_MAX} unlocks ho gaye — kal aao`
+                    ? `${WM_PAID_DAILY_MAX} unlocks used — come back tomorrow`
                     : _isUltraUser
-                    ? `${settings?.ultraHtmlDailyLimit ?? 10} free views khatam`
+                    ? `${settings?.ultraHtmlDailyLimit ?? 10} free views used up`
                     : _isBasicUser
-                    ? `${settings?.basicHtmlDailyLimit ?? 5} free views khatam`
-                    : `Credits se notes unlock karo`}
+                    ? `${settings?.basicHtmlDailyLimit ?? 5} free views used up`
+                    : `Unlock notes with credits`}
                 </p>
               </div>
               <button
@@ -21465,7 +21465,7 @@ RULES:
                       </div>
                     </div>
                     {(contentCodeDays > 0 || contentCodeHours > 0 || contentCodeMins > 0) ? (
-                      <p className="text-[10px] text-amber-600 font-bold mt-1.5">⏰ {contentCodeDays}d {contentCodeHours}h {contentCodeMins}m ke baad auto-lock ho jayega</p>
+                      <p className="text-[10px] text-amber-600 font-bold mt-1.5">⏰ Auto-locks in {contentCodeDays}d {contentCodeHours}h {contentCodeMins}m</p>
                     ) : (
                       <p className="text-[10px] text-slate-400 mt-1.5">0/0/0 = Permanent unlock (no expiry)</p>
                     )}

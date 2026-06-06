@@ -294,23 +294,23 @@ export const FlashcardMcqView: React.FC<Props> = ({
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
           <div className="text-5xl mb-4">⚡</div>
-          <p className="text-white font-black text-xl mb-2">Daily Limit Khatam!</p>
+          <p className="text-white font-black text-xl mb-2">Daily Limit Reached!</p>
           <p className="text-white/70 text-sm mb-2">
-            Aaj ke <span className="font-black text-white">{dailyLimit}</span> free flashcard ho gaye.
+            You've used today's <span className="font-black text-white">{dailyLimit}</span> free flashcards.
           </p>
-          <p className="text-white/50 text-xs mb-8">Kal reset hoga ya credits se continue karo.</p>
+          <p className="text-white/50 text-xs mb-8">Resets tomorrow or continue with credits.</p>
           {canPay ? (
             <button
               onClick={payAndContinue}
               className="bg-white font-black px-8 py-3.5 rounded-2xl text-sm shadow-xl active:scale-95 transition mb-3"
               style={{ color: fcBg2 }}
             >
-              🪙 {CREDIT_COST} Credits se Continue Karo
+              🪙 Continue with {CREDIT_COST} Credits
             </button>
           ) : user?.subscriptionLevel ? (
-            <p className="text-amber-300 text-sm font-bold">Balance kam hai ({user?.credits ?? 0} CR). Credits earn karo!</p>
+            <p className="text-amber-300 text-sm font-bold">Low balance ({user?.credits ?? 0} CR). Earn more credits!</p>
           ) : (
-            <p className="text-amber-300 text-sm font-bold">Plan upgrade karo ya kal vapas aao!</p>
+            <p className="text-amber-300 text-sm font-bold">Upgrade your plan or come back tomorrow!</p>
           )}
           <p className="text-white/30 text-xs mt-4">Balance: {user?.credits ?? 0} CR</p>
         </div>
@@ -326,8 +326,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
           <h2 className="text-base font-black text-white">Flashcards</h2>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-          <p className="text-white font-black">Koi MCQ available nahi hai</p>
-          <p className="text-white/50 text-xs mt-2">Pehle is chapter ka content load karein.</p>
+          <p className="text-white font-black">No MCQs available</p>
+          <p className="text-white/50 text-xs mt-2">Load this chapter's content first.</p>
         </div>
       </div>
     );
@@ -473,7 +473,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">
-                  Sahi Jawab
+                  Correct Answer
                 </span>
                 <button
                   type="button"
@@ -519,7 +519,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               {!hardReviewMode && (
                 <div className="mt-3 pt-3 border-t border-emerald-200">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
-                    Yeh card kitna mushkil laga?
+                    How difficult was this card?
                   </p>
                   {confidenceMap[pos] ? (
                     <div className={`text-center py-2 rounded-xl font-black text-sm ${
@@ -527,9 +527,9 @@ export const FlashcardMcqView: React.FC<Props> = ({
                       confidenceMap[pos] === 'medium' ? 'bg-amber-100 text-amber-700' :
                       'bg-red-100 text-red-700'
                     }`}>
-                      {confidenceMap[pos] === 'easy' ? '✅ Easy — Aage badh rahe hain!' :
-                       confidenceMap[pos] === 'medium' ? '🟡 Medium — Thoda aur practice karo' :
-                       '🔴 Hard — Baad mein dobara aayega!'}
+                      {confidenceMap[pos] === 'easy' ? '✅ Easy — Moving forward!' :
+                       confidenceMap[pos] === 'medium' ? '🟡 Medium — Practice a bit more' :
+                       '🔴 Hard — Will come back later!'}
                     </div>
                   ) : (
                     <div className="grid grid-cols-3 gap-2">
