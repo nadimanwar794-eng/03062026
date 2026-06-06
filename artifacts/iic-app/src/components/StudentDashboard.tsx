@@ -20199,43 +20199,184 @@ RULES:
                   </div>
                 </div>
 
-                {/* Level Roadmap — horizontal scroll chips */}
-                <div className="rounded-2xl overflow-hidden border border-white/10">
-                  <div className="px-4 py-2.5 border-b border-white/6" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <p className="text-[10px] font-black text-white uppercase tracking-widest">🏅 Level Roadmap</p>
-                  </div>
-                  <div className="flex overflow-x-auto scrollbar-none gap-2.5 p-4">
-                    {LEVEL_INFO.map(l => {
-                      const isCurrentLevel = lvl.level === l.level;
-                      const isUnlocked = totalScore >= l.minScore;
-                      return (
-                        <button key={l.level} onClick={() => setSelectedLevelDetail(l)}
-                          className="flex-shrink-0 flex flex-col items-center gap-1.5 w-[60px] active:scale-95 transition-transform"
-                          style={{ opacity: isUnlocked ? 1 : 0.5 }}>
-                          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl relative"
-                            style={{
-                              background: isCurrentLevel ? `${l.color}30` : isUnlocked ? `${l.color}14` : 'rgba(255,255,255,0.04)',
-                              border: isCurrentLevel ? `2px solid ${l.color}` : `1px solid ${l.color}28`,
-                              boxShadow: isCurrentLevel ? `0 0 14px ${l.glowColor}` : 'none',
-                            }}>
-                            {l.emoji}
-                            {isCurrentLevel && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: l.color }}>
-                                <span style={{ fontSize: '6px', color: 'white', fontWeight: 900 }}>YOU</span>
-                              </div>
-                            )}
+                {/* Level Roadmap — organized vertical list */}
+                {(() => {
+                  // Helper: compute short unlock chips for each level
+                  const getLevelUnlocks = (lv: typeof LEVEL_INFO[0]): { icon: string; text: string; color: string }[] => {
+                    const prev = lv.level > 1 ? LEVEL_INFO[lv.level - 2] : null;
+                    const chips: { icon: string; text: string; color: string }[] = [];
+
+                    // L1 base
+                    if (lv.level === 1) {
+                      chips.push({ icon: '🏆', text: 'Leaderboard Entry', color: '#eab308' });
+                      chips.push({ icon: '📊', text: 'Score Tracking', color: '#10b981' });
+                      chips.push({ icon: '🎉', text: 'Discount + Credit Events', color: '#f59e0b' });
+                    }
+                    // Discount change
+                    const prevDisc = prev?.discount ?? 0;
+                    if (lv.discount !== prevDisc && lv.discount > 0) {
+                      chips.push({ icon: '🏷️', text: `${lv.discount}% Store Discount ${lv.discount > prevDisc ? `(+${lv.discount - prevDisc}%)` : ''}`, color: '#10b981' });
+                    }
+                    // Animation change
+                    const prevAnim = prev?.animationIntensity ?? 0;
+                    if (lv.animationIntensity !== prevAnim && lv.animationIntensity > 0) {
+                      const animLabels = ['', 'Subtle shimmer ✨', 'Glow effect 🌟', 'Strong glow + sparks 💫', 'Legendary 🌈'];
+                      chips.push({ icon: '✨', text: `Top Bar: ${animLabels[lv.animationIntensity]}`, color: '#818cf8' });
+                    }
+                    // Colored name unlock
+                    const prevHasColor = !!(prev?.nameColor || prev?.legendaryAura);
+                    if ((lv.nameColor || lv.legendaryAura) && !prevHasColor) {
+                      chips.push({ icon: '🎨', text: lv.legendaryAura ? 'Rainbow Username 💠' : 'Colored Username 🔥', color: lv.nameColor ?? '#a5f3fc' });
+                    }
+                    // Elite badge
+                    if (lv.level === 5) chips.push({ icon: '💎', text: 'Elite Status Badge', color: lv.color });
+                    // Events
+                    if (lv.level === 3) chips.push({ icon: '📈', text: 'Limit Boost Event', color: '#10b981' });
+                    if (lv.level === 5) chips.push({ icon: '🚀', text: 'Score Boost Event', color: '#f97316' });
+                    if (lv.level === 7) chips.push({ icon: '🎨', text: 'Theme Studio Event', color: '#8b5cf6' });
+                    // Milestone rewards
+                    const milestoneMap: Record<number, { icon: string; cr: number; boost: number; color: string }> = {
+                      8:  { icon: '💎', cr: 500,   boost: 10, color: '#f59e0b' },
+                      10: { icon: '👑', cr: 1000,  boost: 15, color: '#fb923c' },
+                      12: { icon: '🔮', cr: 2000,  boost: 20, color: '#8b5cf6' },
+                      13: { icon: '⚜️', cr: 3000,  boost: 25, color: '#ec4899' },
+                      14: { icon: '🌠', cr: 5000,  boost: 30, color: '#f43f5e' },
+                      15: { icon: '💠', cr: 10000, boost: 50, color: '#a5f3fc' },
+                    };
+                    if (milestoneMap[lv.level]) {
+                      const m = milestoneMap[lv.level];
+                      chips.push({ icon: m.icon, text: `🏆 +${m.cr.toLocaleString('en-IN')} CR + ${m.boost}% Limit Boost`, color: m.color });
+                    }
+                    if (lv.level === 8) chips.push({ icon: '🪙', text: 'Credit Free Event', color: '#06b6d4' });
+                    if (lv.level === 10) chips.push({ icon: '🌍', text: 'Global Free Access Event', color: '#10b981' });
+                    // L6 perks
+                    if (lv.level === 6) {
+                      chips.push({ icon: '💰', text: 'Sunday Streak Recovery Bonus', color: '#f59e0b' });
+                      chips.push({ icon: '✍️', text: 'Extended Write Mode', color: '#8b5cf6' });
+                    }
+                    // Reading time bonus
+                    if (lv.level === 9) chips.push({ icon: '⏱️', text: 'Reading Time Bonus + Notes Unlimited', color: '#f59e0b' });
+                    else if (lv.level > 9) chips.push({ icon: '⏱️', text: `Max Reading: ${getMaxReadingSeconds(lv.level)}s`, color: '#f59e0b' });
+
+                    return chips;
+                  };
+
+                  const futureLevels = LEVEL_INFO.filter(l => l.level > lvl.level);
+                  const unlockedLevels = LEVEL_INFO.filter(l => l.level <= lvl.level);
+
+                  return (
+                    <div className="rounded-2xl overflow-hidden border border-white/10">
+                      <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                        <p className="text-[10px] font-black text-white uppercase tracking-widest">🗺️ Level Roadmap</p>
+                        <p className="text-[9px] text-slate-500">Tap karo detail dekhne ke liye</p>
+                      </div>
+
+                      {/* Current level highlight */}
+                      <button onClick={() => setSelectedLevelDetail(lvl)} className="w-full px-4 py-3 flex items-center gap-3 active:bg-white/5 transition-colors border-b border-white/8"
+                        style={{ background: `linear-gradient(90deg, ${lvl.color}18, transparent)` }}>
+                        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shrink-0 relative"
+                          style={{ background: `${lvl.color}28`, border: `2px solid ${lvl.color}`, boxShadow: `0 0 16px ${lvl.glowColor}` }}>
+                          {lvl.emoji}
+                          <div className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full text-[7px] font-black text-white" style={{ background: lvl.color }}>YOU</div>
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[11px] font-black" style={{ color: lvl.color }}>Level {lvl.level} · {lvl.label}</span>
+                            <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-emerald-500/20 text-emerald-400">Current</span>
                           </div>
-                          <p className="text-[8px] font-black leading-none text-center" style={{ color: isCurrentLevel ? l.color : isUnlocked ? '#cbd5e1' : '#475569' }}>L{l.level}</p>
-                          <p className="text-[7px] text-center leading-tight" style={{ color: l.discount > 0 ? '#10b981' : '#475569' }}>{l.discount > 0 ? `${l.discount}%` : '—'}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="px-4 pb-3 flex items-center justify-between">
-                    <p className="text-[8px] text-slate-600">← Swipe · Kisi bhi level pe tap karo</p>
-                    <p className="text-[8px] text-emerald-600 font-bold">Green % = store discount</p>
-                  </div>
-                </div>
+                          <p className="text-[9px] text-slate-500">{totalScore.toLocaleString('en-IN')} pts</p>
+                        </div>
+                        <span className="text-slate-600 text-xs">›</span>
+                      </button>
+
+                      {/* Future levels — clearly organized */}
+                      {futureLevels.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">🔒 Future Levels — Aage kya milega</p>
+                          </div>
+                          {futureLevels.map((l, idx) => {
+                            const chips = getLevelUnlocks(l);
+                            const ptsNeeded = Math.max(0, l.minScore - totalScore);
+                            const progressPct = Math.min(99, Math.round((totalScore / l.minScore) * 100));
+                            return (
+                              <button key={l.level} onClick={() => setSelectedLevelDetail(l)}
+                                className="w-full px-4 py-3 flex items-start gap-3 active:bg-white/5 transition-colors text-left"
+                                style={{ borderBottom: idx < futureLevels.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                                {/* Left: level icon + connector line */}
+                                <div className="flex flex-col items-center shrink-0">
+                                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                                    style={{ background: `${l.color}12`, border: `1.5px solid ${l.color}35` }}>
+                                    {l.emoji}
+                                  </div>
+                                  {idx < futureLevels.length - 1 && (
+                                    <div className="w-px h-3 mt-1" style={{ background: `${l.color}25` }} />
+                                  )}
+                                </div>
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-black" style={{ color: l.color }}>Level {l.level}</span>
+                                      <span className="text-[10px] font-bold text-slate-400">· {l.label}</span>
+                                    </div>
+                                    <span className="text-[9px] text-slate-600 shrink-0">›</span>
+                                  </div>
+                                  {/* Score needed */}
+                                  <div className="mb-2">
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <p className="text-[9px] text-slate-600">{ptsNeeded.toLocaleString('en-IN')} pts aur chahiye</p>
+                                      <p className="text-[9px] font-bold" style={{ color: l.color }}>{progressPct}%</p>
+                                    </div>
+                                    <div className="h-1 rounded-full overflow-hidden bg-white/8">
+                                      <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: `linear-gradient(90deg, ${l.color}70, ${l.color})` }} />
+                                    </div>
+                                  </div>
+                                  {/* Unlock chips */}
+                                  {chips.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {chips.map((chip, ci) => (
+                                        <span key={ci} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                                          style={{ background: `${chip.color}18`, color: chip.color, border: `1px solid ${chip.color}35` }}>
+                                          {chip.icon} {chip.text}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[9px] text-slate-600 italic">Daily limits + score accumulation</p>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Already unlocked levels (collapsed, just chips) */}
+                      {unlockedLevels.filter(l => l.level < lvl.level).length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 border-t border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">✅ Unlock ho chuke levels</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 p-3">
+                            {unlockedLevels.filter(l => l.level < lvl.level).map(l => (
+                              <button key={l.level} onClick={() => setSelectedLevelDetail(l)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform"
+                                style={{ background: `${l.color}14`, border: `1px solid ${l.color}30` }}>
+                                <span className="text-sm">{l.emoji}</span>
+                                <span className="text-[9px] font-black" style={{ color: l.color }}>L{l.level} {l.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="px-4 pb-2.5 pt-1">
+                        <p className="text-[8px] text-slate-700 text-center">Kisi bhi level pe tap karo — full detail dekhne ke liye</p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="h-4" />
                 </React.Fragment>}
