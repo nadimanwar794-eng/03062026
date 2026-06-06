@@ -1,0 +1,3 @@
+- [Level ring system](level-ring-system.md) — graduated avatar rings L10-L15 on profile + top bar; L10=1 ring, L11=2, L12=2+glow, L13=3, L14=3+intense, L15=rainbow
+- [Page transitions](page-transitions.md) — iOS-style slide/fade animations on tab change; direction tracked via TAB_ORDER array; tabTransitionKey state in StudentDashboard
+- [Splash screen](splash-screen.md) — cinematic AppLoadingScreen with logo burst, orbiting dots, particle halo, shimmer text

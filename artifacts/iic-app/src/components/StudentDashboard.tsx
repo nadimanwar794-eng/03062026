@@ -495,8 +495,22 @@ export const StudentDashboard: React.FC<Props> = ({
     ) {
       setShowAllNotesCatalog(false);
       onTabChange("AI_HUB");
+      setTabTransitionKey(k => k + 1);
+      setTabTransitionDir('right');
       return;
     }
+    // Determine transition direction based on tab order
+    const TAB_ORDER = ['HOME','HOMEWORK','REVISION_V2','GK','VIDEO','PROFILE','APP_STORE','HISTORY','LEADERBOARD','STORE'];
+    const prevIdx = TAB_ORDER.indexOf(activeTab as string);
+    const nextIdx = TAB_ORDER.indexOf(tab as string);
+    if (prevIdx === -1 || nextIdx === -1) {
+      setTabTransitionDir('fade');
+    } else if (nextIdx > prevIdx) {
+      setTabTransitionDir('right');
+    } else {
+      setTabTransitionDir('left');
+    }
+    setTabTransitionKey(k => k + 1);
     onTabChange(tab);
   };
 
@@ -1829,6 +1843,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showFeatureLimitsModal, setShowFeatureLimitsModal] = useState(false);
   const [showLevelLeaderboard, setShowLevelLeaderboard] = useState(false);
   const [levelUpCelebration, setLevelUpCelebration] = useState<{level: number; emoji: string; label: string} | null>(null);
+  const [tabTransitionKey, setTabTransitionKey] = useState(0);
+  const [tabTransitionDir, setTabTransitionDir] = useState<'right' | 'left' | 'fade'>('right');
   const [limitsViewPlan, setLimitsViewPlan] = useState<'FREE' | 'BASIC' | 'ULTRA'>('FREE');
   const [showRulesPage, setShowRulesPage] = useState(false);
   const [showLoginHistory, setShowLoginHistory] = useState(false);
@@ -8409,26 +8425,63 @@ export const StudentDashboard: React.FC<Props> = ({
               {/* ─── Avatar ─── */}
               <div className="flex justify-center mb-4">
                 <div className="relative">
-                  {/* L15: double rainbow ring */}
-                  {_displayLvl.legendaryAura && !cardFxOff && (
-                    <div className="absolute rounded-full pointer-events-none" style={{
-                      inset: '-6px',
-                      background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc,#c4b5fd,#a5f3fc)',
-                      animation: 'spin 2s linear infinite',
-                      borderRadius: '50%',
-                      opacity: 0.85,
-                    }} />
-                  )}
-                  {/* Outer glow halo */}
-                  <div className="absolute -inset-2 rounded-full pointer-events-none" style={{
-                    background: _displayLvl.legendaryAura
-                      ? 'conic-gradient(from 180deg,#f9a8d4,#a5f3fc,#c4b5fd,#fde68a,#f9a8d4)'
-                      : `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
-                    animation: !cardFxOff && _displayLvl.level >= 6 ? (_displayLvl.legendaryAura ? 'spin 3s linear infinite reverse' : 'spin 4s linear infinite') : 'none',
-                    borderRadius: '50%',
-                  }} />
-                  {/* Inner ring */}
-                  <div className="absolute -inset-1 rounded-full pointer-events-none" style={{
+                  {/* ── GRADUATED LEVEL RING SYSTEM ── */}
+                  {!cardFxOff && (() => {
+                    const _rl = _displayLvl.level;
+                    const _rc = _displayLvl.color;
+                    const _rg = _displayLvl.glowColor;
+
+                    if (_displayLvl.legendaryAura) {
+                      // L15 — Rainbow legendary (3 rings)
+                      return (<>
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-22px', background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc,#c4b5fd,#a5f3fc)', animation: 'spin 1.8s linear infinite', borderRadius: '50%', opacity: 0.45 }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-13px', background: 'conic-gradient(from 120deg,#f9a8d4,#a5f3fc,#c4b5fd,#fde68a,#f9a8d4)', animation: 'spin 2.5s linear infinite reverse', borderRadius: '50%', opacity: 0.7 }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-6px', background: 'conic-gradient(from 240deg,#c4b5fd,#a5f3fc,#f9a8d4,#fde68a,#c4b5fd)', animation: 'spin 3.5s linear infinite', borderRadius: '50%', opacity: 0.85 }} />
+                      </>);
+                    }
+                    if (_rl >= 14) {
+                      // L14 — 3 rings, strong glow + pulse
+                      return (<>
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-20px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}cc, ${_rc}00)`, animation: 'spin 2s linear infinite', borderRadius: '50%', boxShadow: `0 0 22px 5px ${_rg}80`, animationName: 'spin, levelRingGlow' }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-13px', background: `conic-gradient(from 180deg, ${_rc}00, ${_rc}bb, ${_rc}00)`, animation: 'spin 3s linear infinite reverse', borderRadius: '50%' }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-7px', background: `conic-gradient(from 90deg, ${_rc}00, ${_rc}99, ${_rc}00)`, animation: 'spin 4.5s linear infinite', borderRadius: '50%' }} />
+                      </>);
+                    }
+                    if (_rl >= 13) {
+                      // L13 — 3 rings
+                      return (<>
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-18px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}bb, ${_rc}00)`, animation: 'spin 2.5s linear infinite', borderRadius: '50%' }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-11px', background: `conic-gradient(from 180deg, ${_rc}00, ${_rc}aa, ${_rc}00)`, animation: 'spin 3.5s linear infinite reverse', borderRadius: '50%' }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-5px', background: `conic-gradient(from 90deg, ${_rc}00, ${_rc}88, ${_rc}00)`, animation: 'spin 5s linear infinite', borderRadius: '50%' }} />
+                      </>);
+                    }
+                    if (_rl >= 11) {
+                      // L11-L12 — 2 rings (mota feel)
+                      const _rSpd1 = _rl >= 12 ? '2.2s' : '3s';
+                      const _rSpd2 = _rl >= 12 ? '3.2s' : '4.5s';
+                      const _rOp = _rl >= 12 ? 'cc' : 'aa';
+                      return (<>
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-15px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}${_rOp}, ${_rc}55, ${_rc}${_rOp}, ${_rc}00)`, animation: `spin ${_rSpd1} linear infinite`, borderRadius: '50%', boxShadow: _rl >= 12 ? `0 0 14px 3px ${_rg}55` : 'none' }} />
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-7px', background: `conic-gradient(from 180deg, ${_rc}00, ${_rc}99, ${_rc}00)`, animation: `spin ${_rSpd2} linear infinite reverse`, borderRadius: '50%' }} />
+                      </>);
+                    }
+                    if (_rl >= 10) {
+                      // L10 — 1 prominent ring (new unlock!)
+                      return (
+                        <div className="absolute rounded-full pointer-events-none" style={{ inset: '-12px', background: `conic-gradient(from 0deg, ${_rc}00, ${_rc}dd, ${_rc}55, ${_rc}dd, ${_rc}00)`, animation: 'spin 3.5s linear infinite', borderRadius: '50%', boxShadow: `0 0 12px 3px ${_rg}50` }} />
+                      );
+                    }
+                    if (_rl >= 6) {
+                      // L6-L9 — subtle single spinning ring
+                      return (
+                        <div className="absolute -inset-2 rounded-full pointer-events-none" style={{ background: `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`, animation: 'spin 4s linear infinite', borderRadius: '50%' }} />
+                      );
+                    }
+                    return null;
+                  })()}
+                  {/* Inner separator ring (card bg color — creates visual gap between rings and avatar) */}
+                  <div className="absolute rounded-full pointer-events-none" style={{
+                    inset: _displayLvl.legendaryAura ? '-1px' : _displayLvl.level >= 14 ? '-4px' : _displayLvl.level >= 11 ? '-3px' : _displayLvl.level >= 10 ? '-2px' : '-1px',
                     background: `${_pCard}`,
                     borderRadius: '50%',
                   }} />
@@ -9623,15 +9676,54 @@ export const StudentDashboard: React.FC<Props> = ({
             <button className="p-1 rounded-lg transition-colors hover:bg-white/20 -ml-1 shrink-0">
               <Menu size={20} className="text-white" />
             </button>
-            {user.photoURL && user.avatarChoice === 'gmail' ? (
-              <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
-            ) : settings?.appLogo ? (
-              <img src={settings.appLogo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
-            ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 border-2 border-white text-white shrink-0 shadow">
-                <BrainCircuit size={16} />
-              </div>
-            )}
+            {(() => {
+              const _tbLvl = _userLevel;
+              const _tbColor = _userLevelInfo.color;
+              const _tbGlow = _userLevelInfo.glowColor;
+              const _hasRing = _tbLvl >= 10;
+              const _isLegendary = _userLevelInfo.legendaryAura;
+              const _ringStyle: React.CSSProperties = _isLegendary ? {
+                background: 'conic-gradient(from 0deg,#a5f3fc,#c4b5fd,#f9a8d4,#fde68a,#a5f3fc)',
+                animation: 'spin 2.5s linear infinite',
+                inset: '-3px', borderRadius: '50%', position: 'absolute', pointerEvents: 'none',
+              } : _tbLvl >= 13 ? {
+                background: `conic-gradient(from 0deg, ${_tbColor}00, ${_tbColor}ee, ${_tbColor}00)`,
+                animation: 'spin 2s linear infinite',
+                inset: '-3px', borderRadius: '50%', position: 'absolute', pointerEvents: 'none',
+                boxShadow: `0 0 8px 2px ${_tbGlow}70`,
+              } : _tbLvl >= 10 ? {
+                background: `conic-gradient(from 0deg, ${_tbColor}00, ${_tbColor}cc, ${_tbColor}00)`,
+                animation: 'spin 3s linear infinite',
+                inset: '-3px', borderRadius: '50%', position: 'absolute', pointerEvents: 'none',
+              } : {};
+              const _imgEl = user.photoURL && user.avatarChoice === 'gmail' ? (
+                <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
+              ) : settings?.appLogo ? (
+                <img src={settings.appLogo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 border-2 border-white text-white shrink-0 shadow">
+                  <BrainCircuit size={16} />
+                </div>
+              );
+              if (!_hasRing) return _imgEl;
+              return (
+                <div className="relative shrink-0" style={{ width: 32, height: 32 }}>
+                  <div style={_ringStyle} />
+                  <div style={{ position: 'absolute', inset: _isLegendary ? '2px' : _tbLvl >= 13 ? '2px' : '2px', borderRadius: '50%', background: 'rgba(0,0,0,0.6)', zIndex: 0 }} />
+                  <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden' }}>
+                    {user.photoURL && user.avatarChoice === 'gmail' ? (
+                      <img src={user.photoURL} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : settings?.appLogo ? (
+                      <img src={settings.appLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.2)', color: 'white' }}>
+                        <BrainCircuit size={14} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex items-center gap-1 min-w-0">
               <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
                 {settings?.appShortName || settings?.appName || "IIC"}
@@ -14043,7 +14135,12 @@ export const StudentDashboard: React.FC<Props> = ({
               or Teacher Store) never blanks the whole dashboard — the user can
               tap "Go to Home" and recover instead of seeing a white screen. */}
           <ErrorBoundary key={activeTab + '-eb'}>
-            {renderMainContent()}
+            <div
+              key={tabTransitionKey}
+              className={tabTransitionDir === 'right' ? 'tab-page-enter' : tabTransitionDir === 'left' ? 'tab-page-enter-left' : 'tab-page-fade'}
+            >
+              {renderMainContent()}
+            </div>
           </ErrorBoundary>
         </div>
       </div>
