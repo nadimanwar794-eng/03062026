@@ -518,6 +518,17 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [cnCopyTargetBook, setCnCopyTargetBook] = useState('');
   const [cnCopying, setCnCopying] = useState(false);
   const [cnBookHtmlNotes, setCnBookHtmlNotes] = useState<Record<string, string>>({});
+  // ── LIBRARY NOTES MANAGER state ──
+  const [lnmSelBook, setLnmSelBook] = useState<string>('LUCENT');
+  const [lnmSelSubject, setLnmSelSubject] = useState<string>('');
+  const [lnmChapters, setLnmChapters] = useState<{id:string;title:string}[]>([]);
+  const [lnmLoadingChapters, setLnmLoadingChapters] = useState(false);
+  const [lnmNewChapter, setLnmNewChapter] = useState('');
+  const [lnmSavingChapter, setLnmSavingChapter] = useState(false);
+  const [lnmSelChapterId, setLnmSelChapterId] = useState<string|null>(null);
+  const [lnmFreeNotes, setLnmFreeNotes] = useState('');
+  const [lnmSavingNotes, setLnmSavingNotes] = useState(false);
+  const [lnmDeletingId, setLnmDeletingId] = useState<string|null>(null);
   const [autoSplitText, setAutoSplitText] = useState('');
   const [showAutoSplit, setShowAutoSplit] = useState(false);
   const [lucentSmartPasteText, setLucentSmartPasteText] = useState('');
@@ -17335,17 +17346,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               { id: 'GK',       emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       color: 'emerald',subjects: ['General Knowledge / सामान्य ज्ञान','Current Affairs / करंट अफेयर्स'] },
               { id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes',  classLevel: 'COMPETITION', color: 'purple', subjects: ['MCQ Practice','Class Notes / कक्षा नोट्स'] },
           ];
-
-          const [lnmSelBook, setLnmSelBook] = React.useState<string>('LUCENT');
-          const [lnmSelSubject, setLnmSelSubject] = React.useState<string>('');
-          const [lnmChapters, setLnmChapters] = React.useState<{id:string;title:string}[]>([]);
-          const [lnmLoadingChapters, setLnmLoadingChapters] = React.useState(false);
-          const [lnmNewChapter, setLnmNewChapter] = React.useState('');
-          const [lnmSavingChapter, setLnmSavingChapter] = React.useState(false);
-          const [lnmSelChapterId, setLnmSelChapterId] = React.useState<string|null>(null);
-          const [lnmFreeNotes, setLnmFreeNotes] = React.useState('');
-          const [lnmSavingNotes, setLnmSavingNotes] = React.useState(false);
-          const [lnmDeletingId, setLnmDeletingId] = React.useState<string|null>(null);
 
           const bookCfg = LIBRARY_BOOKS.find(b => b.id === lnmSelBook)!;
           const syllabusKey = lnmSelSubject ? `${lnmSelBook}-${bookCfg.classLevel}-${lnmSelSubject}-English` : '';
