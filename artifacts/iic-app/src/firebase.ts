@@ -889,6 +889,30 @@ export const getCustomSyllabus = async (key: string) => {
     return null;
 };
 
+// ── Custom Library Books (admin-created) ──────────────────────────────────
+export const saveLibraryCustomBooks = async (books: any[]) => {
+    try {
+        const sanitized = sanitizeForFirestore(books);
+        const promises = [
+            set(ref(rtdb, 'library_custom_books'), sanitized),
+            setDoc(doc(db, 'library_config', 'custom_books'), { books: sanitized })
+        ];
+        await Promise.allSettled(promises);
+    } catch(e) { console.error('Error saving custom library books:', e); throw e; }
+};
+
+export const getLibraryCustomBooks = async (): Promise<any[]> => {
+    try {
+        const snap = await get(ref(rtdb, 'library_custom_books'));
+        if (snap.exists()) return Array.isArray(snap.val()) ? snap.val() : [];
+    } catch(e) { console.warn('RTDB getLibraryCustomBooks failed:', e); }
+    try {
+        const docSnap = await getDoc(doc(db, 'library_config', 'custom_books'));
+        if (docSnap.exists()) return docSnap.data().books || [];
+    } catch(e) { console.error('Firestore getLibraryCustomBooks failed:', e); }
+    return [];
+};
+
 // 6. Public Activity Feed (Live Results)
 export const savePublicActivity = async (activity: any) => {
     try {

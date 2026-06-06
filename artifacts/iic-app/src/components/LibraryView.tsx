@@ -1,48 +1,58 @@
 // @ts-nocheck
-import React, { useState } from 'react';
-import { ArrowLeft, BookOpen, ChevronRight, Loader, FileText } from 'lucide-react';
-import { getCustomSyllabus, getChapterData } from '../firebase';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, BookOpen, ChevronRight, Loader, FileText, Plus, Trash2 } from 'lucide-react';
+import { getCustomSyllabus, getChapterData, getLibraryCustomBooks } from '../firebase';
 import { LessonView } from './LessonView';
 
-const VIRTUAL_BOARDS = {
-  LUCENT: {
-    emoji: '📖', label: 'Lucent GK', classLevel: 'BOOK',
+const FIXED_BOARDS = [
+  {
+    id: 'LUCENT', emoji: '📖', label: 'Lucent GK', classLevel: 'BOOK',
     grad: 'from-blue-600 to-indigo-600', soft: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-600',
     subjects: [
-      { id: 'history',      name: 'History / इतिहास' },
-      { id: 'geography',    name: 'Geography / भूगोल' },
-      { id: 'polity',       name: 'Polity / राजनीति' },
-      { id: 'economy',      name: 'Economy / अर्थशास्त्र' },
-      { id: 'science',      name: 'Science / विज्ञान' },
-      { id: 'art_culture',  name: 'Art & Culture / कला' },
+      { id: 'history',     name: 'History / इतिहास' },
+      { id: 'geography',   name: 'Geography / भूगोल' },
+      { id: 'polity',      name: 'Polity / राजनीति' },
+      { id: 'economy',     name: 'Economy / अर्थशास्त्र' },
+      { id: 'science',     name: 'Science / विज्ञान' },
+      { id: 'art_culture', name: 'Art & Culture / कला' },
     ],
   },
-  COMPBOOK: {
-    emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',
+  {
+    id: 'COMPBOOK', emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',
     grad: 'from-orange-500 to-amber-500', soft: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', badge: 'bg-orange-500',
     subjects: [
-      { id: 'sar_sangrah',   name: 'Sar Sangrah / सार संग्रह' },
+      { id: 'sar_sangrah',    name: 'Sar Sangrah / सार संग्रह' },
       { id: 'speedy_science', name: 'Speedy Science' },
       { id: 'speedy_social',  name: 'Speedy Social Science' },
     ],
   },
-  GK: {
-    emoji: '🌍', label: 'Daily GK', classLevel: 'DAILY',
+  {
+    id: 'GK', emoji: '🌍', label: 'Daily GK', classLevel: 'DAILY',
     grad: 'from-emerald-600 to-teal-500', soft: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-600',
     subjects: [
       { id: 'general_knowledge', name: 'General Knowledge / सामान्य ज्ञान' },
       { id: 'current_affairs',   name: 'Current Affairs / करंट अफेयर्स' },
     ],
   },
-  HOMEWORK: {
-    emoji: '📝', label: 'Homework / Notes', classLevel: 'COMPETITION',
+  {
+    id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes', classLevel: 'COMPETITION',
     grad: 'from-purple-600 to-fuchsia-500', soft: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-600',
     subjects: [
       { id: 'mcq_practice', name: 'MCQ Practice' },
       { id: 'class_notes',  name: 'Class Notes / कक्षा नोट्स' },
     ],
   },
-};
+];
+
+// Color palettes for custom books
+const CUSTOM_COLORS = [
+  { grad: 'from-rose-500 to-pink-500',     soft: 'bg-rose-50',   border: 'border-rose-200',   text: 'text-rose-700',   badge: 'bg-rose-500' },
+  { grad: 'from-cyan-500 to-sky-500',      soft: 'bg-cyan-50',   border: 'border-cyan-200',   text: 'text-cyan-700',   badge: 'bg-cyan-500' },
+  { grad: 'from-lime-500 to-green-500',    soft: 'bg-lime-50',   border: 'border-lime-200',   text: 'text-lime-700',   badge: 'bg-lime-600' },
+  { grad: 'from-yellow-500 to-orange-400', soft: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', badge: 'bg-yellow-500' },
+  { grad: 'from-violet-600 to-purple-500', soft: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', badge: 'bg-violet-600' },
+  { grad: 'from-teal-500 to-emerald-400',  soft: 'bg-teal-50',   border: 'border-teal-200',   text: 'text-teal-700',   badge: 'bg-teal-500' },
+];
 
 type Step = 'BOARDS' | 'SUBJECTS' | 'CHAPTERS' | 'PLAYER';
 
@@ -53,16 +63,39 @@ interface Props {
 }
 
 export const LibraryView: React.FC<Props> = ({ user, settings, onBack }) => {
-  const [step, setStep] = useState<Step>('BOARDS');
-  const [selBoardId, setSelBoardId] = useState<string | null>(null);
-  const [selSubject, setSelSubject] = useState<{ id: string; name: string } | null>(null);
-  const [chapters, setChapters] = useState<any[]>([]);
+  const [step, setStep]                     = useState<Step>('BOARDS');
+  const [selBoardId, setSelBoardId]         = useState<string | null>(null);
+  const [selSubject, setSelSubject]         = useState<{ id: string; name: string } | null>(null);
+  const [chapters, setChapters]             = useState<any[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
-  const [selChapter, setSelChapter] = useState<any | null>(null);
-  const [content, setContent] = useState<any | null>(null);
+  const [selChapter, setSelChapter]         = useState<any | null>(null);
+  const [content, setContent]               = useState<any | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
+  const [customBooks, setCustomBooks]       = useState<any[]>([]);
+  const [loadingBooks, setLoadingBooks]     = useState(true);
 
-  const boardCfg = selBoardId ? VIRTUAL_BOARDS[selBoardId as keyof typeof VIRTUAL_BOARDS] : null;
+  // Load custom books from Firebase on mount
+  useEffect(() => {
+    getLibraryCustomBooks()
+      .then(books => setCustomBooks(Array.isArray(books) ? books : []))
+      .catch(() => setCustomBooks([]))
+      .finally(() => setLoadingBooks(false));
+  }, []);
+
+  // Merge fixed + custom boards
+  const allBoards = [
+    ...FIXED_BOARDS,
+    ...customBooks.map((b, idx) => ({
+      id: b.id,
+      emoji: b.emoji || '📗',
+      label: b.label,
+      classLevel: b.classLevel || 'CUSTOM',
+      subjects: (b.subjects || []).map((s: string) => ({ id: s.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: s })),
+      ...CUSTOM_COLORS[idx % CUSTOM_COLORS.length],
+    })),
+  ];
+
+  const boardCfg = selBoardId ? allBoards.find(b => b.id === selBoardId) || null : null;
 
   const handleBoardSelect = (boardId: string) => {
     setSelBoardId(boardId);
@@ -113,7 +146,6 @@ export const LibraryView: React.FC<Props> = ({ user, settings, onBack }) => {
     onBack();
   };
 
-  // Breadcrumb
   const crumb = [
     '📚 Library',
     boardCfg ? `${boardCfg.emoji} ${boardCfg.label}` : null,
@@ -178,22 +210,30 @@ export const LibraryView: React.FC<Props> = ({ user, settings, onBack }) => {
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-5 text-center">
               Kaunsa section dekhna chahte ho?
             </p>
-            {Object.entries(VIRTUAL_BOARDS).map(([boardId, cfg]) => (
-              <button
-                key={boardId}
-                onClick={() => handleBoardSelect(boardId)}
-                className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 ${cfg.soft} ${cfg.border} hover:shadow-lg active:scale-[0.98] transition-all text-left`}
-              >
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br ${cfg.grad} shadow-md shrink-0`}>
-                  <span>{cfg.emoji}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-base font-black ${cfg.text}`}>{cfg.label}</p>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">{cfg.subjects.length} subjects available</p>
-                </div>
-                <ChevronRight size={20} className="text-slate-400 shrink-0" />
-              </button>
-            ))}
+
+            {loadingBooks ? (
+              <div className="flex items-center justify-center py-8 gap-2 text-slate-400">
+                <Loader size={20} className="animate-spin" />
+                <span className="text-sm font-bold">Books load ho rahi hain...</span>
+              </div>
+            ) : (
+              allBoards.map(cfg => (
+                <button
+                  key={cfg.id}
+                  onClick={() => handleBoardSelect(cfg.id)}
+                  className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 ${cfg.soft} ${cfg.border} hover:shadow-lg active:scale-[0.98] transition-all text-left`}
+                >
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br ${cfg.grad} shadow-md shrink-0`}>
+                    <span>{cfg.emoji}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-base font-black ${cfg.text}`}>{cfg.label}</p>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">{cfg.subjects.length} subjects available</p>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-400 shrink-0" />
+                </button>
+              ))
+            )}
           </>
         )}
 
@@ -209,7 +249,7 @@ export const LibraryView: React.FC<Props> = ({ user, settings, onBack }) => {
               <button
                 key={sub.id}
                 onClick={() => handleSubjectSelect(sub)}
-                className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 bg-white ${boardCfg.border} hover:${boardCfg.soft} hover:shadow-md active:scale-[0.98] transition-all text-left`}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 bg-white ${boardCfg.border} hover:shadow-md active:scale-[0.98] transition-all text-left`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${boardCfg.badge} text-white shrink-0`}>
                   <BookOpen size={16} />

@@ -1823,7 +1823,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
 
 
-
   // ── PERMANENT DELETE HELPER ──────────────────────────────────────────────
   // Bypasses the isSettingsSaving guard so delete ops are NEVER silently dropped.
   // Direct Lucent entry save — bypasses the isSettingsSaving guard so a Lucent
@@ -17341,10 +17340,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       ══════════════════════════════════════════════ */}
       {activeTab === 'LIBRARY_NOTES_MANAGER' && (() => {
           const LIBRARY_BOOKS = [
-              { id: 'LUCENT',   emoji: '📖', label: 'Lucent GK',         classLevel: 'BOOK',        color: 'indigo', subjects: ['History / इतिहास','Geography / भूगोल','Polity / राजनीति','Economy / अर्थशास्त्र','Science / विज्ञान','Art & Culture / कला'] },
-              { id: 'COMPBOOK', emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',        color: 'amber',  subjects: ['Sar Sangrah / सार संग्रह','Speedy Science','Speedy Social Science'] },
-              { id: 'GK',       emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       color: 'emerald',subjects: ['General Knowledge / सामान्य ज्ञान','Current Affairs / करंट अफेयर्स'] },
-              { id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes',  classLevel: 'COMPETITION', color: 'purple', subjects: ['MCQ Practice','Class Notes / कक्षा नोट्स'] },
+              { id: 'LUCENT',   emoji: '📖', label: 'Lucent GK',         classLevel: 'BOOK',        subjects: ['History / इतिहास','Geography / भूगोल','Polity / राजनीति','Economy / अर्थशास्त्र','Science / विज्ञान','Art & Culture / कला'] },
+              { id: 'COMPBOOK', emoji: '🚀', label: 'Competition Books', classLevel: 'BOOK',        subjects: ['Sar Sangrah / सार संग्रह','Speedy Science','Speedy Social Science'] },
+              { id: 'GK',       emoji: '🌍', label: 'Daily GK',          classLevel: 'DAILY',       subjects: ['General Knowledge / सामान्य ज्ञान','Current Affairs / करंट अफेयर्स'] },
+              { id: 'HOMEWORK', emoji: '📝', label: 'Homework / Notes',  classLevel: 'COMPETITION', subjects: ['MCQ Practice','Class Notes / कक्षा नोट्स'] },
           ];
 
           const bookCfg = LIBRARY_BOOKS.find(b => b.id === lnmSelBook)!;
