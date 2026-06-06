@@ -5578,7 +5578,7 @@ export const StudentDashboard: React.FC<Props> = ({
         hwGoToRef.current = goToHw as any;
 
         return (
-          <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in fade-in">
+          <div className="fixed inset-0 z-[150] bg-white flex flex-col h-[100dvh] w-screen animate-in fade-in" style={{ isolation: 'isolate' }}>
             {/* Reading progress bar (notes mode only) */}
             {effectiveMode === 'notes' && (
               <div className="absolute top-0 left-0 right-0 h-1 bg-slate-200/60 z-[60] pointer-events-none">
@@ -5675,7 +5675,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
             {/* CHOOSER OVERLAY — appears when both notes and MCQ exist and user hasn't picked yet */}
             {effectiveMode === 'choose' && (
-              <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50">
+              <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50">
                 <div className="w-full max-w-md">
                   {/* App logo + name + developer + version */}
                   <div className="flex flex-col items-center mb-8">
@@ -5730,7 +5730,7 @@ export const StudentDashboard: React.FC<Props> = ({
             {effectiveMode !== 'choose' && (
             <div
               ref={hwScrollContainerRef}
-              className={`flex-1 overflow-y-auto ${!hwImmersive ? 'pb-[72px]' : ''}`}
+              className={`flex-1 min-h-0 overflow-y-auto ${!hwImmersive ? 'pb-[72px]' : ''}`}
               onScroll={(e) => {
                 const t = e.currentTarget;
                 const max = t.scrollHeight - t.clientHeight;
