@@ -161,7 +161,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 }) => {
   const settings = useMemo(readSettings, []);
 
-  const tier = subscriptionLevel === 'ULTRA' ? 'ULTRA' : subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+  const tier = 'FREE' as const;
   const T = TIER_THEMES[tier];
   const MESSAGES = MESSAGES_BY_TIER[tier];
 
