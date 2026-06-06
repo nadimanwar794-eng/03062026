@@ -5578,7 +5578,7 @@ export const StudentDashboard: React.FC<Props> = ({
         hwGoToRef.current = goToHw as any;
 
         return (
-          <div className="fixed inset-0 z-[150] bg-white flex flex-col h-[100dvh] w-screen animate-in fade-in" style={{ isolation: 'isolate' }}>
+          <div className="fixed inset-0 z-[200] bg-white flex flex-col h-[100dvh] w-screen animate-in fade-in" style={{ isolation: 'isolate' }}>
             {/* Reading progress bar (notes mode only) */}
             {effectiveMode === 'notes' && (
               <div className="absolute top-0 left-0 right-0 h-1 bg-slate-200/60 z-[60] pointer-events-none">
