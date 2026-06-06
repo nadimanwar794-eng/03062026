@@ -7739,8 +7739,6 @@ export const StudentDashboard: React.FC<Props> = ({
 
               const _c612Bg  = settings?.homeClass612CardBg     || tierTheme.profileCardBg;
               const _c612Bdr = settings?.homeClass612CardBorder  || tierTheme.primary;
-              const _cmpBg   = settings?.homeCompetitionCardBg   || tierTheme.profileCardBg;
-              const _cmpBdr  = settings?.homeCompetitionCardBorder || tierTheme.primary;
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjectCount = getSubjectsList(c, _stream, _board).length;
@@ -7780,36 +7778,6 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* ── COMPETITIVE · GOVT. EXAMS ── */}
-                  {isHomeSectionVisible('home_govt_exams', settings) && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="flex-1 h-px bg-slate-100" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Competitive · Govt. Exams</span>
-                        <span className="flex-1 h-px bg-slate-100" />
-                      </div>
-                      <button
-                        onClick={() => { hapticStrong(); setSyllabusMode('COMPETITION'); setActiveSessionClass('COMPETITION'); setActiveSessionBoard(_board); setContentViewStep('SUBJECTS'); setInitialParentSubject(null); setClass612SubjectView(null); setHomeworkSubjectView(null); setLucentCategoryView(false); onTabChange('COURSES'); }}
-                        className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm"
-                        style={{ background: _cmpBg, border: `2px solid ${_cmpBdr}` }}
-                      >
-                        <div className="flex items-center justify-between px-4 py-4">
-                          <div className="flex-1 min-w-0 pr-2">
-                            <p className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: _cmpBdr }}>Competitive Mode</p>
-                            <h3 className="text-[24px] font-black leading-tight mb-1 text-slate-800">Govt. Exams</h3>
-                            <div className="mb-3">
-                              <span className="text-[11px] font-bold text-slate-700">7 Books</span>
-                              <span className="text-[10px] text-slate-400 ml-1.5">SSC · UPSC · Railway · BPSC · BSSC · Police</span>
-                            </div>
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black text-white" style={{ background: _cmpBdr }}>
-                              Tap to open →
-                            </span>
-                          </div>
-                          <div className="text-[56px] leading-none shrink-0 select-none">🏛️</div>
-                        </div>
-                      </button>
-                    </div>
-                  )}
 
                   {/* ── LIBRARY CARD ── */}
                   <div>
