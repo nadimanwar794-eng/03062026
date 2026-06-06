@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, BookOpen, ChevronRight, Loader, FileText } from 'lucide-react';
 import { getCustomSyllabus, getChapterData } from '../firebase';
-import LessonView from './LessonView';
+import { LessonView } from './LessonView';
 
 const VIRTUAL_BOARDS = {
   LUCENT: {
