@@ -8584,7 +8584,11 @@ export const StudentDashboard: React.FC<Props> = ({
 
               {/* ─── L15 ACHIEVEMENT PLAQUE ─── */}
               {_displayLvl.legendaryAura && (
-                <div className="mx-4 mb-3 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(165,243,252,0.3)', boxShadow: '0 0 30px rgba(165,243,252,0.15)' }}>
+                <button
+                  onClick={() => setShowScorePanel(true)}
+                  className="mx-4 mb-3 rounded-2xl overflow-hidden w-[calc(100%-2rem)] active:scale-[0.98] transition-transform text-left"
+                  style={{ border: '1px solid rgba(165,243,252,0.3)', boxShadow: '0 0 30px rgba(165,243,252,0.15)' }}
+                >
                   <style>{`
                     @keyframes absoluteShimmer{0%{background-position:200% center}100%{background-position:-200% center}}
                     @keyframes starPulse{0%,100%{opacity:0.6;transform:scale(0.9)}50%{opacity:1;transform:scale(1.2)}}
@@ -8605,7 +8609,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <div className="grid grid-cols-3 divide-x" style={{ borderTop: '1px solid rgba(165,243,252,0.12)', divideColor: 'rgba(165,243,252,0.12)' }}>
                     {[
                       { label: 'Level', val: '15 MAX' },
-                      { label: 'Discount', val: '30% OFF' },
+                      { label: 'Discount', val: `${_pLvl.discount}% OFF` },
                       { label: 'Multiplier', val: '5×' },
                     ].map(({ label, val }) => (
                       <div key={label} className="py-2 text-center">
@@ -8614,7 +8618,22 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                     ))}
                   </div>
-                </div>
+                  {/* XP + progress row */}
+                  <div className="px-4 py-3 flex items-center gap-3" style={{ borderTop: '1px solid rgba(165,243,252,0.10)', background: 'rgba(165,243,252,0.04)' }}>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') && (
+                        <span className="text-[8px] font-bold text-slate-400 bg-slate-200/20 px-1.5 py-0.5 rounded-full">Admin</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold mb-1.5 tabular-nums" style={{ color: 'rgba(165,243,252,0.75)' }}>{_pRawScore.toLocaleString('en-IN')} XP</p>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(165,243,252,0.10)' }}>
+                        <div className="h-full rounded-full" style={{ width: '100%', background: 'linear-gradient(90deg,#a5f3fc,#c4b5fd,#f9a8d4)', boxShadow: '0 0 8px rgba(165,243,252,0.6)' }} />
+                      </div>
+                    </div>
+                    <ChevronRight size={14} style={{ color: 'rgba(165,243,252,0.45)' }} className="shrink-0" />
+                  </div>
+                </button>
               )}
 
               {/* ─── Info row: join date + days ─── */}
@@ -8683,7 +8702,8 @@ export const StudentDashboard: React.FC<Props> = ({
               }} />
             </div>
 
-            {/* ── LEVEL CARD ── */}
+            {/* ── LEVEL CARD — hidden when L15 ABSOLUTE LEGEND is active ── */}
+            {!_displayLvl.legendaryAura && (
             <button
               onClick={() => setShowScorePanel(true)}
               className="w-full flex items-center gap-4 px-5 py-4 active:scale-[0.98] transition-transform"
@@ -8717,6 +8737,7 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
               <ChevronRight size={16} style={{ color: _pTxtMutedColor }} className="shrink-0" />
             </button>
+            )}
 
             {/* ── USER ID + EMAIL ROW ── */}
             <div className="flex gap-0 border-t" style={{ borderColor: `${tierTheme.primary}18` }}>
