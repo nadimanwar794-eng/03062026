@@ -8493,25 +8493,60 @@ export const StudentDashboard: React.FC<Props> = ({
                     background: `${_pCard}`,
                     borderRadius: '50%',
                   }} />
-                  {/* Avatar image */}
-                  <div className="relative w-[104px] h-[104px] rounded-full overflow-hidden flex items-center justify-center" style={{
-                    background: `linear-gradient(145deg, ${tierTheme.primary}40, ${tierTheme.primary}10)`,
-                    border: _displayLvl.legendaryAura
-                      ? '3px solid rgba(165,243,252,0.8)'
-                      : `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
-                    boxShadow: _displayLvl.legendaryAura
-                      ? '0 0 0 1.5px rgba(165,243,252,0.3), 0 10px 50px rgba(165,243,252,0.5), 0 4px 12px rgba(0,0,0,0.55)'
-                      : `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
+                  {/* ── GAMING BADGE: App Logo always in center ── */}
+                  <div className="relative w-[108px] h-[108px] rounded-full overflow-hidden flex items-center justify-center" style={{
+                    background: !cardFxOff && _displayLvl.legendaryAura
+                      ? 'linear-gradient(145deg,rgba(165,243,252,0.18),rgba(196,181,253,0.12))'
+                      : `linear-gradient(145deg, ${tierTheme.primary}45, ${tierTheme.primary}12)`,
+                    border: !cardFxOff
+                      ? (_displayLvl.legendaryAura
+                          ? '3px solid rgba(165,243,252,0.85)'
+                          : _displayLvl.level >= 4
+                            ? `3px solid ${_displayLvl.color}dd`
+                            : `3px solid ${tierTheme.primary}cc`)
+                      : `3px solid ${tierTheme.primary}cc`,
+                    boxShadow: !cardFxOff
+                      ? (_displayLvl.legendaryAura
+                          ? '0 0 0 1.5px rgba(165,243,252,0.35), 0 10px 50px rgba(165,243,252,0.55), 0 4px 16px rgba(0,0,0,0.6)'
+                          : _displayLvl.level >= 10
+                            ? `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 44px ${_displayLvl.glowColor}55, 0 4px 14px rgba(0,0,0,0.55)`
+                            : `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`)
+                      : `0 4px 12px rgba(0,0,0,0.4)`,
                   }}>
-                    {user.photoURL && user.avatarChoice === 'gmail'
-                      ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                      : settings?.appLogo
-                        ? <img src={settings.appLogo} alt="logo" className="w-full h-full object-cover" />
-                        : <span className="text-5xl font-black select-none" style={{ color: !cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color : tierTheme.primary }}>
-                            {(user.name || 'S').charAt(0).toUpperCase()}
-                          </span>
+                    {/* App logo — always the main gaming badge */}
+                    {settings?.appLogo
+                      ? <img src={settings.appLogo} alt="IIC" className="w-full h-full object-cover" />
+                      : <span className="text-5xl font-black select-none" style={{ color: !cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color : tierTheme.primary }}>
+                          {(settings as any)?.appShortName?.charAt(0) || (settings as any)?.appName?.charAt(0) || 'I'}
+                        </span>
                     }
+                    {/* User photo — small corner badge if they chose Gmail avatar */}
+                    {user.photoURL && user.avatarChoice === 'gmail' && (
+                      <div className="absolute bottom-1 right-1 w-[30px] h-[30px] rounded-full overflow-hidden"
+                        style={{ border: `2.5px solid ${_pCard}`, boxShadow: '0 2px 8px rgba(0,0,0,0.45)' }}>
+                        <img src={user.photoURL} alt="You" className="w-full h-full object-cover" />
+                      </div>
+                    )}
                   </div>
+
+                  {/* L10+ level emoji floats below avatar as badge */}
+                  {!cardFxOff && _displayLvl.level >= 10 && (
+                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full"
+                      style={{
+                        background: _displayLvl.legendaryAura
+                          ? 'linear-gradient(90deg,rgba(165,243,252,0.25),rgba(196,181,253,0.25))'
+                          : `${_displayLvl.color}28`,
+                        border: _displayLvl.legendaryAura
+                          ? '1px solid rgba(165,243,252,0.5)'
+                          : `1px solid ${_displayLvl.color}66`,
+                        backdropFilter: 'blur(8px)',
+                        boxShadow: `0 2px 10px ${_displayLvl.glowColor}44`,
+                      }}>
+                      <span className="text-[11px] leading-none">{_displayLvl.emoji}</span>
+                      <span className="text-[9px] font-black leading-none" style={{ color: _displayLvl.legendaryAura ? '#a5f3fc' : _displayLvl.color }}>L{_displayLvl.level}</span>
+                    </div>
+                  )}
+
                   {/* L15: crown above avatar */}
                   {_displayLvl.legendaryAura && (
                     <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl" style={{ filter: 'drop-shadow(0 0 8px rgba(165,243,252,0.9))', animation: 'name-fx-absolute 4s ease infinite' }}>💠</div>
