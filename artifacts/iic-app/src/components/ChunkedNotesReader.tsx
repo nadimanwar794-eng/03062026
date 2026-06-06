@@ -510,19 +510,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const [scoreState, setScoreState] = useState<ReadingScoreState | null>(null);
   const maxTopicReachedRef = useRef<number>(0);
 
-  // Touch Protection explanation popup (shown once per device)
-  const TP_SEEN_KEY = 'iic_touch_protection_seen';
-  const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
-  const touchProtectionPopupShownRef = useRef(false);
-  // 🛡️ Touch Protection badge tap → touch protection info
+  // 🛡️ Touch Protection popup — opens only on icon tap
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
-  const tpAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tpManualOpenRef = useRef(false); // true = user tapped manually (no auto-dismiss)
-  const openReadingActiveInfo = () => {
-    tpManualOpenRef.current = true;
-    if (tpAutoTimerRef.current) { clearTimeout(tpAutoTimerRef.current); tpAutoTimerRef.current = null; }
-    setShowReadingActiveInfo(true);
-  };
+  const openReadingActiveInfo = () => setShowReadingActiveInfo(true);
   // 📖 Book icon tap → reading score info
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const openScoreInfo = () => setShowScoreInfo(true);
@@ -556,21 +546,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     return () => { session.stop(); scoreSessionRef.current = null; };
   }, [readingScoreConfig?.userId, readingScoreConfig?.userLevel]);
 
-  // Auto-show 🛡️ popup when touch protection triggers, auto-dismiss in 2s
-  const prevTouchActiveRef = useRef(false);
-  useEffect(() => {
-    const active = scoreState?.touchProtectionActive ?? false;
-    if (active && !prevTouchActiveRef.current) {
-      tpManualOpenRef.current = false;
-      setShowReadingActiveInfo(true);
-      if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
-      tpAutoTimerRef.current = setTimeout(() => {
-        if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
-        tpAutoTimerRef.current = null;
-      }, 2000);
-    }
-    prevTouchActiveRef.current = active;
-  }, [scoreState?.touchProtectionActive]);
+  // (Auto-show removed — popups only open on manual icon tap)
 
   // Update net-forward progress whenever activeIdx changes
   useEffect(() => {
@@ -1480,67 +1456,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* Touch Protection — non-blocking top banner (first-time auto notification) */}
-      {showTouchProtectionPopup && (
-        <div
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-            padding: '8px 12px 0',
-            pointerEvents: 'none',
-            animation: 'tp-banner-in 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(10,12,28,0.97)',
-              border: '1px solid #6366f155',
-              borderRadius: 14,
-              padding: '10px 14px',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
-              display: 'flex', alignItems: 'center', gap: 10,
-              pointerEvents: 'auto',
-              overflow: 'hidden', position: 'relative',
-            }}
-          >
-            {/* auto-scroll marquee text */}
-            <span style={{ fontSize: 18, flexShrink: 0 }}>🛡️</span>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 10, fontWeight: 900, color: '#a5b4fc', marginBottom: 1, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                Touch Protection Active
-              </div>
-              <div style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                <span style={{
-                  display: 'inline-block',
-                  fontSize: 10, color: '#94a3b8',
-                  animation: 'tp-scroll 9s linear 0.5s 1 forwards',
-                }}>
-                  📖 Topic open karo &nbsp;·&nbsp; ⏱️ 10 sec padho &nbsp;·&nbsp; ✨ +2 reward milega &nbsp;·&nbsp; TTS auto-reading always exempt hai
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowTouchProtectionPopup(false)}
-              style={{
-                background: 'rgba(99,102,241,0.2)', border: '1px solid #6366f144',
-                borderRadius: 8, padding: '3px 8px',
-                color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
-              }}
-            >
-              OK
-            </button>
-          </div>
-          <style>{`
-            @keyframes tp-banner-in {
-              from { transform: translateY(-100%); opacity: 0; }
-              to   { transform: translateY(0);    opacity: 1; }
-            }
-            @keyframes tp-scroll {
-              0%   { transform: translateX(0); }
-              100% { transform: translateX(-60%); }
-            }
-          `}</style>
-        </div>
-      )}
 
       {/* READING ACTIVE info popup — non-blocking, triggered by tapping badge in top bar */}
       {showReadingActiveInfo && (
@@ -1805,17 +1720,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     if (scoreSessionRef.current && !topic.isHeading && readingScoreConfig) {
                       scoreSessionRef.current.onManualTopicEnter(idx);
                       trackManualTap();
-                      // Show explanation popup first time only
-                      if (!touchProtectionPopupShownRef.current) {
-                        try {
-                          if (!localStorage.getItem(TP_SEEN_KEY)) {
-                            setShowTouchProtectionPopup(true);
-                            touchProtectionPopupShownRef.current = true;
-                            localStorage.setItem(TP_SEEN_KEY, '1');
-                            setTimeout(() => setShowTouchProtectionPopup(false), 2000);
-                          }
-                        } catch {}
-                      }
                     }
                     startFromIndex(idx);
                   }
