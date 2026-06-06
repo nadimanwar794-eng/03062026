@@ -1,2 +1,0 @@
-- [IIC App score system](iic-score-system.md) — getDailyScoreLimit routing fix; free tier must go through DAILY_TIER_LIMITS['FREE'], not hardcoded fallback
-- [Progress Bonus Engine](progress-bonus-engine.md) — L4–L8 bracket system + L9+ multiplier; widget in Profile tab; App.tsx midnight useEffect

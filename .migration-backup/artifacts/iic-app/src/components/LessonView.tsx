@@ -122,6 +122,7 @@ export const LessonView: React.FC<Props> = ({
     subscriptionLevel: user.subscriptionTier || 'FREE',
     isPremium: !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE')),
     boostPercent: getActiveBoost(user),
+    scoreLimitBoostPercent: (user as any).scoreLimitBoostPercent,
     onScoreEarned: handleReadingScoreEarned,
   } : undefined;
 
