@@ -6986,17 +6986,6 @@ export const StudentDashboard: React.FC<Props> = ({
             featureId: "HOMEWORK",
           }]),
           {
-            id: "GK_MENU",
-            label: "Daily GK",
-            icon: Sparkles,
-            color: "teal",
-            action: () => {
-              setShowDailyGkHistory(true);
-              setShowSidebar(false);
-            },
-            featureId: "GK_CORNER",
-          },
-          {
             id: "INBOX",
             label: "Inbox",
             icon: Mail,
@@ -14503,7 +14492,6 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* SIDEBAR POPUP (3-dot style) */}
       {showSidebar && (() => {
         const hwAccess = getFeatureAccess('HOMEWORK');
-        const gkAccess = getFeatureAccess('GK_CORNER');
         const inboxAccess = getFeatureAccess('INBOX');
         const planAccess = getFeatureAccess('MY_PLAN');
         const redeemAccess = getFeatureAccess('REDEEM_CODE');
@@ -14522,11 +14510,6 @@ export const StudentDashboard: React.FC<Props> = ({
             label: 'Homework', icon: GraduationCap, color: 'emerald',
             action: () => { onTabChange("HOMEWORK"); setShowSidebar(false); },
             locked: !hwAccess.hasAccess,
-          }] : []),
-          ...(!gkAccess.isHidden ? [{
-            label: 'Daily GK', icon: Sparkles, color: 'teal',
-            action: () => { setShowDailyGkHistory(true); setShowSidebar(false); },
-            locked: !gkAccess.hasAccess,
           }] : []),
           ...(!inboxAccess.isHidden ? [{
             label: 'Inbox', icon: Mail, color: 'indigo',
@@ -14598,29 +14581,6 @@ export const StudentDashboard: React.FC<Props> = ({
             <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
             <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
-              {/* User Profile */}
-              <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center font-black text-sm">
-                    {user.subscriptionLevel === 'ULTRA' ? (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white text-base">👑</div>
-                    ) : user.subscriptionLevel === 'BASIC' ? (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white">⭐</div>
-                    ) : (
-                      <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-700 text-sm">
-                        {(user.name || 'S').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-slate-800 truncate">{user.name || 'Student'}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{user.subscriptionTier || 'Free Plan'}</p>
-                  </div>
-                  <button onClick={() => setShowSidebar(false)} className="text-slate-300 hover:text-slate-500 shrink-0 transition-colors">
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
 
               {/* Essential */}
               {essentialItems.length > 0 && (
