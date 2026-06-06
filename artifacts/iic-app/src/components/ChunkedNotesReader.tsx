@@ -1457,124 +1457,105 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       )}
 
 
-      {/* READING ACTIVE info popup — non-blocking, triggered by tapping badge in top bar */}
+      {/* 🛡️ Touch Protection popup — top-bar style slim strip */}
       {showReadingActiveInfo && (
         <div
           style={{
-            position: 'fixed', top: 8, left: 8, zIndex: 9999,
-            width: 160,
-            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+            position: 'fixed', top: 40, left: 0, right: 0, zIndex: 9999,
+            animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
           }}
         >
-          <div
-            style={{
-              background: 'rgba(8,12,28,0.96)',
-              border: '1px solid #6366f155',
-              borderRadius: 14,
-              padding: '12px 12px',
-              boxShadow: '0 6px 28px rgba(0,0,0,0.5)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-              <span style={{ fontSize: 16 }}>🛡️</span>
-              <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', flex: 1 }}>
-                Touch Protection
-              </span>
-              <button
-                onClick={() => setShowReadingActiveInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
+          <div style={{
+            background: '#fff',
+            borderBottom: '1px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 10px',
+          }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+              Touch Protection
+            </span>
+            <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
+              10 sec → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward</span>
+            </span>
+            {/* progress bar */}
+            <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
+              <div style={{
+                width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
+                height: '100%',
+                background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                borderRadius: 99,
+                transition: 'width 0.9s linear',
+              }} />
             </div>
-            <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>
-              Topic par <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span> rukne ke baad<br />
-              <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span> milega
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ flex: 1, height: 4, background: '#1e2030', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{
-                  width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #6366f1, #818cf8)',
-                  borderRadius: 99,
-                  transition: 'width 0.9s linear',
-                }} />
-              </div>
-              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 12, minWidth: 24, textAlign: 'right' }}>
-                {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
-              </span>
-            </div>
+            <span style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', flexShrink: 0, minWidth: 22, textAlign: 'right' }}>
+              {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
+            </span>
+            <button
+              onClick={() => setShowReadingActiveInfo(false)}
+              style={{
+                background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
+                borderRadius: 6, padding: '2px 8px',
+                color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
+              }}
+            >OK</button>
           </div>
         </div>
       )}
 
-      {/* 📖 Score info popup — book icon se open hota hai, auto-dismiss 2s */}
+      {/* 📖 Reading Score popup — top-bar style slim strip */}
       {showScoreInfo && scoreState && (
         <div
           style={{
-            position: 'fixed', top: 8, right: 8, zIndex: 9999,
-            width: 190,
-            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+            position: 'fixed', top: 40, left: 0, right: 0, zIndex: 9999,
+            animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
           }}
         >
-          <div
-            style={{
-              background: 'rgba(10,12,28,0.97)',
-              border: '1px solid #6366f155',
-              borderRadius: 14,
-              padding: '12px 14px',
-              boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 20 }}>📖</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>
-                  {isReading ? 'Reading Active' : 'Reading Score'}
-                </div>
-                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Session progress</div>
-              </div>
-              <button
-                onClick={() => setShowScoreInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
+          <div style={{
+            background: '#fff',
+            borderBottom: '1px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 10px',
+          }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+              {isReading ? 'Reading Active' : 'Reading Score'}
+            </span>
+            {/* divider */}
+            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+            {/* Score chip */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#6366f1', lineHeight: 1.2 }}>+{scoreState.totalSessionScore}</span>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <div style={{
-                flex: 1, background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(99,102,241,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Score</div>
-                <div style={{ color: '#a5b4fc', fontSize: 18, fontWeight: 900 }}>+{scoreState.totalSessionScore}</div>
-              </div>
-              <div style={{
-                flex: 1, background: 'rgba(34,197,94,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(34,197,94,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Progress</div>
-                <div style={{ color: '#4ade80', fontSize: 18, fontWeight: 900 }}>{Math.round(scoreState.progressPercent)}%</div>
-              </div>
-              <div style={{
-                flex: 1, background: 'rgba(251,191,36,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(251,191,36,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Next</div>
-                <div style={{ color: '#fbbf24', fontSize: 14, fontWeight: 900 }}>
-                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
-                </div>
-              </div>
+            {/* divider */}
+            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+            {/* Progress chip */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{Math.round(scoreState.progressPercent)}%</span>
             </div>
+            {/* divider */}
+            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+            {/* Next chip */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
+                {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+              </span>
+            </div>
+            {/* spacer */}
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => setShowScoreInfo(false)}
+              style={{
+                background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
+                borderRadius: 6, padding: '2px 8px',
+                color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
+              }}
+            >OK</button>
           </div>
         </div>
       )}
