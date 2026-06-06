@@ -1664,86 +1664,60 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* Smart TTS Suggestion popup — shown once when rapid manual tapping detected */}
+      {/* Smart TTS Suggestion popup — compact, non-blocking, bottom-anchored */}
       {showTtsSuggestPopup && (
         <div
           style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-            padding: '0 16px 28px',
+            position: 'fixed', bottom: 80, left: 12, right: 12, zIndex: 9998,
+            pointerEvents: 'none',
+            animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
           }}
-          onClick={() => setShowTtsSuggestPopup(false)}
         >
           <div
-            onClick={e => e.stopPropagation()}
             style={{
-              background: 'rgba(10,14,32,0.98)',
-              border: '1px solid #38bdf820',
-              borderRadius: 22,
-              padding: '22px 20px 18px',
-              maxWidth: 340,
-              width: '100%',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-              animation: 'rshud-slide 0.22s ease',
+              background: 'rgba(10,14,32,0.97)',
+              border: '1px solid #38bdf830',
+              borderRadius: 16,
+              padding: '12px 14px 10px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+              pointerEvents: 'auto',
             }}
           >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 22 }}>💡</span>
-              <div>
-                <div style={{ color: '#7dd3fc', fontSize: 13, fontWeight: 900 }}>Better Learning Tip</div>
-                <div style={{ color: '#475569', fontSize: 10, marginTop: 1 }}>App ki taraf se suggestion</div>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 16 }}>💡</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ color: '#7dd3fc', fontSize: 12, fontWeight: 900 }}>Better Learning Tip</span>
+                <span style={{ color: '#475569', fontSize: 9, marginLeft: 6 }}>App ki taraf se</span>
               </div>
+              <button
+                onClick={() => setShowTtsSuggestPopup(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
+                  borderRadius: 8, padding: '2px 8px',
+                  color: '#64748b', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                }}
+              >✕</button>
             </div>
 
             {/* Body */}
-            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
-              Aap bahut topics manually tap kar rahe hain.<br />
-              <span style={{ color: '#e2e8f0' }}>TTS Auto Reading</span> try karna chahoge?
-            </div>
-
-            {/* Feature comparison — equal positive framing */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-              {[
-                { label: 'Manual Reading', icon: '📖', points: ['Apni speed', 'Full control', '+2 per topic (10s)'], color: '#34d399' },
-                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+2 per topic (auto)'], color: '#38bdf8' },
-              ].map(({ label, icon, points, color }) => (
-                <div
-                  key={label}
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${color}22`,
-                    borderRadius: 12,
-                    padding: '10px 10px 8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>{icon}</span>
-                    <span style={{ color, fontSize: 10, fontWeight: 800 }}>{label}</span>
-                  </div>
-                  {points.map(p => (
-                    <div key={p} style={{ color: '#64748b', fontSize: 9.5, lineHeight: 1.6 }}>
-                      ✓ {p}
-                    </div>
-                  ))}
-                </div>
-              ))}
+            <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.5, marginBottom: 10 }}>
+              Bahut topics manually tap kar rahe hain —{' '}
+              <span style={{ color: '#e2e8f0', fontWeight: 700 }}>TTS Auto Reading</span> try karoge?
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => {
                   setShowTtsSuggestPopup(false);
-                  // Start TTS from current position (or from beginning)
                   const startIdx = activeIdx !== null ? activeIdx : 0;
                   startFromIndex(startIdx);
                 }}
                 style={{
-                  flex: 2, padding: '11px 0', borderRadius: 12,
+                  flex: 2, padding: '8px 0', borderRadius: 10,
                   background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)',
-                  color: '#fff', fontWeight: 900, fontSize: 12, border: 'none',
+                  color: '#fff', fontWeight: 900, fontSize: 11, border: 'none',
                   cursor: 'pointer',
                 }}
               >
@@ -1752,9 +1726,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
                 style={{
-                  flex: 1, padding: '11px 0', borderRadius: 12,
+                  flex: 1, padding: '8px 0', borderRadius: 10,
                   background: 'rgba(255,255,255,0.06)',
-                  color: '#64748b', fontWeight: 700, fontSize: 12,
+                  color: '#64748b', fontWeight: 700, fontSize: 11,
                   border: '1px solid #ffffff15', cursor: 'pointer',
                 }}
               >
