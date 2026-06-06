@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { APP_VERSION } from '../constants';
 import { getSplashFontById, ensureGoogleFontLoaded } from '../utils/splashFonts';
 
@@ -16,520 +16,594 @@ function detectTheme(): ThemeVariant {
     if (!isDark) return 'light';
     const type = localStorage.getItem('nst_dark_theme_type') || 'black';
     return type === 'blue' ? 'blue' : 'black';
-  } catch {
-    return 'black';
-  }
+  } catch { return 'black'; }
 }
 
-export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
-  onComplete,
-  subscriptionLevel = 'FREE',
-}) => {
-  const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<'hidden' | 'burst' | 'reveal'>('hidden');
-  const [themeVariant] = useState<ThemeVariant>(detectTheme);
+const MESSAGES = [
+  '✨ Apka swagat hai...',
+  '📚 Lessons load ho rahe hain...',
+  '🚀 Tayar ho jao seekhne ke liye!',
+  '🌟 Aaj kuch naya seekhte hain',
+  '💡 Gyan ki roshni aa rahi hai...',
+  '🎯 Aapka safar shuru hone wala hai',
+  '🏆 Success ka raasta yahan se shuru hota hai',
+  '🔥 Chalo, aaj bhi kuch naya seekhein!',
+];
 
-  const [appName] = useState(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const obj = s ? JSON.parse(s) : null;
-      return obj?.appShortName || obj?.appName || 'IIC';
-    } catch { return 'IIC'; }
-  });
+function readSettings() {
+  try {
+    const s = localStorage.getItem('nst_system_settings');
+    return s ? JSON.parse(s) : {};
+  } catch { return {}; }
+}
 
-  const [developerName] = useState<string>(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const obj = s ? JSON.parse(s) : null;
-      const n = (obj?.developerName ?? '').toString().trim();
-      return n || 'Nafim Anwar';
-    } catch { return 'Nafim Anwar'; }
-  });
+export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }) => {
+  const settings = useMemo(readSettings, []);
 
-  const [appTagline] = useState<string>(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const obj = s ? JSON.parse(s) : null;
-      return (obj?.appTagline ?? '').toString().trim();
-    } catch { return ''; }
-  });
-
-  const [appNameSize] = useState<number>(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const obj = s ? JSON.parse(s) : null;
-      const raw = Number(obj?.appShortNameSize);
-      if (Number.isFinite(raw) && raw > 0) return Math.min(120, Math.max(24, raw));
-      return 52;
-    } catch { return 52; }
-  });
-
-  const [splashFontId] = useState<string>(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const obj = s ? JSON.parse(s) : null;
-      const adminChoice = obj?.splashFontId;
-      if (adminChoice) return adminChoice as string;
-      return localStorage.getItem('nst_splash_font_id') || 'default';
-    } catch { return 'default'; }
-  });
-
-  const [splashLogo] = useState<{ enabled: boolean; url: string; size: number }>(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const obj = s ? JSON.parse(s) : null;
-      const enabled = obj?.splashLogoEnabled !== false;
-      const url = (obj?.splashLogoUrl as string) || '/splash-logo.png';
-      const rawSize = Number(obj?.splashLogoSize);
-      const size = Number.isFinite(rawSize) && rawSize > 0 ? Math.min(260, Math.max(60, rawSize)) : 150;
-      return { enabled, url, size };
-    } catch { return { enabled: true, url: '/splash-logo.png', size: 150 }; }
-  });
+  const appName: string = settings.appShortName || settings.appName || 'IIC';
+  const developerName: string = (settings.developerName || 'Nafim Anwar').toString().trim() || 'Nafim Anwar';
+  const appTagline: string = (settings.appTagline || '').toString().trim();
+  const appNameSize: number = (() => {
+    const r = Number(settings.appShortNameSize);
+    return Number.isFinite(r) && r > 0 ? Math.min(96, Math.max(28, r)) : 52;
+  })();
+  const splashFontId: string = settings.splashFontId || localStorage.getItem('nst_splash_font_id') || 'default';
+  const logoEnabled: boolean = settings.splashLogoEnabled !== false;
+  const logoUrl: string = settings.splashLogoUrl || '/splash-logo.png';
+  const logoSize: number = (() => {
+    const r = Number(settings.splashLogoSize);
+    return Number.isFinite(r) && r > 0 ? Math.min(220, Math.max(60, r)) : 130;
+  })();
 
   const activeFont = getSplashFontById(splashFontId);
-
   useEffect(() => {
     if (activeFont.gfontParam) ensureGoogleFontLoaded(activeFont.gfontParam);
   }, [activeFont.gfontParam]);
 
+  const [themeVariant] = useState<ThemeVariant>(detectTheme);
+  const isDark = themeVariant !== 'light';
+
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState<0 | 1 | 2>(0); // 0=init 1=burst 2=full
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [msgVisible, setMsgVisible] = useState(true);
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
+  // Phase timeline
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('burst'), 100);
-    const t2 = setTimeout(() => setPhase('reveal'), 480);
+    const t1 = setTimeout(() => setPhase(1), 80);
+    const t2 = setTimeout(() => setPhase(2), 520);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
+  // Progress over 10s
   useEffect(() => {
-    const duration = 2400;
-    const intervalTime = 40;
-    const steps = duration / intervalTime;
-    let currentStep = 0;
-    const timer = setInterval(() => {
-      currentStep++;
-      const p = Math.min(Math.floor((currentStep / steps) * 100), 100);
-      setProgress(p);
-      if (currentStep >= steps) {
-        clearInterval(timer);
-        try {
-          const utterance = new SpeechSynthesisUtterance('Welcome to ' + appName);
-          utterance.lang = 'en-US'; utterance.rate = 1; utterance.pitch = 1;
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(utterance);
-        } catch {}
-        setTimeout(() => onCompleteRef.current(), 300);
+    const TOTAL = 10000;
+    const TICK = 50;
+    let elapsed = 0;
+    const id = setInterval(() => {
+      elapsed += TICK;
+      const t = Math.min(elapsed / TOTAL, 1);
+      // Ease-in-out curve so it doesn't feel linear
+      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      setProgress(Math.floor(eased * 100));
+      if (elapsed >= TOTAL) {
+        clearInterval(id);
+        setTimeout(() => onCompleteRef.current(), 200);
       }
-    }, intervalTime);
-    return () => clearInterval(timer);
+    }, TICK);
+    return () => clearInterval(id);
   }, []);
 
-  const isDark = themeVariant !== 'light';
+  // Rotating messages
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      setMsgVisible(false);
+      setTimeout(() => {
+        setMsgIndex(i => (i + 1) % MESSAGES.length);
+        setMsgVisible(true);
+      }, 400);
+    }, 1600);
+    return () => clearInterval(cycle);
+  }, []);
 
-  const bg = themeVariant === 'blue' ? '#040c1a' : themeVariant === 'black' ? '#050507' : '#eef2ff';
+  // Stars
+  const stars = useMemo(() =>
+    Array.from({ length: 55 }, (_, i) => ({
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      r: 0.8 + Math.random() * 1.8,
+      dur: 1.5 + Math.random() * 2.5,
+      delay: Math.random() * 3,
+      opacity: 0.25 + Math.random() * 0.55,
+    })), []);
 
-  const particles = Array.from({ length: 32 }, (_, i) => ({
-    angle: (i / 32) * 360,
-    dist: 90 + (i % 5) * 22,
-    size: 2.5 + (i % 4) * 1.5,
-    delay: i * 0.035,
-    dur: 1.1 + (i % 5) * 0.22,
-    color: ['#fbbf24', '#f59e0b', '#a5f3fc', '#c4b5fd', '#f9a8d4', '#86efac', '#fb923c'][i % 7],
-    opacity: 0.5 + (i % 3) * 0.18,
-  }));
+  // Shooting stars
+  const [shootIdx, setShootIdx] = useState(-1);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      t = setTimeout(() => {
+        setShootIdx(i => (i + 1) % 3);
+        setTimeout(() => setShootIdx(-1), 800);
+        schedule();
+      }, 2200 + Math.random() * 1800);
+    };
+    schedule();
+    return () => clearTimeout(t);
+  }, []);
 
-  const orbits = [
-    { angle: 0,   dist: 100, color: '#fbbf24', shadow: 'rgba(251,191,36,0.9)',  dur: 3.0 },
-    { angle: 120, dist: 96,  color: '#c4b5fd', shadow: 'rgba(196,181,253,0.9)', dur: 4.2 },
-    { angle: 240, dist: 104, color: '#a5f3fc', shadow: 'rgba(165,243,252,0.9)', dur: 5.5 },
-  ];
+  const shoots = useMemo(() => [
+    { x: 15, y: 20, angle: 35 },
+    { x: 60, y: 10, angle: 25 },
+    { x: 80, y: 35, angle: 40 },
+  ], []);
+
+  const bg = themeVariant === 'blue' ? '#02081a' : themeVariant === 'black' ? '#06060a' : '#e8eef9';
+  const accentGold = '#f9c846';
+  const accentCyan = '#67e8f9';
+  const accentPurple = '#a78bfa';
+  const fontStyle = activeFont.family ? { fontFamily: activeFont.family } : {};
+  const lsStyle = activeFont.letterSpacing ? { letterSpacing: activeFont.letterSpacing } : {};
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      background: bg, overflow: 'hidden', touchAction: 'none',
+      position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden',
+      background: bg, touchAction: 'none', userSelect: 'none',
     }}>
       <style>{`
-        @keyframes sl-logo {
-          0%   { transform: scale(0.25) rotate(-8deg); opacity: 0; filter: blur(20px) brightness(0.2); }
-          55%  { transform: scale(1.16) rotate(2deg);  opacity: 1; filter: blur(0) brightness(1.5); }
-          78%  { transform: scale(0.96) rotate(0deg);  opacity: 1; filter: blur(0) brightness(1); }
+        @keyframes _sl_twinkle {
+          0%,100% { opacity: var(--so); transform: scale(1); }
+          50%      { opacity: calc(var(--so) * 0.25); transform: scale(0.6); }
+        }
+        @keyframes _sl_shoot {
+          0%   { transform: translateX(0) translateY(0) scaleX(0); opacity: 0; }
+          10%  { opacity: 1; transform: translateX(0) translateY(0) scaleX(1); }
+          100% { transform: translateX(160px) translateY(100px) scaleX(1); opacity: 0; }
+        }
+        @keyframes _sl_aurora_t {
+          0%,100% { transform: translateX(-15%) scaleY(1); opacity: 0.55; }
+          50%      { transform: translateX(15%)  scaleY(1.3); opacity: 0.80; }
+        }
+        @keyframes _sl_aurora_b {
+          0%,100% { transform: translateX(10%) scaleY(1); opacity: 0.45; }
+          50%      { transform: translateX(-10%) scaleY(1.4); opacity: 0.70; }
+        }
+        @keyframes _sl_logo_in {
+          0%   { transform: scale(0.18) rotate(-12deg); opacity: 0; filter: blur(28px) brightness(0.1); }
+          55%  { transform: scale(1.12) rotate(3deg);  opacity: 1; filter: blur(0) brightness(2); }
+          78%  { transform: scale(0.97) rotate(-1deg); opacity: 1; filter: blur(0) brightness(1.1); }
           100% { transform: scale(1)    rotate(0deg);  opacity: 1; filter: blur(0) brightness(1); }
         }
-        @keyframes sl-halo1 {
-          0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 1; }
-          70%  { opacity: 0.4; }
-          100% { transform: translate(-50%,-50%) scale(4.5); opacity: 0; }
+        @keyframes _sl_logo_glow {
+          0%,100% { filter: drop-shadow(0 0 18px rgba(249,200,70,0.55)) drop-shadow(0 0 40px rgba(249,200,70,0.20)); }
+          50%      { filter: drop-shadow(0 0 50px rgba(249,200,70,1.00)) drop-shadow(0 0 90px rgba(249,200,70,0.45)) drop-shadow(0 0 22px rgba(103,232,249,0.30)); }
         }
-        @keyframes sl-halo2 {
-          0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 0.7; }
-          100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
-        }
-        @keyframes sl-halo3 {
-          0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 0.5; }
-          100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
-        }
-        @keyframes sl-particle {
-          0%   { transform: rotate(var(--pa)) translateX(22px) scale(0); opacity: 0; }
-          18%  { opacity: var(--po); }
-          100% { transform: rotate(var(--pa)) translateX(var(--pd)) scale(1.2); opacity: 0; }
-        }
-        @keyframes sl-orbit {
-          from { transform: rotate(var(--oa)) translateX(var(--od)) rotate(calc(-1 * var(--oa))); }
-          to   { transform: rotate(calc(var(--oa) + 360deg)) translateX(var(--od)) rotate(calc(-1 * (var(--oa) + 360deg))); }
-        }
-        @keyframes sl-ring-spin {
+        @keyframes _sl_ring1 {
           from { transform: translate(-50%,-50%) rotate(0deg); }
           to   { transform: translate(-50%,-50%) rotate(360deg); }
         }
-        @keyframes sl-ring-spin-r {
+        @keyframes _sl_ring2 {
           from { transform: translate(-50%,-50%) rotate(0deg); }
           to   { transform: translate(-50%,-50%) rotate(-360deg); }
         }
-        @keyframes sl-pulse {
-          0%,100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.14; }
-          50%      { transform: translate(-50%,-50%) scale(1.07); opacity: 0.30; }
+        @keyframes _sl_ring3 {
+          from { transform: translate(-50%,-50%) rotate(20deg); }
+          to   { transform: translate(-50%,-50%) rotate(380deg); }
         }
-        @keyframes sl-pulse2 {
-          0%,100% { transform: translate(-50%,-50%) scale(1);    opacity: 0.08; }
-          50%      { transform: translate(-50%,-50%) scale(1.10); opacity: 0.20; }
+        @keyframes _sl_burst {
+          0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0.9; }
+          100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
         }
-        @keyframes sl-name-in {
-          0%   { transform: translateY(28px) scale(0.94); opacity: 0; filter: blur(6px); }
-          100% { transform: translateY(0)    scale(1);    opacity: 1; filter: blur(0); }
+        @keyframes _sl_burst2 {
+          0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0.65; }
+          100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
         }
-        @keyframes sl-dev-in {
-          0%   { transform: translateY(18px); opacity: 0; }
-          100% { transform: translateY(0);    opacity: 1; }
+        @keyframes _sl_orbit {
+          from { transform: rotate(var(--oa)) translateX(var(--od)) rotate(calc(-1*var(--oa))); }
+          to   { transform: rotate(calc(var(--oa)+360deg)) translateX(var(--od)) rotate(calc(-360deg - var(--oa))); }
         }
-        @keyframes sl-shimmer {
-          0%   { background-position: 250% center; }
-          100% { background-position: -250% center; }
+        @keyframes _sl_name_in {
+          0%   { opacity: 0; transform: translateY(22px); filter: blur(8px); }
+          100% { opacity: 1; transform: translateY(0);    filter: blur(0); }
         }
-        @keyframes sl-glow {
-          0%,100% { filter: drop-shadow(0 0 20px rgba(251,191,36,0.5)) drop-shadow(0 0 8px rgba(245,158,11,0.4)); }
-          50%      { filter: drop-shadow(0 0 44px rgba(251,191,36,0.95)) drop-shadow(0 0 80px rgba(245,158,11,0.5)) drop-shadow(0 0 20px rgba(165,243,252,0.3)); }
+        @keyframes _sl_dev_in {
+          0%   { opacity: 0; transform: translateY(14px) scale(0.92); }
+          100% { opacity: 1; transform: translateY(0)    scale(1); }
         }
-        @keyframes sl-bg-breath {
-          0%,100% { opacity: 0.20; transform: scale(1); }
-          50%      { opacity: 0.40; transform: scale(1.12); }
+        @keyframes _sl_shimmer {
+          0%   { background-position: 300% center; }
+          100% { background-position: -300% center; }
         }
-        @keyframes sl-progress-glow {
-          0%,100% { box-shadow: 0 0 8px rgba(251,191,36,0.5); }
-          50%      { box-shadow: 0 0 22px rgba(251,191,36,0.95), 0 0 40px rgba(245,158,11,0.4); }
+        @keyframes _sl_msg_in  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes _sl_msg_out { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(-8px); } }
+        @keyframes _sl_bar_glow {
+          0%,100% { box-shadow: 0 0 6px rgba(249,200,70,0.6); }
+          50%      { box-shadow: 0 0 20px rgba(249,200,70,1), 0 0 40px rgba(249,200,70,0.35); }
         }
-        @keyframes sl-corner-in {
-          0%   { opacity: 0; transform: scale(0.85); }
-          100% { opacity: 1; transform: scale(1); }
+        @keyframes _sl_corner_in {
+          from { opacity:0; transform:scale(0.7); }
+          to   { opacity:1; transform:scale(1); }
         }
-        @keyframes sl-scan {
-          0%   { transform: translateY(-100%); opacity: 0.06; }
-          100% { transform: translateY(200%);  opacity: 0.06; }
+        @keyframes _sl_dot_bounce {
+          0%,100% { transform:translateY(0); opacity:0.5; }
+          50%      { transform:translateY(-5px); opacity:1; }
         }
-        @keyframes sl-tagline {
-          0%   { opacity: 0; letter-spacing: 0.5em; }
-          100% { opacity: 1; letter-spacing: 0.22em; }
+        @keyframes _sl_hud_pulse {
+          0%,100% { opacity:0.18; }
+          50%      { opacity:0.45; }
         }
-        @keyframes sl-percent {
-          0%   { opacity: 0; transform: scale(0.8); }
-          100% { opacity: 1; transform: scale(1); }
+        @keyframes _sl_sweep {
+          0%   { transform:translate(-50%,-50%) rotate(0deg); }
+          100% { transform:translate(-50%,-50%) rotate(360deg); }
+        }
+        @keyframes _sl_radial_pulse {
+          0%,100% { opacity:0.10; transform:translate(-50%,-50%) scale(1); }
+          50%      { opacity:0.22; transform:translate(-50%,-50%) scale(1.08); }
         }
       `}</style>
 
-      {/* ── Ambient radial glow ── */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: isDark
-          ? 'radial-gradient(ellipse 65% 55% at 50% 40%, rgba(245,158,11,0.18) 0%, rgba(99,102,241,0.10) 45%, transparent 75%)'
-          : 'radial-gradient(ellipse 65% 55% at 50% 40%, rgba(245,158,11,0.12) 0%, rgba(99,102,241,0.08) 45%, transparent 75%)',
-        animation: 'sl-bg-breath 5s ease-in-out infinite',
-      }} />
+      {/* ═══════════════════════════════════════ BACKGROUND LAYERS */}
 
-      {/* ── Scanline beam ── */}
-      {isDark && (
-        <div style={{
-          position: 'absolute', left: 0, right: 0, height: '40%',
-          background: 'linear-gradient(to bottom, transparent, rgba(251,191,36,0.04), transparent)',
-          animation: 'sl-scan 4s linear infinite',
-          pointerEvents: 'none',
-        }} />
-      )}
-
-      {/* ── HUD corner decorations ── */}
-      {phase !== 'hidden' && (() => {
-        const corners = [
-          { top: 20, left: 20, rot: 0 },
-          { top: 20, right: 20, rot: 90 },
-          { bottom: 20, right: 20, rot: 180 },
-          { bottom: 20, left: 20, rot: 270 },
-        ];
-        const clr = isDark ? 'rgba(251,191,36,0.35)' : 'rgba(99,102,241,0.30)';
-        return corners.map((c, i) => (
-          <svg key={i} width="28" height="28" style={{
-            position: 'absolute', ...c,
-            transform: `rotate(${c.rot}deg)`,
-            animation: `sl-corner-in 0.6s ease ${0.3 + i * 0.08}s both`,
-            pointerEvents: 'none',
-          }}>
-            <path d="M2 26 L2 2 L26 2" fill="none" stroke={clr} strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-        ));
-      })()}
-
-      {/* ── Halo burst rings ── */}
-      {phase !== 'hidden' && (<>
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size * 0.9}px`, height: `${splashLogo.size * 0.9}px`,
-          borderRadius: '50%', border: `2.5px solid ${isDark ? 'rgba(251,191,36,0.8)' : 'rgba(245,158,11,0.65)'}`,
-          animation: 'sl-halo1 1.1s ease-out forwards', pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size * 0.9}px`, height: `${splashLogo.size * 0.9}px`,
-          borderRadius: '50%', border: `1.5px solid ${isDark ? 'rgba(165,243,252,0.55)' : 'rgba(99,102,241,0.45)'}`,
-          animation: 'sl-halo2 1.35s ease-out 0.1s forwards', pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size * 0.9}px`, height: `${splashLogo.size * 0.9}px`,
-          borderRadius: '50%', border: `1px solid ${isDark ? 'rgba(196,181,253,0.4)' : 'rgba(129,140,248,0.35)'}`,
-          animation: 'sl-halo3 1.6s ease-out 0.22s forwards', pointerEvents: 'none',
-        }} />
-      </>)}
-
-      {/* ── Spinning conic rings (after reveal) ── */}
-      {phase === 'reveal' && (<>
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size + 44}px`, height: `${splashLogo.size + 44}px`,
-          borderRadius: '50%',
-          background: isDark
-            ? 'conic-gradient(from 0deg, transparent, rgba(251,191,36,0.7), transparent, rgba(245,158,11,0.4), transparent)'
-            : 'conic-gradient(from 0deg, transparent, rgba(245,158,11,0.5), transparent)',
-          animation: 'sl-ring-spin 3.5s linear infinite',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size + 72}px`, height: `${splashLogo.size + 72}px`,
-          borderRadius: '50%',
-          background: isDark
-            ? 'conic-gradient(from 180deg, transparent, rgba(165,243,252,0.4), transparent, rgba(196,181,253,0.3), transparent)'
-            : 'conic-gradient(from 180deg, transparent, rgba(99,102,241,0.3), transparent)',
-          animation: 'sl-ring-spin-r 5.5s linear infinite',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Pulsing rings */}
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size + 100}px`, height: `${splashLogo.size + 100}px`,
-          borderRadius: '50%', border: `1px solid ${isDark ? 'rgba(251,191,36,0.18)' : 'rgba(245,158,11,0.2)'}`,
-          animation: 'sl-pulse 3.2s ease-in-out infinite 0.6s', pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${splashLogo.size + 148}px`, height: `${splashLogo.size + 148}px`,
-          borderRadius: '50%', border: `1px solid ${isDark ? 'rgba(165,243,252,0.10)' : 'rgba(99,102,241,0.12)'}`,
-          animation: 'sl-pulse2 4.5s ease-in-out infinite 1s', pointerEvents: 'none',
-        }} />
-      </>)}
-
-      {/* ── Particle burst ── */}
-      {phase !== 'hidden' && particles.map((p, i) => (
-        <div key={i} style={{
-          position: 'absolute', top: '40%', left: '50%',
-          width: `${p.size}px`, height: `${p.size}px`, borderRadius: '50%',
-          background: p.color, boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
-          animation: `sl-particle ${p.dur}s ease-out ${p.delay}s both`,
-          ['--pa' as any]: `${p.angle}deg`,
-          ['--pd' as any]: `${p.dist}px`,
-          ['--po' as any]: p.opacity,
-          pointerEvents: 'none',
-        }} />
-      ))}
-
-      {/* ── Orbiting dots ── */}
-      {phase === 'reveal' && orbits.map((dot, i) => (
+      {/* Stars */}
+      {isDark && stars.map((s, i) => (
         <div key={i} style={{
           position: 'absolute',
-          top: 'calc(40% - 5px)', left: 'calc(50% - 5px)',
-          width: '10px', height: '10px', borderRadius: '50%',
-          background: dot.color, boxShadow: `0 0 12px 4px ${dot.shadow}`,
-          animation: `sl-orbit ${dot.dur}s linear infinite`,
-          ['--oa' as any]: `${dot.angle}deg`,
-          ['--od' as any]: `${dot.dist}px`,
+          left: `${s.x}%`, top: `${s.y}%`,
+          width: `${s.r * 2}px`, height: `${s.r * 2}px`,
+          borderRadius: '50%',
+          background: '#fff',
+          boxShadow: `0 0 ${s.r * 4}px rgba(255,255,255,0.8)`,
+          animation: `_sl_twinkle ${s.dur}s ease-in-out ${s.delay}s infinite`,
+          ['--so' as any]: s.opacity,
           pointerEvents: 'none',
         }} />
       ))}
 
-      {/* ── LOGO + developer name block ── */}
+      {/* Shooting stars */}
+      {isDark && shoots.map((sh, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          left: `${sh.x}%`, top: `${sh.y}%`,
+          width: '90px', height: '2px',
+          background: 'linear-gradient(90deg, rgba(255,255,255,0), #fff, rgba(249,200,70,0.8))',
+          borderRadius: '999px',
+          transform: `rotate(${sh.angle}deg)`,
+          transformOrigin: 'left center',
+          animation: shootIdx === i ? '_sl_shoot 0.75s ease-out forwards' : 'none',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }} />
+      ))}
+
+      {/* Aurora — top */}
+      <div style={{
+        position: 'absolute', top: 0, left: '-20%', right: '-20%', height: '180px',
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(167,139,250,0.28) 0%, rgba(103,232,249,0.18) 50%, transparent 100%)'
+          : 'linear-gradient(180deg, rgba(99,102,241,0.15) 0%, transparent 100%)',
+        filter: 'blur(18px)',
+        animation: '_sl_aurora_t 7s ease-in-out infinite',
+        pointerEvents: 'none', zIndex: 1,
+      }} />
+
+      {/* Aurora — bottom */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: '-20%', right: '-20%', height: '160px',
+        background: isDark
+          ? 'linear-gradient(0deg, rgba(249,200,70,0.22) 0%, rgba(251,146,60,0.12) 40%, transparent 100%)'
+          : 'linear-gradient(0deg, rgba(245,158,11,0.12) 0%, transparent 100%)',
+        filter: 'blur(18px)',
+        animation: '_sl_aurora_b 9s ease-in-out infinite',
+        pointerEvents: 'none', zIndex: 1,
+      }} />
+
+      {/* Radial ambient glow behind logo */}
+      <div style={{
+        position: 'absolute', top: '38%', left: '50%',
+        width: '380px', height: '380px',
+        borderRadius: '50%',
+        background: isDark
+          ? 'radial-gradient(circle, rgba(249,200,70,0.14) 0%, rgba(167,139,250,0.08) 45%, transparent 70%)'
+          : 'radial-gradient(circle, rgba(249,200,70,0.10) 0%, transparent 70%)',
+        animation: '_sl_radial_pulse 5s ease-in-out infinite',
+        pointerEvents: 'none', zIndex: 1,
+      }} />
+
+      {/* HUD corner SVGs */}
+      {phase > 0 && [
+        { top: 18, left: 18, r: 0 },
+        { top: 18, right: 18, r: 90 },
+        { bottom: 18, right: 18, r: 180 },
+        { bottom: 18, left: 18, r: 270 },
+      ].map((c, i) => (
+        <svg key={i} width="32" height="32" style={{
+          position: 'absolute', ...c,
+          transform: `rotate(${c.r}deg)`,
+          animation: `_sl_corner_in 0.5s ease ${0.25 + i * 0.07}s both`,
+          pointerEvents: 'none', zIndex: 3,
+        }}>
+          <path d="M3 29 L3 3 L29 3" fill="none"
+            stroke={isDark ? 'rgba(249,200,70,0.38)' : 'rgba(99,102,241,0.28)'}
+            strokeWidth="1.8" strokeLinecap="round"/>
+          <circle cx="3" cy="3" r="2" fill={isDark ? 'rgba(249,200,70,0.6)' : 'rgba(99,102,241,0.5)'}/>
+        </svg>
+      ))}
+
+      {/* ═══════════════════════════════════════ LOGO AREA */}
+
+      {/* Burst halos */}
+      {phase > 0 && <>
+        <div style={{
+          position: 'absolute', top: '38%', left: '50%',
+          width: `${logoSize + 10}px`, height: `${logoSize + 10}px`, borderRadius: '50%',
+          border: `2px solid ${isDark ? 'rgba(249,200,70,0.85)' : 'rgba(245,158,11,0.7)'}`,
+          animation: '_sl_burst 1.2s ease-out 0.1s forwards',
+          pointerEvents: 'none', zIndex: 4,
+        }} />
+        <div style={{
+          position: 'absolute', top: '38%', left: '50%',
+          width: `${logoSize + 10}px`, height: `${logoSize + 10}px`, borderRadius: '50%',
+          border: `1.5px solid ${isDark ? 'rgba(103,232,249,0.65)' : 'rgba(99,102,241,0.5)'}`,
+          animation: '_sl_burst2 1.5s ease-out 0.25s forwards',
+          pointerEvents: 'none', zIndex: 4,
+        }} />
+      </>}
+
+      {/* Spinning ring 1 — gold arcs */}
+      {phase === 2 && <div style={{
+        position: 'absolute', top: '38%', left: '50%',
+        width: `${logoSize + 52}px`, height: `${logoSize + 52}px`, borderRadius: '50%',
+        background: isDark
+          ? 'conic-gradient(from 0deg, transparent 0deg, rgba(249,200,70,0.9) 40deg, transparent 80deg, transparent 160deg, rgba(249,200,70,0.5) 200deg, transparent 240deg, transparent 360deg)'
+          : 'conic-gradient(from 0deg, transparent 0deg, rgba(245,158,11,0.7) 50deg, transparent 100deg, transparent 360deg)',
+        WebkitMask: `radial-gradient(circle, transparent ${(logoSize + 52) / 2 - 3}px, black ${(logoSize + 52) / 2 - 1}px)`,
+        mask: `radial-gradient(circle, transparent ${(logoSize + 52) / 2 - 3}px, black ${(logoSize + 52) / 2 - 1}px)`,
+        animation: '_sl_ring1 2.8s linear infinite',
+        pointerEvents: 'none', zIndex: 4,
+      }} />}
+
+      {/* Spinning ring 2 — cyan arcs, counter-clockwise */}
+      {phase === 2 && <div style={{
+        position: 'absolute', top: '38%', left: '50%',
+        width: `${logoSize + 84}px`, height: `${logoSize + 84}px`, borderRadius: '50%',
+        background: isDark
+          ? 'conic-gradient(from 90deg, transparent 0deg, rgba(103,232,249,0.65) 30deg, transparent 60deg, transparent 360deg)'
+          : 'conic-gradient(from 90deg, transparent 0deg, rgba(99,102,241,0.5) 40deg, transparent 80deg, transparent 360deg)',
+        WebkitMask: `radial-gradient(circle, transparent ${(logoSize + 84) / 2 - 3}px, black ${(logoSize + 84) / 2 - 1}px)`,
+        mask: `radial-gradient(circle, transparent ${(logoSize + 84) / 2 - 3}px, black ${(logoSize + 84) / 2 - 1}px)`,
+        animation: '_sl_ring2 4.5s linear infinite',
+        pointerEvents: 'none', zIndex: 4,
+      }} />}
+
+      {/* Spinning ring 3 — purple arcs */}
+      {phase === 2 && <div style={{
+        position: 'absolute', top: '38%', left: '50%',
+        width: `${logoSize + 120}px`, height: `${logoSize + 120}px`, borderRadius: '50%',
+        background: isDark
+          ? 'conic-gradient(from 200deg, transparent 0deg, rgba(167,139,250,0.5) 35deg, transparent 70deg, transparent 360deg)'
+          : 'conic-gradient(from 200deg, transparent 0deg, rgba(139,92,246,0.35) 45deg, transparent 90deg, transparent 360deg)',
+        WebkitMask: `radial-gradient(circle, transparent ${(logoSize + 120) / 2 - 3}px, black ${(logoSize + 120) / 2 - 1}px)`,
+        mask: `radial-gradient(circle, transparent ${(logoSize + 120) / 2 - 3}px, black ${(logoSize + 120) / 2 - 1}px)`,
+        animation: '_sl_ring3 6.5s linear infinite',
+        pointerEvents: 'none', zIndex: 4,
+      }} />}
+
+      {/* Sweeping radar line */}
+      {phase === 2 && <div style={{
+        position: 'absolute', top: '38%', left: '50%',
+        width: `${logoSize + 84}px`, height: `${logoSize + 84}px`, borderRadius: '50%',
+        background: isDark
+          ? 'conic-gradient(from 0deg, rgba(249,200,70,0.25), transparent 60deg)'
+          : 'conic-gradient(from 0deg, rgba(245,158,11,0.18), transparent 60deg)',
+        WebkitMask: `radial-gradient(circle, transparent ${(logoSize + 84) / 2 - 44}px, black ${(logoSize + 84) / 2 - 1}px)`,
+        mask: `radial-gradient(circle, transparent ${(logoSize + 84) / 2 - 44}px, black ${(logoSize + 84) / 2 - 1}px)`,
+        animation: '_sl_sweep 3.5s linear infinite',
+        pointerEvents: 'none', zIndex: 4,
+      }} />}
+
+      {/* Orbiting dots */}
+      {phase === 2 && [
+        { angle: 0,   dist: logoSize / 2 + 28, color: accentGold,   shadow: 'rgba(249,200,70,0.9)',   dur: 2.8 },
+        { angle: 120, dist: logoSize / 2 + 44, color: accentCyan,   shadow: 'rgba(103,232,249,0.9)',  dur: 4.5 },
+        { angle: 240, dist: logoSize / 2 + 62, color: accentPurple, shadow: 'rgba(167,139,250,0.9)',  dur: 6.5 },
+      ].map((d, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          top: `calc(38% - 6px)`, left: 'calc(50% - 6px)',
+          width: '12px', height: '12px', borderRadius: '50%',
+          background: d.color,
+          boxShadow: `0 0 10px 4px ${d.shadow}`,
+          animation: `_sl_orbit ${d.dur}s linear infinite`,
+          ['--oa' as any]: `${d.angle}deg`,
+          ['--od' as any]: `${d.dist}px`,
+          pointerEvents: 'none', zIndex: 5,
+        }} />
+      ))}
+
+      {/* ═══════════════════════════════════════ CENTER CONTENT */}
+
       <div style={{
         position: 'relative', zIndex: 10,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        marginBottom: '28px',
+        gap: 0, marginTop: '10px',
       }}>
+
         {/* Logo */}
         <div style={{
-          animation: phase !== 'hidden' ? 'sl-logo 0.90s cubic-bezier(0.34,1.56,0.64,1) both' : 'none',
-          opacity: phase === 'hidden' ? 0 : undefined,
+          animation: phase > 0 ? '_sl_logo_in 0.85s cubic-bezier(0.34,1.56,0.64,1) both' : 'none',
+          opacity: phase === 0 ? 0 : undefined,
         }}>
           <div style={{
-            animation: phase === 'reveal' ? 'sl-glow 3.5s ease-in-out infinite 0.6s' : 'none',
-            filter: `drop-shadow(0 0 22px rgba(251,191,36,0.6))`,
+            animation: phase === 2 ? '_sl_logo_glow 3.5s ease-in-out infinite 0.5s' : 'none',
+            filter: `drop-shadow(0 0 18px rgba(249,200,70,0.55))`,
           }}>
-            {splashLogo.enabled && splashLogo.url ? (
+            {logoEnabled && logoUrl ? (
               <img
-                src={splashLogo.url}
-                alt={appName}
-                draggable={false}
-                onError={(e) => {
-                  const img = e.currentTarget as HTMLImageElement;
-                  if (!img.src.includes('/splash-logo.png')) img.src = '/splash-logo.png';
-                }}
-                style={{
-                  width: `${splashLogo.size}px`,
-                  height: `${splashLogo.size}px`,
-                  maxWidth: '70vw',
-                  objectFit: 'contain',
-                  borderRadius: '28px',
-                  display: 'block',
-                }}
+                src={logoUrl} alt={appName} draggable={false}
+                onError={e => { const t = e.currentTarget as HTMLImageElement; if (!t.src.includes('/splash-logo.png')) t.src = '/splash-logo.png'; }}
+                style={{ width: logoSize, height: logoSize, maxWidth: '68vw', objectFit: 'contain', borderRadius: '24px', display: 'block' }}
               />
             ) : (
               <h1 style={{
-                fontSize: `${appNameSize}px`,
-                fontWeight: 900, margin: 0, padding: 0,
+                fontSize: appNameSize, fontWeight: 900, margin: 0,
                 background: 'linear-gradient(135deg,#fbbf24,#f59e0b,#fde68a,#fbbf24)',
                 backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                animation: 'sl-shimmer 3s linear infinite',
-                ...(activeFont.family ? { fontFamily: activeFont.family } : {}),
-                ...(activeFont.letterSpacing ? { letterSpacing: activeFont.letterSpacing } : {}),
-              }}>
-                {appName}
-              </h1>
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                animation: '_sl_shimmer 3s linear infinite',
+                ...fontStyle, ...lsStyle,
+              }}>{appName}</h1>
             )}
           </div>
         </div>
 
-        {/* ── Developer name — below logo, prominent ── */}
-        {phase === 'reveal' && (
+        {/* Developer credit — below logo */}
+        {phase === 2 && (
           <div style={{
-            marginTop: '14px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-            animation: 'sl-dev-in 0.7s cubic-bezier(0.34,1.28,0.64,1) 0.4s both',
+            marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center',
+            animation: '_sl_dev_in 0.65s cubic-bezier(0.34,1.3,0.64,1) 0.3s both',
+          }}>
+            {/* Separator line */}
+            <div style={{
+              width: '48px', height: '1px', marginBottom: '8px',
+              background: isDark
+                ? 'linear-gradient(90deg, transparent, rgba(249,200,70,0.5), transparent)'
+                : 'linear-gradient(90deg, transparent, rgba(245,158,11,0.4), transparent)',
+            }} />
+            <span style={{
+              fontSize: '8px', fontWeight: 700, letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.32)',
+              display: 'block', marginBottom: '3px',
+            }}>Developed by</span>
+            <span style={{
+              fontSize: '17px', fontWeight: 800, letterSpacing: '0.05em',
+              background: isDark
+                ? 'linear-gradient(90deg,#fde68a,#fbbf24,#f9c846,#fde68a,#fbbf24)'
+                : 'linear-gradient(90deg,#b45309,#d97706,#f59e0b,#d97706)',
+              backgroundSize: '250% auto',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+              animation: '_sl_shimmer 3.5s linear infinite',
+              display: 'block',
+            }}>{developerName}</span>
+          </div>
+        )}
+
+        {/* App name below developer */}
+        {phase === 2 && (
+          <div style={{
+            marginTop: '18px', textAlign: 'center',
+            animation: '_sl_name_in 0.6s ease 0.45s both',
           }}>
             <p style={{
-              margin: 0,
-              fontSize: '9px', fontWeight: 700, letterSpacing: '0.20em',
-              textTransform: 'uppercase',
-              color: isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.35)',
-            }}>
-              Developed by
-            </p>
-            <p style={{
-              margin: 0,
-              fontSize: '15px', fontWeight: 800, letterSpacing: '0.06em',
+              margin: 0, fontSize: Math.min(appNameSize * 0.55, 22), fontWeight: 900,
+              letterSpacing: '0.06em',
               background: isDark
-                ? 'linear-gradient(90deg,#fbbf24,#fde68a,#f59e0b,#fbbf24)'
-                : 'linear-gradient(90deg,#d97706,#f59e0b,#d97706)',
-              backgroundSize: '200% auto',
+                ? 'linear-gradient(90deg,#f1f5f9,#c4b5fd,#a5f3fc,#fbbf24,#f1f5f9)'
+                : 'linear-gradient(90deg,#1e293b,#6366f1,#4f46e5,#1e293b)',
+              backgroundSize: '280% auto',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              animation: 'sl-shimmer 3.5s linear infinite 0.5s',
-              textShadow: 'none',
+              animation: '_sl_shimmer 4.5s linear infinite 0.3s',
+              ...fontStyle, ...lsStyle,
+            }}>{appName}</p>
+            {appTagline ? (
+              <p style={{
+                margin: '5px 0 0', fontSize: '9px', fontWeight: 700,
+                letterSpacing: '0.24em', textTransform: 'uppercase',
+                color: isDark ? 'rgba(103,232,249,0.55)' : 'rgba(99,102,241,0.60)',
+              }}>{appTagline}</p>
+            ) : null}
+          </div>
+        )}
+
+        {/* Rotating message */}
+        {phase === 2 && (
+          <div style={{
+            marginTop: '22px', height: '22px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', minWidth: '220px',
+          }}>
+            <p style={{
+              margin: 0, fontSize: '12px', fontWeight: 600,
+              color: isDark ? 'rgba(255,255,255,0.52)' : 'rgba(0,0,0,0.48)',
+              textAlign: 'center',
+              animation: msgVisible ? '_sl_msg_in 0.4s ease both' : '_sl_msg_out 0.35s ease both',
             }}>
-              {developerName}
+              {MESSAGES[msgIndex]}
             </p>
+          </div>
+        )}
+
+        {/* 3 bouncing dots loader */}
+        {phase === 2 && (
+          <div style={{ display: 'flex', gap: '7px', marginTop: '14px' }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: '7px', height: '7px', borderRadius: '50%',
+                background: [accentGold, accentCyan, accentPurple][i],
+                boxShadow: `0 0 8px ${['rgba(249,200,70,0.8)','rgba(103,232,249,0.8)','rgba(167,139,250,0.8)'][i]}`,
+                animation: `_sl_dot_bounce 0.9s ease-in-out ${i * 0.18}s infinite`,
+              }} />
+            ))}
           </div>
         )}
       </div>
 
-      {/* ── App name + optional tagline ── */}
-      {phase === 'reveal' && (
-        <div style={{
-          textAlign: 'center', zIndex: 10, position: 'relative',
-          animation: 'sl-name-in 0.7s cubic-bezier(0.34,1.28,0.64,1) 0.25s both',
-          marginTop: '-8px',
-        }}>
-          <p style={{
-            fontSize: `${Math.min(appNameSize, 26)}px`,
-            fontWeight: 900, letterSpacing: '0.05em', margin: '0 0 6px',
-            background: isDark
-              ? 'linear-gradient(90deg,#e2e8f0,#c4b5fd,#a5f3fc,#fbbf24,#e2e8f0)'
-              : 'linear-gradient(90deg,#1e293b,#6366f1,#818cf8,#1e293b)',
-            backgroundSize: '250% auto',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-            animation: 'sl-shimmer 4s linear infinite 0.3s',
-            ...(activeFont.family ? { fontFamily: activeFont.family } : {}),
-            ...(activeFont.letterSpacing ? { letterSpacing: activeFont.letterSpacing } : {}),
-          }}>
-            {appName}
-          </p>
-
-          {/* Tagline — only if set in admin settings */}
-          {appTagline ? (
-            <p style={{
-              fontSize: '10px', fontWeight: 700, margin: 0,
-              color: isDark ? 'rgba(165,243,252,0.55)' : 'rgba(99,102,241,0.65)',
-              animation: 'sl-tagline 0.9s ease 0.6s both',
-              textTransform: 'uppercase', letterSpacing: '0.22em',
-            }}>
-              {appTagline}
-            </p>
-          ) : null}
-        </div>
-      )}
-
-      {/* ── Bottom: progress + version ── */}
+      {/* ═══════════════════════════════════════ BOTTOM PROGRESS */}
       <div style={{
-        position: 'absolute', bottom: '36px', left: 0, right: 0,
-        padding: '0 32px', zIndex: 10,
+        position: 'absolute', bottom: 28, left: 0, right: 0,
+        padding: '0 28px', zIndex: 10,
       }}>
-        {/* Percent */}
-        {phase === 'reveal' && (
-          <div style={{
-            textAlign: 'center', marginBottom: '8px',
-            animation: 'sl-percent 0.4s ease both',
-          }}>
-            <span style={{
-              fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', fontFamily: 'monospace',
-              color: isDark ? 'rgba(251,191,36,0.75)' : 'rgba(245,158,11,0.80)',
-            }}>
-              {progress}%
-            </span>
-          </div>
-        )}
+        {/* Progress percentage */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+          <span style={{
+            fontSize: '9px', fontWeight: 700, letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: isDark ? 'rgba(249,200,70,0.55)' : 'rgba(245,158,11,0.65)',
+          }}>Loading</span>
+          <span style={{
+            fontSize: '11px', fontWeight: 900, fontFamily: 'monospace',
+            color: isDark ? 'rgba(249,200,70,0.80)' : 'rgba(180,83,9,0.85)',
+          }}>{progress}%</span>
+        </div>
 
-        {/* Progress bar */}
+        {/* Segmented progress bar */}
         <div style={{
-          width: '100%', height: '3px',
-          background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)',
-          borderRadius: '999px', overflow: 'hidden', marginBottom: '10px',
+          width: '100%', height: '4px',
+          background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)',
+          borderRadius: '999px', overflow: 'hidden',
+          boxShadow: isDark ? 'inset 0 0 0 1px rgba(255,255,255,0.04)' : 'inset 0 0 0 1px rgba(0,0,0,0.05)',
         }}>
           <div style={{
-            height: '100%', width: `${progress}%`,
+            height: '100%',
+            width: `${progress}%`,
             background: isDark
-              ? 'linear-gradient(90deg,#f59e0b,#fbbf24,#fde68a,#a78bfa)'
+              ? 'linear-gradient(90deg,#f59e0b,#fbbf24 30%,#fde68a 55%,#a78bfa 80%,#67e8f9)'
               : 'linear-gradient(90deg,#d97706,#f59e0b,#6366f1)',
             borderRadius: '999px',
-            transition: 'width 60ms linear',
-            animation: 'sl-progress-glow 2s ease-in-out infinite',
-          }} />
+            transition: 'width 80ms linear',
+            animation: '_sl_bar_glow 2.2s ease-in-out infinite',
+            position: 'relative',
+          }}>
+            {/* Shimmer on bar */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%)',
+              backgroundSize: '60% 100%',
+              animation: '_sl_shimmer 1.6s linear infinite',
+              borderRadius: '999px',
+            }} />
+          </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <p style={{
-            fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', margin: 0,
-            color: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.25)',
-            letterSpacing: '0.04em',
-          }}>
-            v{APP_VERSION}
-          </p>
+        {/* Version */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+          <span style={{
+            fontSize: '8px', fontFamily: 'monospace', fontWeight: 700,
+            color: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.20)',
+            letterSpacing: '0.03em',
+          }}>v{APP_VERSION}</span>
         </div>
       </div>
     </div>
