@@ -220,6 +220,7 @@ import { OfflineDownloads } from "./OfflineDownloads";
 import { ThemeCustomizer } from "./ThemeCustomizer";
 import AppFeedback from "./AppFeedback";
 import { saveOfflineItem } from "../utils/offlineStorage";
+import { NAME_EFFECTS_LIST, getNameEffectStyle } from "../utils/nameEffects";
 import { NotificationPrompt } from "./NotificationPrompt";
 // @ts-ignore
 import jsPDF from "jspdf";
@@ -1857,6 +1858,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [profileWhite, setProfileWhite] = useState(() => localStorage.getItem(`nst_pw_${user.id}`) === '1');
   const [nameFxOff, setNameFxOff] = useState(() => { try { return localStorage.getItem('nst_name_fx_off') === '1'; } catch { return false; } });
   const [cardFxOff, setCardFxOff] = useState(() => { try { return localStorage.getItem('nst_card_fx_off') === '1'; } catch { return false; } });
+  const [nameEffectId, setNameEffectId] = useState<string>(() => { try { return localStorage.getItem('nst_name_effect') || 'auto'; } catch { return 'auto'; } });
+  const [showProfileEffects, setShowProfileEffects] = useState(false);
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
   const [showLevelChooser, setShowLevelChooser] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -8335,6 +8338,11 @@ export const StudentDashboard: React.FC<Props> = ({
         const milestoneLvlInfo = LEVEL_INFO.find(l => l.level === milestoneLvl);
         const col = milestoneLvlInfo?.nameColor || _displayLvl.color;
         const glow = _displayLvl.glowColor;
+        // ── Custom effect chosen by user (non-auto) ──
+        const _chosenEffect = NAME_EFFECTS_LIST.find(e => e.id === nameEffectId);
+        if (!nameFxOff && _chosenEffect && nameEffectId !== 'auto' && lvl >= _chosenEffect.minLevel) {
+          return getNameEffectStyle(nameEffectId, col, glow, _profileIsLight);
+        }
         if (_profileIsLight || nameFxOff) {
           return { color: milestoneLvl >= 4 ? col : (_profileIsLight ? '#1e293b' : '#ffffff') };
         }
@@ -9261,6 +9269,31 @@ export const StudentDashboard: React.FC<Props> = ({
                   }} />
               </div>
             </button>
+
+            {/* ── Name Effect Style Chooser ── */}
+            {!nameFxOff && (
+              <button
+                onClick={() => setShowProfileEffects(true)}
+                className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
+                style={{ borderBottom: _pSep }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{
+                  background: `${_pLvl.color}22`,
+                  border: `1px solid ${_pLvl.color}55`,
+                }}>
+                  <span className="text-base leading-none">🎨</span>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className={`text-sm font-bold ${_pTxt}`}>Name Style</p>
+                  <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
+                    {(() => {
+                      const ef = NAME_EFFECTS_LIST.find(e => e.id === nameEffectId);
+                      return ef ? `${ef.emoji} ${ef.name} — tap to change` : '⚡ Auto — tap to change';
+                    })()}
+                  </p>
+                </div>
+                <ChevronRight size={14} style={{ color: _pTxtMutedColor }} className="shrink-0" />
+              </button>
+            )}
 
             {/* ── Card Effect Toggle ── */}
             <button
@@ -14055,6 +14088,119 @@ export const StudentDashboard: React.FC<Props> = ({
           </div>
         </div>
       )}
+
+      {/* ── NAME EFFECT PICKER MODAL ── */}
+      {showProfileEffects && (() => {
+        const _eLvl = _userLevel;
+        const _eCol = _userLevelInfo.color;
+        const _eGlow = _userLevelInfo.glowColor;
+        const _isDk = document.documentElement.classList.contains('dark-mode') || document.documentElement.classList.contains('dark-mode-blue');
+        const _eBg = _isDk ? '#0f1117' : '#1a1f2e';
+        const _eCard = _isDk ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)';
+        const _previewStyle = (() => {
+          const ef = NAME_EFFECTS_LIST.find(e => e.id === nameEffectId);
+          if (!ef || nameEffectId === 'auto') return { color: '#ffffff' };
+          return getNameEffectStyle(nameEffectId, _eCol, _eGlow, false);
+        })();
+        return (
+          <div
+            className="fixed inset-0 flex items-end z-[110]"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowProfileEffects(false)}
+          >
+            <div
+              className="w-full rounded-t-3xl flex flex-col"
+              style={{ background: _eBg, maxHeight: '88vh' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }} />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <h3 className="text-base font-black text-white">🎨 Name Style Choose Karo</h3>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    Level {_eLvl} pe unlock hue effects dikha rahe hain
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowProfileEffects(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.10)' }}>
+                  <X size={15} className="text-white/60" />
+                </button>
+              </div>
+
+              {/* Live Preview */}
+              <div className="mx-5 mb-4 p-4 rounded-2xl text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Live Preview</p>
+                <h2 className="font-black text-[22px] leading-none tracking-tight" style={_previewStyle}>
+                  {(user.name || 'Student').toUpperCase()}
+                </h2>
+              </div>
+
+              {/* Effects Grid */}
+              <div className="overflow-y-auto px-5 pb-8" style={{ flex: 1 }}>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {NAME_EFFECTS_LIST.map(effect => {
+                    const isUnlocked = _eLvl >= effect.minLevel;
+                    const isSelected = nameEffectId === effect.id;
+                    const previewSt = isUnlocked
+                      ? getNameEffectStyle(effect.id === 'auto' ? 'plain' : effect.id, _eCol, _eGlow, false)
+                      : { color: 'rgba(255,255,255,0.2)' };
+                    return (
+                      <button
+                        key={effect.id}
+                        onClick={() => {
+                          if (!isUnlocked) return;
+                          setNameEffectId(effect.id);
+                          try { localStorage.setItem('nst_name_effect', effect.id); } catch {}
+                        }}
+                        disabled={!isUnlocked}
+                        className="p-3 rounded-2xl text-left transition-all active:scale-95"
+                        style={{
+                          background: isSelected ? `${_eCol}20` : _eCard,
+                          border: isSelected ? `1.5px solid ${_eCol}88` : '1px solid rgba(255,255,255,0.08)',
+                          opacity: isUnlocked ? 1 : 0.5,
+                          boxShadow: isSelected ? `0 0 16px ${_eGlow}30` : 'none',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {/* Top row: emoji + badges */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-lg leading-none">{effect.emoji}</span>
+                          <div className="flex items-center gap-1">
+                            {isSelected && (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full"
+                                style={{ background: _eCol, color: '#000' }}>ON</span>
+                            )}
+                            {!isUnlocked && (
+                              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                                style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.45)' }}>
+                                🔒 L{effect.minLevel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Effect name */}
+                        <p className="text-[11px] font-black text-white leading-none mb-0.5">{effect.name}</p>
+                        <p className="text-[9px] mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{effect.desc}</p>
+                        {/* Name preview in this effect */}
+                        <p className="text-[11px] font-black truncate" style={previewSt}>
+                          {(user.name || 'STUDENT').toUpperCase()}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* NAME CHANGE MODAL */}
       {showNameChangeModal && (
