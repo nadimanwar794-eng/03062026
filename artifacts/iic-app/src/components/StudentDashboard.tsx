@@ -67,6 +67,7 @@ import { generateDailyChallengeQuestions } from "../utils/challengeGenerator";
 import { searchNotesByWords, searchNotesByTitle, type NoteSearchResult } from "../utils/noteSearcher";
 import { generateMorningInsight } from "../services/morningInsight";
 import { LessonActionModal } from "./LessonActionModal";
+import { LibraryView } from "./LibraryView";
 import { PullToRefresh } from "./PullToRefresh";
 import pLimit from "p-limit";
 import { RedeemSection } from "./RedeemSection";
@@ -1912,6 +1913,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showAllNotesCatalog, setShowAllNotesCatalog] = useState<
     "PREMIUM" | "DEEP_DIVE" | "VIDEO" | "AUDIO" | false
   >(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [catalogChapterCounts, setCatalogChapterCounts] = useState<
     Record<string, number>
   >({});
@@ -7808,6 +7810,31 @@ export const StudentDashboard: React.FC<Props> = ({
                       </button>
                     </div>
                   )}
+
+                  {/* ── LIBRARY CARD ── */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="flex-1 h-px bg-slate-100" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Books & GK Library</span>
+                      <span className="flex-1 h-px bg-slate-100" />
+                    </div>
+                    <button
+                      onClick={() => setShowLibrary(true)}
+                      className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50"
+                    >
+                      <div className="flex items-center justify-between px-4 py-4">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-indigo-500 mb-1">📚 Library</p>
+                          <h3 className="text-xl font-black leading-tight mb-1 text-slate-800">Lucent · GK · Books</h3>
+                          <p className="text-[11px] text-slate-500 font-medium mb-3">Lucent GK · Competition Books · Daily GK · Notes</p>
+                          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-black text-white bg-indigo-600">
+                            Browse Library →
+                          </span>
+                        </div>
+                        <div className="text-[52px] leading-none shrink-0 select-none">📚</div>
+                      </div>
+                    </button>
+                  </div>
 
                   {/* ── QUICK ACTION CARDS 3×2 ── */}
                   <div>
@@ -14580,7 +14607,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
-        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
+        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${showLibrary || activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
         style={{
           background: tierTheme.navBg,
           borderTop: `1px solid ${(tierTheme as any).navBorderColor || tierTheme.primary + '22'}`,
@@ -16036,7 +16063,17 @@ export const StudentDashboard: React.FC<Props> = ({
         </div>
       )}
 
-      {/* EXTERNAL APP OVERLAY */}
+      {/* ── LIBRARY OVERLAY ── */}
+      {showLibrary && (
+        <div className="fixed inset-0 z-[250] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom-full duration-300">
+          <LibraryView
+            user={user}
+            settings={settings}
+            onBack={() => setShowLibrary(false)}
+          />
+        </div>
+      )}
+
       {activeExternalApp && (
         <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom-full duration-300">
           <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-slate-200 shadow-sm shrink-0">
