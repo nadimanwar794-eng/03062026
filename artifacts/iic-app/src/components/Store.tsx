@@ -855,6 +855,29 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       )}
                     </div>
 
+                    {/* ── Tier Limits row ── */}
+                    <div className="mx-5 mb-4 rounded-2xl overflow-hidden" style={{ border: `1.5px solid ${ac.border}`, background: 'rgba(0,0,0,0.25)' }}>
+                      <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: ac.pill, borderBottom: `1px solid ${ac.border}` }}>
+                        <Zap size={11} color={ac.color} />
+                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: ac.color }}>
+                          {isPro ? 'PRO' : 'MAX'} Plan Limits
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 divide-x" style={{ borderColor: `${ac.border}` }}>
+                        {[
+                          { icon: '📅', label: 'Daily Limit', value: isPro ? '7,000' : '10,000', sub: 'pts/din' },
+                          { icon: '⚡', label: 'Multiplier', value: isPro ? '1.2×' : '1.5×', sub: 'score boost' },
+                          { icon: '🏆', label: 'Level Disc.', value: isPro ? 'Up to 30%' : 'Up to 30%', sub: 'par purchase' },
+                        ].map((item, i) => (
+                          <div key={i} className="flex flex-col items-center py-3 px-1 gap-0.5" style={{ borderColor: ac.border }}>
+                            <span className="text-base leading-none mb-1">{item.icon}</span>
+                            <span className="text-[13px] font-black tabular-nums" style={{ color: ac.color }}>{item.value}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-center leading-tight" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.sub}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Feature list */}
                     <div className="px-5 pb-4 grid grid-cols-2 gap-x-3 gap-y-2">
                       {featuresList.map((f, i) => (
