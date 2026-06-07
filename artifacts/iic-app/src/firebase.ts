@@ -452,9 +452,17 @@ const _subscribeShardedArray = (
 ): (() => void) => {
   let shardCount = 1;
   const shardsData: Record<number, any[]> = {};
+  const shardsConfirmed = new Set<number>(); // which shards have fired at least once
+  let metaConfirmed = false;                 // meta doc has fired at least once
   let shardUnsubs: (() => void)[] = [];
 
+  // Only emit once meta AND every known shard have responded at least once.
+  // This prevents partial / out-of-order data from being shown during initial load.
   const _rebuild = () => {
+    if (!metaConfirmed) return;
+    for (let i = 0; i < shardCount; i++) {
+      if (!shardsConfirmed.has(i)) return; // still waiting for this shard
+    }
     const all: any[] = [];
     for (let i = 0; i < shardCount; i++) {
       const s = shardsData[i];
@@ -468,11 +476,13 @@ const _subscribeShardedArray = (
     const unsubFs = onSnapshot(doc(db, "config", `${fsPrefix}_shard_${idx}`), (snap) => {
       fsOk = true;
       shardsData[idx] = snap.exists() ? (snap.data()?.items ?? []) : [];
+      shardsConfirmed.add(idx);
       _rebuild();
     });
     const unsubRtdb = onValue(ref(rtdb, `${rtdbPrefix}_shard_${idx}`), (snap) => {
       if (fsOk) return;
       shardsData[idx] = snap.val()?.items ?? [];
+      shardsConfirmed.add(idx);
       _rebuild();
     });
     return () => { unsubFs(); unsubRtdb(); };
@@ -480,28 +490,35 @@ const _subscribeShardedArray = (
 
   const _applyShardCount = (count: number) => {
     if (count === shardCount && shardUnsubs.length === count) return;
+    // Tear down extra listeners if shard count shrank
     for (let i = count; i < shardUnsubs.length; i++) {
       shardUnsubs[i]?.();
       delete shardsData[i];
+      shardsConfirmed.delete(i);
     }
     shardUnsubs = shardUnsubs.slice(0, count);
+    // Add new listeners for newly added shards
     for (let i = shardUnsubs.length; i < count; i++) {
       shardUnsubs.push(_listenToShard(i));
     }
     shardCount = count;
   };
 
-  // Start with shard 0 immediately so initial load is fast.
+  // Start listening to shard 0 immediately — it will be ready before meta.
   _applyShardCount(1);
 
   let metaFromFs = false;
   const unsubMeta = onSnapshot(doc(db, "config", `${fsPrefix}_meta`), (snap) => {
     metaFromFs = true;
+    metaConfirmed = true;
     _applyShardCount(snap.exists() ? (snap.data()?.shardCount ?? 1) : 1);
+    _rebuild(); // re-check now that meta is confirmed
   });
   const unsubMetaRtdb = onValue(ref(rtdb, `${rtdbPrefix}_meta`), (snap) => {
     if (metaFromFs) return;
+    metaConfirmed = true;
     _applyShardCount(snap.val()?.shardCount ?? 1);
+    _rebuild();
   });
 
   return () => {
@@ -551,6 +568,10 @@ const _savePerItemCollection = async (
 };
 
 // Per-item collection subscriber. Returns up to 4 unsub functions.
+// IMPORTANT: only emits once BOTH the collection snapshot AND the index have
+// responded at least once. This prevents empty-flash (index loads first →
+// order=[] → empty array emitted) or orphan-flash (collection loads first →
+// items shown in arbitrary order before index arrives).
 const _subscribePerItemCollection = (
   collectionName: string,
   rtdbBasePath: string,
@@ -560,24 +581,32 @@ const _subscribePerItemCollection = (
 ): (() => void)[] => {
   let itemMap: Record<string, any> = {};
   let order: string[] = [];
-  let fsConfirmed = false;
+  let collectionConfirmed = false; // collection snapshot has fired at least once
+  let indexConfirmed = false;      // index snapshot has fired at least once
+  let collectionFromFs = false;
   let indexFromFs = false;
 
+  // Only emit when BOTH collection AND index are confirmed.
   const _rebuild = () => {
+    if (!collectionConfirmed || !indexConfirmed) return;
     onUpdate(order.map(id => itemMap[id]).filter(Boolean));
   };
 
+  // Firestore collection — source of truth for item data
   const unsubCollection = onSnapshot(collection(db, collectionName), (snapshot) => {
+    collectionFromFs = true;
+    collectionConfirmed = true;
     itemMap = {};
     snapshot.forEach(d => { itemMap[d.id] = d.data(); });
-    fsConfirmed = true;
     _rebuild();
   });
 
+  // RTDB backup — only fills itemMap before Firestore confirms (offline / cold start)
   const unsubRtdb = onValue(ref(rtdb, rtdbBasePath), (snap) => {
-    if (fsConfirmed) return;
+    if (collectionFromFs) return; // Firestore is source of truth once it responds
     const data = snap.val();
     if (data && typeof data === 'object') {
+      collectionConfirmed = true;
       Object.entries(data).forEach(([id, entry]: [string, any]) => {
         if (!itemMap[id]) itemMap[id] = entry;
       });
@@ -585,16 +614,27 @@ const _subscribePerItemCollection = (
     }
   });
 
+  // Firestore index — source of truth for ordering
   const unsubIndex = onSnapshot(doc(db, "config", indexFsDocId), (snap) => {
     indexFromFs = true;
+    indexConfirmed = true;
     order = snap.exists() ? (snap.data()?.ids ?? []) : [];
     _rebuild();
   });
 
+  // RTDB index backup
   const unsubIndexRtdb = onValue(ref(rtdb, rtdbIndexPath), (snap) => {
     if (indexFromFs) return;
     const d = snap.val();
-    if (d?.ids) { order = d.ids; _rebuild(); }
+    if (d?.ids) {
+      indexConfirmed = true;
+      order = d.ids;
+      _rebuild();
+    } else if (!indexConfirmed) {
+      // RTDB responded but no index yet — treat as confirmed empty so we don't block forever
+      indexConfirmed = true;
+      _rebuild();
+    }
   });
 
   return [unsubCollection, unsubRtdb, unsubIndex, unsubIndexRtdb];
