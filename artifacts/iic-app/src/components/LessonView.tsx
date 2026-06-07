@@ -442,7 +442,7 @@ export const LessonView: React.FC<Props> = ({
   // FREE HTML NOTE MODAL
   if (viewingNote) {
       return (
-          <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in fade-in">
+          <div className="fixed inset-0 z-[200] bg-white flex flex-col">
               {/* Header */}
               <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
                   <div className="flex items-center gap-3"><button onClick={toggleFullScreen} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200" title="Toggle Fullscreen"><Maximize size={20} /></button>
@@ -707,7 +707,7 @@ export const LessonView: React.FC<Props> = ({
           );
 
           return (
-              <div className="fixed inset-0 z-50 bg-white flex flex-col animate-in fade-in">
+              <div className="fixed inset-0 z-50 bg-white flex flex-col">
                   {/* Rotate toast */}
                   {rotateToast && (
                       <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg animate-in fade-in">
@@ -802,7 +802,7 @@ export const LessonView: React.FC<Props> = ({
       
       if (isImage) {
           return (
-              <div className="fixed inset-0 z-50 bg-[#111] flex flex-col animate-in fade-in">
+              <div className="fixed inset-0 z-50 bg-[#111] flex flex-col">
                   <header className={`bg-black/90 backdrop-blur-md text-white p-4 absolute top-0 left-0 right-0 z-10 flex items-center justify-between border-b border-white/10${isImmersive ? ' hidden' : ''}`}>
                       <div className="flex items-center gap-3"><button onClick={toggleFullScreen} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200" title="Toggle Fullscreen"><Maximize size={20} /></button>
                           <button onClick={onBack} className="p-2 bg-white/10 rounded-full"><ArrowLeft size={20} /></button>
@@ -829,7 +829,7 @@ export const LessonView: React.FC<Props> = ({
 
       if (isGoogleDriveAudio) {
           return (
-              <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col animate-in fade-in">
+              <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
                   <header className={`bg-slate-900/90 backdrop-blur-md text-white p-4 flex items-center justify-between border-b border-white/10 z-20${isImmersive ? ' hidden' : ''}`}>
                       <div className="flex items-center gap-3"><button onClick={toggleFullScreen} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200" title="Toggle Fullscreen"><Maximize size={20} /></button>
                           <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><ArrowLeft size={20} /></button>
@@ -872,7 +872,7 @@ export const LessonView: React.FC<Props> = ({
   // 3. MANUAL TEXT / MARKDOWN NOTES (Fallback)
   if (content.content || isStreaming) {
       return (
-          <div className="flex flex-col h-full bg-white animate-in fade-in">
+          <div className="flex flex-col h-full bg-white">
               {rotateToast && (
                   <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg animate-in fade-in">
                       {rotateToast}
@@ -1460,7 +1460,7 @@ export const LessonView: React.FC<Props> = ({
       };
 
       return (
-          <div className="flex flex-col h-full bg-slate-50 animate-in fade-in relative mcq-container overflow-y-auto">
+          <div className="flex flex-col h-full bg-slate-50 relative mcq-container overflow-y-auto">
                <CustomAlert 
                    isOpen={alertConfig.isOpen} 
                    message={alertConfig.message} 

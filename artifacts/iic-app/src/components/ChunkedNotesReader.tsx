@@ -1324,33 +1324,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
                   <RotateCcw size={14} className="text-slate-600" />
                 </button>
-                {/* Level badge */}
-                {readingScoreConfig && (() => {
-                  const lvl = getLevelInfo(
-                    LEVEL_INFO.find(l => l.level === readingScoreConfig.userLevel)?.minScore ?? 0
-                  );
-                  return (
-                    <div
-                      className="flex-1 h-8 flex items-center justify-center gap-1 rounded-xl border text-[10px] font-black select-none"
-                      style={{
-                        background: `${lvl.color}15`,
-                        borderColor: `${lvl.color}40`,
-                        color: lvl.color,
-                      }}
-                    >
-                      <span>{lvl.emoji}</span>
-                      <span>L{lvl.level}</span>
-                    </div>
-                  );
-                })()}
               </div>
             </div>
           )}
 
           {/* ── MORE panel — Style, Color, Search, Speed, Ultra ── */}
           {showControls && (
-            <div className="px-2 pb-2 pt-1 border-t border-slate-100 animate-in slide-in-from-top-1 duration-150">
-              <div className="grid grid-cols-5 gap-1">
+            <div className="px-2 pb-1.5 pt-0.5 border-t border-slate-100">
+              <div className="grid grid-cols-5 gap-0.5">
 
                 {/* Font Style */}
                 <button type="button"
@@ -1433,13 +1414,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Ultra</span>
                     </button>
                   )
-                ) : onMoreOptions ? (
-                  <button type="button"
-                    onClick={() => { setShowControls(false); onMoreOptions(); }}
-                    className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-indigo-50 border border-indigo-200 active:scale-95 transition">
-                    <Layers size={13} className="text-indigo-600" />
-                    <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-wide leading-none">Opt</span>
-                  </button>
                 ) : <div />}
 
               </div>
