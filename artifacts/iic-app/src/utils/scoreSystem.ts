@@ -149,16 +149,24 @@ export const tryEarnScore = (
   scoreLimitBoostPercent?: number,
 ): number => {
   const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium, scoreLimitBoostPercent);
-  if (remaining <= 0) return 0;
   const calc = calculateScore(baseScore, subscriptionLevel, isPremium, boostPercent);
-  const actual = Math.min(calc, remaining);
-  try {
-    const key = getTodayKey(userId);
-    const current = getDailyScoreEarned(userId);
-    localStorage.setItem(key, String(current + actual));
-  } catch {}
-  if (actual > 0 && activity) logScoreActivity(userId, activity, actual);
-  return actual;
+
+  if (remaining > 0) {
+    // Within daily limit — earn normally (capped at remaining)
+    const actual = Math.min(calc, remaining);
+    try {
+      const key = getTodayKey(userId);
+      const current = getDailyScoreEarned(userId);
+      localStorage.setItem(key, String(current + actual));
+    } catch {}
+    if (actual > 0 && activity) logScoreActivity(userId, activity, actual);
+    return actual;
+  } else {
+    // Over daily limit — earn at 0.5x rate (does not count against daily tracker)
+    const overLimitScore = Math.max(1, Math.round(calc * 0.5));
+    if (overLimitScore > 0 && activity) logScoreActivity(userId, `${activity}_OVERLIMIT`, overLimitScore);
+    return overLimitScore;
+  }
 };
 
 /**
