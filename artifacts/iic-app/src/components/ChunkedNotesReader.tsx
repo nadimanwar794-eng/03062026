@@ -527,6 +527,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   // or via a manual topic tap (MANUAL). Only AUTO sessions earn READ_TTS_HIGHLIGHT rewards.
   const ttsIsAutoRef = useRef(false);
 
+  // Swipe-to-dismiss touch tracking for Reading Score banner and Touch Protection banner
+  const scoreBannerSwipeX = useRef(0);
+  const tpBannerSwipeX = useRef(0);
+
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
     const now = Date.now();
@@ -1223,13 +1227,20 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
           {/* ── Reading Score banner — inline inside toolbar (row 1 or 2 depending on order) ── */}
           {showScoreInfo && scoreState && (
-            <div style={{
-              borderTop: '1px solid #e2e8f0',
-              background: '#fff',
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 10px',
-              animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-            }}>
+            <div
+              onTouchStart={(e) => { scoreBannerSwipeX.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                const dx = scoreBannerSwipeX.current - e.changedTouches[0].clientX;
+                if (dx > 60) setShowScoreInfo(false);
+              }}
+              style={{
+                borderTop: '1px solid #e2e8f0',
+                background: '#fff',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 10px',
+                animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+                userSelect: 'none', touchAction: 'pan-y',
+              }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
               <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
                 {isReading ? 'Reading Active' : 'Reading Score'}
@@ -1245,62 +1256,86 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{Math.round(scoreState.progressPercent)}%</span>
               </div>
               <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
-                <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
-                </span>
-              </div>
+              {(() => {
+                const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
+                  : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
+                const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
+                const _base = scoreState.mode === 'reading' ? 5 : 25;
+                const _pts = Math.max(1, Math.round(_base * _subMul * _boostMul));
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+                    <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
+                      {!scoreState.isPaused ? `+${_pts} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+                    </span>
+                  </div>
+                );
+              })()}
               <div style={{ flex: 1 }} />
               <button
                 onClick={() => setShowScoreInfo(false)}
                 style={{
-                  background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-                  borderRadius: 6, padding: '2px 8px',
-                  color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
+                  background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+                  borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0,
                 }}
-              >OK</button>
+                aria-label="Dismiss"
+              >✕</button>
             </div>
           )}
 
           {/* ── Touch Protection banner — inline inside toolbar, stacks below Reading Score if both open ── */}
-          {showReadingActiveInfo && (
-            <div style={{
-              borderTop: '1px solid #e2e8f0',
-              background: '#fff',
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 10px',
-              animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-            }}>
-              <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
-              <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
-                Touch Pro
-              </span>
-              <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
-                10sec → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward milega</span>
-              </span>
-              <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
-                <div style={{
-                  width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #6366f1, #818cf8)',
-                  borderRadius: 99,
-                  transition: 'width 0.9s linear',
-                }} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', flexShrink: 0, minWidth: 22, textAlign: 'right' }}>
-                {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
-              </span>
-              <button
-                onClick={() => setShowReadingActiveInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-                  borderRadius: 6, padding: '2px 8px',
-                  color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
+          {showReadingActiveInfo && (() => {
+            const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
+              : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
+            const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
+            const _tp2pts = Math.max(1, Math.round(2 * _subMul * _boostMul));
+            return (
+              <div
+                onTouchStart={(e) => { tpBannerSwipeX.current = e.touches[0].clientX; }}
+                onTouchEnd={(e) => {
+                  const dx = tpBannerSwipeX.current - e.changedTouches[0].clientX;
+                  if (dx > 60) setShowReadingActiveInfo(false);
                 }}
-              >OK</button>
-            </div>
-          )}
+                style={{
+                  borderTop: '1px solid #e2e8f0',
+                  background: '#fff',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '6px 10px',
+                  animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+                  userSelect: 'none', touchAction: 'pan-y',
+                }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
+                <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                  Touch Pro
+                </span>
+                <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
+                  10s ruko → <span style={{ color: '#16a34a', fontWeight: 800 }}>+{_tp2pts} milega</span>
+                </span>
+                <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
+                  <div style={{
+                    width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                    borderRadius: 99,
+                    transition: 'width 0.9s linear',
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', flexShrink: 0, minWidth: 22, textAlign: 'right' }}>
+                  {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
+                </span>
+                <button
+                  onClick={() => setShowReadingActiveInfo(false)}
+                  style={{
+                    background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+                    borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0,
+                  }}
+                  aria-label="Dismiss"
+                >✕</button>
+              </div>
+            );
+          })()}
 
           {/* ── Controls panel — Row 1: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
