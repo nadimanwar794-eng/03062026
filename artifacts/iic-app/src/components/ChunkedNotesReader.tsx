@@ -1552,10 +1552,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
           >
             {/* Header row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 16 }}>💡</span>
+              <span style={{ fontSize: 16 }}>🎧</span>
               <div style={{ flex: 1 }}>
-                <span style={{ color: '#7dd3fc', fontSize: 12, fontWeight: 900 }}>Better Learning Tip</span>
-                <span style={{ color: '#475569', fontSize: 9, marginLeft: 6 }}>From the App</span>
+                <span style={{ color: '#7dd3fc', fontSize: 12, fontWeight: 900 }}>Smart Reading Suggestion</span>
               </div>
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
@@ -1569,9 +1568,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
             {/* Body */}
             <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.5, marginBottom: 10 }}>
-              Unusual Touch Activity Detected. Touch Protection has been enabled.
-              Please avoid excessive tapping. For the best experience, use{' '}
-              <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Auto TTS Reading</span>.
+              You're actively navigating through topics.{' '}
+              Switch to <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Auto TTS Reading</span> for hands-free learning and automatic progress tracking.
             </div>
 
             {/* Action buttons */}
