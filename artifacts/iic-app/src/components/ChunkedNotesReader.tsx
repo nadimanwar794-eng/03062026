@@ -1325,10 +1325,20 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               </button>
               {/* Rotate */}
               <button type="button" onClick={handleRotate}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
                 <RotateCcw size={12} style={{ color: '#64748b' }} />
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Reset</span>
               </button>
+              {/* Offline Save */}
+              {onSaveOffline && (
+                <button type="button" onClick={() => { onSaveOffline(); setShowControls(false); }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isSavedOffline ? '#f0fdf4' : 'transparent', cursor: 'pointer', border: 'none' }}>
+                  <WifiOff size={12} style={{ color: isSavedOffline ? '#16a34a' : '#64748b' }} />
+                  <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: isSavedOffline ? '#16a34a' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>
+                    {isSavedOffline ? 'Saved' : 'Save'}
+                  </span>
+                </button>
+              )}
             </div>
           )}
 
