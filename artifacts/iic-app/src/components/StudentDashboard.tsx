@@ -9738,7 +9738,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* NEW GLOBAL TOP BAR */}
       <div
         id="top-banner-container"
-        className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-300 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
+        className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-150 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
         style={{ background: tierTheme.topBarGrad, paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Main Header Row */}
@@ -14122,7 +14122,7 @@ export const StudentDashboard: React.FC<Props> = ({
       >
         <div
           key={activeTab}
-          className={`${contentViewStep === "PLAYER" && selectedChapter ? "h-full" : "animate-in fade-in duration-300 ease-out"}`}
+          className={`${contentViewStep === "PLAYER" && selectedChapter ? "h-full" : "animate-in fade-in duration-150 ease-out"}`}
         >
           {/* ErrorBoundary so a render-time crash inside one page (e.g. History
               or Teacher Store) never blanks the whole dashboard — the user can
