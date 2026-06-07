@@ -682,20 +682,35 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     if (!anyOpen) return;
     let dismissTimer: ReturnType<typeof setTimeout> | null = null;
     let armed = false;
-    const onScroll = () => {
-      const top = window.scrollY || document.documentElement.scrollTop;
-      if (top > 40 && !armed) {
+    const dismiss = () => {
+      setShowScoreInfo(false);
+      setShowReadingActiveInfo(false);
+      setShowControls(false);
+    };
+    const arm = (scrollTop: number) => {
+      if (scrollTop > 40 && !armed) {
         armed = true;
-        dismissTimer = setTimeout(() => {
-          setShowScoreInfo(false);
-          setShowReadingActiveInfo(false);
-          setShowControls(false);
-        }, 10000);
+        dismissTimer = setTimeout(dismiss, 10000);
       }
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    // Listen on window scroll
+    const onWindowScroll = () => arm(window.scrollY || document.documentElement.scrollTop);
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    // Also listen on the inner scroll container (same logic as toolbar-hidden effect)
+    let innerScrollEl: HTMLElement | null = null;
+    const onInnerScroll = () => arm(innerScrollEl?.scrollTop ?? 0);
+    if (toolbarRef.current) {
+      let p = toolbarRef.current.parentElement;
+      while (p) {
+        const ov = window.getComputedStyle(p).overflowY;
+        if ((ov === 'auto' || ov === 'scroll') && p.scrollHeight > p.clientHeight + 10) { innerScrollEl = p; break; }
+        p = p.parentElement;
+      }
+    }
+    if (innerScrollEl) innerScrollEl.addEventListener('scroll', onInnerScroll, { passive: true });
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', onWindowScroll);
+      if (innerScrollEl) innerScrollEl.removeEventListener('scroll', onInnerScroll);
       if (dismissTimer) clearTimeout(dismissTimer);
     };
   }, [showScoreInfo, showReadingActiveInfo, showControls]);
@@ -1138,7 +1153,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
       {!hideTopBar && (
-        <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3">
+        <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3" style={{ width: '100vw', marginLeft: 'calc(-1 * (100vw - 100%) / 2)', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
           {/* ── Slim bar — back + counter + icons ── */}
           <div className="flex items-center gap-1.5 px-2 py-1.5">
             {onBack && (
@@ -1248,13 +1263,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 if (dx > 60) setShowScoreInfo(false);
               }}
               style={{
-                borderTop: '1px solid #c7d2fe',
+                borderTop: '2px solid #6366f1',
                 background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 10px',
+                padding: '7px 12px',
                 animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
                 userSelect: 'none', touchAction: 'pan-y',
-                boxShadow: 'inset 0 -1px 0 #c7d2fe',
+                boxShadow: '0 3px 10px rgba(99,102,241,0.13), inset 0 -1px 0 #c7d2fe',
               }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
               <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
@@ -1313,13 +1328,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   if (dx > 60) setShowReadingActiveInfo(false);
                 }}
                 style={{
-                  borderTop: '1px solid #bae6fd',
+                  borderTop: '2px solid #0ea5e9',
                   background: 'linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%)',
                   display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '6px 10px',
+                  padding: '7px 12px',
                   animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
                   userSelect: 'none', touchAction: 'pan-y',
-                  boxShadow: 'inset 0 -1px 0 #bae6fd',
+                  boxShadow: '0 3px 10px rgba(14,165,233,0.12), inset 0 -1px 0 #bae6fd',
                 }}>
                 <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
                 <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
@@ -1355,7 +1370,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
           {/* ── Controls panel — Row 1: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'stretch', animation: 'tp-banner-in 0.18s cubic-bezier(0.34,1.56,0.64,1)', boxShadow: 'inset 0 1px 0 #fff' }}>
+            <div style={{ borderTop: '2px solid #e2e8f0', background: 'linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%)', display: 'flex', alignItems: 'stretch', animation: 'tp-banner-in 0.18s cubic-bezier(0.34,1.56,0.64,1)', boxShadow: '0 3px 10px rgba(0,0,0,0.07)' }}>
               {/* READ ALL / STOP */}
               <button
                 type="button"
@@ -1403,7 +1418,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
           {/* ── MORE panel — Row 2: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div style={{ borderTop: '1px solid #e2e8f0', background: '#f1f5f9', display: 'flex', alignItems: 'stretch', boxShadow: 'inset 0 -2px 0 #e2e8f0' }}>
+            <div style={{ borderTop: '1px solid #e2e8f0', background: 'linear-gradient(180deg, #e8edf3 0%, #f1f5f9 100%)', display: 'flex', alignItems: 'stretch', boxShadow: 'inset 0 -2px 0 #d1d9e0' }}>
 
               {/* Font Style */}
               <button type="button"
