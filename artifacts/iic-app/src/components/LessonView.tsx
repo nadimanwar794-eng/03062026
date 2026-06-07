@@ -47,6 +47,8 @@ interface Props {
   instantExplanation?: boolean; // NEW: Instant Feedback Mode
   onShowMarksheet?: (result?: any) => void; // NEW: Marksheet Trigger
   onImmersiveChange?: (isImmersive: boolean) => void;
+  onNext?: () => void;
+  nextTitle?: string;
 }
 
 export const LessonView: React.FC<Props> = ({ 
@@ -65,7 +67,9 @@ export const LessonView: React.FC<Props> = ({
   onToggleAutoTts,
   instantExplanation = false, // Default to standard mode
   onShowMarksheet,
-  onImmersiveChange
+  onImmersiveChange,
+  onNext,
+  nextTitle,
 }) => {
   const [mcqState, setMcqState] = useState<Record<number, number | null>>({});
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
@@ -865,6 +869,8 @@ export const LessonView: React.FC<Props> = ({
               isPremium={!!(user?.isPremium || (user?.subscriptionTier && user.subscriptionTier !== 'FREE'))}
               boostPercent={getActiveBoost(user as any)}
               onScoreEarned={handleReadingScoreEarned}
+              onNext={onNext}
+              nextTitle={nextTitle}
           />
       );
   }

@@ -29,6 +29,9 @@ interface Props {
   isPremium?: boolean;
   boostPercent?: number;
   onScoreEarned?: (pts: number) => void;
+  /** Next chapter navigation */
+  onNext?: () => void;
+  nextTitle?: string;
 }
 
 type NightMode = 'normal' | 'night' | 'sepia';
@@ -61,6 +64,7 @@ const MILESTONE_SCORES = [
 export const PdfViewer: React.FC<Props> = ({
   url, title, onBack, sessionKey,
   userId, subscriptionLevel, isPremium, boostPercent = 0, onScoreEarned,
+  onNext, nextTitle,
 }) => {
   const key = sessionKey || btoa(url).replace(/[^a-z0-9]/gi, '').slice(0, 24);
 
@@ -450,18 +454,18 @@ export const PdfViewer: React.FC<Props> = ({
       </div>
 
       {/* Bottom toolbar */}
-      <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur text-white px-4 py-2 flex items-center justify-between z-20">
-        {/* Prev */}
+      <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur text-white px-3 py-2 flex items-center gap-2 z-20">
+        {/* Prev page */}
         <button
           onClick={prevPage}
           disabled={currentPage <= 1}
-          className="p-2 bg-white/10 rounded-xl disabled:opacity-30 active:scale-90 transition"
+          className="p-2 bg-white/10 rounded-xl disabled:opacity-30 active:scale-90 transition shrink-0"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={18} />
         </button>
 
         {/* Center: page + set total */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-1 justify-center">
           <button
             onClick={() => setShowJump(true)}
             className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl text-sm font-black active:bg-white/20 transition"
@@ -475,18 +479,31 @@ export const PdfViewer: React.FC<Props> = ({
             className="text-[10px] text-slate-400 font-bold bg-white/5 px-2 py-1 rounded-lg active:bg-white/10 transition"
             title="Set total pages"
           >
-            {totalPages > 0 ? `📚 ${progressPct}%` : '📚 Set pages'}
+            {totalPages > 0 ? `📚 ${progressPct}%` : '📚 Set'}
           </button>
         </div>
 
-        {/* Next */}
+        {/* Next page */}
         <button
           onClick={nextPage}
           disabled={totalPages > 0 && currentPage >= totalPages}
-          className="p-2 bg-white/10 rounded-xl disabled:opacity-30 active:scale-90 transition"
+          className="p-2 bg-white/10 rounded-xl disabled:opacity-30 active:scale-90 transition shrink-0"
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={18} />
         </button>
+
+        {/* Next Chapter button — only when next exists */}
+        {onNext && (
+          <button
+            onClick={onNext}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-black active:scale-95 transition shrink-0"
+            style={{ background: 'rgba(59,130,246,0.30)', border: '1px solid rgba(59,130,246,0.45)', color: '#93c5fd' }}
+            title={nextTitle ? `Next: ${nextTitle}` : 'Next Chapter'}
+          >
+            <span className="max-w-[80px] truncate hidden xs:block">{nextTitle || 'Next'}</span>
+            <ChevronRight size={14} />
+          </button>
+        )}
       </div>
 
       {/* Fullscreen tap-to-show hint */}

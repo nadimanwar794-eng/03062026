@@ -2904,21 +2904,31 @@ const App: React.FC = () => {
                 {state.view === 'LESSON' && state.lessonContent && (
                     <ErrorBoundary fallbackLabel="Lesson" resetKey={state.selectedChapter?.id}>
                       <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-screen" aria-label="Loading lesson" aria-busy="true"><div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>}>
-                      <LessonView 
-                          content={state.lessonContent} 
-                          subject={state.selectedSubject!} 
-                          classLevel={state.selectedClass!} 
-                          chapter={state.selectedChapter!} 
-                          loading={state.loading && !isStreaming}
-                          onBack={goBack} 
-                          onMCQComplete={handleMCQComplete}
-                          user={state.user}
-                          settings={state.settings}
-                          isStreaming={isStreaming}
-                          onLaunchContent={(c: any) => handleContentGeneration(c.isPremium ? 'NOTES_PREMIUM' : 'NOTES_HTML_FREE', undefined, false, c)}
-                          onToggleAutoTts={handleToggleAutoTts}
-                          onImmersiveChange={setIsLessonImmersive}
-                      />
+                      {(() => {
+                        const _isPdfContent = state.lessonContent && ['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type);
+                        const _curIdx = _isPdfContent ? state.chapters.findIndex(c => c.id === state.selectedChapter?.id) : -1;
+                        const _nextChapter = _curIdx >= 0 && _curIdx < state.chapters.length - 1 ? state.chapters[_curIdx + 1] : null;
+                        const _handleNextPdf = _nextChapter ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
+                        return (
+                          <LessonView
+                              content={state.lessonContent}
+                              subject={state.selectedSubject!}
+                              classLevel={state.selectedClass!}
+                              chapter={state.selectedChapter!}
+                              loading={state.loading && !isStreaming}
+                              onBack={goBack}
+                              onMCQComplete={handleMCQComplete}
+                              user={state.user}
+                              settings={state.settings}
+                              isStreaming={isStreaming}
+                              onLaunchContent={(c: any) => handleContentGeneration(c.isPremium ? 'NOTES_PREMIUM' : 'NOTES_HTML_FREE', undefined, false, c)}
+                              onToggleAutoTts={handleToggleAutoTts}
+                              onImmersiveChange={setIsLessonImmersive}
+                              onNext={_handleNextPdf}
+                              nextTitle={_nextChapter?.title}
+                          />
+                        );
+                      })()}
                       </Suspense>
                     </ErrorBoundary>
                 )}
