@@ -376,17 +376,241 @@ export const getSystemSettings = async () => {
     return null;
 };
 
+// ── Auto-sharding storage helpers ─────────────────────────────────────────────
+// Firestore limit: 1 MB per document. We use 512 KB (50%) as the shard
+// boundary so data stays safely under the limit even with metadata overhead.
+// Layout:
+//   Firestore: config/{prefix}_shard_0, config/{prefix}_shard_1, …
+//              config/{prefix}_meta  → { shardCount: N }
+//   RTDB:      {rtdbPrefix}_shard_0, …   /  {rtdbPrefix}_meta
+// Both stores are kept in sync. Firestore is the source of truth.
+
+const SHARD_LIMIT_BYTES = 512 * 1024; // 512 KB = 50% of Firestore 1 MB limit
+
+const _estimateBytes = (obj: any): number => {
+  try { return new TextEncoder().encode(JSON.stringify(obj)).length; } catch { return 999_999; }
+};
+
+const _splitIntoShards = (items: any[]): any[][] => {
+  if (items.length === 0) return [[]];
+  const shards: any[][] = [];
+  let shard: any[] = [];
+  let shardBytes = 2; // '[]' wrapper
+  for (const item of items) {
+    const sz = _estimateBytes(item) + 1; // +1 for comma
+    if (shardBytes + sz > SHARD_LIMIT_BYTES && shard.length > 0) {
+      shards.push(shard);
+      shard = [];
+      shardBytes = 2;
+    }
+    shard.push(item);
+    shardBytes += sz;
+  }
+  if (shard.length > 0) shards.push(shard);
+  if (shards.length === 0) shards.push([]);
+  return shards;
+};
+
+// Saves items across auto-sized shards. Returns a promise that resolves once
+// old-shard metadata is read (needed to delete stale shards).
+const _saveShardsForArray = async (
+  fsPrefix: string,
+  rtdbPrefix: string,
+  items: any[],
+  writes: Promise<any>[],
+): Promise<void> => {
+  const sanitized = sanitizeForFirestore(items);
+  const shards = _splitIntoShards(sanitized);
+  const newShardCount = shards.length;
+
+  let oldShardCount = 1;
+  try {
+    const metaSnap = await getDoc(doc(db, "config", `${fsPrefix}_meta`));
+    if (metaSnap.exists()) oldShardCount = metaSnap.data()?.shardCount ?? 1;
+  } catch {}
+
+  shards.forEach((shardItems, idx) => {
+    writes.push(setDoc(doc(db, "config", `${fsPrefix}_shard_${idx}`), { items: shardItems }));
+    writes.push(set(ref(rtdb, `${rtdbPrefix}_shard_${idx}`), { items: shardItems }));
+  });
+
+  for (let i = newShardCount; i < oldShardCount; i++) {
+    writes.push(deleteDoc(doc(db, "config", `${fsPrefix}_shard_${i}`)));
+    writes.push(remove(ref(rtdb, `${rtdbPrefix}_shard_${i}`)));
+  }
+
+  writes.push(setDoc(doc(db, "config", `${fsPrefix}_meta`), { shardCount: newShardCount }));
+  writes.push(set(ref(rtdb, `${rtdbPrefix}_meta`), { shardCount: newShardCount }));
+};
+
+// Real-time subscription that dynamically tracks shard count and rebuilds the
+// merged array whenever any shard or the metadata doc changes.
+const _subscribeShardedArray = (
+  fsPrefix: string,
+  rtdbPrefix: string,
+  onUpdate: (arr: any[]) => void,
+): (() => void) => {
+  let shardCount = 1;
+  const shardsData: Record<number, any[]> = {};
+  let shardUnsubs: (() => void)[] = [];
+
+  const _rebuild = () => {
+    const all: any[] = [];
+    for (let i = 0; i < shardCount; i++) {
+      const s = shardsData[i];
+      if (s) all.push(...s);
+    }
+    onUpdate(all);
+  };
+
+  const _listenToShard = (idx: number): (() => void) => {
+    let fsOk = false;
+    const unsubFs = onSnapshot(doc(db, "config", `${fsPrefix}_shard_${idx}`), (snap) => {
+      fsOk = true;
+      shardsData[idx] = snap.exists() ? (snap.data()?.items ?? []) : [];
+      _rebuild();
+    });
+    const unsubRtdb = onValue(ref(rtdb, `${rtdbPrefix}_shard_${idx}`), (snap) => {
+      if (fsOk) return;
+      shardsData[idx] = snap.val()?.items ?? [];
+      _rebuild();
+    });
+    return () => { unsubFs(); unsubRtdb(); };
+  };
+
+  const _applyShardCount = (count: number) => {
+    if (count === shardCount && shardUnsubs.length === count) return;
+    for (let i = count; i < shardUnsubs.length; i++) {
+      shardUnsubs[i]?.();
+      delete shardsData[i];
+    }
+    shardUnsubs = shardUnsubs.slice(0, count);
+    for (let i = shardUnsubs.length; i < count; i++) {
+      shardUnsubs.push(_listenToShard(i));
+    }
+    shardCount = count;
+  };
+
+  // Start with shard 0 immediately so initial load is fast.
+  _applyShardCount(1);
+
+  let metaFromFs = false;
+  const unsubMeta = onSnapshot(doc(db, "config", `${fsPrefix}_meta`), (snap) => {
+    metaFromFs = true;
+    _applyShardCount(snap.exists() ? (snap.data()?.shardCount ?? 1) : 1);
+  });
+  const unsubMetaRtdb = onValue(ref(rtdb, `${rtdbPrefix}_meta`), (snap) => {
+    if (metaFromFs) return;
+    _applyShardCount(snap.val()?.shardCount ?? 1);
+  });
+
+  return () => {
+    shardUnsubs.forEach(u => u());
+    unsubMeta();
+    unsubMetaRtdb();
+  };
+};
+
+// Per-item collection helper: saves each item as its own Firestore document
+// (identical to the lucent_entries pattern). Use for arrays whose individual
+// items can themselves be large (e.g. HomeworkItem with embedded HTML + MCQs).
+const _savePerItemCollection = async (
+  collectionName: string,
+  rtdbBasePath: string,
+  indexFsDocId: string,
+  rtdbIndexPath: string,
+  items: any[],
+  writes: Promise<any>[],
+): Promise<void> => {
+  const sanitized: any[] = sanitizeForFirestore(items);
+  const newIds: string[] = sanitized.map((e: any) => e?.id).filter(Boolean);
+
+  sanitized.forEach((entry: any) => {
+    if (!entry?.id) return;
+    writes.push(setDoc(doc(db, collectionName, entry.id), entry));
+    writes.push(set(ref(rtdb, `${rtdbBasePath}/${entry.id}`), entry));
+  });
+
+  const indexPayload = { ids: newIds };
+  writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
+  writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
+
+  try {
+    const oldSnap = await getDoc(doc(db, "config", indexFsDocId));
+    if (oldSnap.exists()) {
+      const oldIds: string[] = oldSnap.data()?.ids ?? [];
+      const newIdSet = new Set(newIds);
+      oldIds.filter(id => !newIdSet.has(id)).forEach(id => {
+        writes.push(deleteDoc(doc(db, collectionName, id)));
+        writes.push(remove(ref(rtdb, `${rtdbBasePath}/${id}`)));
+      });
+    }
+  } catch (e) {
+    console.warn(`${indexFsDocId} cleanup read failed — skipping:`, e);
+  }
+};
+
+// Per-item collection subscriber. Returns up to 4 unsub functions.
+const _subscribePerItemCollection = (
+  collectionName: string,
+  rtdbBasePath: string,
+  indexFsDocId: string,
+  rtdbIndexPath: string,
+  onUpdate: (arr: any[]) => void,
+): (() => void)[] => {
+  let itemMap: Record<string, any> = {};
+  let order: string[] = [];
+  let fsConfirmed = false;
+  let indexFromFs = false;
+
+  const _rebuild = () => {
+    onUpdate(order.map(id => itemMap[id]).filter(Boolean));
+  };
+
+  const unsubCollection = onSnapshot(collection(db, collectionName), (snapshot) => {
+    itemMap = {};
+    snapshot.forEach(d => { itemMap[d.id] = d.data(); });
+    fsConfirmed = true;
+    _rebuild();
+  });
+
+  const unsubRtdb = onValue(ref(rtdb, rtdbBasePath), (snap) => {
+    if (fsConfirmed) return;
+    const data = snap.val();
+    if (data && typeof data === 'object') {
+      Object.entries(data).forEach(([id, entry]: [string, any]) => {
+        if (!itemMap[id]) itemMap[id] = entry;
+      });
+      _rebuild();
+    }
+  });
+
+  const unsubIndex = onSnapshot(doc(db, "config", indexFsDocId), (snap) => {
+    indexFromFs = true;
+    order = snap.exists() ? (snap.data()?.ids ?? []) : [];
+    _rebuild();
+  });
+
+  const unsubIndexRtdb = onValue(ref(rtdb, rtdbIndexPath), (snap) => {
+    if (indexFromFs) return;
+    const d = snap.val();
+    if (d?.ids) { order = d.ids; _rebuild(); }
+  });
+
+  return [unsubCollection, unsubRtdb, unsubIndex, unsubIndexRtdb];
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const saveSystemSettings = async (settings: any) => {
   try {
     // ── Extract ALL bulky arrays from core settings ───────────────────────────
-    // Each array gets its own Firestore document + RTDB path so that
-    // config/system_settings NEVER grows beyond ~100 KB, safely below the 1 MB limit.
-    // Passing a field as null/undefined means "don't touch it this save" (no-op).
-    // Passing an empty array [] means "clear it" (intentional).
+    // config/system_settings now contains ONLY scalar settings — it will never
+    // approach 1 MB. Each array type lives in its own segregated storage path.
     const {
       lucentNotes,
-      competitionMcqs,
       homework,
+      competitionMcqs,
       dailyGk,
       notifications,
       broadcastRedeemCodes,
@@ -400,75 +624,47 @@ export const saveSystemSettings = async (settings: any) => {
       setDoc(doc(db, "config", "system_settings"), sanitizedCore),
     ];
 
-    // ── Helper: save a simple array to its own doc (Firestore + RTDB) ─────────
-    const _saveBulkArray = (fsDocId: string, rtdbPath: string, arr: any[]) => {
-      const sanitized = sanitizeForFirestore(arr);
-      writes.push(setDoc(doc(db, "config", fsDocId), { items: sanitized }));
-      writes.push(set(ref(rtdb, rtdbPath), { items: sanitized }));
-    };
-
-    // ── competitionMcqs ───────────────────────────────────────────────────────
-    if (competitionMcqs != null && Array.isArray(competitionMcqs)) {
-      _saveBulkArray("competition_mcqs", "competition_mcqs", competitionMcqs);
-    }
-
-    // ── homework ──────────────────────────────────────────────────────────────
+    // ── homework: per-item documents (each can be large — HTML + MCQs) ───────
     if (homework != null && Array.isArray(homework)) {
-      _saveBulkArray("homework_data", "homework_data", homework);
+      await _savePerItemCollection(
+        "homework_entries", "homework_entries",
+        "homework_index", "homework_index",
+        homework, writes,
+      );
     }
 
-    // ── dailyGk ───────────────────────────────────────────────────────────────
+    // ── competitionMcqs: auto-sharded at 512 KB ───────────────────────────────
+    if (competitionMcqs != null && Array.isArray(competitionMcqs)) {
+      await _saveShardsForArray("competition_mcqs", "competition_mcqs", competitionMcqs, writes);
+    }
+
+    // ── dailyGk: auto-sharded at 512 KB ──────────────────────────────────────
     if (dailyGk != null && Array.isArray(dailyGk)) {
-      _saveBulkArray("daily_gk_data", "daily_gk_data", dailyGk);
+      await _saveShardsForArray("daily_gk", "daily_gk", dailyGk, writes);
     }
 
-    // ── notifications ─────────────────────────────────────────────────────────
+    // ── notifications: auto-sharded at 512 KB ────────────────────────────────
     if (notifications != null && Array.isArray(notifications)) {
-      _saveBulkArray("notifications_data", "notifications_data", notifications);
+      await _saveShardsForArray("notifications", "notifications", notifications, writes);
     }
 
-    // ── broadcastRedeemCodes ──────────────────────────────────────────────────
+    // ── broadcastRedeemCodes: auto-sharded at 512 KB ──────────────────────────
     if (broadcastRedeemCodes != null && Array.isArray(broadcastRedeemCodes)) {
-      _saveBulkArray("broadcast_codes", "broadcast_codes", broadcastRedeemCodes);
+      await _saveShardsForArray("broadcast_codes", "broadcast_codes", broadcastRedeemCodes, writes);
     }
 
-    // ── globalChallengeMcq ────────────────────────────────────────────────────
+    // ── globalChallengeMcq: auto-sharded at 512 KB ───────────────────────────
     if (globalChallengeMcq != null && Array.isArray(globalChallengeMcq)) {
-      _saveBulkArray("global_challenge_mcq", "global_challenge_mcq", globalChallengeMcq);
+      await _saveShardsForArray("global_challenge_mcq", "global_challenge_mcq", globalChallengeMcq, writes);
     }
 
-    // ── lucentNotes ───────────────────────────────────────────────────────────
-    // Each entry stored as its own document in lucent_entries/{id} so even 2000+
-    // pages never approach 1 MB. An index doc tracks ordering.
+    // ── lucentNotes: per-item documents (existing pattern — unchanged) ────────
     if (lucentNotes != null && Array.isArray(lucentNotes)) {
-      const entries: any[] = lucentNotes;
-      const sanitizedEntries: any[] = sanitizeForFirestore(entries);
-      const newIds: string[] = sanitizedEntries.map((e: any) => e?.id).filter(Boolean);
-
-      sanitizedEntries.forEach((entry: any) => {
-        if (!entry?.id) return;
-        writes.push(setDoc(doc(db, "lucent_entries", entry.id), entry));
-        writes.push(set(ref(rtdb, `lucent_entries/${entry.id}`), entry));
-      });
-
-      const indexPayload = { ids: newIds };
-      writes.push(setDoc(doc(db, "config", "lucent_index"), indexPayload));
-      writes.push(set(ref(rtdb, 'lucent_index'), indexPayload));
-
-      try {
-        const oldIndexSnap = await getDoc(doc(db, "config", "lucent_index"));
-        if (oldIndexSnap.exists()) {
-          const oldIds: string[] = oldIndexSnap.data()?.ids ?? [];
-          const newIdSet = new Set(newIds);
-          const toDelete = oldIds.filter((id: string) => !newIdSet.has(id));
-          toDelete.forEach((id: string) => {
-            writes.push(deleteDoc(doc(db, "lucent_entries", id)));
-            writes.push(remove(ref(rtdb, `lucent_entries/${id}`)));
-          });
-        }
-      } catch (e) {
-        console.warn("lucent_index read failed — skipping deletion cleanup:", e);
-      }
+      await _savePerItemCollection(
+        "lucent_entries", "lucent_entries",
+        "lucent_index", "lucent_index",
+        lucentNotes, writes,
+      );
     }
 
     const results = await Promise.allSettled(writes);
@@ -490,97 +686,92 @@ export const subscribeToSettings = (callback: (settings: any) => void) => {
   // ── State ────────────────────────────────────────────────────────────────────
   let latestCore: any = null;
 
-  // Lucent entries (per-document storage with index for ordering)
+  // Bulky arrays — null = not yet loaded (fall back to embedded value in latestCore).
+  let latestHomework:          any[] | null = null;
+  let latestCompetitionMcqs:   any[] | null = null;
+  let latestDailyGk:           any[] | null = null;
+  let latestNotifications:     any[] | null = null;
+  let latestBroadcastCodes:    any[] | null = null;
+  let latestGlobalChallengeMcq: any[] | null = null;
+
+  // Lucent per-item state
   let latestLucentMap: Record<string, any> = {};
   let latestOrder: string[] = [];
   let lucentEntriesConfirmed = false;
-
-  // Bulky arrays — each stored in its own Firestore doc / RTDB path.
-  // null = "not yet loaded from server" (we fall back to embedded value in latestCore).
-  // [] = "server confirmed it is empty".
-  let latestCompetitionMcqs: any[] | null = null;
-  let latestHomework: any[] | null = null;
-  let latestDailyGk: any[] | null = null;
-  let latestNotifications: any[] | null = null;
-  let latestBroadcastCodes: any[] | null = null;
-  let latestGlobalChallengeMcq: any[] | null = null;
 
   // ── Emit ─────────────────────────────────────────────────────────────────────
   const emit = () => {
     if (latestCore == null) return;
 
-    // For each bulky array: prefer the separately-loaded value (new storage path).
-    // Fall back to any embedded value still in latestCore (backward compat for
-    // data saved before this migration — those docs still have the array inline).
+    // Prefer separately-loaded arrays; fall back to any embedded value in
+    // latestCore for backward compat with data saved before this migration.
     const merged: any = {
       ...latestCore,
-      competitionMcqs:    latestCompetitionMcqs    ?? latestCore.competitionMcqs    ?? [],
-      homework:           latestHomework           ?? latestCore.homework           ?? [],
-      dailyGk:            latestDailyGk            ?? latestCore.dailyGk            ?? [],
-      notifications:      latestNotifications      ?? latestCore.notifications      ?? [],
-      broadcastRedeemCodes: latestBroadcastCodes   ?? latestCore.broadcastRedeemCodes ?? [],
-      globalChallengeMcq: latestGlobalChallengeMcq ?? latestCore.globalChallengeMcq ?? [],
+      homework:            latestHomework            ?? latestCore.homework            ?? [],
+      competitionMcqs:     latestCompetitionMcqs     ?? latestCore.competitionMcqs     ?? [],
+      dailyGk:             latestDailyGk             ?? latestCore.dailyGk             ?? [],
+      notifications:       latestNotifications       ?? latestCore.notifications       ?? [],
+      broadcastRedeemCodes: latestBroadcastCodes     ?? latestCore.broadcastRedeemCodes ?? [],
+      globalChallengeMcq:  latestGlobalChallengeMcq  ?? latestCore.globalChallengeMcq  ?? [],
     };
 
-    // Lucent: only include once Firestore has confirmed the collection state.
     if (lucentEntriesConfirmed) {
-      const ordered = latestOrder.map(id => latestLucentMap[id]).filter(Boolean);
-      merged.lucentNotes = ordered;
+      merged.lucentNotes = latestOrder.map(id => latestLucentMap[id]).filter(Boolean);
     }
 
     callback(merged);
   };
 
-  // ── Helper: subscribe to a simple {items:[]} doc (Firestore primary, RTDB backup) ──
-  const _subscribeBulkArray = (
-    fsDocId: string,
-    rtdbPath: string,
-    setter: (arr: any[]) => void,
-  ): (() => void)[] => {
-    let fsConfirmed = false;
-    const unsubFs = onSnapshot(doc(db, "config", fsDocId), (snap) => {
-      fsConfirmed = true;
-      setter(snap.exists() ? (snap.data()?.items ?? []) : []);
-      emit();
-    });
-    const unsubRtdb = onValue(ref(rtdb, rtdbPath), (snap) => {
-      if (fsConfirmed) return; // Firestore is source of truth after first response
-      const d = snap.val();
-      if (d?.items) { setter(d.items); emit(); }
-    });
-    return [unsubFs, unsubRtdb];
-  };
-
-  // ── Core system settings (Firestore primary, RTDB backup) ────────────────────
+  // ── Core settings (Firestore primary, RTDB backup) ────────────────────────
   let coreFromFs = false;
   const unsubCoreFs = onSnapshot(doc(db, "config", "system_settings"), (snap) => {
     coreFromFs = true;
     if (snap.exists()) { latestCore = snap.data(); emit(); }
   });
   const unsubCoreRtdb = onValue(ref(rtdb, 'system_settings'), (snap) => {
-    if (coreFromFs) return; // Firestore already confirmed — ignore stale RTDB snapshots
+    if (coreFromFs) return;
     const d = snap.val(); if (d) { latestCore = d; emit(); }
   });
 
-  // ── Bulky arrays — each in its own doc ───────────────────────────────────────
-  const unsubCompetition  = _subscribeBulkArray("competition_mcqs",    "competition_mcqs",    v => { latestCompetitionMcqs    = v; });
-  const unsubHomework     = _subscribeBulkArray("homework_data",        "homework_data",        v => { latestHomework           = v; });
-  const unsubDailyGk      = _subscribeBulkArray("daily_gk_data",        "daily_gk_data",        v => { latestDailyGk            = v; });
-  const unsubNotifs       = _subscribeBulkArray("notifications_data",   "notifications_data",   v => { latestNotifications      = v; });
-  const unsubBroadcast    = _subscribeBulkArray("broadcast_codes",      "broadcast_codes",      v => { latestBroadcastCodes     = v; });
-  const unsubGlobalMcq    = _subscribeBulkArray("global_challenge_mcq", "global_challenge_mcq", v => { latestGlobalChallengeMcq = v; });
+  // ── homework: per-item collection subscription ────────────────────────────
+  const unsubHomework = _subscribePerItemCollection(
+    "homework_entries", "homework_entries", "homework_index", "homework_index",
+    (arr) => { latestHomework = arr; emit(); },
+  );
 
-  // ── Lucent entries (Firestore collection — each entry is its own document) ────
+  // ── sharded array subscriptions ───────────────────────────────────────────
+  const unsubCompetition = _subscribeShardedArray(
+    "competition_mcqs", "competition_mcqs",
+    (arr) => { latestCompetitionMcqs = arr; emit(); },
+  );
+  const unsubDailyGk = _subscribeShardedArray(
+    "daily_gk", "daily_gk",
+    (arr) => { latestDailyGk = arr; emit(); },
+  );
+  const unsubNotifs = _subscribeShardedArray(
+    "notifications", "notifications",
+    (arr) => { latestNotifications = arr; emit(); },
+  );
+  const unsubBroadcast = _subscribeShardedArray(
+    "broadcast_codes", "broadcast_codes",
+    (arr) => { latestBroadcastCodes = arr; emit(); },
+  );
+  const unsubGlobalMcq = _subscribeShardedArray(
+    "global_challenge_mcq", "global_challenge_mcq",
+    (arr) => { latestGlobalChallengeMcq = arr; emit(); },
+  );
+
+  // ── lucent: per-item collection (Firestore primary) ───────────────────────
   const unsubLucentEntries = onSnapshot(collection(db, "lucent_entries"), (snapshot) => {
     latestLucentMap = {};
     snapshot.forEach(d => { latestLucentMap[d.id] = d.data(); });
     lucentEntriesConfirmed = true;
     emit();
   });
-  // RTDB backup — only used before Firestore confirms (offline edge cases)
   const unsubLucentRtdb = onValue(ref(rtdb, 'lucent_entries'), (snap) => {
+    if (lucentEntriesConfirmed) return;
     const data = snap.val();
-    if (data && typeof data === 'object' && !lucentEntriesConfirmed) {
+    if (data && typeof data === 'object') {
       Object.entries(data).forEach(([id, entry]: [string, any]) => {
         if (!latestLucentMap[id]) latestLucentMap[id] = entry;
       });
@@ -588,8 +779,6 @@ export const subscribeToSettings = (callback: (settings: any) => void) => {
       emit();
     }
   });
-
-  // ── Lucent index (ordering + deletion awareness) ──────────────────────────────
   let lucentIndexFromFs = false;
   const unsubLucentIndex = onSnapshot(doc(db, "config", "lucent_index"), (snap) => {
     lucentIndexFromFs = true;
@@ -602,12 +791,12 @@ export const subscribeToSettings = (callback: (settings: any) => void) => {
 
   return () => {
     unsubCoreFs(); unsubCoreRtdb();
-    unsubCompetition.forEach(u => u());
     unsubHomework.forEach(u => u());
-    unsubDailyGk.forEach(u => u());
-    unsubNotifs.forEach(u => u());
-    unsubBroadcast.forEach(u => u());
-    unsubGlobalMcq.forEach(u => u());
+    unsubCompetition();
+    unsubDailyGk();
+    unsubNotifs();
+    unsubBroadcast();
+    unsubGlobalMcq();
     unsubLucentEntries(); unsubLucentRtdb();
     unsubLucentIndex(); unsubLucentIndexRtdb();
   };
