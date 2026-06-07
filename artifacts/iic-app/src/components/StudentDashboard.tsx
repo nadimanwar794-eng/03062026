@@ -2666,6 +2666,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // Tracks htmlViewMode inside ChunkedNotesReader (for download sync without unmounting reader)
   const [lucentChunkHtmlMode, setLucentChunkHtmlMode] = useState<'chunk' | 'html'>('chunk');
   const [lucentSaved, setLucentSaved] = useState(false);
+  const [hwSaved, setHwSaved] = useState(false);
   const [lucentOptionsOpen, setLucentOptionsOpen] = useState(false);
   const [hwOptionsOpen, setHwOptionsOpen] = useState(false);
   const [lucentFabOpen, setLucentFabOpen] = useState(false);
@@ -5808,6 +5809,24 @@ export const StudentDashboard: React.FC<Props> = ({
                       <ChunkedNotesReader
                         key={`hw-reader-${activeHw.id}-chunk`}
                         onBack={goBack}
+                        onSaveOffline={async () => {
+                          try {
+                            const chunkSrc = (activeHw as any).chunkNotes;
+                            const htmlSrc = (activeHw as any).htmlNotes;
+                            const content = chunkSrc?.trim() || htmlSrc?.trim() || activeHw.notes || '';
+                            await saveOfflineItem({
+                              id: `hw_${activeHw.id}`,
+                              type: 'NOTE',
+                              title: activeHw.title || 'Homework',
+                              subtitle: `Competition · ${activeHw.targetSubject || ''}`,
+                              data: { kind: 'LUCENT_CHUNK', chunkNotes: content, lessonTitle: activeHw.title, subject: activeHw.targetSubject },
+                            });
+                            setHwSaved(true);
+                            showAlert('✅ Saved offline! Check the Offline tab.', 'SUCCESS');
+                            setTimeout(() => setHwSaved(false), 3000);
+                          } catch { showAlert('Save failed. Please try again.', 'ERROR'); }
+                        }}
+                        isSavedOffline={hwSaved}
                         onMoreOptions={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
                         isUltraUser={_isUltraUser}
                         ultraHtmlRemaining={_isUltraUser ? ultraHtmlRemaining : undefined}

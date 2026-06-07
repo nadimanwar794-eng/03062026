@@ -1156,16 +1156,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               )}
             </div>
-            {onSaveOffline && (
-              <button
-                type="button"
-                onClick={onSaveOffline}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isSavedOffline ? 'bg-emerald-100 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
-                title={isSavedOffline ? 'Saved!' : 'Save Offline'}
-              >
-                <WifiOff size={13} />
-              </button>
-            )}
             {/* 📖 Book icon button — score info popup (hidden when popup is open) */}
             {readingScoreConfig && scoreState && !showScoreInfo && (
               <button
