@@ -1269,7 +1269,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 Touch Protection
               </span>
               <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
-                10 sec → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward</span>
+                10 sec ruko → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward milega</span>
               </span>
               <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
                 <div style={{
@@ -1568,8 +1568,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
             {/* Body */}
             <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.5, marginBottom: 10 }}>
-              You're actively navigating through topics.{' '}
-              Switch to <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Auto TTS Reading</span> for hands-free learning and automatic progress tracking.
+              Aap topics me manually navigate kar rahe hain.{' '}
+              <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Auto TTS Reading</span> switch karo — hands-free padhai aur automatic progress tracking milegi.
             </div>
 
             {/* Action buttons */}
@@ -1587,7 +1587,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   cursor: 'pointer',
                 }}
               >
-                🎙️ Start TTS Reading
+                🎙️ TTS Reading Shuru Karo
               </button>
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
@@ -1598,7 +1598,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   border: '1px solid #ffffff15', cursor: 'pointer',
                 }}
               >
-                Not Now
+                Abhi Nahi
               </button>
             </div>
           </div>
