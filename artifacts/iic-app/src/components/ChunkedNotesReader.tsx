@@ -1294,129 +1294,131 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             </div>
           )}
 
-          {/* ── Controls panel — shown when 3-dot is tapped (always below any open banners) ── */}
+          {/* ── Controls panel — Row 1: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div className="animate-in slide-in-from-top-1 duration-150">
-              <div className="flex items-center gap-1 px-2 pb-1.5">
-                {/* READ ALL */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); }
-                    else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} startFromIndex(initialIndex ?? 0); }
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1 h-8 rounded-xl text-[11px] font-black active:scale-95 transition ${isReading ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'}`}
-                >
-                  {isReading ? <><Square size={11}/> Stop</> : <><Volume2 size={11}/> {initialIndex ? 'Resume' : 'Read All'}</>}
-                </button>
-                {/* A− */}
-                <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
-                  className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
-                  A−
-                </button>
-                {/* A+ */}
-                <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
-                  className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
-                  A+
-                </button>
-                {/* Rotate */}
-                <button type="button" onClick={handleRotate}
-                  className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                  <RotateCcw size={14} className="text-slate-600" />
-                </button>
-              </div>
+            <div style={{ borderTop: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'stretch', animation: 'tp-banner-in 0.18s cubic-bezier(0.34,1.56,0.64,1)' }}>
+              {/* READ ALL / STOP */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); }
+                  else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} startFromIndex(initialIndex ?? 0); }
+                }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: isReading ? '#fef2f2' : '#eef2ff', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}
+              >
+                {isReading ? <Square size={12} style={{ color: '#ef4444' }} /> : <Volume2 size={12} style={{ color: '#6366f1' }} />}
+                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: isReading ? '#ef4444' : '#6366f1', lineHeight: 1 }}>
+                  {isReading ? 'Stop' : (initialIndex ? 'Resume' : 'Read')}
+                </span>
+              </button>
+              {/* A− */}
+              <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 0 ? 0.3 : 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A−</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
+              </button>
+              {/* A+ */}
+              <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 3 ? 0.3 : 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A+</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
+              </button>
+              {/* Rotate */}
+              <button type="button" onClick={handleRotate}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                <RotateCcw size={12} style={{ color: '#64748b' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Reset</span>
+              </button>
             </div>
           )}
 
-          {/* ── MORE panel — Style, Color, Search, Speed, Ultra ── */}
+          {/* ── MORE panel — Row 2: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div className="px-2 pb-1.5 pt-0.5 border-t border-slate-100">
-              <div className="grid grid-cols-5 gap-0.5">
+            <div style={{ borderTop: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'stretch' }}>
 
-                {/* Font Style */}
-                <button type="button"
-                  onClick={() => { setShowFontFamilyMenu(true); setShowControls(false); TOP_10_READING_FONTS.forEach(f => ensureReadingFontLoaded(f.gfontParam)); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${activeFont ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}>
-                  <Type size={13} className={activeFont ? 'text-indigo-600' : 'text-slate-600'} />
-                  <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${activeFont ? 'text-indigo-500' : 'text-slate-400'}`}>Style</span>
-                </button>
+              {/* Font Style */}
+              <button type="button"
+                onClick={() => { setShowFontFamilyMenu(true); setShowControls(false); TOP_10_READING_FONTS.forEach(f => ensureReadingFontLoaded(f.gfontParam)); }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: activeFont ? '#eef2ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <Type size={12} style={{ color: activeFont ? '#6366f1' : '#64748b' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: activeFont ? '#6366f1' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Style</span>
+              </button>
 
-                {/* Text Color */}
-                {!textColorOverride ? (
-                  <div className="relative">
-                    <button type="button" onClick={() => setShowColorMenu(s => !s)}
-                      className="w-full flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                      <div className="flex items-center gap-0.5">
-                        <Palette size={11} className="text-slate-600" />
-                        <span className="w-3 h-3 rounded-full border-2 border-slate-300" style={{ backgroundColor: textColor }} />
-                      </div>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Color</span>
-                    </button>
-                    {showColorMenu && (
-                      <>
-                        <div className="fixed inset-0 z-[310]" onClick={() => setShowColorMenu(false)} />
-                        <div className="absolute left-0 top-full mt-1 z-[320] bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 animate-in fade-in slide-in-from-top-2 duration-150">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
-                            Text Color · {themeMode === 'blue' ? 'Blue' : themeMode === 'dark' ? 'Dark' : 'Light'} mode
-                          </p>
-                          <div className="grid grid-cols-6 gap-2">
-                            {READING_PALETTE[themeMode].map((sw, i) => {
-                              const isSelected = sw.hex.toLowerCase() === textColor.toLowerCase();
-                              const isRecommended = i === 0;
-                              return (
-                                <button key={sw.hex} type="button"
-                                  onClick={() => { pickColor(sw.hex); setShowColorMenu(false); }}
-                                  title={`${sw.name}${isRecommended ? ' · Recommended' : ''}`}
-                                  className={`relative aspect-square rounded-lg border-2 transition-all active:scale-90 ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-400'}`}
-                                  style={{ backgroundColor: sw.hex }}>
-                                  {isSelected && <span className="absolute inset-0 flex items-center justify-center"><Check size={12} className="text-white drop-shadow" strokeWidth={4} /></span>}
-                                  {isRecommended && !isSelected && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 text-[8px] font-black text-white flex items-center justify-center shadow">★</span>}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-2">★ = recommended for this mode</p>
+              {/* Text Color */}
+              {!textColorOverride ? (
+                <div style={{ flex: 1, position: 'relative', borderRight: '1px solid #e2e8f0' }}>
+                  <button type="button" onClick={() => setShowColorMenu(s => !s)}
+                    style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Palette size={10} style={{ color: '#64748b' }} />
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #cbd5e1', backgroundColor: textColor, display: 'inline-block' }} />
+                    </div>
+                    <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Color</span>
+                  </button>
+                  {showColorMenu && (
+                    <>
+                      <div className="fixed inset-0 z-[310]" onClick={() => setShowColorMenu(false)} />
+                      <div className="absolute left-0 top-full mt-1 z-[320] bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 animate-in fade-in slide-in-from-top-2 duration-150">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                          Text Color · {themeMode === 'blue' ? 'Blue' : themeMode === 'dark' ? 'Dark' : 'Light'} mode
+                        </p>
+                        <div className="grid grid-cols-6 gap-2">
+                          {READING_PALETTE[themeMode].map((sw, i) => {
+                            const isSelected = sw.hex.toLowerCase() === textColor.toLowerCase();
+                            const isRecommended = i === 0;
+                            return (
+                              <button key={sw.hex} type="button"
+                                onClick={() => { pickColor(sw.hex); setShowColorMenu(false); }}
+                                title={`${sw.name}${isRecommended ? ' · Recommended' : ''}`}
+                                className={`relative aspect-square rounded-lg border-2 transition-all active:scale-90 ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-400'}`}
+                                style={{ backgroundColor: sw.hex }}>
+                                {isSelected && <span className="absolute inset-0 flex items-center justify-center"><Check size={12} className="text-white drop-shadow" strokeWidth={4} /></span>}
+                                {isRecommended && !isSelected && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 text-[8px] font-black text-white flex items-center justify-center shadow">★</span>}
+                              </button>
+                            );
+                          })}
                         </div>
-                      </>
-                    )}
-                  </div>
-                ) : <div />}
+                        <p className="text-[10px] text-slate-500 mt-2">★ = recommended for this mode</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : <div style={{ flex: 1, borderRight: '1px solid #e2e8f0' }} />}
 
-                {/* Search */}
-                <button type="button"
-                  onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${inlineSearch ? 'bg-blue-600 border-blue-600' : 'bg-slate-50 border-slate-200'}`}>
-                  <Search size={13} className={inlineSearch ? 'text-white' : 'text-slate-600'} />
-                  <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${inlineSearch ? 'text-white' : 'text-slate-400'}`}>Search</span>
-                </button>
+              {/* Search */}
+              <button type="button"
+                onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: inlineSearch ? '#eff6ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <Search size={12} style={{ color: inlineSearch ? '#3b82f6' : '#64748b' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: inlineSearch ? '#3b82f6' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Search</span>
+              </button>
 
-                {/* Voice Speed */}
-                <button type="button" onClick={cycleSpeed}
-                  className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                  <span className="text-[11px] font-black text-slate-700 leading-none">{SPEED_LABELS[speedIdx]}</span>
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Speed</span>
-                </button>
+              {/* Voice Speed */}
+              <button type="button" onClick={cycleSpeed}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#334155', lineHeight: 1 }}>{SPEED_LABELS[speedIdx]}</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Speed</span>
+              </button>
 
-                {/* Ultra View */}
-                {hasHtmlToShow ? (
-                  isUltraUser ? (
-                    <button type="button"
-                      onClick={() => { stopAll(); setHtmlViewMode('html'); onHtmlOpen?.(); setShowControls(false); }}
-                      className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-violet-50 border border-violet-200 active:scale-95 transition">
-                      <span className="text-sm leading-none">⚡</span>
-                      <span className="text-[8px] font-bold text-violet-500 uppercase tracking-wide leading-none">Ultra</span>
-                    </button>
-                  ) : (
-                    <button type="button"
-                      onClick={() => { setShowHtmlUnlockPrompt(true); setShowControls(false); }}
-                      className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                      <span className="text-sm leading-none">🔒</span>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Ultra</span>
-                    </button>
-                  )
-                ) : <div />}
+              {/* Ultra View */}
+              {hasHtmlToShow ? (
+                isUltraUser ? (
+                  <button type="button"
+                    onClick={() => { stopAll(); setHtmlViewMode('html'); onHtmlOpen?.(); setShowControls(false); }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: '#f5f3ff', cursor: 'pointer', border: 'none' }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>⚡</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#7c3aed', letterSpacing: '0.05em', lineHeight: 1 }}>Ultra</span>
+                  </button>
+                ) : (
+                  <button type="button"
+                    onClick={() => { setShowHtmlUnlockPrompt(true); setShowControls(false); }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>🔒</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Ultra</span>
+                  </button>
+                )
+              ) : <div style={{ flex: 1 }} />}
 
-              </div>
             </div>
           )}
 
