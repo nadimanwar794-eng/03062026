@@ -1535,7 +1535,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       {showTtsSuggestPopup && (
         <div
           style={{
-            position: 'fixed', bottom: 80, left: 12, right: 12, zIndex: 9998,
+            position: 'fixed', bottom: 132, left: 12, right: 12, zIndex: 9998,
             pointerEvents: 'none',
             animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
           }}
