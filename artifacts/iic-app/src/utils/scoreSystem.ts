@@ -74,6 +74,22 @@ export const getActiveBoost = (user: { scoreBoostPercent?: number; scoreBoostExp
   return user.scoreBoostPercent;
 };
 
+/** Get active Score Boost Event percent from admin settings (0 if expired/disabled) */
+export const getEventBoostPercent = (settings: any): number => {
+  const sbe = settings?.scoreBoostEvent;
+  if (!sbe?.enabled || !sbe?.boostPercent) return 0;
+  const now = Date.now();
+  if (sbe.startsAt && new Date(sbe.startsAt).getTime() > now) return 0;
+  if (sbe.endsAt && new Date(sbe.endsAt).getTime() <= now) return 0;
+  return sbe.boostPercent as number;
+};
+
+/** Get combined boost: user's personal boost (redeem code) + active Score Boost Event */
+export const getCombinedBoost = (
+  user: { scoreBoostPercent?: number; scoreBoostExpiry?: string },
+  settings?: any,
+): number => getActiveBoost(user) + getEventBoostPercent(settings);
+
 /** Calculate final score with multiplier + booster */
 export const calculateScore = (
   baseScore: number,
@@ -130,8 +146,9 @@ export const tryEarnScore = (
   isPremium: boolean | undefined,
   boostPercent = 0,
   activity?: string,
+  scoreLimitBoostPercent?: number,
 ): number => {
-  const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium);
+  const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium, scoreLimitBoostPercent);
   if (remaining <= 0) return 0;
   const calc = calculateScore(baseScore, subscriptionLevel, isPremium, boostPercent);
   const actual = Math.min(calc, remaining);

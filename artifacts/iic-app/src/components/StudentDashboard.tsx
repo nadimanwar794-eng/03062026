@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { FeatureHints, FeatureTipsList } from "./FeatureHints";
 import { TopBarEffectsLayer } from "../utils/topBarEffects";
 import { getLevelInfo, getNextLevelInfo, getLevelProgress, LEVEL_INFO, ACTIVITY_SCORES, getLevelTopBarEffects, getLevelLimitBonus, getLevelDailyLimits, getLevelDailyLimitsWithOverride, getEffectiveDailyLimit, UNLIMITED, getMaxReadingSeconds } from "../utils/levelSystem";
-import { tryEarnScore, awardMilestone, getDailyScoreEarned, DAILY_SCORE_LIMIT, getDailyScoreLimit, getActiveBoost, logScoreActivity } from "../utils/scoreSystem";
+import { tryEarnScore, awardMilestone, getDailyScoreEarned, DAILY_SCORE_LIMIT, getDailyScoreLimit, getActiveBoost, getCombinedBoost, logScoreActivity } from "../utils/scoreSystem";
 import { ScoreHistoryDashboard } from "./ScoreHistoryDashboard";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
 import { LevelLeaderboard } from "./LevelLeaderboard";
@@ -1154,14 +1154,16 @@ export const StudentDashboard: React.FC<Props> = ({
         }
       }
       // ── Score earning per MCQ: wrong=+1 · correct=+2 · 3-streak=+5 · 5-streak=+10 ──
-      const boost = getActiveBoost(freshUser);
+      // Combined boost = user's personal redeem-code boost + active Score Boost Event boost
+      const boost = getCombinedBoost(freshUser, settings);
+      const limitBoost = (freshUser as any).scoreLimitBoostPercent;
       const streakKey = `nst_mcq_streak_${today}_${freshUser.id}`;
       const currentStreak = parseInt(localStorage.getItem(streakKey) || '0');
 
       if (!isCorrect) {
         // Wrong answer → +1 score, reset streak
         localStorage.setItem(streakKey, '0');
-        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG');
+        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', limitBoost);
         if (earned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + earned });
         }
@@ -1173,15 +1175,15 @@ export const StudentDashboard: React.FC<Props> = ({
         let bonusMsg = '';
         // Streak milestone: every 5 consecutive → +10 bonus (checked first for display priority)
         if (newStreak % 5 === 0) {
-          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5');
+          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5', limitBoost);
           bonusMsg = `⚡ ${newStreak} Streak! +10 Bonus Score!`;
         } else if (newStreak % 3 === 0) {
           // Every 3 consecutive (but not a multiple of 5) → +5 bonus
-          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3');
+          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3', limitBoost);
           bonusMsg = `🔥 ${newStreak} Streak! +5 Bonus Score!`;
         }
         if (bonusMsg) showAlert(bonusMsg, 'SUCCESS');
-        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT');
+        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', limitBoost);
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + totalEarned });
@@ -2393,7 +2395,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const tiers = newTier - lucentLastAwardedTierRef.current;
         lucentLastAwardedTierRef.current = newTier;
         const freshU = userRef.current;
-        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getActiveBoost(freshU));
+        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getCombinedBoost(freshU, settings), activityType, (freshU as any).scoreLimitBoostPercent);
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
           handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
@@ -5735,7 +5737,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         markReadToday(activeHw.id!);
                         // Award milestone score for homework reading progress
                         if (hwMilestoneSessionRef.current) {
-                          const result = awardMilestone(user.id, hwMilestoneSessionRef.current, hwMilestonePrevPctRef.current, pctNow, user.subscriptionLevel, user.isPremium, getActiveBoost(user));
+                          const result = awardMilestone(user.id, hwMilestoneSessionRef.current, hwMilestonePrevPctRef.current, pctNow, user.subscriptionLevel, user.isPremium, getCombinedBoost(user, settings));
                           hwMilestonePrevPctRef.current = pctNow;
                           if (result && result.earned > 0) { triggerRewardEffect(result.earned, `+${result.earned} pts 📖`); logScoreActivity(user.id, 'MILESTONE', result.earned); handleUserUpdate({ ...user, totalScore: (user.totalScore || 0) + result.earned }); }
                         }
@@ -5912,7 +5914,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           userLevel: getLevelInfo(user.totalScore || 0).level,
                           subscriptionLevel: user.subscriptionLevel || 'FREE',
                           isPremium: !!(user.isPremium || (user.subscriptionLevel && user.subscriptionLevel !== 'FREE')),
-                          boostPercent: getActiveBoost(user),
+                          boostPercent: getCombinedBoost(user, settings),
                           onScoreEarned: (pts: number, activity: string) => {
                             if (pts <= 0) return;
                             const cur = userRef.current;
@@ -12885,7 +12887,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       let prevTtsPct = 0;
                       speakText(fullText, null, 1.0, 'hi-IN', () => setSpeakingId('gk_readall'), () => { setSpeakingId(null); setTtsProgressPercent(0); setTtsSessionKey(null); }, (pct) => {
                         setTtsProgressPercent(pct);
-                        const result = awardMilestone(user.id, gkSessionKey, prevTtsPct, pct, user.subscriptionLevel, user.isPremium, getActiveBoost(user));
+                        const result = awardMilestone(user.id, gkSessionKey, prevTtsPct, pct, user.subscriptionLevel, user.isPremium, getCombinedBoost(user, settings));
                         if (result && result.earned > 0) { logScoreActivity(user.id, 'NOTES_GK_TTS', result.earned); handleUserUpdate({ ...user, totalScore: (user.totalScore || 0) + result.earned }); }
                         prevTtsPct = pct;
                         if (result && result.earned > 0) triggerRewardEffect(result.earned, `+${result.earned} pts 🎧 GK TTS Read!`);
@@ -16277,7 +16279,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       userLevel: getLevelInfo(user.totalScore || 0).level,
                       subscriptionLevel: user.subscriptionLevel || 'FREE',
                       isPremium: !!(user.isPremium || (user.subscriptionLevel && user.subscriptionLevel !== 'FREE')),
-                      boostPercent: getActiveBoost(user),
+                      boostPercent: getCombinedBoost(user, settings),
                       onScoreEarned: (pts: number, activity: string) => {
                         if (pts <= 0) return;
                         const cur = userRef.current;
