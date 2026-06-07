@@ -8638,40 +8638,111 @@ export const StudentDashboard: React.FC<Props> = ({
               }} />
             </div>
 
-            {/* ── LEVEL CARD ── */}
-            <button
-              onClick={() => setShowScorePanel(true)}
-              className="w-full flex items-center gap-4 px-5 py-4 active:scale-[0.98] transition-transform"
-              style={{ background: _pRowBg, borderTop: `1px solid ${_pLvl.color}28` }}
-            >
-              {/* Big level badge */}
-              <div className="shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center" style={{
-                background: `${_pLvl.color}18`,
-                border: `2px solid ${_pLvl.color}55`,
-              }}>
-                <span className="text-lg leading-none">{_displayLvl.emoji}</span>
-                <span className="text-[10px] font-black mt-0.5" style={{ color: _pLvl.color }}>L{_pLvl.level}</span>
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`text-[15px] font-black leading-tight ${_pTxt}`}>{_pLvl.label}</span>
-                  {(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') && (
-                    <span className="text-[8px] font-bold text-slate-400 bg-slate-200/20 px-1.5 py-0.5 rounded-full">Admin</span>
-                  )}
-                  {_pLvl.discount > 0 && (
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full ml-auto"
-                      style={{ background: `${tierTheme.primary}20`, color: tierTheme.primary, border: `1px solid ${tierTheme.primary}45` }}>
-                      {_pLvl.discount}% OFF
-                    </span>
-                  )}
-                </div>
-                <p className={`text-[10px] mb-2 ${_pTxtSub}`}>{_pRawScore.toLocaleString('en-IN')} XP</p>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${_pProgress}%`, background: tierTheme.pillGrad }} />
-                </div>
-              </div>
-              <ChevronRight size={16} style={{ color: _pTxtMutedColor }} className="shrink-0" />
-            </button>
+            {/* ── LEVEL HERO CARD (inline, click → score panel) ── */}
+            {(() => {
+              const _lvlNum  = _pLvl.level;
+              const _lvlCol  = _pLvl.color;
+              const _subKey  = (user.subscriptionLevel || 'FREE') as string;
+              const _subMultiMap: Record<string, string> = { FREE: '1×', BASIC: '1.2×', ULTRA: '1.5×' };
+              const _subMulti = _subMultiMap[_subKey] ?? '1×';
+              const _lvlDesc  = _lvlNum >= 15 ? 'Maximum Level Achieved — The Pinnacle of Learning'
+                : _lvlNum >= 13 ? 'Near Maximum Rank — Absolute Elite'
+                : _lvlNum >= 10 ? 'Champion Level — Elite Learning Achieved'
+                : _lvlNum >= 7  ? 'Expert Status — Making Great Progress'
+                : _lvlNum >= 4  ? 'Consistent Learner — Growing Fast!'
+                : 'Keep Learning — Reach New Heights!';
+              const _isMaxLvl = _lvlNum >= 15;
+              const _lvlDisp  = _isMaxLvl ? '15 MAX' : `${_lvlNum} / 15`;
+              return (
+                <button onClick={() => setShowScorePanel(true)}
+                  className="w-full text-left active:scale-[0.98] transition-transform"
+                  style={{ borderTop: `1px solid ${_lvlCol}28` }}
+                >
+                  <div className="mx-0 px-4 py-5" style={{
+                    background: _light
+                      ? `linear-gradient(135deg, ${_lvlCol}10 0%, ${_lvlCol}06 100%)`
+                      : `linear-gradient(135deg, ${_lvlCol}18 0%, ${_lvlCol}08 100%)`,
+                  }}>
+                    {/* Tier pill */}
+                    <div className="flex justify-center mb-3">
+                      <span className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-[10px] font-black tracking-[0.15em] uppercase"
+                        style={{ background: tierTheme.pillGrad, color: '#fff', boxShadow: `0 4px 14px ${_lvlCol}40` }}>
+                        {tierTheme.emoji} {_pTierLabel}
+                      </span>
+                    </div>
+                    {/* Diamond + emoji decorations */}
+                    <div className="flex justify-center items-center gap-2 mb-1.5">
+                      <span className="text-[11px] opacity-60" style={{ color: _lvlCol }}>♦</span>
+                      <span className="text-xl leading-none">{_pLvl.emoji}</span>
+                      <span className="text-[11px] opacity-60" style={{ color: _lvlCol }}>♦</span>
+                    </div>
+                    {/* Level name */}
+                    <p className="text-center font-black tracking-[0.18em] uppercase mb-1" style={{
+                      fontSize: 15,
+                      color: _lvlCol,
+                      textShadow: `0 0 20px ${_lvlCol}60`,
+                      letterSpacing: '0.18em',
+                    }}>
+                      ✦ {_pLvl.label.toUpperCase()} ✦
+                    </p>
+                    {/* Description */}
+                    <p className="text-center text-[10px] font-semibold mb-4" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.45)' }}>
+                      {_lvlDesc}
+                    </p>
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {[
+                        { label: 'Level',      value: _lvlDisp },
+                        { label: 'Discount',   value: _pLvl.discount > 0 ? `${_pLvl.discount}% OFF` : '—' },
+                        { label: 'Multiplier', value: _subMulti },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-xl py-2.5 px-1 text-center" style={{
+                          background: _light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)',
+                          border: `1px solid ${_lvlCol}30`,
+                        }}>
+                          <p className="text-[8px] font-black uppercase tracking-[0.12em] mb-0.5" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.38)' }}>
+                            {label}
+                          </p>
+                          <p className="text-[13px] font-black tabular-nums" style={{ color: _lvlCol }}>{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {/* XP progress bar */}
+                    <div className="mb-3">
+                      <div className="flex justify-between text-[9px] font-bold mb-1" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.35)' }}>
+                        <span>{_pRawScore.toLocaleString('en-IN')} XP</span>
+                        {!_isMaxLvl && <span>{_pProgress}%</span>}
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${_pProgress}%`, background: tierTheme.pillGrad, boxShadow: `0 0 8px ${_lvlCol}60` }} />
+                      </div>
+                    </div>
+                    {/* Date + streak + tap hint */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {_pJoinDate && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.42)' }}>
+                            📅 {_pJoinDate}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.42)' }}>
+                          🔥 {_pDaysOnApp} days
+                        </span>
+                      </div>
+                      <span className="flex items-center gap-1 text-[9px] font-black" style={{ color: _lvlCol, opacity: 0.7 }}>
+                        Details <ChevronRight size={10} />
+                      </span>
+                    </div>
+                    {/* Admin badge */}
+                    {(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') && (
+                      <div className="flex justify-center mt-2">
+                        <span className="text-[8px] font-bold text-slate-400 bg-slate-200/20 px-2 py-0.5 rounded-full">Admin</span>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })()}
 
             {/* ── USER ID + EMAIL ROW ── */}
             <div className="flex gap-0 border-t" style={{ borderColor: `${tierTheme.primary}18` }}>
