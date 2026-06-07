@@ -164,6 +164,8 @@ import {
   Sun,
   Palette,
   RefreshCw,
+  Coins,
+  Flame,
 } from "lucide-react";
 import { speakText, stopSpeech, stripHtml } from "../utils/textToSpeech";
 import { getMistakeBankSync, getMistakeBank, addMistakes, removeMistakeByQuestion, MistakeEntry } from "../utils/mistakeBank";
@@ -8752,162 +8754,188 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* ── ACTIVITY HEADER ── */}
-          <div className="px-5 pt-5 pb-2 flex items-center gap-2">
-            <div className="w-1 h-4 rounded-full" style={{ background: tierTheme.primary }} />
-            <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.38)' }}>ACTIVITY</p>
+          {/* ── STATS ROW (redesigned) ── */}
+          <div className="px-3 mb-3">
+            <div className="rounded-2xl overflow-hidden" style={{ background: _pCard, border: `1px solid ${tierTheme.primary}28`, boxShadow: `0 2px 16px rgba(0,0,0,0.18)` }}>
+              {/* Top accent line */}
+              <div className="h-[2px]" style={{ background: `linear-gradient(90deg, transparent 0%, ${tierTheme.primary}90 50%, transparent 100%)` }} />
+              <div className="grid grid-cols-3">
+                {/* Credits */}
+                <div className="py-4 px-2 flex flex-col items-center gap-1" style={{ borderRight: `1px solid ${tierTheme.primary}18` }}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18` }}>
+                    <Coins size={15} style={{ color: tierTheme.primary }} />
+                  </div>
+                  <div className="font-black tabular-nums text-center leading-none" style={{ color: _pTxtColor, fontSize: (user.credits ?? 0) > 99999 ? 13 : 17 }}>
+                    {(user.credits ?? 0).toLocaleString('en-IN')}
+                  </div>
+                  {(user.bonusCredits ?? 0) > 0 && (
+                    <div className="text-[8px] font-bold tabular-nums" style={{ color: `${tierTheme.primary}90` }}>+{(user.bonusCredits ?? 0).toLocaleString('en-IN')} perm</div>
+                  )}
+                  <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: _pTxtSubColor }}>Credits</div>
+                </div>
+                {/* Streak */}
+                <button onClick={() => setShowStreakPopup(true)} className="py-4 px-2 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ borderRight: `1px solid ${tierTheme.primary}18` }}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-1" style={{ background: 'rgba(251,146,60,0.15)' }}>
+                    <Flame size={15} style={{ color: '#fb923c' }} />
+                  </div>
+                  <div className="text-[17px] font-black tabular-nums leading-none" style={{ color: _pTxtColor }}>{user.streak > 0 ? user.streak : '0'}</div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: _pTxtSubColor }}>Streak</div>
+                </button>
+                {/* XP Score */}
+                <div className="py-4 px-2 flex flex-col items-center gap-1">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-1" style={{ background: 'rgba(234,179,8,0.15)' }}>
+                    <Star size={15} style={{ color: '#eab308' }} />
+                  </div>
+                  {(() => {
+                    const _s = _pRawScore >= 1000000 ? `${(_pRawScore/1000000).toFixed(1)}M` : _pRawScore >= 100000 ? `${Math.round(_pRawScore/1000)}k` : _pRawScore >= 1000 ? `${(_pRawScore/1000).toFixed(1)}k` : String(_pRawScore);
+                    return <div className="font-black tabular-nums leading-none text-center" style={{ color: _pTxtColor, fontSize: _s.length <= 4 ? 17 : _s.length <= 6 ? 14 : 12 }}>{_s}</div>;
+                  })()}
+                  <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: _pTxtSubColor }}>XP Score</div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* ── STATS ROW ── */}
-          <div className="px-3 grid grid-cols-3 gap-2.5 mb-3">
-            {/* Credits */}
-            <div className="rounded-2xl pt-4 pb-3 px-3 text-center" style={{ background: _pCard, border: `1px solid ${tierTheme.primary}35`, boxShadow: `0 4px 16px ${tierTheme.primary}10` }}>
-              <div className="text-[11px] mb-1.5" style={{ color: _pTxtMutedColor }}>💎</div>
-              <div className="text-[22px] font-black tabular-nums leading-none mb-1" style={{ color: tierTheme.primary }}>{(user.credits ?? 0).toLocaleString('en-IN')}</div>
-              {(user.bonusCredits ?? 0) > 0 && (
-                <div className="text-[8px] font-black tabular-nums mb-0.5" style={{ color: `${tierTheme.primary}80` }}>✅+{user.bonusCredits?.toLocaleString('en-IN')} Perm</div>
-              )}
-              <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>Credits</div>
-            </div>
-            {/* Streak */}
-            <div onClick={() => setShowStreakPopup(true)} className="rounded-2xl pt-4 pb-3 px-3 text-center cursor-pointer active:scale-95 transition-transform" style={{ background: _pCard, border: `1px solid ${tierTheme.primary}35`, boxShadow: `0 4px 16px ${tierTheme.primary}10` }}>
-              <div className="text-[11px] mb-1.5">🔥</div>
-              <div className="text-[22px] font-black tabular-nums leading-none mb-1" style={{ color: tierTheme.primary }}>{user.streak > 0 ? user.streak : '0'}</div>
-              <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>Streak</div>
-            </div>
-            {/* Total score */}
-            <div className="rounded-2xl pt-4 pb-3 px-3 text-center" style={{ background: _pCard, border: `1px solid ${tierTheme.primary}35`, boxShadow: `0 4px 16px ${tierTheme.primary}10` }}>
-              <div className="text-[11px] mb-1.5">⭐</div>
-              {(() => {
-                const _s = _pRawScore >= 100000 ? `${Math.round(_pRawScore/1000)}k` : _pRawScore >= 10000 ? `${(_pRawScore/1000).toFixed(1)}k` : _pRawScore >= 1000 ? `${(_pRawScore/1000).toFixed(1)}k` : String(_pRawScore);
-                const _fs = _s.length <= 3 ? '22px' : _s.length === 4 ? '18px' : _s.length === 5 ? '15px' : '13px';
-                return <div className="font-black tabular-nums leading-none mb-1 w-full text-center overflow-hidden" style={{ color: tierTheme.primary, fontSize: _fs }}>{_s}</div>;
-              })()}
-              <div className={`text-[9px] font-bold uppercase tracking-widest ${_pTxtSub}`}>XP Score</div>
-            </div>
-          </div>
-
-          {/* ── LEVEL ACHIEVEMENTS ── */}
+          {/* ── LEVEL ACHIEVEMENTS (redesigned) ── */}
           {(() => {
             const _curLvl = _pLvl.level;
-            const _lvlAchievements: { lvl: number; emoji: string; label: string; perks: string[] }[] = [
-              { lvl: 1,  emoji: '🌱', label: 'Beginner',         perks: ['Journey begins!', 'App joined 🎉'] },
-              { lvl: 2,  emoji: '🌿', label: 'Learner',          perks: ['1,000 XP earned', 'Reading habit forming'] },
-              { lvl: 3,  emoji: '🔍', label: 'Active Learner',   perks: ['2% store discount', 'Score activity log'] },
-              { lvl: 4,  emoji: '✨', label: 'Consistent',       perks: ['3% store discount', 'Progress Bonus active!'] },
-              { lvl: 5,  emoji: '⚡', label: 'Dedicated',        perks: ['5% store discount', 'Avatar Halo unlocked!'] },
-              { lvl: 6,  emoji: '🔥', label: 'Rising Achiever',  perks: ['8% store discount', 'Spinning Halo effect!'] },
-              { lvl: 7,  emoji: '💫', label: 'Expert',           perks: ['10% store discount', 'Custom name color!'] },
-              { lvl: 8,  emoji: '💎', label: 'Master',           perks: ['13% store discount', 'Max score multiplier!'] },
-              { lvl: 9,  emoji: '🌟', label: 'Elite',            perks: ['17% store discount', 'Daily Limit Bonus!'] },
-              { lvl: 10, emoji: '👑', label: 'Champion',         perks: ['20% store discount', 'Champion crown!'] },
-              { lvl: 11, emoji: '🏆', label: 'Legend',           perks: ['20% store discount', 'Rainbow name effect!'] },
-              { lvl: 12, emoji: '🔮', label: 'Mythic',           perks: ['22% store discount', 'Mythic aura unlocked!'] },
-              { lvl: 13, emoji: '⚜️', label: 'Supreme',          perks: ['25% store discount', 'Supreme shimmer FX!'] },
-              { lvl: 14, emoji: '🌠', label: 'Eternal',          perks: ['28% store discount', 'Eternal glow effect!'] },
-              { lvl: 15, emoji: '💠', label: 'Absolute Legend',  perks: ['30% store discount', 'MAX RANK achieved!'] },
+            const _lvlAchievements: { lvl: number; emoji: string; label: string; perk: string }[] = [
+              { lvl: 1,  emoji: '🌱', label: 'Beginner',        perk: 'App joined' },
+              { lvl: 2,  emoji: '🌿', label: 'Learner',         perk: '1,000 XP' },
+              { lvl: 3,  emoji: '🔍', label: 'Active Learner',  perk: '2% OFF' },
+              { lvl: 4,  emoji: '✨', label: 'Consistent',      perk: '3% OFF' },
+              { lvl: 5,  emoji: '⚡', label: 'Dedicated',       perk: '5% OFF' },
+              { lvl: 6,  emoji: '🔥', label: 'Rising Achiever', perk: '8% OFF' },
+              { lvl: 7,  emoji: '💫', label: 'Expert',          perk: '10% OFF' },
+              { lvl: 8,  emoji: '💎', label: 'Master',          perk: '13% OFF' },
+              { lvl: 9,  emoji: '🌟', label: 'Elite',           perk: '17% OFF' },
+              { lvl: 10, emoji: '👑', label: 'Champion',        perk: '20% OFF' },
+              { lvl: 11, emoji: '🏆', label: 'Legend',          perk: '20% OFF' },
+              { lvl: 12, emoji: '🔮', label: 'Mythic',          perk: '22% OFF' },
+              { lvl: 13, emoji: '⚜️', label: 'Supreme',         perk: '25% OFF' },
+              { lvl: 14, emoji: '🌠', label: 'Eternal',         perk: '28% OFF' },
+              { lvl: 15, emoji: '💠', label: 'Absolute Legend', perk: '30% OFF' },
             ];
             const _lvlColors: Record<number, string> = {
               1:'#94a3b8',2:'#6ee7b7',3:'#38bdf8',4:'#06b6d4',5:'#3b82f6',
               6:'#f97316',7:'#a855f7',8:'#f59e0b',9:'#eab308',10:'#f59e0b',
               11:'#10b981',12:'#8b5cf6',13:'#ec4899',14:'#f43f5e',15:'#a5f3fc',
             };
+            const _progressPct = Math.round(((_curLvl - 1) / 14) * 100);
             return (
-              <div className="mb-3">
-                <div className="px-5 pt-4 pb-2 flex items-center gap-2">
-                  <div className="w-1 h-4 rounded-full" style={{ background: tierTheme.primary }} />
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.38)' }}>LEVEL ACHIEVEMENTS</p>
-                  <span className="text-[9px] font-bold ml-auto px-2 py-0.5 rounded-full" style={{ background: `${_pLvl.color}20`, color: _pLvl.color, border: `1px solid ${_pLvl.color}40` }}>
-                    {_curLvl}/{15} unlocked
-                  </span>
-                </div>
-                <div className="flex gap-2.5 px-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-                  {_lvlAchievements.map(({ lvl, emoji, label, perks }) => {
-                    const _isDone = _curLvl > lvl;
-                    const _isCur  = _curLvl === lvl;
-                    const _isLocked = _curLvl < lvl;
-                    const _c = _isLocked ? '#94a3b8' : _lvlColors[lvl] ?? tierTheme.primary;
-                    return (
-                      <div key={lvl} className="shrink-0 flex flex-col items-center rounded-2xl p-3"
-                        style={{
-                          width: 90,
-                          background: _isCur
-                            ? `${_c}22`
-                            : _isDone
-                            ? `${_c}12`
-                            : _light ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)',
-                          border: _isCur
-                            ? `2px solid ${_c}80`
-                            : _isDone
-                            ? `1px solid ${_c}40`
-                            : `1px solid ${_light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)'}`,
-                          boxShadow: _isCur ? `0 0 12px ${_c}30` : 'none',
-                          opacity: _isLocked ? 0.45 : 1,
-                        }}
-                      >
-                        {/* Emoji + check */}
-                        <div className="relative mb-1.5">
-                          <span className="text-2xl leading-none">{_isLocked ? '🔒' : emoji}</span>
-                          {_isDone && (
-                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px]"
-                              style={{ background: _c, color: '#fff' }}>✓</span>
-                          )}
-                          {_isCur && (
-                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px]"
-                              style={{ background: _c, color: '#fff' }}>★</span>
-                          )}
+              <div className="px-3 mb-3">
+                <div className="rounded-2xl overflow-hidden" style={{ background: _pCard, border: `1px solid ${tierTheme.primary}20` }}>
+                  {/* Header */}
+                  <div className="px-4 pt-4 pb-3 flex items-center gap-2">
+                    <div className="flex-1">
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: _pTxtColor }}>Level Progress</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: _pTxtSubColor }}>{_curLvl} / 15 levels unlocked</p>
+                    </div>
+                    <div className="px-2.5 py-1 rounded-full text-[10px] font-black" style={{ background: `${_pLvl.color}20`, color: _pLvl.color, border: `1px solid ${_pLvl.color}35` }}>
+                      {_pLvl.emoji} L{_curLvl}
+                    </div>
+                  </div>
+                  {/* Progress track */}
+                  <div className="px-4 pb-3">
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${_progressPct}%`, background: `linear-gradient(90deg, ${tierTheme.primary}80, ${tierTheme.primary})`, transition: 'width 0.6s ease' }} />
+                    </div>
+                  </div>
+                  {/* Horizontal scroll badges */}
+                  <div className="flex gap-2 px-3 pb-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                    {_lvlAchievements.map(({ lvl, emoji, label, perk }) => {
+                      const _isDone   = _curLvl > lvl;
+                      const _isCur    = _curLvl === lvl;
+                      const _isLocked = _curLvl < lvl;
+                      const _c = _isLocked ? (_light ? '#cbd5e1' : '#334155') : (_lvlColors[lvl] ?? tierTheme.primary);
+                      const _textC = _isLocked ? (_light ? '#94a3b8' : '#475569') : _c;
+                      return (
+                        <div key={lvl} className="shrink-0 flex flex-col items-center rounded-xl py-2.5 px-2"
+                          style={{
+                            width: 68,
+                            background: _isCur
+                              ? `${_lvlColors[lvl] ?? tierTheme.primary}22`
+                              : _isDone ? `${_lvlColors[lvl] ?? tierTheme.primary}10`
+                              : _light ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)',
+                            border: _isCur
+                              ? `1.5px solid ${_lvlColors[lvl] ?? tierTheme.primary}70`
+                              : _isDone ? `1px solid ${_lvlColors[lvl] ?? tierTheme.primary}30`
+                              : `1px solid ${_light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'}`,
+                          }}>
+                          {/* Icon */}
+                          <div className="relative mb-1">
+                            <span className="text-xl leading-none" style={{ opacity: _isLocked ? 0.3 : 1 }}>{emoji}</span>
+                            {_isDone && (
+                              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center text-[6px] font-black"
+                                style={{ background: _lvlColors[lvl] ?? tierTheme.primary, color: '#fff' }}>✓</span>
+                            )}
+                            {_isCur && (
+                              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center text-[6px] font-black"
+                                style={{ background: _lvlColors[lvl] ?? tierTheme.primary, color: '#fff' }}>★</span>
+                            )}
+                          </div>
+                          <span className="text-[8px] font-black mb-0.5" style={{ color: _textC }}>L{lvl}</span>
+                          <span className="text-[7px] font-semibold text-center leading-tight mb-1" style={{ color: _isLocked ? (_light ? '#cbd5e1' : '#334155') : _pTxtColor, opacity: _isLocked ? 0.5 : 1 }}>{label}</span>
+                          <span className="text-[7px] font-bold" style={{ color: _textC, opacity: _isLocked ? 0.4 : 0.85 }}>{perk}</span>
                         </div>
-                        {/* Level number */}
-                        <span className="text-[9px] font-black mb-0.5" style={{ color: _isLocked ? '#94a3b8' : _c }}>L{lvl}</span>
-                        {/* Label */}
-                        <span className="text-[8px] font-bold text-center leading-tight mb-2" style={{ color: _isLocked ? (_light ? '#94a3b8' : '#475569') : (_light ? '#1e293b' : '#e2e8f0') }}>{label}</span>
-                        {/* Perks */}
-                        <div className="flex flex-col gap-1 w-full">
-                          {perks.map((p, i) => (
-                            <span key={i} className="text-[7px] font-semibold leading-tight text-center"
-                              style={{ color: _isLocked ? '#94a3b8' : i === 0 ? _c : (_light ? '#64748b' : '#94a3b8') }}>
-                              {p}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             );
           })()}
 
-          {/* ── SUBSCRIPTION COUNTDOWN ── */}
+          {/* ── SUBSCRIPTION COUNTDOWN (redesigned) ── */}
           {user.isPremium && user.subscriptionEndDate && user.subscriptionTier !== 'LIFETIME' && !isNaN(new Date(user.subscriptionEndDate).getTime()) && (() => {
-            const endMs = new Date(user.subscriptionEndDate).getTime();
-            const diff = Math.max(0, endMs - _profileNow);
-            const dDays = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const dHrs  = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const dMin  = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const dSec  = Math.floor((diff % (1000 * 60)) / 1000);
+            const endMs   = new Date(user.subscriptionEndDate).getTime();
+            const totalMs = Math.max(1, endMs - (user.subscriptionHistory?.[0] ? new Date(user.subscriptionHistory[0].startDate).getTime() : endMs - 30*24*60*60*1000));
+            const diff    = Math.max(0, endMs - _profileNow);
+            const dDays   = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const dHrs    = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const dMin    = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const dSec    = Math.floor((diff % (1000 * 60)) / 1000);
             const isUrgent = dDays <= 3;
             const cdAccent = isUrgent ? '#ef4444' : tierTheme.primary;
+            const pct      = Math.max(2, Math.min(100, Math.round((diff / totalMs) * 100)));
             return (
-              <div className="mx-3 rounded-2xl p-4 mb-3" style={{ background: _pCard, border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.30)' : tierTheme.primary + '2e'}` }}>
-                <div className="flex items-center justify-between mb-3">
-                  <p className={`text-xs font-black uppercase tracking-wider ${_pTxt}`}>Subscription</p>
-                  <span className="text-[10px] font-bold" style={{ color: isUrgent ? '#ef4444' : '#94a3b8' }}>
-                    {isUrgent && '⚠ '}{new Date(user.subscriptionEndDate!).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { val: String(dDays).padStart(2, '0'), label: 'Days' },
-                    { val: String(dHrs).padStart(2, '0'), label: 'Hrs' },
-                    { val: String(dMin).padStart(2, '0'), label: 'Min' },
-                    { val: String(dSec).padStart(2, '0'), label: 'Sec' },
-                  ].map(box => (
-                    <div key={box.label} className="rounded-xl py-2 text-center" style={{ background: _pRowBg, border: `1px solid ${cdAccent}35` }}>
-                      <div className="text-xl font-black tabular-nums leading-tight" style={{ color: cdAccent }}>{box.val}</div>
-                      <div className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${_pTxtSub}`}>{box.label}</div>
+              <div className="px-3 mb-3">
+                <div className="rounded-2xl p-4" style={{ background: _pCard, border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.28)' : tierTheme.primary + '22'}` }}>
+                  {/* Header row */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${cdAccent}18` }}>
+                      <Crown size={13} style={{ color: cdAccent }} />
                     </div>
-                  ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: _pTxtColor }}>
+                        {_pTierLabel}
+                      </p>
+                      <p className="text-[10px]" style={{ color: isUrgent ? '#ef4444' : _pTxtSubColor }}>
+                        {isUrgent ? '⚠ Renew karo — khatam hone wala hai' : `Expires: ${new Date(user.subscriptionEndDate!).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                      </p>
+                    </div>
+                    {isUrgent && (
+                      <span className="text-[9px] font-black px-2 py-1 rounded-full shrink-0" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>URGENT</span>
+                    )}
+                  </div>
+                  {/* Progress bar */}
+                  <div className="h-1.5 rounded-full overflow-hidden mb-3" style={{ background: _light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isUrgent ? 'linear-gradient(90deg,#ef4444,#f87171)' : `linear-gradient(90deg,${cdAccent}80,${cdAccent})` }} />
+                  </div>
+                  {/* Time blocks */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { val: String(dDays).padStart(2,'0'), label: 'Days' },
+                      { val: String(dHrs).padStart(2,'0'),  label: 'Hrs' },
+                      { val: String(dMin).padStart(2,'0'),  label: 'Min' },
+                      { val: String(dSec).padStart(2,'0'),  label: 'Sec' },
+                    ].map(box => (
+                      <div key={box.label} className="rounded-xl py-2.5 text-center" style={{ background: _light ? `${cdAccent}0e` : `${cdAccent}10`, border: `1px solid ${cdAccent}22` }}>
+                        <div className="text-[18px] font-black tabular-nums leading-none" style={{ color: cdAccent, fontVariantNumeric: 'tabular-nums' }}>{box.val}</div>
+                        <div className="text-[8px] font-bold uppercase tracking-widest mt-1" style={{ color: _pTxtSubColor }}>{box.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             );
