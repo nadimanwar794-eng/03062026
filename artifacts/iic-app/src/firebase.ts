@@ -378,10 +378,21 @@ export const getSystemSettings = async () => {
 
 export const saveSystemSettings = async (settings: any) => {
   try {
-    // Separate lucentNotes from core settings completely.
-    // Each LucentNoteEntry is stored as its own document in lucent_entries/{id}
-    // so a single Firestore document never hits the 1MB limit — even with 2000+ pages.
-    const { lucentNotes, ...coreSettings } = settings;
+    // ── Extract ALL bulky arrays from core settings ───────────────────────────
+    // Each array gets its own Firestore document + RTDB path so that
+    // config/system_settings NEVER grows beyond ~100 KB, safely below the 1 MB limit.
+    // Passing a field as null/undefined means "don't touch it this save" (no-op).
+    // Passing an empty array [] means "clear it" (intentional).
+    const {
+      lucentNotes,
+      competitionMcqs,
+      homework,
+      dailyGk,
+      notifications,
+      broadcastRedeemCodes,
+      globalChallengeMcq,
+      ...coreSettings
+    } = settings;
     const sanitizedCore = sanitizeForFirestore(coreSettings);
 
     const writes: Promise<any>[] = [
@@ -389,28 +400,61 @@ export const saveSystemSettings = async (settings: any) => {
       setDoc(doc(db, "config", "system_settings"), sanitizedCore),
     ];
 
-    // Process lucentNotes only when explicitly provided (non-null).
-    // An empty array [] is valid here — it means "delete all remaining entries"
-    // (e.g. admin deleted the last Lucent note). This is different from lucentNotes
-    // being absent/undefined which signals a race-condition / unrelated save.
+    // ── Helper: save a simple array to its own doc (Firestore + RTDB) ─────────
+    const _saveBulkArray = (fsDocId: string, rtdbPath: string, arr: any[]) => {
+      const sanitized = sanitizeForFirestore(arr);
+      writes.push(setDoc(doc(db, "config", fsDocId), { items: sanitized }));
+      writes.push(set(ref(rtdb, rtdbPath), { items: sanitized }));
+    };
+
+    // ── competitionMcqs ───────────────────────────────────────────────────────
+    if (competitionMcqs != null && Array.isArray(competitionMcqs)) {
+      _saveBulkArray("competition_mcqs", "competition_mcqs", competitionMcqs);
+    }
+
+    // ── homework ──────────────────────────────────────────────────────────────
+    if (homework != null && Array.isArray(homework)) {
+      _saveBulkArray("homework_data", "homework_data", homework);
+    }
+
+    // ── dailyGk ───────────────────────────────────────────────────────────────
+    if (dailyGk != null && Array.isArray(dailyGk)) {
+      _saveBulkArray("daily_gk_data", "daily_gk_data", dailyGk);
+    }
+
+    // ── notifications ─────────────────────────────────────────────────────────
+    if (notifications != null && Array.isArray(notifications)) {
+      _saveBulkArray("notifications_data", "notifications_data", notifications);
+    }
+
+    // ── broadcastRedeemCodes ──────────────────────────────────────────────────
+    if (broadcastRedeemCodes != null && Array.isArray(broadcastRedeemCodes)) {
+      _saveBulkArray("broadcast_codes", "broadcast_codes", broadcastRedeemCodes);
+    }
+
+    // ── globalChallengeMcq ────────────────────────────────────────────────────
+    if (globalChallengeMcq != null && Array.isArray(globalChallengeMcq)) {
+      _saveBulkArray("global_challenge_mcq", "global_challenge_mcq", globalChallengeMcq);
+    }
+
+    // ── lucentNotes ───────────────────────────────────────────────────────────
+    // Each entry stored as its own document in lucent_entries/{id} so even 2000+
+    // pages never approach 1 MB. An index doc tracks ordering.
     if (lucentNotes != null && Array.isArray(lucentNotes)) {
       const entries: any[] = lucentNotes;
       const sanitizedEntries: any[] = sanitizeForFirestore(entries);
       const newIds: string[] = sanitizedEntries.map((e: any) => e?.id).filter(Boolean);
 
-      // 1. Upsert each remaining entry as its own document (skip if empty)
       sanitizedEntries.forEach((entry: any) => {
         if (!entry?.id) return;
         writes.push(setDoc(doc(db, "lucent_entries", entry.id), entry));
         writes.push(set(ref(rtdb, `lucent_entries/${entry.id}`), entry));
       });
 
-      // 2. Save ordered index so subscriber can reconstruct the array in order
       const indexPayload = { ids: newIds };
       writes.push(setDoc(doc(db, "config", "lucent_index"), indexPayload));
       writes.push(set(ref(rtdb, 'lucent_index'), indexPayload));
 
-      // 3. Delete documents that were removed — read old index first
       try {
         const oldIndexSnap = await getDoc(doc(db, "config", "lucent_index"));
         if (oldIndexSnap.exists()) {
@@ -443,75 +487,129 @@ export const saveSystemSettings = async (settings: any) => {
 };
 
 export const subscribeToSettings = (callback: (settings: any) => void) => {
-  // Core settings and lucent entries come from separate paths and are merged before emit.
+  // ── State ────────────────────────────────────────────────────────────────────
   let latestCore: any = null;
-  let latestLucentMap: Record<string, any> = {};  // id → entry
-  let latestOrder: string[] = [];                  // ordered list of ids
-  // Guard: don't emit lucentNotes until at least one Firestore snapshot has confirmed
-  // the collection state. This prevents emitting [] while entries are still loading,
-  // which could cause a subsequent save to wipe all Lucent data (race condition bug).
+
+  // Lucent entries (per-document storage with index for ordering)
+  let latestLucentMap: Record<string, any> = {};
+  let latestOrder: string[] = [];
   let lucentEntriesConfirmed = false;
 
+  // Bulky arrays — each stored in its own Firestore doc / RTDB path.
+  // null = "not yet loaded from server" (we fall back to embedded value in latestCore).
+  // [] = "server confirmed it is empty".
+  let latestCompetitionMcqs: any[] | null = null;
+  let latestHomework: any[] | null = null;
+  let latestDailyGk: any[] | null = null;
+  let latestNotifications: any[] | null = null;
+  let latestBroadcastCodes: any[] | null = null;
+  let latestGlobalChallengeMcq: any[] | null = null;
+
+  // ── Emit ─────────────────────────────────────────────────────────────────────
   const emit = () => {
     if (latestCore == null) return;
-    // Only include lucentNotes once we have a confirmed snapshot from Firestore
-    if (!lucentEntriesConfirmed) {
-      callback({ ...latestCore });
-      return;
+
+    // For each bulky array: prefer the separately-loaded value (new storage path).
+    // Fall back to any embedded value still in latestCore (backward compat for
+    // data saved before this migration — those docs still have the array inline).
+    const merged: any = {
+      ...latestCore,
+      competitionMcqs:    latestCompetitionMcqs    ?? latestCore.competitionMcqs    ?? [],
+      homework:           latestHomework           ?? latestCore.homework           ?? [],
+      dailyGk:            latestDailyGk            ?? latestCore.dailyGk            ?? [],
+      notifications:      latestNotifications      ?? latestCore.notifications      ?? [],
+      broadcastRedeemCodes: latestBroadcastCodes   ?? latestCore.broadcastRedeemCodes ?? [],
+      globalChallengeMcq: latestGlobalChallengeMcq ?? latestCore.globalChallengeMcq ?? [],
+    };
+
+    // Lucent: only include once Firestore has confirmed the collection state.
+    if (lucentEntriesConfirmed) {
+      const ordered = latestOrder.map(id => latestLucentMap[id]).filter(Boolean);
+      merged.lucentNotes = ordered;
     }
-    // Rebuild ordered array using ONLY the index — do NOT append orphan entries.
-    // Orphan entries are deleted notes that RTDB may still hold temporarily;
-    // appending them would cause deleted notes to reappear in the UI.
-    const ordered = latestOrder.map(id => latestLucentMap[id]).filter(Boolean);
-    callback({ ...latestCore, lucentNotes: ordered });
+
+    callback(merged);
   };
 
-  // --- Core system settings ---
-  const unsubFs = onSnapshot(doc(db, "config", "system_settings"), (snap) => {
+  // ── Helper: subscribe to a simple {items:[]} doc (Firestore primary, RTDB backup) ──
+  const _subscribeBulkArray = (
+    fsDocId: string,
+    rtdbPath: string,
+    setter: (arr: any[]) => void,
+  ): (() => void)[] => {
+    let fsConfirmed = false;
+    const unsubFs = onSnapshot(doc(db, "config", fsDocId), (snap) => {
+      fsConfirmed = true;
+      setter(snap.exists() ? (snap.data()?.items ?? []) : []);
+      emit();
+    });
+    const unsubRtdb = onValue(ref(rtdb, rtdbPath), (snap) => {
+      if (fsConfirmed) return; // Firestore is source of truth after first response
+      const d = snap.val();
+      if (d?.items) { setter(d.items); emit(); }
+    });
+    return [unsubFs, unsubRtdb];
+  };
+
+  // ── Core system settings (Firestore primary, RTDB backup) ────────────────────
+  let coreFromFs = false;
+  const unsubCoreFs = onSnapshot(doc(db, "config", "system_settings"), (snap) => {
+    coreFromFs = true;
     if (snap.exists()) { latestCore = snap.data(); emit(); }
   });
-  const unsubRtdb = onValue(ref(rtdb, 'system_settings'), (snap) => {
+  const unsubCoreRtdb = onValue(ref(rtdb, 'system_settings'), (snap) => {
+    if (coreFromFs) return; // Firestore already confirmed — ignore stale RTDB snapshots
     const d = snap.val(); if (d) { latestCore = d; emit(); }
   });
 
-  // --- Lucent entries (Firestore collection — each entry is its own document) ---
-  const unsubEntries = onSnapshot(collection(db, "lucent_entries"), (snapshot) => {
+  // ── Bulky arrays — each in its own doc ───────────────────────────────────────
+  const unsubCompetition  = _subscribeBulkArray("competition_mcqs",    "competition_mcqs",    v => { latestCompetitionMcqs    = v; });
+  const unsubHomework     = _subscribeBulkArray("homework_data",        "homework_data",        v => { latestHomework           = v; });
+  const unsubDailyGk      = _subscribeBulkArray("daily_gk_data",        "daily_gk_data",        v => { latestDailyGk            = v; });
+  const unsubNotifs       = _subscribeBulkArray("notifications_data",   "notifications_data",   v => { latestNotifications      = v; });
+  const unsubBroadcast    = _subscribeBulkArray("broadcast_codes",      "broadcast_codes",      v => { latestBroadcastCodes     = v; });
+  const unsubGlobalMcq    = _subscribeBulkArray("global_challenge_mcq", "global_challenge_mcq", v => { latestGlobalChallengeMcq = v; });
+
+  // ── Lucent entries (Firestore collection — each entry is its own document) ────
+  const unsubLucentEntries = onSnapshot(collection(db, "lucent_entries"), (snapshot) => {
     latestLucentMap = {};
     snapshot.forEach(d => { latestLucentMap[d.id] = d.data(); });
-    lucentEntriesConfirmed = true; // Firestore has responded — safe to include in emit
+    lucentEntriesConfirmed = true;
     emit();
   });
-
-  // --- RTDB backup for lucent entries (covers Firestore offline edge cases) ---
-  const unsubEntriesRtdb = onValue(ref(rtdb, 'lucent_entries'), (snap) => {
+  // RTDB backup — only used before Firestore confirms (offline edge cases)
+  const unsubLucentRtdb = onValue(ref(rtdb, 'lucent_entries'), (snap) => {
     const data = snap.val();
-    if (data && typeof data === 'object') {
-      if (!lucentEntriesConfirmed) {
-        // Before Firestore confirms, use RTDB as initial data source
-        Object.entries(data).forEach(([id, entry]: [string, any]) => {
-          if (!latestLucentMap[id]) latestLucentMap[id] = entry;
-        });
-        lucentEntriesConfirmed = true;
-        emit();
-      }
-      // After Firestore has confirmed, RTDB is NOT used to add entries —
-      // doing so would bring back recently deleted notes that RTDB still holds in cache.
-      // Firestore is the source of truth for lucent_entries after confirmation.
+    if (data && typeof data === 'object' && !lucentEntriesConfirmed) {
+      Object.entries(data).forEach(([id, entry]: [string, any]) => {
+        if (!latestLucentMap[id]) latestLucentMap[id] = entry;
+      });
+      lucentEntriesConfirmed = true;
+      emit();
     }
   });
 
-  // --- Lucent index (ordering + deletion awareness) ---
-  const unsubIndex = onSnapshot(doc(db, "config", "lucent_index"), (snap) => {
+  // ── Lucent index (ordering + deletion awareness) ──────────────────────────────
+  let lucentIndexFromFs = false;
+  const unsubLucentIndex = onSnapshot(doc(db, "config", "lucent_index"), (snap) => {
+    lucentIndexFromFs = true;
     if (snap.exists()) { latestOrder = snap.data()?.ids ?? []; emit(); }
   });
-  const unsubIndexRtdb = onValue(ref(rtdb, 'lucent_index'), (snap) => {
+  const unsubLucentIndexRtdb = onValue(ref(rtdb, 'lucent_index'), (snap) => {
+    if (lucentIndexFromFs) return;
     const d = snap.val(); if (d?.ids) { latestOrder = d.ids; emit(); }
   });
 
   return () => {
-    unsubFs(); unsubRtdb();
-    unsubEntries(); unsubEntriesRtdb();
-    unsubIndex(); unsubIndexRtdb();
+    unsubCoreFs(); unsubCoreRtdb();
+    unsubCompetition.forEach(u => u());
+    unsubHomework.forEach(u => u());
+    unsubDailyGk.forEach(u => u());
+    unsubNotifs.forEach(u => u());
+    unsubBroadcast.forEach(u => u());
+    unsubGlobalMcq.forEach(u => u());
+    unsubLucentEntries(); unsubLucentRtdb();
+    unsubLucentIndex(); unsubLucentIndexRtdb();
   };
 };
 
