@@ -8663,13 +8663,6 @@ export const StudentDashboard: React.FC<Props> = ({
                       ? `linear-gradient(135deg, ${_lvlCol}10 0%, ${_lvlCol}06 100%)`
                       : `linear-gradient(135deg, ${_lvlCol}18 0%, ${_lvlCol}08 100%)`,
                   }}>
-                    {/* Tier pill */}
-                    <div className="flex justify-center mb-3">
-                      <span className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-[10px] font-black tracking-[0.15em] uppercase"
-                        style={{ background: tierTheme.pillGrad, color: '#fff', boxShadow: `0 4px 14px ${_lvlCol}40` }}>
-                        {tierTheme.emoji} {_pTierLabel}
-                      </span>
-                    </div>
                     {/* Diamond + emoji decorations */}
                     <div className="flex justify-center items-center gap-2 mb-1.5">
                       <span className="text-[11px] opacity-60" style={{ color: _lvlCol }}>♦</span>
@@ -8717,18 +8710,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="h-full rounded-full transition-all" style={{ width: `${_pProgress}%`, background: tierTheme.pillGrad, boxShadow: `0 0 8px ${_lvlCol}60` }} />
                       </div>
                     </div>
-                    {/* Date + streak + tap hint */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {_pJoinDate && (
-                          <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.42)' }}>
-                            📅 {_pJoinDate}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.42)' }}>
-                          🔥 {_pDaysOnApp} days
-                        </span>
-                      </div>
+                    {/* Tap hint */}
+                    <div className="flex items-center justify-end">
                       <span className="flex items-center gap-1 text-[9px] font-black" style={{ color: _lvlCol, opacity: 0.7 }}>
                         Details <ChevronRight size={10} />
                       </span>
