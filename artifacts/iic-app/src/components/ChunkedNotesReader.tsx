@@ -676,6 +676,30 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     return () => window.removeEventListener('scroll', handleScroll);
   }, [showControls]);
 
+  // Auto-dismiss all open banners/controls 10s after user scrolls away
+  useEffect(() => {
+    const anyOpen = showScoreInfo || showReadingActiveInfo || showControls;
+    if (!anyOpen) return;
+    let dismissTimer: ReturnType<typeof setTimeout> | null = null;
+    let armed = false;
+    const onScroll = () => {
+      const top = window.scrollY || document.documentElement.scrollTop;
+      if (top > 40 && !armed) {
+        armed = true;
+        dismissTimer = setTimeout(() => {
+          setShowScoreInfo(false);
+          setShowReadingActiveInfo(false);
+          setShowControls(false);
+        }, 10000);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (dismissTimer) clearTimeout(dismissTimer);
+    };
+  }, [showScoreInfo, showReadingActiveInfo, showControls]);
+
   // Re-apply desktop mode on orientation/resize changes so it survives rotation
   useEffect(() => {
     const reapply = () => {
@@ -1224,12 +1248,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 if (dx > 60) setShowScoreInfo(false);
               }}
               style={{
-                borderTop: '1px solid #e2e8f0',
-                background: '#fff',
+                borderTop: '1px solid #c7d2fe',
+                background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '6px 10px',
                 animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
                 userSelect: 'none', touchAction: 'pan-y',
+                boxShadow: 'inset 0 -1px 0 #c7d2fe',
               }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
               <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
@@ -1288,12 +1313,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   if (dx > 60) setShowReadingActiveInfo(false);
                 }}
                 style={{
-                  borderTop: '1px solid #e2e8f0',
-                  background: '#fff',
+                  borderTop: '1px solid #bae6fd',
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%)',
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 10px',
                   animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
                   userSelect: 'none', touchAction: 'pan-y',
+                  boxShadow: 'inset 0 -1px 0 #bae6fd',
                 }}>
                 <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
                 <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
@@ -1329,7 +1355,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
           {/* ── Controls panel — Row 1: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div style={{ borderTop: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'stretch', animation: 'tp-banner-in 0.18s cubic-bezier(0.34,1.56,0.64,1)' }}>
+            <div style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'stretch', animation: 'tp-banner-in 0.18s cubic-bezier(0.34,1.56,0.64,1)', boxShadow: 'inset 0 1px 0 #fff' }}>
               {/* READ ALL / STOP */}
               <button
                 type="button"
@@ -1377,7 +1403,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
 
           {/* ── MORE panel — Row 2: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div style={{ borderTop: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'stretch' }}>
+            <div style={{ borderTop: '1px solid #e2e8f0', background: '#f1f5f9', display: 'flex', alignItems: 'stretch', boxShadow: 'inset 0 -2px 0 #e2e8f0' }}>
 
               {/* Font Style */}
               <button type="button"
