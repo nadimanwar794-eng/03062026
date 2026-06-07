@@ -1060,7 +1060,8 @@ const App: React.FC = () => {
                        view: nextView as any,
                        selectedClass: nextClass
                    }));
-                   setAlertConfig({isOpen: true, message: "Your subscription has expired. Premium features are locked."});
+                   const expiredTier = state.user?.subscriptionLevel === 'ULTRA' ? 'MAX (Ultra)' : 'PRO (Basic)';
+                   setAlertConfig({isOpen: true, message: `⏳ Aapka ${expiredTier} plan khatam ho gaya. Ab aap Free tier pe hain — sari premium features lock ho gayi hain.`});
               } else {
                    // Just update state silently
                    setState(prev => ({...prev, user: updatedUser}));
@@ -1071,6 +1072,7 @@ const App: React.FC = () => {
           // based on settings.popupConfigs. Removing it from App.tsx to prevent duplicate/competing popups.
       };
 
+      checkExpiry(); // Run immediately on mount/user-change
       const interval = setInterval(checkExpiry, 60000); // Check every minute
       return () => clearInterval(interval);
   }, [state.user, state.originalAdmin]);
