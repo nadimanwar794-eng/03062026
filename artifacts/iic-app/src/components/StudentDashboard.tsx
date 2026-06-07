@@ -8594,8 +8594,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 </span>
               </div>
 
-              {/* ─── Info row: join date + days ─── */}
-              <div className="flex items-center justify-center gap-3 mb-4" style={{ color: _pTxtSubColor }}>
+              {/* ─── Single row: join date · days · avatar switcher ─── */}
+              <div className="flex items-center justify-center gap-2 mb-4 flex-wrap" style={{ color: _pTxtSubColor }}>
                 {_pJoinDate && (
                   <span className="flex items-center gap-1 text-[10px] font-semibold">
                     <span>📅</span>{_pJoinDate}
@@ -8605,11 +8605,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 <span className="flex items-center gap-1 text-[10px] font-semibold">
                   <span>🔥</span>{_pDaysOnApp} days
                 </span>
-              </div>
-
-              {/* ─── Avatar source segmented control ─── */}
-              <div className="flex justify-center">
-                <div className="inline-flex rounded-2xl p-[3px]" style={{
+                <span className="text-[10px] opacity-30">·</span>
+                {/* Avatar switcher inline */}
+                <div className="inline-flex rounded-xl p-[2px]" style={{
                   background: _light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)',
                   border: `1px solid ${_light ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.11)'}`,
                 }}>
@@ -8620,7 +8618,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       handleUserUpdate(updated);
                     }}
                     disabled={!user.photoURL}
-                    className="px-4 py-1.5 rounded-xl text-[11px] font-bold transition-all active:scale-95 flex items-center gap-1.5"
+                    className="px-3 py-1 rounded-lg text-[10px] font-bold transition-all active:scale-95"
                     style={{
                       background: user.avatarChoice === 'gmail' && user.photoURL
                         ? (_light ? '#ffffff' : 'rgba(59,130,246,0.28)')
@@ -8628,7 +8626,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       color: user.avatarChoice === 'gmail' && user.photoURL
                         ? (_light ? '#1d4ed8' : '#93c5fd')
                         : (_light ? '#94a3b8' : 'rgba(255,255,255,0.35)'),
-                      boxShadow: user.avatarChoice === 'gmail' && user.photoURL ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
+                      boxShadow: user.avatarChoice === 'gmail' && user.photoURL ? '0 2px 6px rgba(0,0,0,0.15)' : 'none',
                       opacity: !user.photoURL ? 0.35 : 1,
                     }}>
                     📧 Gmail
@@ -8639,7 +8637,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       handleUserUpdate(updated);
                       await saveUserToLive(updated);
                     }}
-                    className="px-4 py-1.5 rounded-xl text-[11px] font-bold transition-all active:scale-95 flex items-center gap-1.5"
+                    className="px-3 py-1 rounded-lg text-[10px] font-bold transition-all active:scale-95"
                     style={{
                       background: !user.photoURL || user.avatarChoice !== 'gmail'
                         ? (_light ? '#ffffff' : `${tierTheme.primary}28`)
@@ -8647,7 +8645,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       color: !user.photoURL || user.avatarChoice !== 'gmail'
                         ? (_light ? tierTheme.primary : '#e2e8f0')
                         : (_light ? '#94a3b8' : 'rgba(255,255,255,0.35)'),
-                      boxShadow: (!user.photoURL || user.avatarChoice !== 'gmail') ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
+                      boxShadow: (!user.photoURL || user.avatarChoice !== 'gmail') ? '0 2px 6px rgba(0,0,0,0.15)' : 'none',
                     }}>
                     🏫 App
                   </button>
