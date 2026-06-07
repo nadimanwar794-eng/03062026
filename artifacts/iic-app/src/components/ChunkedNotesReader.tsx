@@ -1304,7 +1304,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); }
                   else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} startFromIndex(initialIndex ?? 0); }
                 }}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: isReading ? '#fef2f2' : '#eef2ff', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isReading ? '#fef2f2' : '#eef2ff', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}
               >
                 {isReading ? <Square size={12} style={{ color: '#ef4444' }} /> : <Volume2 size={12} style={{ color: '#6366f1' }} />}
                 <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: isReading ? '#ef4444' : '#6366f1', lineHeight: 1 }}>
@@ -1313,19 +1313,19 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               </button>
               {/* A− */}
               <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 0 ? 0.3 : 1 }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 0 ? 0.3 : 1 }}>
                 <span style={{ fontSize: 13, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A−</span>
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
               </button>
               {/* A+ */}
               <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 3 ? 0.3 : 1 }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 3 ? 0.3 : 1 }}>
                 <span style={{ fontSize: 13, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A+</span>
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
               </button>
               {/* Rotate */}
               <button type="button" onClick={handleRotate}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
                 <RotateCcw size={12} style={{ color: '#64748b' }} />
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Reset</span>
               </button>

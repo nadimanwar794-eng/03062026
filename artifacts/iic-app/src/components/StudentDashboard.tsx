@@ -8610,6 +8610,97 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* ── LEVEL ACHIEVEMENTS ── */}
+          {(() => {
+            const _curLvl = _pLvl.level;
+            const _lvlAchievements: { lvl: number; emoji: string; label: string; perks: string[] }[] = [
+              { lvl: 1,  emoji: '🌱', label: 'Beginner',         perks: ['Journey begins!', 'App joined 🎉'] },
+              { lvl: 2,  emoji: '🌿', label: 'Learner',          perks: ['1,000 XP earned', 'Reading habit forming'] },
+              { lvl: 3,  emoji: '🔍', label: 'Active Learner',   perks: ['2% store discount', 'Score activity log'] },
+              { lvl: 4,  emoji: '✨', label: 'Consistent',       perks: ['3% store discount', 'Progress Bonus active!'] },
+              { lvl: 5,  emoji: '⚡', label: 'Dedicated',        perks: ['5% store discount', 'Avatar Halo unlocked!'] },
+              { lvl: 6,  emoji: '🔥', label: 'Rising Achiever',  perks: ['8% store discount', 'Spinning Halo effect!'] },
+              { lvl: 7,  emoji: '💫', label: 'Expert',           perks: ['10% store discount', 'Custom name color!'] },
+              { lvl: 8,  emoji: '💎', label: 'Master',           perks: ['13% store discount', 'Max score multiplier!'] },
+              { lvl: 9,  emoji: '🌟', label: 'Elite',            perks: ['17% store discount', 'Daily Limit Bonus!'] },
+              { lvl: 10, emoji: '👑', label: 'Champion',         perks: ['20% store discount', 'Champion crown!'] },
+              { lvl: 11, emoji: '🏆', label: 'Legend',           perks: ['20% store discount', 'Rainbow name effect!'] },
+              { lvl: 12, emoji: '🔮', label: 'Mythic',           perks: ['22% store discount', 'Mythic aura unlocked!'] },
+              { lvl: 13, emoji: '⚜️', label: 'Supreme',          perks: ['25% store discount', 'Supreme shimmer FX!'] },
+              { lvl: 14, emoji: '🌠', label: 'Eternal',          perks: ['28% store discount', 'Eternal glow effect!'] },
+              { lvl: 15, emoji: '💠', label: 'Absolute Legend',  perks: ['30% store discount', 'MAX RANK achieved!'] },
+            ];
+            const _lvlColors: Record<number, string> = {
+              1:'#94a3b8',2:'#6ee7b7',3:'#38bdf8',4:'#06b6d4',5:'#3b82f6',
+              6:'#f97316',7:'#a855f7',8:'#f59e0b',9:'#eab308',10:'#f59e0b',
+              11:'#10b981',12:'#8b5cf6',13:'#ec4899',14:'#f43f5e',15:'#a5f3fc',
+            };
+            return (
+              <div className="mb-3">
+                <div className="px-5 pt-4 pb-2 flex items-center gap-2">
+                  <div className="w-1 h-4 rounded-full" style={{ background: tierTheme.primary }} />
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.38)' }}>LEVEL ACHIEVEMENTS</p>
+                  <span className="text-[9px] font-bold ml-auto px-2 py-0.5 rounded-full" style={{ background: `${_pLvl.color}20`, color: _pLvl.color, border: `1px solid ${_pLvl.color}40` }}>
+                    {_curLvl}/{15} unlocked
+                  </span>
+                </div>
+                <div className="flex gap-2.5 px-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                  {_lvlAchievements.map(({ lvl, emoji, label, perks }) => {
+                    const _isDone = _curLvl > lvl;
+                    const _isCur  = _curLvl === lvl;
+                    const _isLocked = _curLvl < lvl;
+                    const _c = _isLocked ? '#94a3b8' : _lvlColors[lvl] ?? tierTheme.primary;
+                    return (
+                      <div key={lvl} className="shrink-0 flex flex-col items-center rounded-2xl p-3"
+                        style={{
+                          width: 90,
+                          background: _isCur
+                            ? `${_c}22`
+                            : _isDone
+                            ? `${_c}12`
+                            : _light ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)',
+                          border: _isCur
+                            ? `2px solid ${_c}80`
+                            : _isDone
+                            ? `1px solid ${_c}40`
+                            : `1px solid ${_light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)'}`,
+                          boxShadow: _isCur ? `0 0 12px ${_c}30` : 'none',
+                          opacity: _isLocked ? 0.45 : 1,
+                        }}
+                      >
+                        {/* Emoji + check */}
+                        <div className="relative mb-1.5">
+                          <span className="text-2xl leading-none">{_isLocked ? '🔒' : emoji}</span>
+                          {_isDone && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px]"
+                              style={{ background: _c, color: '#fff' }}>✓</span>
+                          )}
+                          {_isCur && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px]"
+                              style={{ background: _c, color: '#fff' }}>★</span>
+                          )}
+                        </div>
+                        {/* Level number */}
+                        <span className="text-[9px] font-black mb-0.5" style={{ color: _isLocked ? '#94a3b8' : _c }}>L{lvl}</span>
+                        {/* Label */}
+                        <span className="text-[8px] font-bold text-center leading-tight mb-2" style={{ color: _isLocked ? (_light ? '#94a3b8' : '#475569') : (_light ? '#1e293b' : '#e2e8f0') }}>{label}</span>
+                        {/* Perks */}
+                        <div className="flex flex-col gap-1 w-full">
+                          {perks.map((p, i) => (
+                            <span key={i} className="text-[7px] font-semibold leading-tight text-center"
+                              style={{ color: _isLocked ? '#94a3b8' : i === 0 ? _c : (_light ? '#64748b' : '#94a3b8') }}>
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── SUBSCRIPTION COUNTDOWN ── */}
           {user.isPremium && user.subscriptionEndDate && user.subscriptionTier !== 'LIFETIME' && !isNaN(new Date(user.subscriptionEndDate).getTime()) && (() => {
             const endMs = new Date(user.subscriptionEndDate).getTime();
