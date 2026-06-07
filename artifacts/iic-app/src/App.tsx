@@ -2905,7 +2905,12 @@ const App: React.FC = () => {
                     <ErrorBoundary fallbackLabel="Lesson" resetKey={state.selectedChapter?.id}>
                       <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-screen" aria-label="Loading lesson" aria-busy="true"><div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>}>
                       {(() => {
-                        const _isPdfContent = state.lessonContent && ['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type);
+                        const _lcVal = state.lessonContent?.content || state.lessonContent?.pdfUrl || state.lessonContent?.videoUrl || '';
+                        const _lcIsUrl = _lcVal && (_lcVal.startsWith('http://') || _lcVal.startsWith('https://'));
+                        const _isPdfContent = state.lessonContent && (
+                          ['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type) ||
+                          (_lcIsUrl && !['VIDEO_LECTURE','MCQ_ANALYSIS','MCQ_SIMPLE','WEEKLY_TEST'].includes(state.lessonContent.type))
+                        );
                         const _curIdx = _isPdfContent ? state.chapters.findIndex(c => c.id === state.selectedChapter?.id) : -1;
                         const _nextChapter = _curIdx >= 0 && _curIdx < state.chapters.length - 1 ? state.chapters[_curIdx + 1] : null;
                         const _handleNextPdf = _nextChapter ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
