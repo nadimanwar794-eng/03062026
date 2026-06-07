@@ -1154,8 +1154,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <WifiOff size={13} />
               </button>
             )}
-            {/* 📖 Book icon button — score info popup */}
-            {readingScoreConfig && scoreState && (
+            {/* 📖 Book icon button — score info popup (hidden when popup is open) */}
+            {readingScoreConfig && scoreState && !showScoreInfo && (
               <button
                 type="button"
                 onClick={openScoreInfo}
@@ -1173,8 +1173,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
               </button>
             )}
-            {/* 🛡️ Touch Protection — icon-only compact button */}
-            {readingScoreConfig && (
+            {/* 🛡️ Touch Protection — icon-only compact button (hidden when popup is open) */}
+            {readingScoreConfig && !showReadingActiveInfo && (
               <button
                 type="button"
                 onClick={openReadingActiveInfo}
@@ -1213,7 +1213,88 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             </button>
           </div>
 
-          {/* ── Controls panel — shown when 3-dot is tapped ── */}
+          {/* ── Reading Score banner — inline inside toolbar (row 1 or 2 depending on order) ── */}
+          {showScoreInfo && scoreState && (
+            <div style={{
+              borderTop: '1px solid #e2e8f0',
+              background: '#fff',
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 10px',
+              animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+            }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                {isReading ? 'Reading Active' : 'Reading Score'}
+              </span>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#6366f1', lineHeight: 1.2 }}>+{scoreState.totalSessionScore}</span>
+              </div>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{Math.round(scoreState.progressPercent)}%</span>
+              </div>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
+                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+                </span>
+              </div>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowScoreInfo(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
+                  borderRadius: 6, padding: '2px 8px',
+                  color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
+                }}
+              >OK</button>
+            </div>
+          )}
+
+          {/* ── Touch Protection banner — inline inside toolbar, stacks below Reading Score if both open ── */}
+          {showReadingActiveInfo && (
+            <div style={{
+              borderTop: '1px solid #e2e8f0',
+              background: '#fff',
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 10px',
+              animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+            }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                Touch Protection
+              </span>
+              <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
+                10 sec → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward</span>
+              </span>
+              <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
+                <div style={{
+                  width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                  borderRadius: 99,
+                  transition: 'width 0.9s linear',
+                }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', flexShrink: 0, minWidth: 22, textAlign: 'right' }}>
+                {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
+              </span>
+              <button
+                onClick={() => setShowReadingActiveInfo(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
+                  borderRadius: 6, padding: '2px 8px',
+                  color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
+                }}
+              >OK</button>
+            </div>
+          )}
+
+          {/* ── Controls panel — shown when 3-dot is tapped (always below any open banners) ── */}
           {showControls && (
             <div className="animate-in slide-in-from-top-1 duration-150">
               <div className="flex items-center gap-1 px-2 pb-1.5">
@@ -1475,109 +1556,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-
-      {/* 🛡️ Touch Protection popup — top-bar style slim strip */}
-      {showReadingActiveInfo && (
-        <div
-          style={{
-            position: 'fixed', top: 40, left: 0, right: 0, zIndex: 9999,
-            animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <div style={{
-            background: '#fff',
-            borderBottom: '1px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 10px',
-          }}>
-            <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
-            <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
-              Touch Protection
-            </span>
-            <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
-              10 sec → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward</span>
-            </span>
-            {/* progress bar */}
-            <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
-              <div style={{
-                width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
-                height: '100%',
-                background: 'linear-gradient(90deg, #6366f1, #818cf8)',
-                borderRadius: 99,
-                transition: 'width 0.9s linear',
-              }} />
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', flexShrink: 0, minWidth: 22, textAlign: 'right' }}>
-              {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
-            </span>
-            <button
-              onClick={() => setShowReadingActiveInfo(false)}
-              style={{
-                background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-                borderRadius: 6, padding: '2px 8px',
-                color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
-              }}
-            >OK</button>
-          </div>
-        </div>
-      )}
-
-      {/* 📖 Reading Score popup — top-bar style slim strip */}
-      {showScoreInfo && scoreState && (
-        <div
-          style={{
-            position: 'fixed', top: 40, left: 0, right: 0, zIndex: 9999,
-            animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <div style={{
-            background: '#fff',
-            borderBottom: '1px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 10px',
-          }}>
-            <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
-            <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
-              {isReading ? 'Reading Active' : 'Reading Score'}
-            </span>
-            {/* divider */}
-            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
-            {/* Score chip */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: '#6366f1', lineHeight: 1.2 }}>+{scoreState.totalSessionScore}</span>
-            </div>
-            {/* divider */}
-            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
-            {/* Progress chip */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{Math.round(scoreState.progressPercent)}%</span>
-            </div>
-            {/* divider */}
-            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
-            {/* Next chip */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
-              <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
-              </span>
-            </div>
-            {/* spacer */}
-            <div style={{ flex: 1 }} />
-            <button
-              onClick={() => setShowScoreInfo(false)}
-              style={{
-                background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-                borderRadius: 6, padding: '2px 8px',
-                color: '#6366f1', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
-              }}
-            >OK</button>
-          </div>
-        </div>
-      )}
 
       {/* Smart TTS Suggestion popup — compact, non-blocking, bottom-anchored */}
       {showTtsSuggestPopup && (
