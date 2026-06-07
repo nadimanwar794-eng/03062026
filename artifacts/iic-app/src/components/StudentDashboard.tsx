@@ -1983,11 +1983,50 @@ export const StudentDashboard: React.FC<Props> = ({
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [isTopBarHidden, setIsTopBarHidden] = useState(false);
 
+  // Firebase connection level: 0=none 1=network 2=rtdb 3=user 4=settings 5=content
+  const [fbConnectLevel, setFbConnectLevel] = useState(0);
+
   // Rotating top bar info: phase 0 = tier label, phase 1 = expiry date
   useEffect(() => {
     const id = setInterval(() => _setTopBarInfoPhase(p => (p + 1) % 2), 2000);
     return () => clearInterval(id);
   }, []);
+
+  // ── Firebase connection level tracker ────────────────────────────────────
+  // Stage 1: network, 2: RTDB connected, 3: user data, 4: settings, 5: content
+  useEffect(() => {
+    if (navigator.onLine) setFbConnectLevel(l => Math.max(l, 1));
+    const handleOnline  = () => setFbConnectLevel(l => Math.max(l, 1));
+    const handleOffline = () => setFbConnectLevel(0);
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const connRef = ref(rtdb, '.info/connected');
+    const unsub = onValue(connRef, (snap) => {
+      if (snap.val() === true) {
+        setFbConnectLevel(l => Math.max(l, 2));
+      } else {
+        setFbConnectLevel(l => Math.min(l, 1));
+      }
+    });
+    return () => {
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      unsub();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (user?.id) setFbConnectLevel(l => Math.max(l, 3));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (settings?.appName || settings?.appShortName) setFbConnectLevel(l => Math.max(l, 4));
+  }, [settings?.appName, settings?.appShortName]);
+
+  useEffect(() => {
+    if (Object.keys(classContentStats).length > 0) setFbConnectLevel(l => Math.max(l, 5));
+  }, [classContentStats]);
 
   // Live 1-second clock for profile card countdown — only runs when Profile tab is open
   const [_profileNow, _setProfileNow] = useState(Date.now());
@@ -10212,6 +10251,41 @@ export const StudentDashboard: React.FC<Props> = ({
                     </span>
                   )}
                 </button>
+              );
+            })()}
+
+            {/* Firebase connection dots — 5 stages: network/rtdb/user/settings/content */}
+            {(() => {
+              const dotLabels = ['Network','Firebase','User','Settings','Content'];
+              const titleText = fbConnectLevel >= 5
+                ? '✓ All data loaded'
+                : fbConnectLevel === 0
+                  ? 'Offline'
+                  : `Loading: ${dotLabels[fbConnectLevel] || ''} (${fbConnectLevel * 20}%)`;
+              return (
+                <div
+                  className="flex items-center gap-[3px] shrink-0 px-1"
+                  title={titleText}
+                >
+                  {dotLabels.map((_, i) => {
+                    const lit = fbConnectLevel > i;
+                    const isConnecting = fbConnectLevel === i && i < 5;
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: '50%',
+                          background: lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.22)',
+                          boxShadow: lit ? '0 0 5px rgba(16,185,129,0.9)' : 'none',
+                          transition: 'background 0.4s ease, box-shadow 0.4s ease',
+                          animation: isConnecting ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
               );
             })()}
 
