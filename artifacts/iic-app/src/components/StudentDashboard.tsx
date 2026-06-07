@@ -1157,13 +1157,14 @@ export const StudentDashboard: React.FC<Props> = ({
       // Combined boost = user's personal redeem-code boost + active Score Boost Event boost
       const boost = getCombinedBoost(freshUser, settings);
       const limitBoost = (freshUser as any).scoreLimitBoostPercent;
+      const limitBoostExpiry = (freshUser as any).scoreLimitBoostExpiry;
       const streakKey = `nst_mcq_streak_${today}_${freshUser.id}`;
       const currentStreak = parseInt(localStorage.getItem(streakKey) || '0');
 
       if (!isCorrect) {
         // Wrong answer → +1 score, reset streak
         localStorage.setItem(streakKey, '0');
-        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', limitBoost);
+        const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', limitBoost, limitBoostExpiry);
         if (earned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + earned });
         }
@@ -1175,15 +1176,15 @@ export const StudentDashboard: React.FC<Props> = ({
         let bonusMsg = '';
         // Streak milestone: every 5 consecutive → +10 bonus (checked first for display priority)
         if (newStreak % 5 === 0) {
-          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5', limitBoost);
+          totalBonus += tryEarnScore(freshUser.id, 10, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_5', limitBoost, limitBoostExpiry);
           bonusMsg = `⚡ ${newStreak} Streak! +10 Bonus Score!`;
         } else if (newStreak % 3 === 0) {
           // Every 3 consecutive (but not a multiple of 5) → +5 bonus
-          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3', limitBoost);
+          totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3', limitBoost, limitBoostExpiry);
           bonusMsg = `🔥 ${newStreak} Streak! +5 Bonus Score!`;
         }
         if (bonusMsg) showAlert(bonusMsg, 'SUCCESS');
-        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', limitBoost);
+        const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', limitBoost, limitBoostExpiry);
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + totalEarned });
@@ -2395,7 +2396,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const tiers = newTier - lucentLastAwardedTierRef.current;
         lucentLastAwardedTierRef.current = newTier;
         const freshU = userRef.current;
-        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getCombinedBoost(freshU, settings), activityType, (freshU as any).scoreLimitBoostPercent);
+        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getCombinedBoost(freshU, settings), activityType, (freshU as any).scoreLimitBoostPercent, (freshU as any).scoreLimitBoostExpiry);
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
           handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
@@ -9967,7 +9968,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                 const dlb = (settings as any)?.dailyLimitBoostEvent;
                                 const isUltraU = user.isPremium && user.subscriptionLevel === 'ULTRA';
                                 const isBasicU = user.isPremium && user.subscriptionLevel === 'BASIC';
-                                const baseLimit = getDailyScoreLimit(user.subscriptionLevel, user.isPremium, (user as any).scoreLimitBoostPercent);
+                                const baseLimit = getDailyScoreLimit(user.subscriptionLevel, user.isPremium, (user as any).scoreLimitBoostPercent, (user as any).scoreLimitBoostExpiry);
                                 const extraPts = isUltraU ? (dlb?.mcqBoostUltra || 0) : isBasicU ? (dlb?.mcqBoostBasic || 0) : (dlb?.mcqBoostFree || 0);
                                 const totalLimit = baseLimit + extraPts;
                                 const endsAt = dlb?.endsAt;
@@ -20079,7 +20080,7 @@ RULES:
 
                   {(() => {
                     const earned = getDailyScoreEarned(user.id);
-                    const baseLimit = getDailyScoreLimit(user.subscriptionLevel, user.isPremium, (user as any).scoreLimitBoostPercent);
+                    const baseLimit = getDailyScoreLimit(user.subscriptionLevel, user.isPremium, (user as any).scoreLimitBoostPercent, (user as any).scoreLimitBoostExpiry);
                     const isUltra = user.isPremium && user.subscriptionLevel === 'ULTRA';
                     const isBasic = user.isPremium && user.subscriptionLevel === 'BASIC';
                     // Daily Limit Boost Event extra pts (requires L3+)

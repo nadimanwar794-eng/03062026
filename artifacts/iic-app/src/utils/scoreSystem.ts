@@ -1,28 +1,32 @@
 /**
  * Score System — daily limits, subscription multipliers, activity milestones
- * Daily score limit: 1500 pts (Free) / 2500 pts (Basic) / 3500 pts (Ultra)
+ * Daily score limit: 5000 pts (Free) / 7000 pts (Basic) / 10000 pts (Ultra)
  * Milestones: 20%=5, 40%=10, 60%=15, 80%=20, 100%=25 base pts
  * Multipliers: Free=1x, Basic=1.2x (+20%), Ultra=1.5x (+50%)
  */
 
-export const DAILY_SCORE_LIMIT = 1500;
+export const DAILY_SCORE_LIMIT = 5000;
 
-/** Fixed daily score limits by tier (Free=1500, Basic=2500, Ultra=3500) */
+/** Fixed daily score limits by tier (Free=5000, Basic=7000, Ultra=10000) */
 const DAILY_TIER_LIMITS: Record<string, number> = {
-  FREE:  1500,
-  BASIC: 2500,
-  ULTRA: 3500,
+  FREE:  5000,
+  BASIC: 7000,
+  ULTRA: 10000,
 };
 
-/** Dynamic daily score limit based on subscription + optional permanent limit boost */
+/** Dynamic daily score limit based on subscription + optional temporary limit boost (from redeem code or event) */
 export const getDailyScoreLimit = (
   subscriptionLevel?: string,
   isPremium?: boolean,
   scoreLimitBoostPercent?: number,
+  scoreLimitBoostExpiry?: string,
 ): number => {
-  const base = isPremium ? (DAILY_TIER_LIMITS[subscriptionLevel ?? 'FREE'] ?? 1500) : 1500;
-  if (scoreLimitBoostPercent && scoreLimitBoostPercent > 0) {
-    return Math.round(base * (1 + scoreLimitBoostPercent / 100));
+  const base = isPremium ? (DAILY_TIER_LIMITS[subscriptionLevel ?? 'FREE'] ?? 5000) : 5000;
+  // Only apply boost if it hasn't expired
+  const boostActive = scoreLimitBoostPercent && scoreLimitBoostPercent > 0
+    && (!scoreLimitBoostExpiry || new Date(scoreLimitBoostExpiry).getTime() > Date.now());
+  if (boostActive) {
+    return Math.round(base * (1 + scoreLimitBoostPercent! / 100));
   }
   return base;
 };
@@ -64,8 +68,9 @@ export const getRemainingDailyScore = (
   subscriptionLevel?: string,
   isPremium?: boolean,
   scoreLimitBoostPercent?: number,
+  scoreLimitBoostExpiry?: string,
 ): number =>
-  Math.max(0, getDailyScoreLimit(subscriptionLevel, isPremium, scoreLimitBoostPercent) - getDailyScoreEarned(userId));
+  Math.max(0, getDailyScoreLimit(subscriptionLevel, isPremium, scoreLimitBoostPercent, scoreLimitBoostExpiry) - getDailyScoreEarned(userId));
 
 /** Get active score boost % for a user (returns 0 if expired or not set) */
 export const getActiveBoost = (user: { scoreBoostPercent?: number; scoreBoostExpiry?: string }): number => {
@@ -147,8 +152,9 @@ export const tryEarnScore = (
   boostPercent = 0,
   activity?: string,
   scoreLimitBoostPercent?: number,
+  scoreLimitBoostExpiry?: string,
 ): number => {
-  const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium, scoreLimitBoostPercent);
+  const remaining = getRemainingDailyScore(userId, subscriptionLevel, isPremium, scoreLimitBoostPercent, scoreLimitBoostExpiry);
   const calc = calculateScore(baseScore, subscriptionLevel, isPremium, boostPercent);
 
   if (remaining > 0) {

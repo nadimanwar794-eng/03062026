@@ -224,7 +224,7 @@ export const ScoreHistoryDashboard: React.FC<Props> = ({ user, onBack }) => {
         {/* ── DAILY LIMIT + MIDNIGHT COUNTDOWN ── */}
         {(() => {
           const earned    = getDailyScoreEarned(user.id);
-          const limit     = getDailyScoreLimit(user.subscriptionLevel, user.isPremium, (user as any).scoreLimitBoostPercent);
+          const limit     = getDailyScoreLimit(user.subscriptionLevel, user.isPremium, (user as any).scoreLimitBoostPercent, (user as any).scoreLimitBoostExpiry);
           const pct       = Math.min(100, Math.round((earned / limit) * 100));
           const remaining = Math.max(0, limit - earned);
           const tierLabel = user.isPremium

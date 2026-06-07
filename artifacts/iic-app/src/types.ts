@@ -197,7 +197,8 @@ export interface User {
   scoreBoostPercent?: number; // Active score boost % from SCORE_BOOST redeem code
   scoreBoostExpiry?: string; // ISO Date when score boost expires
   personalThemeExpiry?: string; // ISO Date when user's temporary custom theme expires (set during score boost event)
-  scoreLimitBoostPercent?: number; // Permanent daily score limit boost % from SCORE_LIMIT_BOOST redeem code
+  scoreLimitBoostPercent?: number; // Temporary daily score limit boost % from SCORE_LIMIT_BOOST redeem code
+  scoreLimitBoostExpiry?: string; // ISO Date when daily limit boost expires (reverts to default after this)
   bonusCredits?: number; // Permanent credits awarded with subscription (never expire)
   giftedCredits?: number; // Admin-gifted credits (separate from earned/bonus)
   giftedCreditsExpiry?: string; // ISO date when gifted credits expire
@@ -433,7 +434,8 @@ export interface BroadcastRedeemCode {
     type: 'CREDITS' | 'SUBSCRIPTION' | 'DISCOUNT' | 'CONTENT_UNLOCK' | 'TOPBAR_EFFECT_COLOR' | 'TOPBAR_EFFECT_ID' | 'SCORE' | 'SCORE_BOOST' | 'SCORE_LIMIT_BOOST';
     scoreBoostPercent?: number; // For SCORE_BOOST type — how much % to boost score by
     scoreBoostDurationHours?: number; // How long the boost lasts
-    scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — permanent daily limit increase %
+    scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — temporary daily limit increase %
+    scoreLimitBoostDurationHours?: number; // How long the daily limit boost lasts (hours)
     message: string;
     title?: string;
     amount?: number;
@@ -1199,7 +1201,8 @@ export interface GiftCode {
   type: 'CREDITS' | 'SUBSCRIPTION' | 'DISCOUNT' | 'CONTENT_UNLOCK' | 'TOPBAR_EFFECT_COLOR' | 'TOPBAR_EFFECT_ID' | 'SCORE' | 'SCORE_BOOST' | 'SCORE_LIMIT_BOOST' | 'THEME_COLOR'; // New: Type of code
   scoreBoostPercent?: number; // For SCORE_BOOST type
   scoreBoostDurationHours?: number; // Hours the boost lasts
-  scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — permanent daily limit increase %
+  scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — temporary daily limit increase %
+  scoreLimitBoostDurationHours?: number; // How long the daily limit boost lasts (hours)
   amount?: number; // For Credits
   discountPercent?: number; // For Discount
   effectColor?: string; // For TOPBAR_EFFECT_COLOR — hex color

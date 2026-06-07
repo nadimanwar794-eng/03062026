@@ -1471,6 +1471,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [newCodeScoreBoostPercent, setNewCodeScoreBoostPercent] = useState(20);
   const [newCodeScoreBoostHours, setNewCodeScoreBoostHours] = useState(24);
   const [newCodeScoreLimitBoostPercent, setNewCodeScoreLimitBoostPercent] = useState(50);
+  const [newCodeScoreLimitBoostHours, setNewCodeScoreLimitBoostHours] = useState(24);
   const [newCodeIsMultiUse, setNewCodeIsMultiUse] = useState(false);
   const [newCodeEffectColor, setNewCodeEffectColor] = useState('#fbbf24');
   const [newCodeEffectId, setNewCodeEffectId] = useState<string>('border-runner-cw');
@@ -1493,6 +1494,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   // --- BROADCAST REDEEM CODE STATE ---
   const [broadcastType, setBroadcastType] = useState<BroadcastRedeemCode['type']>('CREDITS');
   const [broadcastScoreLimitBoostPercent, setBroadcastScoreLimitBoostPercent] = useState(50);
+  const [broadcastScoreLimitBoostHours, setBroadcastScoreLimitBoostHours] = useState(24);
   const [broadcastScoreAmount, setBroadcastScoreAmount] = useState(50);
   const [broadcastScoreBoostPercent, setBroadcastScoreBoostPercent] = useState(20);
   const [broadcastScoreBoostHours, setBroadcastScoreBoostHours] = useState(24);
@@ -2342,7 +2344,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   ...(newCodeType === 'CREDITS' ? { amount: newCodeAmount || 10 } : {}),
                   ...(newCodeType === 'SCORE' ? { scoreAmount: newCodeScoreAmount || 100 } : {}),
                   ...(newCodeType === 'SCORE_BOOST' ? { scoreBoostPercent: newCodeScoreBoostPercent || 20, scoreBoostDurationHours: newCodeScoreBoostHours || 24 } : {}),
-                  ...(newCodeType === 'SCORE_LIMIT_BOOST' ? { scoreLimitBoostPercent: newCodeScoreLimitBoostPercent || 50 } : {}),
+                  ...(newCodeType === 'SCORE_LIMIT_BOOST' ? { scoreLimitBoostPercent: newCodeScoreLimitBoostPercent || 50, scoreLimitBoostDurationHours: newCodeScoreLimitBoostHours || 24 } : {}),
                   ...(newCodeType === 'DISCOUNT' ? { discountPercent: newCodeDiscount || 10 } : {}),
                   ...(newCodeType === 'SUBSCRIPTION' ? { subTier: newCodeSubTier || 'WEEKLY', subLevel: newCodeSubLevel || 'BASIC' } : {}),
                   ...(newCodeType === 'CONTENT_UNLOCK' ? { contentId: newCodeContentChapter, contentType: newCodeContentType } : {}),
@@ -2423,6 +2425,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               scoreBoostPercent: broadcastType === 'SCORE_BOOST' ? broadcastScoreBoostPercent : undefined,
               scoreBoostDurationHours: broadcastType === 'SCORE_BOOST' ? broadcastScoreBoostHours : undefined,
               scoreLimitBoostPercent: broadcastType === 'SCORE_LIMIT_BOOST' ? broadcastScoreLimitBoostPercent : undefined,
+              scoreLimitBoostDurationHours: broadcastType === 'SCORE_LIMIT_BOOST' ? broadcastScoreLimitBoostHours : undefined,
               isMultiUse: broadcastIsMultiUse,
               maxUses: broadcastIsMultiUse ? 999999 : undefined,
               discountPercent: broadcastType === 'DISCOUNT' ? broadcastDiscount : undefined,
@@ -14796,10 +14799,16 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           </div>
                       )}
                       {broadcastType === 'SCORE_LIMIT_BOOST' && (
-                          <div>
-                              <label className="text-[10px] font-bold text-indigo-700 uppercase block mb-1">📈 Limit Boost %</label>
-                              <input type="number" min={10} max={1000000} value={broadcastScoreLimitBoostPercent} onChange={e => setBroadcastScoreLimitBoostPercent(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-indigo-200 font-bold bg-white text-sm" />
-                              <p className="text-[9px] text-green-700 mt-1">📈 Users ki daily score limit permanently +{broadcastScoreLimitBoostPercent}% badh jayegi. Stacks hoga purane boost ke saath.</p>
+                          <div className="flex flex-col gap-2">
+                              <div>
+                                  <label className="text-[10px] font-bold text-indigo-700 uppercase block mb-1">📈 Limit Boost %</label>
+                                  <input type="number" min={10} max={1000000} value={broadcastScoreLimitBoostPercent} onChange={e => setBroadcastScoreLimitBoostPercent(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-indigo-200 font-bold bg-white text-sm" />
+                              </div>
+                              <div>
+                                  <label className="text-[10px] font-bold text-indigo-700 uppercase block mb-1">⏱️ Duration (Hours)</label>
+                                  <input type="number" min={1} value={broadcastScoreLimitBoostHours} onChange={e => setBroadcastScoreLimitBoostHours(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-indigo-200 font-bold bg-white text-sm" />
+                              </div>
+                              <p className="text-[9px] text-green-700 mt-1">📈 Users ki daily limit +{broadcastScoreLimitBoostPercent}% badh jayegi — {broadcastScoreLimitBoostHours}h ke liye. Expiry ke baad default (Free=5000/Basic=7000/Ultra=10000) pe wapis.</p>
                           </div>
                       )}
                       {broadcastType === 'DISCOUNT' && (
@@ -15061,11 +15070,17 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           </div>
                       ) : newCodeType === 'SCORE_LIMIT_BOOST' ? (
                           <div className="flex flex-col gap-2">
-                              <div>
-                                  <label className="text-xs font-bold text-pink-700 uppercase block mb-1">📈 Limit Boost % (10 se 1000000% tak)</label>
-                                  <input type="number" value={newCodeScoreLimitBoostPercent} onChange={e => setNewCodeScoreLimitBoostPercent(Number(e.target.value))} className="p-3 rounded-xl border border-pink-200 w-40 font-bold" min="10" max="1000000" />
+                              <div className="flex gap-3 flex-wrap">
+                                  <div>
+                                      <label className="text-xs font-bold text-pink-700 uppercase block mb-1">📈 Limit Boost %</label>
+                                      <input type="number" value={newCodeScoreLimitBoostPercent} onChange={e => setNewCodeScoreLimitBoostPercent(Number(e.target.value))} className="p-3 rounded-xl border border-pink-200 w-32 font-bold" min="10" max="1000000" />
+                                  </div>
+                                  <div>
+                                      <label className="text-xs font-bold text-pink-700 uppercase block mb-1">⏱️ Duration (Hours)</label>
+                                      <input type="number" value={newCodeScoreLimitBoostHours} onChange={e => setNewCodeScoreLimitBoostHours(Number(e.target.value))} className="p-3 rounded-xl border border-pink-200 w-32 font-bold" min="1" />
+                                  </div>
                               </div>
-                              <p className="text-[10px] text-green-700 mt-1">📈 Student ki daily score limit permanently +{newCodeScoreLimitBoostPercent}% badh jayegi. Ek se zyada codes redeem karne par stack hoga.</p>
+                              <p className="text-[10px] text-green-700 mt-1">📈 Student ki daily limit {newCodeScoreLimitBoostHours}h ke liye +{newCodeScoreLimitBoostPercent}% badh jayegi. Expiry ke baad default (Free=5k/Basic=7k/Ultra=10k) pe wapis aa jayegi.</p>
                           </div>
                       ) : newCodeType === 'DISCOUNT' ? (
                           <div>
