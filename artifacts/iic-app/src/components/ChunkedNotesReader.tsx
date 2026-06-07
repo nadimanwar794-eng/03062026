@@ -523,6 +523,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const manualTapTimestampsRef = useRef<number[]>([]);
   const ttsSuggestShownRef = useRef(false);
 
+  // Tracks whether current TTS session was started via "Read All" / Smart Reading popup (AUTO)
+  // or via a manual topic tap (MANUAL). Only AUTO sessions earn READ_TTS_HIGHLIGHT rewards.
+  const ttsIsAutoRef = useRef(false);
+
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
     const now = Date.now();
@@ -795,7 +799,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     }
     setActiveIdx(idx);
     // TTS highlight → +1 score per topic read aloud
-    if (scoreSessionRef.current && !activeTopicList[idx]?.isHeading) {
+    // Only fires in AUTO mode (Read All / Smart Reading popup). Manual topic taps
+    // have their own separate reward (READ_MANUAL_TOPIC_10S +2) via Touch Protection.
+    if (scoreSessionRef.current && !activeTopicList[idx]?.isHeading && ttsIsAutoRef.current) {
       scoreSessionRef.current.onTtsHighlight();
     }
     setTimeout(() => {
@@ -908,7 +914,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       return;
     }
     if (activeTopicList.length === 0) return;
-    const t = setTimeout(() => startFromIndex(0), 200);
+    const t = setTimeout(() => { ttsIsAutoRef.current = true; startFromIndex(0); }, 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, content]);
@@ -930,6 +936,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     if (matchIdx < 0) return;
     const t = setTimeout(() => {
       itemRefs.current[matchIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ttsIsAutoRef.current = true;
       startFromIndex(matchIdx);
     }, 250);
     return () => clearTimeout(t);
@@ -1088,6 +1095,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 stopAll();
               } else {
                 try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
+                ttsIsAutoRef.current = true;
                 startFromIndex(initialIndex ?? 0);
               }
             }}
@@ -1302,7 +1310,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 type="button"
                 onClick={() => {
                   if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); }
-                  else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} startFromIndex(initialIndex ?? 0); }
+                  else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} ttsIsAutoRef.current = true; startFromIndex(initialIndex ?? 0); }
                 }}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isReading ? '#fef2f2' : '#eef2ff', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}
               >
@@ -1524,6 +1532,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                         setInlineQuery('');
                         setTimeout(() => {
                           itemRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          ttsIsAutoRef.current = true;
                           startFromIndex(idx);
                         }, 100);
                       }}
@@ -1590,6 +1599,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 onClick={() => {
                   setShowTtsSuggestPopup(false);
                   const startIdx = activeIdx !== null ? activeIdx : 0;
+                  ttsIsAutoRef.current = true;
                   startFromIndex(startIdx);
                 }}
                 style={{
@@ -1680,6 +1690,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     stopAll();
                   } else {
                     // Manual tap → Touch Protection (10 sec stay → +2)
+                    // Auto TTS rewards are disabled for manual-tap sessions.
+                    ttsIsAutoRef.current = false;
                     if (scoreSessionRef.current && !topic.isHeading && readingScoreConfig) {
                       scoreSessionRef.current.onManualTopicEnter(idx);
                       trackManualTap();
