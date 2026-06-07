@@ -1266,10 +1266,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
               <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
-                Touch
+                Touch Pro
               </span>
               <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
-                10 sec ruko → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward milega</span>
+                10sec → <span style={{ color: '#16a34a', fontWeight: 800 }}>+2 reward milega</span>
               </span>
               <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
                 <div style={{
