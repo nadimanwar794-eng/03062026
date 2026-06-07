@@ -8390,36 +8390,158 @@ export const StudentDashboard: React.FC<Props> = ({
                 </svg>
               )}
 
-              {/* ─── Avatar ─── */}
-              <div className="flex justify-center mb-4">
-                <div className="relative">
-                  {/* Outer glow halo */}
-                  <div className="absolute -inset-2 rounded-full pointer-events-none" style={{
-                    background: `conic-gradient(from 0deg, ${tierTheme.primary}00, ${tierTheme.primary}bb, ${tierTheme.primary}00)`,
-                    animation: !cardFxOff && _displayLvl.level >= 6 ? 'spin 4s linear infinite' : 'none',
-                    borderRadius: '50%',
-                  }} />
-                  {/* Inner ring */}
-                  <div className="absolute -inset-1 rounded-full pointer-events-none" style={{
-                    background: `${_pCard}`,
-                    borderRadius: '50%',
-                  }} />
-                  {/* Avatar image */}
-                  <div className="relative w-[104px] h-[104px] rounded-full overflow-hidden flex items-center justify-center" style={{
-                    background: `linear-gradient(145deg, ${tierTheme.primary}40, ${tierTheme.primary}10)`,
-                    border: `3px solid ${!cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color + 'cc' : tierTheme.primary + 'cc'}`,
-                    boxShadow: `0 0 0 1.5px ${tierTheme.primary}28, 0 10px 40px ${tierTheme.primary}44, 0 4px 12px rgba(0,0,0,0.55)`,
-                  }}>
-                    {user.photoURL && user.avatarChoice === 'gmail'
-                      ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                      : settings?.appLogo
-                        ? <img src={settings.appLogo} alt="logo" className="w-full h-full object-cover" />
-                        : <span className="text-5xl font-black select-none" style={{ color: !cardFxOff && _displayLvl.level >= 4 ? _displayLvl.color : tierTheme.primary }}>
-                            {(user.name || 'S').charAt(0).toUpperCase()}
-                          </span>
-                    }
-                  </div>
-                </div>
+              {/* ─── Avatar — Level-wise progressive frame ─── */}
+              <div className="flex justify-center mb-5">
+                {(() => {
+                  const _lvl = _pLvl.level;
+                  const _col = _pLvl.color;
+                  const _anim = !cardFxOff;
+                  // Avatar grows with level
+                  const _sz  = _lvl >= 13 ? 114 : _lvl >= 9 ? 106 : _lvl >= 5 ? 98 : 90;
+                  // Extra space around avatar for decorations
+                  const _pad = _lvl >= 13 ? 30 : _lvl >= 9 ? 24 : _lvl >= 5 ? 18 : _lvl >= 3 ? 12 : 6;
+                  const _total = _sz + _pad * 2;
+                  const cx = _total / 2;
+                  const cy = _total / 2;
+                  // Ring radii
+                  const _rA = _sz / 2 + 5;   // closest ring
+                  const _rB = _sz / 2 + 12;  // second ring / orbit
+                  const _rC = _sz / 2 + 19;  // third ring / orbit
+                  const _rD = _sz / 2 + 26;  // outermost ring
+                  const _orbitDur = _lvl >= 13 ? '4s' : _lvl >= 10 ? '5.5s' : '7s';
+                  return (
+                    <div className="relative flex items-center justify-center" style={{ width: _total, height: _total }}>
+
+                      {/* ── SVG decorative frame (rings, ornaments, orbits) ── */}
+                      <svg className="absolute inset-0 pointer-events-none" width={_total} height={_total} style={{ overflow: 'visible' }}>
+
+                        {/* L3+: Inner subtle ring */}
+                        {_lvl >= 3 && (
+                          <circle cx={cx} cy={cy} r={_rA} fill="none"
+                            stroke={_col} strokeWidth={_lvl >= 7 ? 1.5 : 1}
+                            strokeDasharray={_lvl >= 5 ? '5 8' : 'none'}
+                            opacity={0.45} />
+                        )}
+
+                        {/* L5+: Second dashed ring (rotates at L7+) */}
+                        {_lvl >= 5 && (
+                          <g style={{ transformOrigin: `${cx}px ${cy}px`, animation: _anim && _lvl >= 7 ? 'spin 12s linear infinite' : 'none' }}>
+                            <circle cx={cx} cy={cy} r={_rB} fill="none"
+                              stroke={_col} strokeWidth={1} strokeDasharray="7 10" opacity={0.35} />
+                          </g>
+                        )}
+
+                        {/* L7+: 4 orbiting small dots on ring B */}
+                        {_lvl >= 7 && _anim && [0, 90, 180, 270].map((deg, i) => (
+                          <g key={`orb-${i}`}>
+                            <animateTransform attributeName="transform" type="rotate"
+                              from={`${deg} ${cx} ${cy}`} to={`${deg + 360} ${cx} ${cy}`}
+                              dur={_orbitDur} repeatCount="indefinite" />
+                            <circle cx={cx} cy={cy - _rB} r={_lvl >= 11 ? 4.5 : 3} fill={_col} opacity={0.9}>
+                              <animate attributeName="opacity" values="0.9;0.5;0.9" dur="2s" repeatCount="indefinite" />
+                            </circle>
+                          </g>
+                        ))}
+
+                        {/* L9+: Third ring */}
+                        {_lvl >= 9 && (
+                          <g style={{ transformOrigin: `${cx}px ${cy}px`, animation: _anim ? 'spin 18s linear infinite reverse' : 'none' }}>
+                            <circle cx={cx} cy={cy} r={_rC} fill="none"
+                              stroke={_col} strokeWidth={1} strokeDasharray="3 12" opacity={0.28} />
+                          </g>
+                        )}
+
+                        {/* L11+: Diamond ornaments at N/E/S/W on ring C */}
+                        {_lvl >= 11 && [0, 90, 180, 270].map((deg, i) => {
+                          const rad = ((deg - 90) * Math.PI) / 180;
+                          const dx = Math.cos(rad) * _rC;
+                          const dy = Math.sin(rad) * _rC;
+                          const s = _lvl >= 13 ? 6 : 4.5;
+                          return (
+                            <g key={`dia-${i}`}>
+                              {_anim && <animateTransform attributeName="transform" type="rotate"
+                                from={`${deg} ${cx} ${cy}`} to={`${deg + 360} ${cx} ${cy}`}
+                                dur={`${_lvl >= 13 ? 6 : 9}s`} repeatCount="indefinite" />}
+                              <polygon
+                                points={`${cx+dx},${cy+dy-s} ${cx+dx+s},${cy+dy} ${cx+dx},${cy+dy+s} ${cx+dx-s},${cy+dy}`}
+                                fill={_col} opacity={0.8} />
+                            </g>
+                          );
+                        })}
+
+                        {/* L13+: Fourth outer ring + 4 extra larger dots on ring D */}
+                        {_lvl >= 13 && (
+                          <>
+                            <circle cx={cx} cy={cy} r={_rD} fill="none"
+                              stroke={_col} strokeWidth={1.5} strokeDasharray="4 14" opacity={0.22} />
+                            {_anim && [45, 135, 225, 315].map((deg, i) => (
+                              <g key={`orb2-${i}`}>
+                                <animateTransform attributeName="transform" type="rotate"
+                                  from={`${deg} ${cx} ${cy}`} to={`${deg + 360} ${cx} ${cy}`}
+                                  dur="5s" repeatCount="indefinite" />
+                                <circle cx={cx} cy={cy - _rD} r={3} fill={_col} opacity={0.7} />
+                              </g>
+                            ))}
+                          </>
+                        )}
+
+                        {/* L15: Outermost pulsing circle (pure SVG, no CSS) */}
+                        {_lvl >= 15 && (
+                          <circle cx={cx} cy={cy} r={_rD + 8} fill="none"
+                            stroke={_col} strokeWidth={1} opacity={0} >
+                            <animate attributeName="r" values={`${_rD+6};${_rD+18};${_rD+6}`} dur="2.5s" repeatCount="indefinite" />
+                            <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
+                          </circle>
+                        )}
+                      </svg>
+
+                      {/* ── Spinning conic halo (L6+) ── */}
+                      {_lvl >= 6 && (
+                        <div className="absolute rounded-full pointer-events-none" style={{
+                          inset: -(_lvl >= 9 ? 9 : 6),
+                          background: `conic-gradient(from 0deg, ${_col}00, ${_col}cc, ${_col}00)`,
+                          borderRadius: '50%',
+                          animation: _anim ? `spin ${_lvl >= 13 ? '2s' : _lvl >= 9 ? '3s' : '4s'} linear infinite` : 'none',
+                        }} />
+                      )}
+
+                      {/* ── Inner separator ring (card bg) ── */}
+                      <div className="absolute rounded-full pointer-events-none" style={{
+                        inset: -3, background: _pCard, borderRadius: '50%',
+                      }} />
+
+                      {/* ── Avatar circle ── */}
+                      <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{
+                        width: _sz, height: _sz, flexShrink: 0,
+                        background: `linear-gradient(145deg, ${_col}40, ${_col}10)`,
+                        border: `${_lvl >= 9 ? 3.5 : _lvl >= 5 ? 3 : 2.5}px solid ${_col}cc`,
+                        boxShadow: `0 0 0 1.5px ${_col}28, 0 10px 40px ${_col}50, 0 4px 14px rgba(0,0,0,0.6)`,
+                      }}>
+                        {user.photoURL && user.avatarChoice === 'gmail'
+                          ? <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                          : settings?.appLogo
+                            ? <img src={settings.appLogo} alt="logo" className="w-full h-full object-cover" />
+                            : <span className="font-black select-none" style={{ fontSize: _sz * 0.44, color: _col }}>
+                                {(user.name || 'S').charAt(0).toUpperCase()}
+                              </span>
+                        }
+                      </div>
+
+                      {/* ── Level badge (bottom of avatar) ── */}
+                      <div className="absolute flex items-center gap-1 px-2.5 py-0.5 rounded-full z-10" style={{
+                        bottom: _lvl >= 9 ? 3 : 1,
+                        left: '50%', transform: 'translateX(-50%)',
+                        background: _pCard,
+                        border: `1.5px solid ${_col}70`,
+                        boxShadow: `0 2px 10px ${_col}55, 0 0 0 1px ${_col}25`,
+                      }}>
+                        <span style={{ fontSize: _lvl >= 10 ? 13 : 11 }}>{_pLvl.emoji}</span>
+                        <span className="font-black tabular-nums" style={{ fontSize: 10, color: _col, letterSpacing: '0.04em' }}>L{_lvl}</span>
+                      </div>
+
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* ─── Name row ─── */}
