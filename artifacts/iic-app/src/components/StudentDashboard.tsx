@@ -1990,6 +1990,10 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // Firebase connection level: 0=none 1=network 2=rtdb 3=user 4=settings 5=content
   const [fbConnectLevel, setFbConnectLevel] = useState(0);
+  // Per-dot error flags: index 0-4 maps to Network/Firebase/User/Settings/Content
+  const [fbDotErrors, setFbDotErrors] = useState<boolean[]>([false,false,false,false,false]);
+  // System status popup open/close
+  const [showSysStatus, setShowSysStatus] = useState(false);
 
   // Rotating top bar info: phase 0 = tier label, phase 1 = expiry date
   useEffect(() => {
@@ -2000,16 +2004,34 @@ export const StudentDashboard: React.FC<Props> = ({
   // ── Firebase connection level tracker ────────────────────────────────────
   // Stage 1: network, 2: RTDB connected, 3: user data, 4: settings, 5: content
   useEffect(() => {
-    if (navigator.onLine) setFbConnectLevel(l => Math.max(l, 1));
-    const handleOnline  = () => setFbConnectLevel(l => Math.max(l, 1));
-    const handleOffline = () => setFbConnectLevel(0);
+    if (navigator.onLine) {
+      setFbConnectLevel(l => Math.max(l, 1));
+      setFbDotErrors(e => { const n=[...e]; n[0]=false; return n; });
+    } else {
+      setFbDotErrors(e => { const n=[...e]; n[0]=true; return n; });
+    }
+    const handleOnline  = () => {
+      setFbConnectLevel(l => Math.max(l, 1));
+      setFbDotErrors(e => { const n=[...e]; n[0]=false; return n; });
+    };
+    const handleOffline = () => {
+      setFbConnectLevel(0);
+      setFbDotErrors(e => { const n=[...e]; n[0]=true; return n; });
+    };
     window.addEventListener('online',  handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Firebase RTDB connection — timeout 10s → mark dot 1 (Firebase) as error
+    let fbTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      setFbDotErrors(e => { if (e[1]) return e; const n=[...e]; n[1]=true; return n; });
+    }, 10000);
 
     const connRef = ref(rtdb, '.info/connected');
     const unsub = onValue(connRef, (snap) => {
       if (snap.val() === true) {
+        if (fbTimeout) { clearTimeout(fbTimeout); fbTimeout = null; }
         setFbConnectLevel(l => Math.max(l, 2));
+        setFbDotErrors(e => { const n=[...e]; n[1]=false; return n; });
       } else {
         setFbConnectLevel(l => Math.min(l, 1));
       }
@@ -2017,20 +2039,30 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => {
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (fbTimeout) clearTimeout(fbTimeout);
       unsub();
     };
   }, []);
 
   useEffect(() => {
-    if (user?.id) setFbConnectLevel(l => Math.max(l, 3));
+    if (user?.id) {
+      setFbConnectLevel(l => Math.max(l, 3));
+      setFbDotErrors(e => { const n=[...e]; n[2]=false; return n; });
+    }
   }, [user?.id]);
 
   useEffect(() => {
-    if (settings?.appName || settings?.appShortName) setFbConnectLevel(l => Math.max(l, 4));
+    if (settings?.appName || settings?.appShortName) {
+      setFbConnectLevel(l => Math.max(l, 4));
+      setFbDotErrors(e => { const n=[...e]; n[3]=false; return n; });
+    }
   }, [settings?.appName, settings?.appShortName]);
 
   useEffect(() => {
-    if (Object.keys(classContentStats).length > 0) setFbConnectLevel(l => Math.max(l, 5));
+    if (Object.keys(classContentStats).length > 0) {
+      setFbConnectLevel(l => Math.max(l, 5));
+      setFbDotErrors(e => { const n=[...e]; n[4]=false; return n; });
+    }
   }, [classContentStats]);
 
   // Live 1-second clock for profile card countdown — only runs when Profile tab is open
@@ -10410,29 +10442,91 @@ export const StudentDashboard: React.FC<Props> = ({
           {/* Right: Level | Credits | Subscription pills */}
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
 
-            {/* 5 connection dots — replaces Level pill */}
+            {/* 5 connection dots — System Health Indicator */}
             {(() => {
               const dotLabels = ['Network','Firebase','User','Settings','Content'];
-              const titleText = fbConnectLevel >= 5
-                ? '✓ All data loaded'
-                : fbConnectLevel === 0
-                  ? 'Offline'
-                  : `Loading: ${dotLabels[fbConnectLevel] || ''} (${fbConnectLevel * 20}%)`;
+              const dotIcons  = ['🌐','🔥','👤','⚙️','📚'];
+              const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
+              const hasError = fbDotErrors.some(e => e);
               return (
-                <div className="flex items-center gap-[3px] shrink-0 px-1" title={titleText}>
-                  {dotLabels.map((_, i) => {
-                    const lit = fbConnectLevel > i;
-                    const isConnecting = fbConnectLevel === i && i < 5;
-                    return (
-                      <div key={i} style={{
-                        width: 5, height: 5, borderRadius: '50%',
-                        background: lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.22)',
-                        boxShadow: lit ? '0 0 5px rgba(16,185,129,0.9)' : 'none',
-                        transition: 'background 0.4s ease, box-shadow 0.4s ease',
-                        animation: isConnecting ? 'pulse 1.2s ease-in-out infinite' : 'none',
-                      }} />
-                    );
-                  })}
+                <div className="relative shrink-0">
+                  {/* Dots row — tap to open popup */}
+                  <button
+                    onClick={() => setShowSysStatus(s => !s)}
+                    className="flex items-center gap-[3px] px-1 py-1 rounded active:scale-90 transition-transform"
+                    title={allOk ? '✓ System Ready' : hasError ? '⚠ System Error' : `Loading… (${fbConnectLevel * 20}%)`}
+                  >
+                    {dotLabels.map((_, i) => {
+                      const lit = fbConnectLevel > i;
+                      const isErr = fbDotErrors[i];
+                      const isConnecting = fbConnectLevel === i && i < 5 && !isErr;
+                      const bg = isErr ? '#ef4444' : lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.22)';
+                      const shadow = isErr ? '0 0 5px rgba(239,68,68,0.9)' : lit ? '0 0 5px rgba(16,185,129,0.9)' : 'none';
+                      return (
+                        <div key={i} style={{
+                          width: 5, height: 5, borderRadius: '50%',
+                          background: bg,
+                          boxShadow: shadow,
+                          transition: 'background 0.4s ease, box-shadow 0.4s ease',
+                          animation: isConnecting ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                        }} />
+                      );
+                    })}
+                  </button>
+
+                  {/* Status popup */}
+                  {showSysStatus && (
+                    <>
+                      {/* Backdrop */}
+                      <div
+                        className="fixed inset-0 z-[200]"
+                        onClick={() => setShowSysStatus(false)}
+                      />
+                      {/* Popup card */}
+                      <div className="absolute right-0 top-7 z-[201] min-w-[190px] rounded-xl overflow-hidden shadow-2xl border border-white/10"
+                        style={{ background: 'rgba(15,15,25,0.97)', backdropFilter: 'blur(16px)' }}
+                      >
+                        {/* Header */}
+                        <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-white tracking-wide">System Status</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold"
+                            style={{
+                              background: allOk ? 'rgba(16,185,129,0.2)' : hasError ? 'rgba(239,68,68,0.2)' : 'rgba(251,191,36,0.2)',
+                              color: allOk ? '#10b981' : hasError ? '#ef4444' : '#fbbf24',
+                            }}
+                          >
+                            {allOk ? 'All OK' : hasError ? 'Error' : 'Loading…'}
+                          </span>
+                        </div>
+                        {/* Rows */}
+                        <div className="px-3 py-2 flex flex-col gap-1.5">
+                          {dotLabels.map((label, i) => {
+                            const lit = fbConnectLevel > i;
+                            const isErr = fbDotErrors[i];
+                            const isConnecting = fbConnectLevel === i && i < 5 && !isErr;
+                            const statusColor = isErr ? '#ef4444' : lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.3)';
+                            const statusText  = isErr ? 'Error' : lit ? 'OK' : isConnecting ? 'Loading' : 'Pending';
+                            return (
+                              <div key={i} className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px]">{dotIcons[i]}</span>
+                                  <span className="text-[11px] text-white/80 font-medium">{label}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, boxShadow: `0 0 5px ${statusColor}` }} />
+                                  <span className="text-[9px] font-semibold" style={{ color: statusColor }}>{statusText}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Footer */}
+                        <div className="px-3 py-1.5 border-t border-white/10 text-center">
+                          <span className="text-[9px] text-white/30">Tap anywhere to close</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })()}
