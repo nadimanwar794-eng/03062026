@@ -15057,101 +15057,83 @@ export const StudentDashboard: React.FC<Props> = ({
             <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
             <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
-              {/* Essential */}
-              {essentialItems.length > 0 && (
-                <div className="px-3 pt-3 pb-2 border-b border-slate-100">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Essential</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {essentialItems.map(renderBtn)}
-                  </div>
-                </div>
-              )}
-
-              {/* Premium & Rewards */}
-              {hasPremium && (
-                <div className={`px-3 pt-2.5 pb-2 ${hasUtil || hasExternalApps ? 'border-b border-slate-100' : ''}`}>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Premium</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {premiumItems.map(renderBtn)}
-                  </div>
-                </div>
-              )}
-
-              {/* Utilities & Support */}
-              {hasUtil && (
-                <div className={`px-3 pt-2.5 ${hasExternalApps ? 'pb-2 border-b border-slate-100' : 'pb-2'}`}>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Utilities</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {utilItems.map(renderBtn)}
-                  </div>
-                </div>
-              )}
-
-              {/* External Apps */}
-              {hasExternalApps && (
-                <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Apps</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {settings!.externalApps!.map((app) => (
-                      <button
-                        key={app.id}
-                        onClick={() => { handleExternalAppClick(app); setShowSidebar(false); }}
-                        className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-cyan-50 text-cyan-700 font-bold transition-all active:scale-95 relative"
-                      >
-                        {app.icon ? <img src={app.icon} alt="" className="w-4 h-4 rounded" /> : <Smartphone size={14} />}
-                        <span className="text-[10px] font-black leading-tight truncate w-full text-center">{app.name}</span>
-                        {app.isLocked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-500" /></span>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Quick Settings — Theme + How to Use */}
+              {/* All buttons — single compact grid, no category labels */}
               {(() => {
                 const themeType = localStorage.getItem("nst_dark_theme_type");
                 const isBlue = isDarkMode && themeType === "blue";
-                const isBlack = isDarkMode && themeType !== "blue";
-                const themeLabel = isBlue ? 'Blue Dark' : isBlack ? 'Black Dark' : 'Light Mode';
-                return (
-                  <div className="px-3 pt-2.5 pb-3 border-t border-slate-100 flex flex-col gap-1.5">
-                    <button
-                      onClick={() => {
-                        if (!isDarkMode) {
-                          localStorage.setItem("nst_dark_theme_type", "black");
-                          document.documentElement.classList.remove('dark-mode-blue', 'dark-mode-black');
-                          document.documentElement.classList.add('dark-mode', 'dark-mode-black');
+                const themeLabel = isBlue ? 'Blue Dark' : isDarkMode ? 'Black Dark' : 'Light Mode';
+                const themeDesc = isBlue ? 'Switch theme' : isDarkMode ? 'Switch theme' : 'Switch theme';
+
+                const themeBtn = (
+                  <button
+                    key="theme"
+                    onClick={() => {
+                      if (!isDarkMode) {
+                        localStorage.setItem("nst_dark_theme_type", "black");
+                        document.documentElement.classList.remove('dark-mode-blue', 'dark-mode-black');
+                        document.documentElement.classList.add('dark-mode', 'dark-mode-black');
+                        onToggleDarkMode?.(true);
+                      } else {
+                        const cur = localStorage.getItem("nst_dark_theme_type");
+                        if (cur === "black") {
+                          localStorage.setItem("nst_dark_theme_type", "blue");
+                          document.documentElement.classList.remove('dark-mode-black');
+                          document.documentElement.classList.add('dark-mode', 'dark-mode-blue');
                           onToggleDarkMode?.(true);
                         } else {
-                          const cur = localStorage.getItem("nst_dark_theme_type");
-                          if (cur === "black") {
-                            localStorage.setItem("nst_dark_theme_type", "blue");
-                            document.documentElement.classList.remove('dark-mode-black');
-                            document.documentElement.classList.add('dark-mode', 'dark-mode-blue');
-                            onToggleDarkMode?.(true);
-                          } else {
-                            document.documentElement.classList.remove('dark-mode', 'dark-mode-blue', 'dark-mode-black');
-                            onToggleDarkMode?.(false);
-                          }
+                          document.documentElement.classList.remove('dark-mode', 'dark-mode-blue', 'dark-mode-black');
+                          onToggleDarkMode?.(false);
                         }
-                      }}
-                      className="w-full flex items-center gap-2 p-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs transition-all active:scale-95"
-                    >
-                      {isDarkMode
-                        ? <Sparkles size={13} className={isBlue ? "text-blue-500" : "text-amber-500"} />
-                        : <Zap size={13} className="text-amber-500" />}
-                      <span className="flex-1 text-left text-[11px]">{themeLabel}</span>
-                      <span className="text-[9px] text-slate-400">tap →</span>
-                    </button>
-                    {/* How to Use */}
-                    <button
-                      onClick={() => { setShowUserGuide(true); setShowSidebar(false); }}
-                      className="w-full flex items-center gap-2 p-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs transition-all active:scale-95"
-                    >
-                      <Smartphone size={13} className="text-blue-500" />
-                      <span className="flex-1 text-left text-[11px]">How to Use</span>
-                      <span className="text-[9px] text-blue-400">App guide →</span>
-                    </button>
+                      }
+                    }}
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold transition-all active:scale-95"
+                  >
+                    {isDarkMode
+                      ? <Sparkles size={14} className={isBlue ? "text-blue-500" : "text-amber-500"} />
+                      : <Zap size={14} className="text-amber-500" />}
+                    <span className="text-[10px] font-black leading-tight">{themeLabel}</span>
+                    <span className="text-[8px] font-medium opacity-70 leading-tight text-center">{themeDesc}</span>
+                  </button>
+                );
+
+                const guideBtn = (
+                  <button
+                    key="guide"
+                    onClick={() => { setShowUserGuide(true); setShowSidebar(false); }}
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold transition-all active:scale-95"
+                  >
+                    <Smartphone size={14} className="text-blue-500" />
+                    <span className="text-[10px] font-black leading-tight">How to Use</span>
+                    <span className="text-[8px] font-medium opacity-70 leading-tight text-center">App guide</span>
+                  </button>
+                );
+
+                const externalBtns = hasExternalApps ? settings!.externalApps!.map((app) => (
+                  <button
+                    key={app.id}
+                    onClick={() => { handleExternalAppClick(app); setShowSidebar(false); }}
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-cyan-50 text-cyan-700 font-bold transition-all active:scale-95 relative"
+                  >
+                    {app.icon ? <img src={app.icon} alt="" className="w-4 h-4 rounded" /> : <Smartphone size={14} />}
+                    <span className="text-[10px] font-black leading-tight truncate w-full text-center">{app.name}</span>
+                    {app.isLocked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-500" /></span>}
+                  </button>
+                )) : [];
+
+                const allBtns = [
+                  ...essentialItems.map(renderBtn),
+                  ...premiumItems.map(renderBtn),
+                  ...utilItems.map(renderBtn),
+                  ...externalBtns,
+                  themeBtn,
+                  guideBtn,
+                ];
+
+                return (
+                  <div className="px-3 pt-3 pb-3">
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {allBtns}
+                    </div>
                   </div>
                 );
               })()}
