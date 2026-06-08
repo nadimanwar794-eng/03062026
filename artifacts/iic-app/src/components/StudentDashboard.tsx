@@ -1996,6 +1996,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showSysStatus, setShowSysStatus] = useState(false);
   // Track the highest fbConnectLevel ever reached — used to animate pop-in once per dot
   const fbPrevLevelRef = React.useRef(0);
+  // Per-dot "slow" flags — set after 8s of waiting, cleared when dot goes green
+  const [fbDotSlow, setFbDotSlow] = useState<boolean[]>([false,false,false,false,false]);
 
   // Rotating top bar info: phase 0 = tier label, phase 1 = expiry date
   useEffect(() => {
@@ -2050,21 +2052,39 @@ export const StudentDashboard: React.FC<Props> = ({
     if (user?.id) {
       setFbConnectLevel(l => Math.max(l, 3));
       setFbDotErrors(e => { const n=[...e]; n[2]=false; return n; });
+      setFbDotSlow(e => { const n=[...e]; n[2]=false; return n; });
+      return;
     }
+    // Dot 2 (User): slow after 8s, error after 20s
+    const slow = setTimeout(() => setFbDotSlow(e => { const n=[...e]; n[2]=true; return n; }), 8000);
+    const err  = setTimeout(() => setFbDotErrors(e => { if (e[2]) return e; const n=[...e]; n[2]=true; return n; }), 20000);
+    return () => { clearTimeout(slow); clearTimeout(err); };
   }, [user?.id]);
 
   useEffect(() => {
     if (settings?.appName || settings?.appShortName) {
       setFbConnectLevel(l => Math.max(l, 4));
       setFbDotErrors(e => { const n=[...e]; n[3]=false; return n; });
+      setFbDotSlow(e => { const n=[...e]; n[3]=false; return n; });
+      return;
     }
+    // Dot 3 (Settings): slow after 8s, error after 25s
+    const slow = setTimeout(() => setFbDotSlow(e => { const n=[...e]; n[3]=true; return n; }), 8000);
+    const err  = setTimeout(() => setFbDotErrors(e => { if (e[3]) return e; const n=[...e]; n[3]=true; return n; }), 25000);
+    return () => { clearTimeout(slow); clearTimeout(err); };
   }, [settings?.appName, settings?.appShortName]);
 
   useEffect(() => {
     if (Object.keys(classContentStats).length > 0) {
       setFbConnectLevel(l => Math.max(l, 5));
       setFbDotErrors(e => { const n=[...e]; n[4]=false; return n; });
+      setFbDotSlow(e => { const n=[...e]; n[4]=false; return n; });
+      return;
     }
+    // Dot 4 (Content): slow after 10s, error after 35s
+    const slow = setTimeout(() => setFbDotSlow(e => { const n=[...e]; n[4]=true; return n; }), 10000);
+    const err  = setTimeout(() => setFbDotErrors(e => { if (e[4]) return e; const n=[...e]; n[4]=true; return n; }), 35000);
+    return () => { clearTimeout(slow); clearTimeout(err); };
   }, [classContentStats]);
 
   // Live 1-second clock for profile card countdown — only runs when Profile tab is open
@@ -10448,6 +10468,13 @@ export const StudentDashboard: React.FC<Props> = ({
             {(() => {
               const dotLabels = ['Network','Firebase','User','Settings','Content'];
               const dotIcons  = ['🌐','🔥','👤','⚙️','📚'];
+              const dotHints  = [
+                { slow: 'Internet slow', err: 'No internet — check WiFi/Data' },
+                { slow: 'Firebase slow', err: 'Firebase timeout — retry' },
+                { slow: 'Login taking long…', err: 'Auth failed — try refreshing' },
+                { slow: 'Settings slow…', err: 'Settings load failed — refresh' },
+                { slow: 'Content loading…', err: 'Content not found — check upload' },
+              ];
               const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
               const hasError = fbDotErrors.some(e => e);
               return (
@@ -10517,30 +10544,47 @@ export const StudentDashboard: React.FC<Props> = ({
                           </span>
                         </div>
                         {/* Rows */}
-                        <div className="px-3 py-2 flex flex-col gap-1.5">
+                        <div className="px-3 py-2 flex flex-col gap-2">
                           {dotLabels.map((label, i) => {
                             const lit = fbConnectLevel > i;
                             const isErr = fbDotErrors[i];
+                            const isSlow = fbDotSlow[i] && !lit && !isErr;
                             const isConnecting = fbConnectLevel === i && i < 5 && !isErr;
-                            const statusColor = isErr ? '#ef4444' : lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.3)';
-                            const statusText  = isErr ? 'Error' : lit ? 'OK' : isConnecting ? 'Loading' : 'Pending';
+                            const isPending = !lit && !isConnecting && !isErr;
+                            const statusColor = isErr ? '#ef4444' : lit ? '#10b981' : isSlow || isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.25)';
+                            const statusText  = isErr ? 'Error' : lit ? 'OK' : isSlow ? 'Slow' : isConnecting ? 'Loading' : 'Pending';
+                            const hint = isErr ? dotHints[i].err : isSlow ? dotHints[i].slow : null;
                             return (
-                              <div key={i} className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px]">{dotIcons[i]}</span>
-                                  <span className="text-[11px] text-white/80 font-medium">{label}</span>
+                              <div key={i}>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[11px]">{dotIcons[i]}</span>
+                                    <span className="text-[11px] text-white/80 font-medium">{label}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div style={{
+                                      width: 6, height: 6, borderRadius: '50%',
+                                      background: statusColor,
+                                      boxShadow: `0 0 5px ${statusColor}`,
+                                      animation: isConnecting || isSlow ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                                    }} />
+                                    <span className="text-[9px] font-semibold" style={{ color: statusColor }}>{statusText}</span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, boxShadow: `0 0 5px ${statusColor}` }} />
-                                  <span className="text-[9px] font-semibold" style={{ color: statusColor }}>{statusText}</span>
-                                </div>
+                                {hint && (
+                                  <p className="text-[8.5px] mt-0.5 pl-5 leading-tight" style={{ color: isErr ? 'rgba(239,68,68,0.8)' : 'rgba(251,191,36,0.8)' }}>
+                                    {isErr ? '⚠ ' : '⏳ '}{hint}
+                                  </p>
+                                )}
                               </div>
                             );
                           })}
                         </div>
                         {/* Footer */}
                         <div className="px-3 py-1.5 border-t border-white/10 text-center">
-                          <span className="text-[9px] text-white/30">Tap anywhere to close</span>
+                          <span className="text-[9px] text-white/30">
+                            {hasError ? '⚠ Try refreshing the page' : !allOk ? '⏳ Loading in progress…' : 'All systems operational'}
+                          </span>
                         </div>
                       </div>
                     </>
