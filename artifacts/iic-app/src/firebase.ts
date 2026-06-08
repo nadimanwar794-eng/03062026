@@ -1074,12 +1074,32 @@ export const subscribeToChapterData = (key: string, callback: (data: any) => voi
         if (snapshot.exists()) {
             callback(snapshot.val());
         } else {
-            // If not in RTDB, check Firestore (one-time fetch or snapshot?)
-            // For now, let's just do one-time fetch to avoid complexity of double listeners
-            getDoc(doc(db, "content_data", key)).then(docSnap => {
-                if (docSnap.exists()) callback(docSnap.data());
-            });
+            // RTDB empty — fall back to Firestore with error handling.
+            // Errors are logged but never silently swallowed so the caller
+            // can detect failures (previously: blank page with no clue why).
+            getDoc(doc(db, "content_data", key))
+                .then(docSnap => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        // Write back to RTDB so next read is fast and offline-safe
+                        set(ref(rtdb, `content_data/${key}`), data).catch(() => {});
+                        callback(data);
+                    }
+                    // else: document truly doesn't exist yet — leave content blank (correct)
+                })
+                .catch(e => {
+                    console.error(`[IIC] subscribeToChapterData Firestore fallback failed for "${key}":`, e);
+                    // Re-try once with anonymous auth in case the session expired
+                    import('firebase/auth').then(({ signInAnonymously: _signIn }) =>
+                        _signIn(auth)
+                            .then(() => getDoc(doc(db, "content_data", key)))
+                            .then(docSnap => { if (docSnap.exists()) callback(docSnap.data()); })
+                            .catch(e2 => console.error('[IIC] Auth retry also failed:', e2))
+                    );
+                });
         }
+    }, (error) => {
+        console.error(`[IIC] subscribeToChapterData RTDB error for "${key}":`, error);
     });
 };
 

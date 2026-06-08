@@ -1098,37 +1098,12 @@ const App: React.FC = () => {
                   settings: loadedSettings 
               }));
 
-              // --- CACHE CLEANUP (Admin Controlled) ---
-              // "user ka data auto clear hote jayega oar admin decide karega... History delete nahi hoga"
-              if (loadedSettings.cacheClearDays && loadedSettings.cacheClearDays > 0) {
-                  const now = Date.now();
-                  const retentionMs = loadedSettings.cacheClearDays * 24 * 60 * 60 * 1000;
-
-                  // Clean standard localStorage Content Cache
-                  Object.keys(localStorage).forEach(key => {
-                      if (key.startsWith('nst_content_')) {
-                          // We don't have timestamps on these keys usually, but if we did or if we rely on last access.
-                          // Since we can't track age easily on simple keys without metadata, we might need a more robust strategy.
-                          // However, assuming we want to clear *old* content.
-                          // Let's check if the key has a timestamp or if we just wipe all content occasionally?
-                          // Better: Use `storage` util which might have timestamps or just skip for now if too risky.
-                          // Wait, the requirement says "auto clear".
-                          // Let's implement a safe clear: Delete 'nst_content_' keys that haven't been accessed recently?
-                          // LocalStorage doesn't track access time.
-                          // Strategy: We will just clear ALL cached content if the "Last Clear Date" was > X days ago.
-                          const lastClear = parseInt(localStorage.getItem('nst_last_cache_clear') || '0');
-                          if (now - lastClear > retentionMs) {
-                              Object.keys(localStorage).forEach(k => {
-                                  if (k.startsWith('nst_content_')) localStorage.removeItem(k);
-                              });
-                              // Only clear content cache keys — NOT full storage clear (that wipes user session & history)
-                              storage.clearContentCache().catch(e => console.error(e));
-
-                              localStorage.setItem('nst_last_cache_clear', now.toString());
-                          }
-                      }
-                  });
-              }
+              // --- CACHE CLEANUP (DISABLED) ---
+              // Auto cache-clear was causing blank content pages: it wiped localforage
+              // so getChapterData had to fall back to RTDB/Firestore, but if the
+              // Firebase Auth session was stale those reads failed silently.
+              // Cache clearing is now a manual admin action only (Admin Dashboard → Reset Cache).
+              // DO NOT re-enable automatic cache clearing here.
 
           } catch(e) {}
       }
@@ -1150,6 +1125,16 @@ const App: React.FC = () => {
             return;
         }
 
+        // RE-ESTABLISH FIREBASE AUTH SESSION on startup.
+        // The custom session (nst_current_user) persists across reloads, but the
+        // Firebase Auth SDK session may have expired or been cleared. Without an
+        // active Firebase Auth user, ALL Firestore/RTDB reads fail with
+        // permission-denied — causing blank content pages.
+        // We call signInAnonymously here so Firebase Auth is always active when
+        // the user is already "logged in" via our custom session.
+        auth.currentUser === null && signInAnonymously(auth).catch(e =>
+            console.warn('[IIC] Background Firebase Auth restore failed:', e)
+        );
 
         // MIGRATION & RECALCULATION ON LOAD
         if (user.role !== 'ADMIN') {
