@@ -10534,16 +10534,19 @@ export const StudentDashboard: React.FC<Props> = ({
               const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
               const hasError = fbDotErrors.some(e => e);
               return (
-                <div
-                  className="relative shrink-0"
-                  style={{
-                    opacity: showDots ? 1 : 0,
-                    pointerEvents: showDots ? 'auto' : 'none',
-                    transition: 'opacity 0.6s ease',
-                    width: showDots ? undefined : 0,
-                    overflow: showDots ? 'visible' : 'hidden',
-                  }}
-                >
+                <div className="relative shrink-0">
+                  {/* Fading wrapper — only wraps dots button, NOT popup/backdrop
+                      so the opacity transition doesn't create a stacking context
+                      that would trap the backdrop's z-index */}
+                  <div
+                    style={{
+                      opacity: showDots ? 1 : 0,
+                      pointerEvents: showDots ? 'auto' : 'none',
+                      transition: 'opacity 0.6s ease',
+                      width: showDots ? undefined : 0,
+                      overflow: showDots ? 'visible' : 'hidden',
+                    }}
+                  >
                   {/* Dots row — tap to open popup */}
                   <button
                     onClick={() => setShowSysStatus(s => !s)}
@@ -10583,8 +10586,9 @@ export const StudentDashboard: React.FC<Props> = ({
                       );
                     })}
                   </button>
+                  </div>{/* end fading wrapper */}
 
-                  {/* Status popup */}
+                  {/* Status popup — outside fading wrapper so backdrop z-index is not trapped */}
                   {showSysStatus && (
                     <>
                       {/* Backdrop */}
