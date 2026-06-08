@@ -1994,6 +1994,32 @@ export const StudentDashboard: React.FC<Props> = ({
   const [fbDotErrors, setFbDotErrors] = useState<boolean[]>([false,false,false,false,false]);
   // System status popup open/close
   const [showSysStatus, setShowSysStatus] = useState(false);
+  // Track which dots have already played their lit-up animation (to not repeat)
+  const [dotLitSeen, setDotLitSeen] = useState<boolean[]>([false,false,false,false,false]);
+  // Staggered display level — each dot shows green with a 200ms gap after it's actually lit
+  const [fbDisplayLevel, setFbDisplayLevel] = useState(0);
+  const fbDisplayRef = React.useRef(0);
+  const fbDisplayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // When fbConnectLevel increases, advance fbDisplayLevel one dot at a time with 220ms gap
+  React.useEffect(() => {
+    if (fbConnectLevel <= fbDisplayRef.current) return;
+    const advance = () => {
+      if (fbDisplayRef.current < fbConnectLevel) {
+        fbDisplayRef.current += 1;
+        setFbDisplayLevel(fbDisplayRef.current);
+        setDotLitSeen(prev => {
+          const next = [...prev];
+          next[fbDisplayRef.current - 1] = true;
+          return next;
+        });
+        fbDisplayTimerRef.current = setTimeout(advance, 220);
+      }
+    };
+    if (fbDisplayTimerRef.current) clearTimeout(fbDisplayTimerRef.current);
+    fbDisplayTimerRef.current = setTimeout(advance, 220);
+    return () => { if (fbDisplayTimerRef.current) clearTimeout(fbDisplayTimerRef.current); };
+  }, [fbConnectLevel]);
 
   // Rotating top bar info: phase 0 = tier label, phase 1 = expiry date
   useEffect(() => {
@@ -10457,18 +10483,29 @@ export const StudentDashboard: React.FC<Props> = ({
                     title={allOk ? '✓ System Ready' : hasError ? '⚠ System Error' : `Loading… (${fbConnectLevel * 20}%)`}
                   >
                     {dotLabels.map((_, i) => {
-                      const lit = fbConnectLevel > i;
+                      const lit = fbDisplayLevel > i;
                       const isErr = fbDotErrors[i];
                       const isConnecting = fbConnectLevel === i && i < 5 && !isErr;
+                      const justLit = dotLitSeen[i] && lit;
                       const bg = isErr ? '#ef4444' : lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.22)';
-                      const shadow = isErr ? '0 0 5px rgba(239,68,68,0.9)' : lit ? '0 0 5px rgba(16,185,129,0.9)' : 'none';
+                      const shadow = isErr
+                        ? '0 0 6px rgba(239,68,68,0.95)'
+                        : lit ? '0 0 7px rgba(16,185,129,1), 0 0 14px rgba(16,185,129,0.5)'
+                        : 'none';
                       return (
                         <div key={i} style={{
                           width: 5, height: 5, borderRadius: '50%',
                           background: bg,
                           boxShadow: shadow,
-                          transition: 'background 0.4s ease, box-shadow 0.4s ease',
-                          animation: isConnecting ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                          transition: 'background 0.35s ease, box-shadow 0.35s ease, transform 0.3s ease',
+                          transform: justLit ? 'scale(1)' : 'scale(1)',
+                          animation: isErr
+                            ? 'none'
+                            : justLit && !isConnecting
+                              ? 'dotPopIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards'
+                              : isConnecting
+                                ? 'pulse 1.2s ease-in-out infinite'
+                                : 'none',
                         }} />
                       );
                     })}
