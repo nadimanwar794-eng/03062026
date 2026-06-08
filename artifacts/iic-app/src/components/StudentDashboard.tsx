@@ -14992,6 +14992,12 @@ export const StudentDashboard: React.FC<Props> = ({
             locked: !inboxAccess.hasAccess,
             badge: (unreadCount + unreadNotifCount) > 0,
           }] : []),
+          // Demand moved here from Utilities — fills 3rd slot in Essential row
+          ...(!requestAccess.isHidden ? [{
+            label: 'Demand', desc: 'Request content', icon: Megaphone, color: 'violet',
+            action: () => { setShowRequestModal(true); setShowSidebar(false); },
+            locked: !requestAccess.hasAccess,
+          }] : []),
         ];
 
         const premiumItems: SideBtn[] = [
@@ -15005,20 +15011,15 @@ export const StudentDashboard: React.FC<Props> = ({
             action: () => { onTabChange("REDEEM"); setShowSidebar(false); },
             locked: !redeemAccess.hasAccess,
           }] : []),
-        ];
-
-        const utilItems: SideBtn[] = [
-          ...(!requestAccess.isHidden ? [{
-            label: 'Demand', desc: 'Request content', icon: Megaphone, color: 'violet',
-            action: () => { setShowRequestModal(true); setShowSidebar(false); },
-            locked: !requestAccess.hasAccess,
-          }] : []),
+          // Support moved here from Utilities — fills 3rd slot in Premium row
           ...(!supportAccess.isHidden ? [{
             label: 'Support', desc: 'Help & contact', icon: MessageSquare, color: 'rose',
             action: () => { handleSupportEmail(); setShowSidebar(false); },
             locked: !supportAccess.hasAccess,
           }] : []),
         ];
+
+        const utilItems: SideBtn[] = [];
 
         const colorMap: Record<string, string> = {
           emerald: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
