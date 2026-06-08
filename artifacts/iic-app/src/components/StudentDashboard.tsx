@@ -10289,6 +10289,23 @@ export const StudentDashboard: React.FC<Props> = ({
                       <div className="px-4 pt-2 pb-3 border-b border-slate-100">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Profile Info</p>
                         <div className="space-y-1.5">
+                          {/* Level — prominent */}
+                          {(() => {
+                            const _ls = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 999999999 : (user.totalScore || 0);
+                            const _li = getLevelInfo(_ls);
+                            return (
+                              <button
+                                onClick={() => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); }}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 active:bg-indigo-100 transition-all"
+                              >
+                                <span className="text-xs shrink-0">⭐</span>
+                                <div className="flex-1 min-w-0 text-left">
+                                  <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Level</p>
+                                  <p className="text-[11px] font-black text-indigo-700">Level {_li.level} — {_li.label}</p>
+                                </div>
+                              </button>
+                            );
+                          })()}
                           {(activeSessionClass || user.classLevel) && (
                             <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-100">
                               <span className="text-xs shrink-0">📚</span>
