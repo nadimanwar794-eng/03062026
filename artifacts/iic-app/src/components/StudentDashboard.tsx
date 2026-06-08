@@ -10428,20 +10428,6 @@ export const StudentDashboard: React.FC<Props> = ({
               );
             })()}
 
-            {/* Level — compact L15 */}
-            {(() => {
-              const _ls = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 999999999 : (user.totalScore || 0);
-              const _li = getLevelInfo(_ls);
-              return (
-                <button
-                  onClick={() => { setShowScorePanel(true); setScorePanelTab('DAILY'); }}
-                  className={`inline-flex items-center gap-[2px] font-black text-white whitespace-nowrap shrink-0 active:scale-95 transition-all${topBarBtnGlow ? ' nst-topbar-btn-glow' : ''}`}
-                  title="View my level"
-                >
-                  <span className="text-[13px]">L{_li.level}</span>
-                </button>
-              );
-            })()}
 
             {/* Credits pill */}
             {!(settings?.hiddenTopBarButtons || []).includes('CREDITS') && (
