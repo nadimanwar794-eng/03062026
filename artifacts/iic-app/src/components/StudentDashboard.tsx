@@ -1623,6 +1623,9 @@ export const StudentDashboard: React.FC<Props> = ({
     setAlertConfig({ isOpen: true, type, title, message: msg });
   };
 
+  // NEW NOTIFICATION LOGIC — declared BEFORE addAppNotification to prevent Terser TDZ
+  const [hasNewUpdate, setHasNewUpdate] = useState(false);
+
   // IN-APP NOTIFICATION HELPER
   // Pushes a notification into local store (shown on the Notifications page)
   // instead of opening a modal popup. Auto-dedupes within 4 hours.
@@ -1652,9 +1655,6 @@ export const StudentDashboard: React.FC<Props> = ({
       console.error("addAppNotification failed", e);
     }
   };
-
-  // NEW NOTIFICATION LOGIC
-  const [hasNewUpdate, setHasNewUpdate] = useState(false);
   useEffect(() => {
     const q = query(ref(rtdb, "universal_updates"), limitToLast(1));
     const unsub = onValue(q, (snap) => {

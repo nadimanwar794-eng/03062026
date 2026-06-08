@@ -343,43 +343,13 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       setIsTestingKeys(true);
       const statuses: Record<number, string> = {};
       const keys = localSettings.groqApiKeys || [];
-      
       for (let i = 0; i < keys.length; i++) {
-          const key = keys[i]?.trim(); // STRICT TRIM
+          const key = keys[i]?.trim();
           if (!key) {
               statuses[i] = "Empty";
               continue;
           }
-          try {
-              const response = await fetch("/api/groq", {
-                  method: "POST",
-                  headers: { 
-                      "Content-Type": "application/json" 
-                  },
-                  body: JSON.stringify({
-                      key: key,
-                      model: "llama-3.1-8b-instant",
-                      messages: [{ role: "user", content: "Hi" }],
-                      max_tokens: 1
-                  })
-              });
-              
-              if (response.ok) {
-                  statuses[i] = "Valid";
-              } else {
-                  const errText = await response.text();
-                  if (response.status === 429) {
-                      statuses[i] = "⚠️ Rate Limit";
-                  } else if (response.status === 401) {
-                      statuses[i] = "🔴 Invalid Key";
-                  } else {
-                      statuses[i] = `❌ ${response.status}`;
-                  }
-              }
-          } catch (e: any) {
-              console.error(`Key ${i} failed:`, e);
-              statuses[i] = `❌ Error`;
-          }
+          statuses[i] = "⚠️ AI Disabled";
       }
       setKeyStatus(statuses);
       setIsTestingKeys(false);
