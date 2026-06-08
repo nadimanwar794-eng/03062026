@@ -10522,11 +10522,11 @@ export const StudentDashboard: React.FC<Props> = ({
 
             {/* 5 connection dots — System Health Indicator */}
             {(() => {
-              const dotLabels = ['Network','Server','User','Settings','Content'];
-              const dotIcons  = ['🌐','🖥️','👤','⚙️','📚'];
+              const dotLabels = ['Network','Connection','User','Settings','Content'];
+              const dotIcons  = ['🌐','🔗','👤','⚙️','📚'];
               const dotHints  = [
                 { slow: 'Internet slow', err: 'No internet — check WiFi/Data' },
-                { slow: 'Server slow', err: 'Server timeout — retry' },
+                { slow: 'Connection slow', err: 'Connection timeout — retry' },
                 { slow: 'Login taking long…', err: 'Auth failed — try refreshing' },
                 { slow: 'Settings slow…', err: 'Settings load failed — refresh' },
                 { slow: 'Content loading…', err: 'Content not found — check upload' },
