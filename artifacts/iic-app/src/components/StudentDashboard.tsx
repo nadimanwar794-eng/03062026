@@ -10549,8 +10549,6 @@ export const StudentDashboard: React.FC<Props> = ({
                       opacity: showDots ? 1 : 0,
                       pointerEvents: showDots ? 'auto' : 'none',
                       transition: 'opacity 0.6s ease',
-                      width: showDots ? undefined : 0,
-                      overflow: showDots ? 'visible' : 'hidden',
                     }}
                   >
                   {/* Dots row — tap to open popup */}
