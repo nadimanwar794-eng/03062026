@@ -15057,12 +15057,31 @@ export const StudentDashboard: React.FC<Props> = ({
             <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
             <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
-              {/* All buttons — single compact grid, no category labels */}
+              {/* Essential */}
+              {essentialItems.length > 0 && (
+                <div className="px-3 pt-3 pb-2 border-b border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Essential</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {essentialItems.map(renderBtn)}
+                  </div>
+                </div>
+              )}
+
+              {/* Premium & Rewards */}
+              {hasPremium && (
+                <div className={`px-3 pt-2.5 pb-2 ${hasUtil || hasExternalApps ? 'border-b border-slate-100' : ''}`}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Premium</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {premiumItems.map(renderBtn)}
+                  </div>
+                </div>
+              )}
+
+              {/* Utilities + Theme + Guide — all in one compact grid */}
               {(() => {
                 const themeType = localStorage.getItem("nst_dark_theme_type");
                 const isBlue = isDarkMode && themeType === "blue";
                 const themeLabel = isBlue ? 'Blue Dark' : isDarkMode ? 'Black Dark' : 'Light Mode';
-                const themeDesc = isBlue ? 'Switch theme' : isDarkMode ? 'Switch theme' : 'Switch theme';
 
                 const themeBtn = (
                   <button
@@ -15092,7 +15111,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       ? <Sparkles size={14} className={isBlue ? "text-blue-500" : "text-amber-500"} />
                       : <Zap size={14} className="text-amber-500" />}
                     <span className="text-[10px] font-black leading-tight">{themeLabel}</span>
-                    <span className="text-[8px] font-medium opacity-70 leading-tight text-center">{themeDesc}</span>
+                    <span className="text-[8px] font-medium opacity-70 leading-tight text-center">Switch theme</span>
                   </button>
                 );
 
@@ -15120,19 +15139,13 @@ export const StudentDashboard: React.FC<Props> = ({
                   </button>
                 )) : [];
 
-                const allBtns = [
-                  ...essentialItems.map(renderBtn),
-                  ...premiumItems.map(renderBtn),
-                  ...utilItems.map(renderBtn),
-                  ...externalBtns,
-                  themeBtn,
-                  guideBtn,
-                ];
+                const utilsRow = [...utilItems.map(renderBtn), ...externalBtns, themeBtn, guideBtn];
 
                 return (
-                  <div className="px-3 pt-3 pb-3">
+                  <div className="px-3 pt-2.5 pb-3">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Utilities</p>
                     <div className="grid grid-cols-3 gap-1.5">
-                      {allBtns}
+                      {utilsRow}
                     </div>
                   </div>
                 );
