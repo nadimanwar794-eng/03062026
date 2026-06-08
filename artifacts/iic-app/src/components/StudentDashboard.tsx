@@ -10581,10 +10581,25 @@ export const StudentDashboard: React.FC<Props> = ({
                           })}
                         </div>
                         {/* Footer */}
-                        <div className="px-3 py-1.5 border-t border-white/10 text-center">
-                          <span className="text-[9px] text-white/30">
-                            {hasError ? '⚠ Try refreshing the page' : !allOk ? '⏳ Loading in progress…' : 'All systems operational'}
-                          </span>
+                        <div className="px-3 py-2 border-t border-white/10 flex flex-col gap-1.5">
+                          {(hasError || fbDotSlow.some(s => s)) ? (
+                            <button
+                              onClick={() => window.location.reload()}
+                              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg font-bold text-[10px] active:scale-95 transition-transform"
+                              style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                            >
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                              </svg>
+                              Phir se Connect Karo
+                            </button>
+                          ) : (
+                            <span className="text-[9px] text-white/30 text-center block">
+                              {allOk ? '✓ All systems operational' : '⏳ Loading in progress…'}
+                            </span>
+                          )}
+                          <span className="text-[8px] text-white/20 text-center">Tap anywhere to close</span>
                         </div>
                       </div>
                     </>
