@@ -1983,6 +1983,11 @@ export const StudentDashboard: React.FC<Props> = ({
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [isTopBarHidden, setIsTopBarHidden] = useState(false);
 
+  // Real-time content stats from Firebase content_index: key = "{board}_{classLevel}"
+  const [classContentStats, setClassContentStats] = useState<Record<string, ContentTypeStats>>({});
+  // Full raw index per class for subject-level breakdown: key = "{board}_{classLevel}"
+  const [classContentIndex, setClassContentIndex] = useState<Record<string, ContentIndexMap>>({});
+
   // Firebase connection level: 0=none 1=network 2=rtdb 3=user 4=settings 5=content
   const [fbConnectLevel, setFbConnectLevel] = useState(0);
 
@@ -2199,10 +2204,6 @@ export const StudentDashboard: React.FC<Props> = ({
   }, []);
   const [homeworkSubjectView, setHomeworkSubjectView] = useState<string | null>(null);
   const [class612SubjectView, setClass612SubjectView] = useState<{ classLevel: string; subject: Subject } | null>(null);
-  // Real-time content stats from Firebase content_index: key = "{board}_{classLevel}"
-  const [classContentStats, setClassContentStats] = useState<Record<string, ContentTypeStats>>({});
-  // Full raw index per class for subject-level breakdown: key = "{board}_{classLevel}"
-  const [classContentIndex, setClassContentIndex] = useState<Record<string, ContentIndexMap>>({});
   const [lucentCategoryView, setLucentCategoryView] = useState(false);
   // Which book is selected inside the Lucent category view (null = book-selection screen)
   const [selectedLucentBook, setSelectedLucentBook] = useState<string | null>(null);

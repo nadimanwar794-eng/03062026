@@ -1,0 +1,1 @@
+- [Vite/Terser TDZ from useState ordering](vite-terser-tdz.md) — minifier merges consecutive const-useState calls; useEffect deps evaluated before merged const executes causes TDZ crash.
