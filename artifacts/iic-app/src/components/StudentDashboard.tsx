@@ -9789,40 +9789,6 @@ export const StudentDashboard: React.FC<Props> = ({
                 {settings?.appShortName || settings?.appName || "IIC"}
               </span>
               <BadgeCheck size={16} className="text-blue-200 shrink-0" fill="rgba(191,219,254,0.35)" />
-              {/* Firebase connection dots — 5 stages */}
-              {(() => {
-                const dotLabels = ['Network','Firebase','User','Settings','Content'];
-                const titleText = fbConnectLevel >= 5
-                  ? '✓ All data loaded'
-                  : fbConnectLevel === 0
-                    ? 'Offline'
-                    : `Loading: ${dotLabels[fbConnectLevel] || ''} (${fbConnectLevel * 20}%)`;
-                return (
-                  <div
-                    className="flex items-center gap-[3px] shrink-0 px-1"
-                    title={titleText}
-                  >
-                    {dotLabels.map((_, i) => {
-                      const lit = fbConnectLevel > i;
-                      const isConnecting = fbConnectLevel === i && i < 5;
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            width: 5,
-                            height: 5,
-                            borderRadius: '50%',
-                            background: lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.22)',
-                            boxShadow: lit ? '0 0 5px rgba(16,185,129,0.9)' : 'none',
-                            transition: 'background 0.4s ease, box-shadow 0.4s ease',
-                            animation: isConnecting ? 'pulse 1.2s ease-in-out infinite' : 'none',
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                );
-              })()}
             </div>
           </div>
 
@@ -10435,7 +10401,34 @@ export const StudentDashboard: React.FC<Props> = ({
           {/* Right: Level | Credits | Subscription pills */}
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
 
-            {/* Level pill */}
+            {/* 5 connection dots — replaces Level pill */}
+            {(() => {
+              const dotLabels = ['Network','Firebase','User','Settings','Content'];
+              const titleText = fbConnectLevel >= 5
+                ? '✓ All data loaded'
+                : fbConnectLevel === 0
+                  ? 'Offline'
+                  : `Loading: ${dotLabels[fbConnectLevel] || ''} (${fbConnectLevel * 20}%)`;
+              return (
+                <div className="flex items-center gap-[3px] shrink-0 px-1" title={titleText}>
+                  {dotLabels.map((_, i) => {
+                    const lit = fbConnectLevel > i;
+                    const isConnecting = fbConnectLevel === i && i < 5;
+                    return (
+                      <div key={i} style={{
+                        width: 5, height: 5, borderRadius: '50%',
+                        background: lit ? '#10b981' : isConnecting ? '#fbbf24' : 'rgba(255,255,255,0.22)',
+                        boxShadow: lit ? '0 0 5px rgba(16,185,129,0.9)' : 'none',
+                        transition: 'background 0.4s ease, box-shadow 0.4s ease',
+                        animation: isConnecting ? 'pulse 1.2s ease-in-out infinite' : 'none',
+                      }} />
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Level — compact L15 */}
             {(() => {
               const _ls = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 999999999 : (user.totalScore || 0);
               const _li = getLevelInfo(_ls);
@@ -10445,7 +10438,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   className={`inline-flex items-center gap-[2px] font-black text-white whitespace-nowrap shrink-0 active:scale-95 transition-all${topBarBtnGlow ? ' nst-topbar-btn-glow' : ''}`}
                   title="View my level"
                 >
-                  <span className="text-[14px]">Level</span><span className="text-[13px]"> {_li.level}</span>
+                  <span className="text-[13px]">L{_li.level}</span>
                 </button>
               );
             })()}
