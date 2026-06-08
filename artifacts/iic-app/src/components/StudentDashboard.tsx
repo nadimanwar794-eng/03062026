@@ -1998,6 +1998,11 @@ export const StudentDashboard: React.FC<Props> = ({
   const fbPrevLevelRef = React.useRef(0);
   // Per-dot "slow" flags — set after 8s of waiting, cleared when dot goes green
   const [fbDotSlow, setFbDotSlow] = useState<boolean[]>([false,false,false,false,false]);
+  // Refs to track whether each data layer is already cached — used to instantly
+  // restore the connect level when RTDB reconnects after a network drop
+  const fbUserLoadedRef    = React.useRef(false);
+  const fbSettingsLoadedRef = React.useRef(false);
+  const fbContentLoadedRef  = React.useRef(false);
 
   // Rotating top bar info: phase 0 = tier label, phase 1 = expiry date
   useEffect(() => {
@@ -2036,6 +2041,23 @@ export const StudentDashboard: React.FC<Props> = ({
         if (fbTimeout) { clearTimeout(fbTimeout); fbTimeout = null; }
         setFbConnectLevel(l => Math.max(l, 2));
         setFbDotErrors(e => { const n=[...e]; n[1]=false; return n; });
+        // If data layers were already loaded before this reconnect, immediately
+        // restore their levels so the status panel doesn't get stuck on "Loading"
+        if (fbUserLoadedRef.current) {
+          setFbConnectLevel(l => Math.max(l, 3));
+          setFbDotErrors(e => { const n=[...e]; n[2]=false; return n; });
+          setFbDotSlow(e => { const n=[...e]; n[2]=false; return n; });
+        }
+        if (fbSettingsLoadedRef.current) {
+          setFbConnectLevel(l => Math.max(l, 4));
+          setFbDotErrors(e => { const n=[...e]; n[3]=false; return n; });
+          setFbDotSlow(e => { const n=[...e]; n[3]=false; return n; });
+        }
+        if (fbContentLoadedRef.current) {
+          setFbConnectLevel(l => Math.max(l, 5));
+          setFbDotErrors(e => { const n=[...e]; n[4]=false; return n; });
+          setFbDotSlow(e => { const n=[...e]; n[4]=false; return n; });
+        }
       } else {
         setFbConnectLevel(l => Math.min(l, 1));
       }
@@ -2050,6 +2072,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     if (user?.id) {
+      fbUserLoadedRef.current = true;
       setFbConnectLevel(l => Math.max(l, 3));
       setFbDotErrors(e => { const n=[...e]; n[2]=false; return n; });
       setFbDotSlow(e => { const n=[...e]; n[2]=false; return n; });
@@ -2063,6 +2086,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     if (settings?.appName || settings?.appShortName) {
+      fbSettingsLoadedRef.current = true;
       setFbConnectLevel(l => Math.max(l, 4));
       setFbDotErrors(e => { const n=[...e]; n[3]=false; return n; });
       setFbDotSlow(e => { const n=[...e]; n[3]=false; return n; });
@@ -2076,6 +2100,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     if (Object.keys(classContentStats).length > 0) {
+      fbContentLoadedRef.current = true;
       setFbConnectLevel(l => Math.max(l, 5));
       setFbDotErrors(e => { const n=[...e]; n[4]=false; return n; });
       setFbDotSlow(e => { const n=[...e]; n[4]=false; return n; });
