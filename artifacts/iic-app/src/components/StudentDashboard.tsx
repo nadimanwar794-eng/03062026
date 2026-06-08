@@ -10272,87 +10272,67 @@ export const StudentDashboard: React.FC<Props> = ({
                       onClick={() => setShowDotsMenu(false)}
                       onTouchStart={() => setShowDotsMenu(false)}
                     />
-                    {/* Dropdown panel */}
-                    <div data-no-topbar-swipe className="fixed top-[105px] right-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden max-h-[calc(100dvh-185px)] overflow-y-auto">
-                      {/* Close button row */}
-                      <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Menu</span>
+                    {/* Dropdown panel — compact */}
+                    <div data-no-topbar-swipe className="fixed top-[100px] right-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5 border-b border-slate-100">
+                        {/* Level pill */}
+                        {(() => {
+                          const _ls = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 999999999 : (user.totalScore || 0);
+                          const _li = getLevelInfo(_ls);
+                          return (
+                            <button
+                              onClick={() => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); }}
+                              className="flex items-center gap-1.5 active:opacity-70 transition-all"
+                            >
+                              <span className="text-[11px]">⭐</span>
+                              <span className="text-[11px] font-black text-indigo-700">Lv {_li.level}</span>
+                              <span className="text-[10px] text-slate-400 font-semibold">— {_li.label}</span>
+                            </button>
+                          );
+                        })()}
                         <button
                           onClick={() => setShowDotsMenu(false)}
-                          className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                          className="p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
                         >
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                         </button>
                       </div>
 
-                      {/* Profile Details */}
-                      <div className="px-4 pt-2 pb-3 border-b border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Profile Info</p>
-                        <div className="space-y-1.5">
-                          {/* Level — prominent */}
-                          {(() => {
-                            const _ls = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 999999999 : (user.totalScore || 0);
-                            const _li = getLevelInfo(_ls);
-                            return (
-                              <button
-                                onClick={() => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); }}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 active:bg-indigo-100 transition-all"
-                              >
-                                <span className="text-xs shrink-0">⭐</span>
-                                <div className="flex-1 min-w-0 text-left">
-                                  <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Level</p>
-                                  <p className="text-[11px] font-black text-indigo-700">Level {_li.level} — {_li.label}</p>
-                                </div>
-                              </button>
-                            );
-                          })()}
-                          {(activeSessionClass || user.classLevel) && (
-                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                              <span className="text-xs shrink-0">📚</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Class</p>
-                                <p className="text-[11px] font-black text-slate-700">Class {activeSessionClass || user.classLevel}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
                       {/* Board switch */}
-                      <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Board</p>
-                        <div className="flex items-center bg-slate-100 p-0.5 rounded-xl">
+                      <div className="px-3 pt-2 pb-2 border-b border-slate-100">
+                        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg">
                           <button
                             onClick={() => { setActiveSessionBoard("CBSE"); }}
-                            className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all ${activeSessionBoard !== "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                            className={`flex-1 py-1 text-[11px] font-black rounded-md transition-all ${activeSessionBoard !== "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
                           >CBSE</button>
                           <button
                             onClick={() => { setActiveSessionBoard("BSEB"); }}
-                            className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all ${activeSessionBoard === "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                            className={`flex-1 py-1 text-[11px] font-black rounded-md transition-all ${activeSessionBoard === "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
                           >BSEB</button>
                         </div>
                       </div>
 
-                      {/* Quick Actions */}
-                      <div className="px-4 pt-3 pb-3 border-b border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Quick Access</p>
-                        <div className="grid grid-cols-2 gap-2">
+                      {/* Quick Actions — 3 col compact */}
+                      <div className="px-3 pt-2 pb-2.5">
+                        <div className="grid grid-cols-3 gap-1.5">
                           <button
                             onClick={() => { setShowLevelLeaderboard(true); setShowDotsMenu(false); }}
-                            className="flex items-center gap-2 p-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-xs hover:bg-amber-100 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-[10px] active:bg-amber-100 transition-all"
                           >
-                            <Trophy size={14} className="text-amber-500" /> Rank
+                            <Trophy size={13} className="text-amber-500" />Rank
                           </button>
                           <button
                             onClick={() => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); }}
-                            className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-[10px] active:bg-emerald-100 transition-all"
                           >
-                            <span className="text-sm">📊</span> Limits
+                            <span className="text-sm leading-none">📊</span>Limits
                           </button>
                           <button
                             onClick={() => { onTabChange("UNIVERSAL_VIDEO"); setCurrentLogicalTab("VIDEO"); setShowDotsMenu(false); }}
-                            className="flex items-center gap-2 p-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs hover:bg-blue-100 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-[10px] active:bg-blue-100 transition-all"
                           >
-                            <Video size={14} /> Video
+                            <Video size={13} />Video
                           </button>
                           <button
                             onClick={async () => {
@@ -10362,22 +10342,22 @@ export const StudentDashboard: React.FC<Props> = ({
                               rotateFullscreenRef.current = false;
                               if (result === null) showAlert('Screen rotation is not supported on this device/browser.', 'WARNING');
                             }}
-                            className={`flex items-center gap-2 p-2 rounded-xl font-bold text-xs transition-all ${isLandscape ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                            className={`flex flex-col items-center gap-0.5 py-2 rounded-xl font-bold text-[10px] transition-all ${isLandscape ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 active:bg-slate-200'}`}
                           >
-                            <RotateCcw size={14} /> Rotate
+                            <RotateCcw size={13} />Rotate
                           </button>
                           <button
                             onClick={() => { onTabChange("CUSTOM_PAGE"); setShowDotsMenu(false); }}
-                            className="flex items-center gap-2 p-2 rounded-xl bg-teal-50 text-teal-700 font-bold text-xs hover:bg-teal-100 transition-all relative"
+                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-teal-50 text-teal-700 font-bold text-[10px] active:bg-teal-100 transition-all relative"
                           >
-                            <Zap size={14} /> What's New
-                            {hasNewUpdate && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+                            <Zap size={13} />New
+                            {hasNewUpdate && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
                           </button>
                           <button
                             onClick={() => { switchToLogicalTab("PROFILE"); setShowDotsMenu(false); }}
-                            className="flex items-center gap-2 p-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-[10px] active:bg-slate-200 transition-all"
                           >
-                            <UserIcon size={14} /> Profile
+                            <UserIcon size={13} />Profile
                           </button>
                         </div>
                       </div>
