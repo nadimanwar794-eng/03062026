@@ -2003,6 +2003,9 @@ export const StudentDashboard: React.FC<Props> = ({
   const fbUserLoadedRef    = React.useRef(false);
   const fbSettingsLoadedRef = React.useRef(false);
   const fbContentLoadedRef  = React.useRef(false);
+  // Auto-hide dots 5s after everything turns green; show immediately on problem
+  const [showDots, setShowDots] = useState(true);
+  const dotsHideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Rotating top bar info: phase 0 = tier label, phase 1 = expiry date
   useEffect(() => {
@@ -2121,6 +2124,21 @@ export const StudentDashboard: React.FC<Props> = ({
     const err  = setTimeout(() => setFbDotErrors(e => { if (e[4]) return e; const n=[...e]; n[4]=true; return n; }), 35000);
     return () => { clearTimeout(slow); clearTimeout(err); };
   }, [classContentStats]);
+
+  // Auto-hide dots 5s after everything is green; re-show instantly on any problem
+  useEffect(() => {
+    const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
+    if (allOk) {
+      // Start 5s countdown to hide
+      if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current);
+      dotsHideTimerRef.current = setTimeout(() => setShowDots(false), 5000);
+    } else {
+      // Problem detected — show immediately and cancel any pending hide
+      if (dotsHideTimerRef.current) { clearTimeout(dotsHideTimerRef.current); dotsHideTimerRef.current = null; }
+      setShowDots(true);
+    }
+    return () => { if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current); };
+  }, [fbConnectLevel, fbDotErrors]);
 
   // Live 1-second clock for profile card countdown — only runs when Profile tab is open
   const [_profileNow, _setProfileNow] = useState(Date.now());
@@ -10513,7 +10531,17 @@ export const StudentDashboard: React.FC<Props> = ({
               const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
               const hasError = fbDotErrors.some(e => e);
               return (
-                <div className="relative shrink-0">
+                <div
+                  className="relative shrink-0"
+                  style={{
+                    opacity: showDots ? 1 : 0,
+                    pointerEvents: showDots ? 'auto' : 'none',
+                    transition: 'opacity 0.6s ease',
+                    width: showDots ? undefined : 0,
+                    overflow: 'hidden',
+                  }}
+                  onTransitionEnd={() => { if (!showDots) setShowSysStatus(false); }}
+                >
                   {/* Dots row — tap to open popup */}
                   <button
                     onClick={() => setShowSysStatus(s => !s)}
