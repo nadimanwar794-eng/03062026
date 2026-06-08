@@ -2913,7 +2913,10 @@ const App: React.FC = () => {
                         );
                         const _curIdx = _isPdfContent ? state.chapters.findIndex(c => c.id === state.selectedChapter?.id) : -1;
                         const _nextChapter = _curIdx >= 0 && _curIdx < state.chapters.length - 1 ? state.chapters[_curIdx + 1] : null;
-                        const _handleNextPdf = _nextChapter ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
+                        const _pdfContentType = (['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent?.type || ''))
+                          ? state.lessonContent!.type as any
+                          : 'PDF_FREE';
+                        const _handleNextPdf = _nextChapter ? () => onChapterClick(_nextChapter, _pdfContentType) : undefined;
                         return (
                           <LessonView
                               content={state.lessonContent}
