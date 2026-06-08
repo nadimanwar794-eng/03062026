@@ -2042,21 +2042,31 @@ export const StudentDashboard: React.FC<Props> = ({
         setFbConnectLevel(l => Math.max(l, 2));
         setFbDotErrors(e => { const n=[...e]; n[1]=false; return n; });
         // If data layers were already loaded before this reconnect, immediately
-        // restore their levels so the status panel doesn't get stuck on "Loading"
+        // restore their levels so the status panel doesn't get stuck on "Loading".
+        // Also advance fbPrevLevelRef so the pop-in animation is skipped for
+        // already-cached dots — they should turn green instantly, not sequentially.
+        let restoredLevel = 2;
         if (fbUserLoadedRef.current) {
+          restoredLevel = 3;
           setFbConnectLevel(l => Math.max(l, 3));
           setFbDotErrors(e => { const n=[...e]; n[2]=false; return n; });
           setFbDotSlow(e => { const n=[...e]; n[2]=false; return n; });
         }
         if (fbSettingsLoadedRef.current) {
+          restoredLevel = 4;
           setFbConnectLevel(l => Math.max(l, 4));
           setFbDotErrors(e => { const n=[...e]; n[3]=false; return n; });
           setFbDotSlow(e => { const n=[...e]; n[3]=false; return n; });
         }
         if (fbContentLoadedRef.current) {
+          restoredLevel = 5;
           setFbConnectLevel(l => Math.max(l, 5));
           setFbDotErrors(e => { const n=[...e]; n[4]=false; return n; });
           setFbDotSlow(e => { const n=[...e]; n[4]=false; return n; });
+        }
+        // Skip the sequential pop-in for dots already restored from cache
+        if (restoredLevel > fbPrevLevelRef.current) {
+          fbPrevLevelRef.current = restoredLevel;
         }
       } else {
         setFbConnectLevel(l => Math.min(l, 1));
