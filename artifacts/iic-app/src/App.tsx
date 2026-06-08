@@ -1121,8 +1121,8 @@ const App: React.FC = () => {
                               Object.keys(localStorage).forEach(k => {
                                   if (k.startsWith('nst_content_')) localStorage.removeItem(k);
                               });
-                              // Also clear indexedDB via storage util if possible (not exposed here, but we can try)
-                              storage.clear().catch(e => console.error(e));
+                              // Only clear content cache keys — NOT full storage clear (that wipes user session & history)
+                              storage.clearContentCache().catch(e => console.error(e));
 
                               localStorage.setItem('nst_last_cache_clear', now.toString());
                           }

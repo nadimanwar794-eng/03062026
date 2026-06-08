@@ -30,6 +30,17 @@ export const storage = {
     }
   },
 
+  clearContentCache: async (): Promise<void> => {
+    try {
+      const keys = await localforage.keys();
+      const contentKeys = keys.filter(k => k.startsWith('nst_content_'));
+      await Promise.all(contentKeys.map(k => localforage.removeItem(k)));
+      console.log(`[IIC] Content cache cleared: ${contentKeys.length} keys removed.`);
+    } catch (err) {
+      console.error('Error clearing content cache from localforage:', err);
+    }
+  },
+
   clear: async (): Promise<void> => {
     try {
       await localforage.clear();
