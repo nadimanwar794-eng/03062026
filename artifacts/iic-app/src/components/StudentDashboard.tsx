@@ -2131,7 +2131,10 @@ export const StudentDashboard: React.FC<Props> = ({
     if (allOk) {
       // Start 5s countdown to hide
       if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current);
-      dotsHideTimerRef.current = setTimeout(() => setShowDots(false), 5000);
+      dotsHideTimerRef.current = setTimeout(() => {
+        setShowDots(false);
+        setShowSysStatus(false);
+      }, 5000);
     } else {
       // Problem detected — show immediately and cancel any pending hide
       if (dotsHideTimerRef.current) { clearTimeout(dotsHideTimerRef.current); dotsHideTimerRef.current = null; }
@@ -10540,7 +10543,6 @@ export const StudentDashboard: React.FC<Props> = ({
                     width: showDots ? undefined : 0,
                     overflow: 'hidden',
                   }}
-                  onTransitionEnd={() => { if (!showDots) setShowSysStatus(false); }}
                 >
                   {/* Dots row — tap to open popup */}
                   <button
