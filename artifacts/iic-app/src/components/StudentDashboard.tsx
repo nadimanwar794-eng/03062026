@@ -10313,26 +10313,32 @@ export const StudentDashboard: React.FC<Props> = ({
                         </div>
                       </div>
 
-                      {/* Quick Actions — 3 col compact */}
+                      {/* Quick Actions — 3 col with descriptions */}
                       <div className="px-3 pt-2 pb-2.5">
                         <div className="grid grid-cols-3 gap-1.5">
                           <button
                             onClick={() => { setShowLevelLeaderboard(true); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-[10px] active:bg-amber-100 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-amber-50 text-amber-700 font-bold active:bg-amber-100 transition-all"
                           >
-                            <Trophy size={13} className="text-amber-500" />Rank
+                            <Trophy size={13} className="text-amber-500" />
+                            <span className="text-[10px] font-black leading-tight">Rank</span>
+                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Leaderboard</span>
                           </button>
                           <button
                             onClick={() => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); }}
-                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-[10px] active:bg-emerald-100 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-emerald-50 text-emerald-700 font-bold active:bg-emerald-100 transition-all"
                           >
-                            <span className="text-sm leading-none">📊</span>Limits
+                            <span className="text-sm leading-none">📊</span>
+                            <span className="text-[10px] font-black leading-tight">Limits</span>
+                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Daily usage</span>
                           </button>
                           <button
                             onClick={() => { onTabChange("UNIVERSAL_VIDEO"); setCurrentLogicalTab("VIDEO"); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-[10px] active:bg-blue-100 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-blue-50 text-blue-700 font-bold active:bg-blue-100 transition-all"
                           >
-                            <Video size={13} />Video
+                            <Video size={13} />
+                            <span className="text-[10px] font-black leading-tight">Video</span>
+                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Watch classes</span>
                           </button>
                           <button
                             onClick={async () => {
@@ -10342,22 +10348,28 @@ export const StudentDashboard: React.FC<Props> = ({
                               rotateFullscreenRef.current = false;
                               if (result === null) showAlert('Screen rotation is not supported on this device/browser.', 'WARNING');
                             }}
-                            className={`flex flex-col items-center gap-0.5 py-2 rounded-xl font-bold text-[10px] transition-all ${isLandscape ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 active:bg-slate-200'}`}
+                            className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl font-bold transition-all ${isLandscape ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 active:bg-slate-200'}`}
                           >
-                            <RotateCcw size={13} />Rotate
+                            <RotateCcw size={13} />
+                            <span className="text-[10px] font-black leading-tight">Rotate</span>
+                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Landscape</span>
                           </button>
                           <button
                             onClick={() => { onTabChange("CUSTOM_PAGE"); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-teal-50 text-teal-700 font-bold text-[10px] active:bg-teal-100 transition-all relative"
+                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-teal-50 text-teal-700 font-bold active:bg-teal-100 transition-all relative"
                           >
-                            <Zap size={13} />New
+                            <Zap size={13} />
+                            <span className="text-[10px] font-black leading-tight">What's New</span>
+                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Updates</span>
                             {hasNewUpdate && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
                           </button>
                           <button
                             onClick={() => { switchToLogicalTab("PROFILE"); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-[10px] active:bg-slate-200 transition-all"
+                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-slate-100 text-slate-600 font-bold active:bg-slate-200 transition-all"
                           >
-                            <UserIcon size={13} />Profile
+                            <UserIcon size={13} />
+                            <span className="text-[10px] font-black leading-tight">Profile</span>
+                            <span className="text-[7.5px] opacity-60 leading-tight text-center">My account</span>
                           </button>
                         </div>
                       </div>
@@ -14849,21 +14861,21 @@ export const StudentDashboard: React.FC<Props> = ({
         const requestAccess = getFeatureAccess('REQUEST_CONTENT');
         const supportAccess = getFeatureAccess('SUPPORT');
 
-        type SideBtn = { label: string; icon: React.ElementType; color: string; action: () => void; locked: boolean; badge?: boolean };
+        type SideBtn = { label: string; desc: string; icon: React.ElementType; color: string; action: () => void; locked: boolean; badge?: boolean };
 
         const essentialItems: SideBtn[] = [
           {
-            label: 'Score History', icon: TrendingUp, color: 'cyan',
+            label: 'Score History', desc: 'Points & progress', icon: TrendingUp, color: 'cyan',
             action: () => { setShowScoreHistoryDirect(true); setShowSidebar(false); },
             locked: false,
           },
           ...(!hwAccess.isHidden && !(settings?.hiddenBottomNavButtons || []).includes('HOMEWORK') ? [{
-            label: 'Homework', icon: GraduationCap, color: 'emerald',
+            label: 'Homework', desc: 'Assigned tasks', icon: GraduationCap, color: 'emerald',
             action: () => { onTabChange("HOMEWORK"); setShowSidebar(false); },
             locked: !hwAccess.hasAccess,
           }] : []),
           ...(!inboxAccess.isHidden ? [{
-            label: 'Inbox', icon: Mail, color: 'indigo',
+            label: 'Inbox', desc: 'Messages & alerts', icon: Mail, color: 'indigo',
             action: () => { setShowInbox(true); setShowSidebar(false); },
             locked: !inboxAccess.hasAccess,
             badge: (unreadCount + unreadNotifCount) > 0,
@@ -14872,12 +14884,12 @@ export const StudentDashboard: React.FC<Props> = ({
 
         const premiumItems: SideBtn[] = [
           ...(!planAccess.isHidden ? [{
-            label: 'My Plan', icon: CreditCard, color: 'purple',
+            label: 'My Plan', desc: 'Subscription info', icon: CreditCard, color: 'purple',
             action: () => { onTabChange("SUB_HISTORY" as any); setShowSidebar(false); },
             locked: !planAccess.hasAccess,
           }] : []),
           ...(!redeemAccess.isHidden ? [{
-            label: 'Redeem', icon: Gift, color: 'pink',
+            label: 'Redeem', desc: 'Use gift code', icon: Gift, color: 'pink',
             action: () => { onTabChange("REDEEM"); setShowSidebar(false); },
             locked: !redeemAccess.hasAccess,
           }] : []),
@@ -14885,12 +14897,12 @@ export const StudentDashboard: React.FC<Props> = ({
 
         const utilItems: SideBtn[] = [
           ...(!requestAccess.isHidden ? [{
-            label: 'Demand', icon: Megaphone, color: 'violet',
+            label: 'Demand', desc: 'Request content', icon: Megaphone, color: 'violet',
             action: () => { setShowRequestModal(true); setShowSidebar(false); },
             locked: !requestAccess.hasAccess,
           }] : []),
           ...(!supportAccess.isHidden ? [{
-            label: 'Support', icon: MessageSquare, color: 'rose',
+            label: 'Support', desc: 'Help & contact', icon: MessageSquare, color: 'rose',
             action: () => { handleSupportEmail(); setShowSidebar(false); },
             locked: !supportAccess.hasAccess,
           }] : []),
@@ -14914,12 +14926,13 @@ export const StudentDashboard: React.FC<Props> = ({
               if (item.locked) { showAlert('🔒 Locked by Admin. Upgrade your plan to access.', 'ERROR'); return; }
               item.action();
             }}
-            className={`flex items-center gap-2 p-2 rounded-xl font-bold text-xs transition-all relative active:scale-95 ${item.locked ? 'opacity-50 grayscale cursor-not-allowed' : colorMap[item.color] || 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+            className={`flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl font-bold transition-all relative active:scale-95 ${item.locked ? 'opacity-50 grayscale cursor-not-allowed' : colorMap[item.color] || 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
             <item.icon size={14} />
-            <span className="truncate">{item.label}</span>
-            {item.locked && <Lock size={9} className="ml-auto shrink-0 text-red-400" />}
-            {item.badge && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+            <span className="text-[10px] font-black leading-tight">{item.label}</span>
+            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">{item.desc}</span>
+            {item.locked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-400" /></span>}
+            {item.badge && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
           </button>
         );
 
@@ -14930,14 +14943,13 @@ export const StudentDashboard: React.FC<Props> = ({
         return (
           <>
             <div className="fixed inset-0 z-[9998]" onClick={() => setShowSidebar(false)} />
-            <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
-
+            <div data-no-topbar-swipe className="fixed top-[80px] left-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] animate-in fade-in zoom-in-95 duration-150 origin-top-left max-h-[calc(100dvh-155px)] overflow-y-auto">
 
               {/* Essential */}
               {essentialItems.length > 0 && (
-                <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Essential</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="px-3 pt-3 pb-2 border-b border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Essential</p>
+                  <div className="grid grid-cols-3 gap-1.5">
                     {essentialItems.map(renderBtn)}
                   </div>
                 </div>
@@ -14945,9 +14957,9 @@ export const StudentDashboard: React.FC<Props> = ({
 
               {/* Premium & Rewards */}
               {hasPremium && (
-                <div className={`px-4 pt-3 pb-2 ${hasUtil || hasExternalApps ? 'border-b border-slate-100' : 'pb-4'}`}>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Premium & Rewards</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className={`px-3 pt-2.5 pb-2 ${hasUtil || hasExternalApps ? 'border-b border-slate-100' : ''}`}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Premium</p>
+                  <div className="grid grid-cols-3 gap-1.5">
                     {premiumItems.map(renderBtn)}
                   </div>
                 </div>
@@ -14955,9 +14967,9 @@ export const StudentDashboard: React.FC<Props> = ({
 
               {/* Utilities & Support */}
               {hasUtil && (
-                <div className={`px-4 pt-3 ${hasExternalApps ? 'pb-2 border-b border-slate-100' : 'pb-4'}`}>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Utilities & Support</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className={`px-3 pt-2.5 ${hasExternalApps ? 'pb-2 border-b border-slate-100' : 'pb-2'}`}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Utilities</p>
+                  <div className="grid grid-cols-3 gap-1.5">
                     {utilItems.map(renderBtn)}
                   </div>
                 </div>
@@ -14965,98 +14977,69 @@ export const StudentDashboard: React.FC<Props> = ({
 
               {/* External Apps */}
               {hasExternalApps && (
-                <div className="px-4 pt-3 pb-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Apps</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Apps</p>
+                  <div className="grid grid-cols-3 gap-1.5">
                     {settings!.externalApps!.map((app) => (
                       <button
                         key={app.id}
                         onClick={() => { handleExternalAppClick(app); setShowSidebar(false); }}
-                        className="flex items-center gap-2 p-2 rounded-xl bg-cyan-50 text-cyan-700 font-bold text-xs hover:bg-cyan-100 transition-all active:scale-95"
+                        className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-cyan-50 text-cyan-700 font-bold transition-all active:scale-95 relative"
                       >
                         {app.icon ? <img src={app.icon} alt="" className="w-4 h-4 rounded" /> : <Smartphone size={14} />}
-                        <span className="truncate">{app.name}</span>
-                        {app.isLocked && <Lock size={9} className="text-red-500 ml-auto shrink-0" />}
+                        <span className="text-[10px] font-black leading-tight truncate w-full text-center">{app.name}</span>
+                        {app.isLocked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-500" /></span>}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Quick Settings — Theme + Background TTS */}
+              {/* Quick Settings — Theme + How to Use */}
               {(() => {
                 const themeType = localStorage.getItem("nst_dark_theme_type");
                 const isBlue = isDarkMode && themeType === "blue";
                 const isBlack = isDarkMode && themeType !== "blue";
                 const themeLabel = isBlue ? 'Blue Dark' : isBlack ? 'Black Dark' : 'Light Mode';
-                const isSpeaking = !!(window.speechSynthesis?.speaking);
                 return (
-                  <div className="px-4 pt-3 pb-4 border-t border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Quick Settings</p>
-                    <div className="flex flex-col gap-2">
-                      {/* Theme cycle */}
-                      <button
-                        onClick={() => {
-                          if (!isDarkMode) {
-                            localStorage.setItem("nst_dark_theme_type", "black");
-                            document.documentElement.classList.remove('dark-mode-blue', 'dark-mode-black');
-                            document.documentElement.classList.add('dark-mode', 'dark-mode-black');
+                  <div className="px-3 pt-2.5 pb-3 border-t border-slate-100 flex flex-col gap-1.5">
+                    <button
+                      onClick={() => {
+                        if (!isDarkMode) {
+                          localStorage.setItem("nst_dark_theme_type", "black");
+                          document.documentElement.classList.remove('dark-mode-blue', 'dark-mode-black');
+                          document.documentElement.classList.add('dark-mode', 'dark-mode-black');
+                          onToggleDarkMode?.(true);
+                        } else {
+                          const cur = localStorage.getItem("nst_dark_theme_type");
+                          if (cur === "black") {
+                            localStorage.setItem("nst_dark_theme_type", "blue");
+                            document.documentElement.classList.remove('dark-mode-black');
+                            document.documentElement.classList.add('dark-mode', 'dark-mode-blue');
                             onToggleDarkMode?.(true);
                           } else {
-                            const cur = localStorage.getItem("nst_dark_theme_type");
-                            if (cur === "black") {
-                              localStorage.setItem("nst_dark_theme_type", "blue");
-                              document.documentElement.classList.remove('dark-mode-black');
-                              document.documentElement.classList.add('dark-mode', 'dark-mode-blue');
-                              onToggleDarkMode?.(true);
-                            } else {
-                              document.documentElement.classList.remove('dark-mode', 'dark-mode-blue', 'dark-mode-black');
-                              onToggleDarkMode?.(false);
-                            }
+                            document.documentElement.classList.remove('dark-mode', 'dark-mode-blue', 'dark-mode-black');
+                            onToggleDarkMode?.(false);
                           }
-                        }}
-                        className="w-full flex items-center gap-2 p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition-all active:scale-95"
-                      >
-                        {isDarkMode
-                          ? <Sparkles size={14} className={isBlue ? "text-blue-500" : "text-amber-500"} />
-                          : <Zap size={14} className="text-amber-500" />}
-                        <span className="flex-1 text-left">{themeLabel}</span>
-                        <span className="text-[9px] text-slate-400 font-medium">tap to change →</span>
-                      </button>
-                      {/* Background TTS */}
-                      {isSpeaking ? (
-                        <div className="flex gap-2">
-                          <div className="flex-1 flex items-center gap-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold">
-                            <Volume2 size={13} className="text-amber-600 animate-pulse shrink-0" />
-                            <span className="truncate">TTS Playing…</span>
-                          </div>
-                          <button
-                            onClick={() => { stopSpeech(); setBgTtsOn(false); (window as any).__nst_bg_tts__ = false; setShowSidebar(false); }}
-                            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 font-bold text-xs active:scale-95 transition-all shrink-0"
-                          >
-                            <Square size={9} className="fill-current" /> Stop
-                          </button>
-                        </div>
-                      ) : bgTtsOn ? (
-                        <button
-                          onClick={() => { setBgTtsOn(false); (window as any).__nst_bg_tts__ = false; }}
-                          className="w-full flex items-center gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 font-bold text-xs transition-all active:scale-95"
-                        >
-                          <Headphones size={14} className="text-emerald-600" />
-                          <span className="flex-1 text-left">Background Play: ON</span>
-                          <span className="text-[9px] text-emerald-500">tap to off</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => { setBgTtsOn(true); (window as any).__nst_bg_tts__ = true; }}
-                          className="w-full flex items-center gap-2 p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-xs transition-all active:scale-95"
-                        >
-                          <Headphones size={14} />
-                          <span className="flex-1 text-left">Background Play</span>
-                          <span className="text-[9px] text-slate-400">keep TTS on</span>
-                        </button>
-                      )}
-                    </div>
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 p-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs transition-all active:scale-95"
+                    >
+                      {isDarkMode
+                        ? <Sparkles size={13} className={isBlue ? "text-blue-500" : "text-amber-500"} />
+                        : <Zap size={13} className="text-amber-500" />}
+                      <span className="flex-1 text-left text-[11px]">{themeLabel}</span>
+                      <span className="text-[9px] text-slate-400">tap →</span>
+                    </button>
+                    {/* How to Use */}
+                    <button
+                      onClick={() => { setShowUserGuide(true); setShowSidebar(false); }}
+                      className="w-full flex items-center gap-2 p-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs transition-all active:scale-95"
+                    >
+                      <Smartphone size={13} className="text-blue-500" />
+                      <span className="flex-1 text-left text-[11px]">How to Use</span>
+                      <span className="text-[9px] text-blue-400">App guide →</span>
+                    </button>
                   </div>
                 );
               })()}
