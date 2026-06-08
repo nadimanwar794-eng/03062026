@@ -42,11 +42,15 @@ export const storage = {
   },
 
   clear: async (): Promise<void> => {
+    // PROTECTED: Full wipe disabled — only content cache is cleared.
+    // This prevents accidental deletion of user data stored in IndexedDB.
     try {
-      await localforage.clear();
-      console.log('IndexedDB cleared successfully via localforage.');
+      const keys = await localforage.keys();
+      const contentKeys = keys.filter(k => k.startsWith('nst_content_'));
+      await Promise.all(contentKeys.map(k => localforage.removeItem(k)));
+      console.log(`[IIC] storage.clear() → safe mode: ${contentKeys.length} content cache keys removed (user data preserved).`);
     } catch (err) {
-      console.error('Error clearing localforage:', err);
+      console.error('Error in storage.clear (safe mode):', err);
     }
   }
 };

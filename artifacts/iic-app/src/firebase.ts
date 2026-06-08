@@ -112,42 +112,49 @@ export const subscribeToAuth = (callback: (user: any) => void) => {
   });
 };
 
-// --- NUCLEAR RESET ---
+// --- SAFE CACHE RESET (replaces Nuclear Reset) ---
+// PROTECTED: content_data is NEVER deleted — it contains all educational content.
+// Only local caches are cleared. User sessions and cloud data are preserved.
 export const resetAllContent = async () => {
   let cloudError = null;
   try {
-    console.log("STARTING NUCLEAR RESET...");
+    console.log("STARTING SAFE CACHE RESET...");
 
-    // 1. Clear Local Storage (Synchronous & Async) FIRST
-    // This ensures local cleanup happens regardless of cloud status
+    // 1. Clear only LOCAL CACHE — preserve user session and important keys
     try {
-        localStorage.clear(); // Clear standard local storage (Session, Settings, Cache)
-        await storage.clear(); // Clear IndexedDB/LocalForage (Heavy Content)
-        console.log("✅ Local Data Cleared Successfully");
+        const PRESERVE_KEYS = [
+          'nst_current_user', 'nst_users', 'nst_firebase_project_id',
+          'nst_system_settings',
+        ];
+        const keysToRemove = Object.keys(localStorage).filter(k => !PRESERVE_KEYS.includes(k));
+        keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        // Only clear content cache in IndexedDB — NOT full wipe
+        await storage.clearContentCache();
+        console.log("✅ Local Cache Cleared (user session preserved)");
     } catch (localErr) {
         console.error("Local Clear Error (Non-Fatal):", localErr);
     }
 
-    // 2. RTDB Wipes
+    // 2. RTDB — only clear analytics/logs, NEVER content_data
     try {
-        const rtdbPaths = ['content_data', 'custom_syllabus', 'public_activity', 'ai_interactions', 'universal_analysis_logs'];
+        const rtdbPaths = ['public_activity', 'ai_interactions', 'universal_analysis_logs'];
         await Promise.all(rtdbPaths.map(path => remove(ref(rtdb, path))));
-        console.log("✅ RTDB Cleared Successfully");
+        console.log("✅ RTDB Analytics Cleared (content_data preserved)");
     } catch (e: any) {
         console.error("RTDB Reset Error:", e);
         cloudError = e;
     }
 
-    // 3. Firestore Wipes (Iterative delete)
+    // 3. Firestore — only clear analytics/logs, NEVER content_data or users
     try {
-        const collections = ['content_data', 'custom_syllabus', 'public_activity', 'ai_interactions', 'universal_analysis_logs'];
+        const collections = ['public_activity', 'ai_interactions', 'universal_analysis_logs'];
         for (const colName of collections) {
           const q = query(collection(db, colName));
           const snapshot = await getDocs(q);
           const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
           await Promise.all(deletePromises);
         }
-        console.log("✅ Firestore Cleared Successfully");
+        console.log("✅ Firestore Analytics Cleared (content_data & users preserved)");
     } catch (e: any) {
         console.error("Firestore Reset Error:", e);
         if (!cloudError) cloudError = e;
@@ -155,11 +162,10 @@ export const resetAllContent = async () => {
 
     // Report Outcome
     if (cloudError) {
-        // We throw modified error to inform UI that Local succeeded but Cloud failed
-        throw new Error(`LOCAL DATA CLEARED, but Cloud Reset Failed (Permission Denied). check Console.`);
+        throw new Error(`LOCAL CACHE CLEARED, but Cloud Reset had an error. Check Console.`);
     }
 
-    console.log("NUCLEAR RESET COMPLETE");
+    console.log("SAFE CACHE RESET COMPLETE");
   } catch (e) {
     console.error("RESET ERROR", e);
     throw e;
