@@ -1423,7 +1423,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               {/* Font Style */}
               <button type="button"
                 onClick={() => { setShowFontFamilyMenu(true); setShowControls(false); TOP_10_READING_FONTS.forEach(f => ensureReadingFontLoaded(f.gfontParam)); }}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: activeFont ? '#eef2ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: activeFont ? '#eef2ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
                 <Type size={12} style={{ color: activeFont ? '#6366f1' : '#64748b' }} />
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: activeFont ? '#6366f1' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Style</span>
               </button>
@@ -1472,14 +1472,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               {/* Search */}
               <button type="button"
                 onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: inlineSearch ? '#eff6ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: inlineSearch ? '#eff6ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
                 <Search size={12} style={{ color: inlineSearch ? '#3b82f6' : '#64748b' }} />
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: inlineSearch ? '#3b82f6' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Search</span>
               </button>
 
               {/* Voice Speed */}
               <button type="button" onClick={cycleSpeed}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', borderRight: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
                 <span style={{ fontSize: 11, fontWeight: 900, color: '#334155', lineHeight: 1 }}>{SPEED_LABELS[speedIdx]}</span>
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Speed</span>
               </button>
