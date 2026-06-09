@@ -9,7 +9,7 @@ import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -14653,13 +14653,69 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       <RefreshCw size={18} /> 🧹 Clear Local Cache Only (Fix "Old Notes")
                   </button>
 
-                  {/* ── Content Recovery ── */}
-                  <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-                      <h4 className="text-green-800 font-black mb-1 flex items-center gap-2 text-sm">🛟 Content Recovery (Cache → Firebase)</h4>
-                      <p className="text-xs text-green-700 mb-3">Agar Firebase se content delete ho gaya ho lekin is device pe abhi bhi cached hai, to ye button use karein. Ye local IndexedDB cache se saara chapter content wapas Firebase pe upload kar dega.</p>
+                  {/* ── Firebase Backup System ── */}
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
+                      <h4 className="text-blue-900 font-black text-sm flex items-center gap-2">💾 Firebase Backup System</h4>
+                      <p className="text-xs text-blue-700 leading-relaxed">
+                          Ye system ek <b>alag backup path</b> mein saara content save karta hai jo <b>kabhi auto-delete nahi hota</b>.<br/>
+                          Ab se har chapter save pe automatically backup hota rahega. Pehli baar "Backup Now" dabaao to existing content backup ho jaye.
+                      </p>
+
+                      {/* Backup Now */}
                       <button
                           onClick={async () => {
-                              if (!confirm("🛟 Content Recovery shuru karein?\n\nYe is device ke local cache se saara 'nst_content_*' data Firebase pe re-upload karega.\n\nConfirm karo?")) return;
+                              if (!confirm("💾 Firebase Backup shuru karein?\n\nYe saare existing chapters ko ek safe backup path mein copy karega. Kuch minutes lag sakte hain.")) return;
+                              const statusEl = document.getElementById('iic-backup-status');
+                              if (statusEl) statusEl.textContent = '⏳ Backup shuru ho raha hai...';
+                              try {
+                                  const result = await backupAllContentToFirebase((done, total, key) => {
+                                      if (statusEl) statusEl.textContent = `⏳ Backup: ${done}/${total} — ${key.replace('nst_content_', '')}`;
+                                  });
+                                  if (statusEl) statusEl.textContent = `✅ Backup complete! ${result.backed} chapters safe. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
+                                  alert(`✅ Backup Complete!\n${result.backed} chapters Firebase backup mein save ho gaye.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Sab safe hai!'}`);
+                              } catch(e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
+                                  alert('❌ Backup failed: ' + e?.message);
+                              }
+                          }}
+                          className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
+                      >
+                          💾 Backup Now — Saara Content Firebase mein Safe Karo
+                      </button>
+
+                      {/* Restore from Backup */}
+                      <button
+                          onClick={async () => {
+                              if (!confirm("🔄 Firebase Backup se Restore karein?\n\nYe backup copy se saara content wapas main database mein laa dega.\n\nTabhi use karo jab content delete ho gaya ho. Confirm?")) return;
+                              const statusEl = document.getElementById('iic-backup-status');
+                              if (statusEl) statusEl.textContent = '⏳ Restore shuru ho raha hai...';
+                              try {
+                                  const result = await restoreContentFromFirebaseBackup((done, total, key) => {
+                                      if (statusEl) statusEl.textContent = `⏳ Restore: ${done}/${total} — ${key.replace('nst_content_', '')}`;
+                                  });
+                                  if (statusEl) statusEl.textContent = `✅ Restore complete! ${result.restored} chapters wapas aa gaye. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
+                                  alert(`✅ Restore Complete!\n${result.restored} chapters wapas aa gaye.\n${result.failed > 0 ? `${result.failed} fail.` : 'Sab theek hai!'}`);;
+                                  window.location.reload();
+                              } catch(e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
+                                  alert('❌ Restore failed: ' + e?.message);
+                              }
+                          }}
+                          className="w-full py-2.5 bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200 hover:bg-indigo-200 flex items-center justify-center gap-2 text-sm"
+                      >
+                          🔄 Restore from Backup — Deleted Content Wapas Lao
+                      </button>
+
+                      <p id="iic-backup-status" className="text-xs text-blue-700 font-mono min-h-[18px]"></p>
+                  </div>
+
+                  {/* ── Content Recovery from Local Cache ── */}
+                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+                      <h4 className="text-green-800 font-black mb-1 flex items-center gap-2 text-sm">🛟 Local Cache Recovery (Device → Firebase)</h4>
+                      <p className="text-xs text-green-700 mb-3">Agar Firebase se content delete ho gaya ho lekin <b>is device ke browser cache</b> mein abhi bhi hai, to ye button use karein. (Agar cache bhi saaf ho gaya toh upar wala "Restore from Backup" use karo.)</p>
+                      <button
+                          onClick={async () => {
+                              if (!confirm("🛟 Local Cache se Recovery shuru karein?\n\nYe is device ke local IndexedDB cache se saara 'nst_content_*' data Firebase pe re-upload karega.\n\nConfirm karo?")) return;
                               const statusEl = document.getElementById('iic-recovery-status');
                               if (statusEl) statusEl.textContent = '⏳ Recovery shuru ho rahi hai...';
                               try {
@@ -14667,7 +14723,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key.replace('nst_content_', '')}`;
                                   });
                                   if (statusEl) statusEl.textContent = `✅ Recovery complete! ${result.recovered} chapters Firebase pe upload hue. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
-                                  alert(`✅ Recovery Complete!\n\n${result.recovered} chapters successfully recovered.\n${result.failed > 0 ? `${result.failed} chapters fail hue (console check karein).` : 'Koi error nahi!'}`);
+                                  alert(`✅ Recovery Complete!\n\n${result.recovered} chapters successfully recovered.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Koi error nahi!'}`);
                               } catch(e: any) {
                                   if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
                                   alert('❌ Recovery failed: ' + e?.message);
@@ -14675,7 +14731,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           }}
                           className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 flex items-center justify-center gap-2 text-sm"
                       >
-                          🛟 Cache se Content Recover karo → Firebase
+                          🛟 Local Cache se Content Recover karo → Firebase
                       </button>
                       <p id="iic-recovery-status" className="text-xs text-green-700 mt-2 font-mono min-h-[18px]"></p>
                   </div>

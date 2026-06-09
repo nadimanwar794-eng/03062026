@@ -113,6 +113,70 @@ export const subscribeToAuth = (callback: (user: any) => void) => {
 };
 
 // --- SAFE CACHE RESET (replaces Nuclear Reset) ---
+// ── Backup ALL existing Firebase content_data → __backup__ path ──────────────
+// Run this once to seed the backup with existing data. After this, every
+// saveChapterData call automatically keeps the backup fresh.
+export const backupAllContentToFirebase = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ backed: number; failed: number }> => {
+  const snap = await get(ref(rtdb, 'content_data'));
+  if (!snap.exists()) return { backed: 0, failed: 0 };
+  const all = snap.val() as Record<string, any>;
+  const keys = Object.keys(all);
+  let backed = 0, failed = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    try {
+      await set(ref(rtdb, `__backup__/content_data/${key}`), all[key]);
+      backed++;
+      onProgress?.(i + 1, keys.length, key);
+    } catch {
+      failed++;
+    }
+  }
+  // Also backup homework & lucent index lists
+  try {
+    const hwSnap = await get(ref(rtdb, 'homework_entries'));
+    if (hwSnap.exists()) await set(ref(rtdb, '__backup__/homework_entries'), hwSnap.val());
+    const luSnap = await get(ref(rtdb, 'lucent_entries'));
+    if (luSnap.exists()) await set(ref(rtdb, '__backup__/lucent_entries'), luSnap.val());
+  } catch {}
+  console.log(`[IIC] Backup complete: ${backed} chapters backed up, ${failed} failed`);
+  return { backed, failed };
+};
+
+// ── Restore content_data from __backup__ → main paths ────────────────────────
+// Use when content_data was accidentally deleted but backup survived.
+export const restoreContentFromFirebaseBackup = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ restored: number; failed: number }> => {
+  const snap = await get(ref(rtdb, '__backup__/content_data'));
+  if (!snap.exists()) throw new Error('Koi backup nahi mila Firebase mein. Pehle "Backup Now" karo.');
+  const all = snap.val() as Record<string, any>;
+  const keys = Object.keys(all);
+  let restored = 0, failed = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    try {
+      await set(ref(rtdb, `content_data/${key}`), all[key]);
+      await setDoc(doc(db, "content_data", key), sanitizeForFirestore(all[key]));
+      restored++;
+      onProgress?.(i + 1, keys.length, key);
+    } catch {
+      failed++;
+    }
+  }
+  // Restore homework & lucent
+  try {
+    const hwSnap = await get(ref(rtdb, '__backup__/homework_entries'));
+    if (hwSnap.exists()) await set(ref(rtdb, 'homework_entries'), hwSnap.val());
+    const luSnap = await get(ref(rtdb, '__backup__/lucent_entries'));
+    if (luSnap.exists()) await set(ref(rtdb, 'lucent_entries'), luSnap.val());
+  } catch {}
+  console.log(`[IIC] Restore complete: ${restored} chapters restored, ${failed} failed`);
+  return { restored, failed };
+};
+
 // ── Content Recovery: re-uploads all cached chapter data from IndexedDB → Firebase ──
 // Useful when Firebase content got accidentally deleted but local cache (IndexedDB) still has it.
 // Reads all 'nst_content_*' keys from localforage and pushes them back to RTDB + Firestore.
@@ -583,6 +647,8 @@ const _savePerItemCollection = async (
     if (!entry?.id) return;
     writes.push(setDoc(doc(db, collectionName, entry.id), entry));
     writes.push(set(ref(rtdb, `${rtdbBasePath}/${entry.id}`), entry));
+    // ── Backup mirror (NEVER deleted by any cleanup) ─────────────────────────
+    writes.push(set(ref(rtdb, `__backup__/${rtdbBasePath}/${entry.id}`), entry));
   });
 
   const indexPayload = { ids: newIds };
@@ -942,6 +1008,8 @@ export const saveChapterData = async (key: string, data: any) => {
     const promises: Promise<any>[] = [];
     promises.push(set(ref(rtdb, `content_data/${key}`), sanitizedData));
     promises.push(setDoc(doc(db, "content_data", key), sanitizedData));
+    // ── Backup mirror: RTDB __backup__/content_data/{key} — never deleted ────
+    promises.push(set(ref(rtdb, `__backup__/content_data/${key}`), sanitizedData));
 
     // 4. Update content_index for real-time stats on home screen
     if (key.startsWith('nst_content_')) {
