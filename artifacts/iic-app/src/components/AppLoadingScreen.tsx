@@ -238,8 +238,22 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
           frameBorder="0"
           title="Loading Screen"
         />
-        {/* Transparent overlay — user cannot pause/click/interact with video */}
+        {/* Transparent overlay — blocks all clicks (pause, external link, etc.) */}
         <div className="absolute inset-0 z-10" style={{ background: 'transparent' }} />
+        {/* App logo — covers Google Drive's external-link button (top-right) */}
+        <div className="absolute top-0 right-0 z-20 w-14 h-14 flex items-center justify-center bg-black"
+          style={{ pointerEvents: 'none' }}>
+          <img
+            src={splashLogo.url || '/splash-logo.png'}
+            alt={appName}
+            draggable={false}
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              if (!img.src.includes('/splash-logo.png')) img.src = '/splash-logo.png';
+            }}
+            className="w-9 h-9 object-contain"
+          />
+        </div>
       </div>
     );
   }
