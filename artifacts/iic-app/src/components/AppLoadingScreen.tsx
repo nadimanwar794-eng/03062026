@@ -65,16 +65,20 @@ function buildEmbedUrl(url: string): string {
     else if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
     else if (url.includes('embed/')) videoId = url.split('embed/')[1].split('?')[0];
     if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&enablejsapi=1&showinfo=0&disablekb=1&fs=0&mute=0`;
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&enablejsapi=1&showinfo=0&disablekb=1&fs=0`;
     }
   }
   if (url.includes('drive.google.com')) {
     const m = url.match(/[-\w]{25,}/);
     const fileId = m ? m[0] : '';
-    return `https://drive.google.com/file/d/${fileId}/preview`;
+    return `https://drive.google.com/file/d/${fileId}/preview?autoplay=1&rm=minimal`;
   }
   if (url.includes('notebooklm.google.com')) return url;
   return url;
+}
+
+function isDriveUrl(url: string): boolean {
+  return url.includes('drive.google.com');
 }
 
 export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, isPremium = false, subscriptionLevel = 'FREE' }) => {
@@ -237,21 +241,27 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
 
   // ── VIDEO LOADING SCREEN ───────────────────────────────────────────────────
   if (hasVideo) {
+    const isDrive = isDriveUrl(loadingVideoUrl);
     return (
       <div className="fixed inset-0 z-[9999] bg-black overflow-hidden">
         {/* Full-screen video */}
         <iframe
           src={embedUrl}
           className="absolute inset-0 w-full h-full"
-          allow="autoplay; encrypted-media"
+          allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
           frameBorder="0"
           title="Loading Screen"
         />
-        {/* Transparent overlay — blocks all clicks (pause, external link, etc.) */}
-        <div className="absolute inset-0 z-10" style={{ background: 'transparent' }} />
+        {/* YouTube only: overlay blocks pause/controls — Drive needs tap to play so no overlay */}
+        {!isDrive && (
+          <div className="absolute inset-0 z-10" style={{ background: 'transparent' }} />
+        )}
         {/* App logo — covers Google Drive's external-link button (top-right) */}
-        <div className="absolute top-0 right-0 z-20 w-14 h-14 flex items-center justify-center bg-black"
-          style={{ pointerEvents: 'none' }}>
+        <div
+          className="absolute top-0 right-0 z-20 w-14 h-14 flex items-center justify-center bg-black"
+          style={{ pointerEvents: 'none' }}
+        >
           <img
             src={splashLogo.url || '/splash-logo.png'}
             alt={appName}
