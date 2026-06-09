@@ -2692,6 +2692,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [hwActivePdf, setHwActivePdf] = useState<string | null>(null);
   const [hwAudioVisible, setHwAudioVisible] = useState(false);
   const [hwVideoVisible, setHwVideoVisible] = useState(false);
+  const [hwFullscreenMedia, setHwFullscreenMedia] = useState<{ type: 'audio' | 'video'; url: string; title: string } | null>(null);
   const [compUnlockedVideos, setCompUnlockedVideos] = useState<Set<string>>(new Set());
   const hwAutoOpenRef = useRef<'audio' | 'video' | null>(null);
 
@@ -6113,26 +6114,25 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {/* Media Tiles: Audio / Video / PDF */}
+                  {/* Media Tiles: Audio / Video / PDF — click opens fullscreen overlay */}
                   {(activeHw.audioUrl || activeHw.videoUrl || activeHw.pdfUrl) && (
                     <div className="mx-4 mb-3">
                       <div className={`grid gap-2 ${[activeHw.audioUrl, activeHw.videoUrl, activeHw.pdfUrl].filter(Boolean).length === 1 ? 'grid-cols-1' : [activeHw.audioUrl, activeHw.videoUrl, activeHw.pdfUrl].filter(Boolean).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                         {activeHw.audioUrl && (
-                          <button onClick={() => setHwAudioVisible(v => !v)}
-                            className={`aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl active:scale-95 transition-all border-2 ${hwAudioVisible ? 'bg-purple-100 border-purple-400' : 'bg-purple-50 border-purple-200'}`}>
+                          <button
+                            onClick={() => setHwFullscreenMedia({ type: 'audio', url: activeHw.audioUrl!, title: activeHw.title || 'Audio Lecture' })}
+                            className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl active:scale-95 transition-all border-2 bg-purple-50 border-purple-200">
                             <Headphones size={22} className="text-purple-600" />
                             <span className="text-[10px] font-black text-purple-700 uppercase tracking-wide">Audio</span>
                           </button>
                         )}
                         {activeHw.videoUrl && (
                           <button onClick={() => {
-                            if (!hwVideoVisible) {
-                              const _k = `nst_vid_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
-                              if (!checkDailyGate('video', _k)) return;
-                            }
-                            setHwVideoVisible(v => !v);
+                            const _k = `nst_vid_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
+                            if (!checkDailyGate('video', _k)) return;
+                            setHwFullscreenMedia({ type: 'video', url: activeHw.videoUrl!, title: activeHw.title || 'Video Lecture' });
                           }}
-                            className={`aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl active:scale-95 transition-all border-2 ${hwVideoVisible ? 'bg-rose-100 border-rose-400' : 'bg-rose-50 border-rose-200'}`}>
+                            className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl active:scale-95 transition-all border-2 bg-rose-50 border-rose-200">
                             <Play size={22} className="text-rose-600" />
                             <span className="text-[10px] font-black text-rose-700 uppercase tracking-wide">Video</span>
                           </button>
@@ -6149,18 +6149,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           </button>
                         )}
                       </div>
-                      {hwAudioVisible && activeHw.audioUrl && (
-                        <div className="mt-2 bg-purple-50 border border-purple-100 rounded-2xl p-3">
-                          <audio controls src={activeHw.audioUrl} className="w-full h-8" controlsList="nodownload noremoteplayback" />
-                        </div>
-                      )}
-                      {hwVideoVisible && activeHw.videoUrl && (
-                        <div className="mt-2 bg-black rounded-2xl overflow-hidden">
-                          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                            <iframe src={formatVideoEmbed(activeHw.videoUrl)} className="absolute inset-0 w-full h-full border-none" allow="autoplay; encrypted-media; fullscreen" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Video" />
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
 
@@ -6176,6 +6164,72 @@ export const StudentDashboard: React.FC<Props> = ({
                       <div className="flex-1 overflow-hidden">
                         <iframe src={formatDriveLink(hwActivePdf)} className="w-full h-full border-none" title="PDF" sandbox="allow-scripts allow-same-origin allow-forms" allow="autoplay" />
                       </div>
+                    </div>
+                  )}
+
+                  {/* ── Fullscreen Audio / Video Overlay ── */}
+                  {hwFullscreenMedia && (
+                    <div className="fixed inset-0 z-[400] flex flex-col" style={{ background: '#0a0a0a' }}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: '#111' }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {hwFullscreenMedia.type === 'audio'
+                            ? <Headphones size={18} className="text-purple-400 shrink-0" />
+                            : <Play size={18} className="text-rose-400 shrink-0" />}
+                          <span className="text-white font-bold text-sm truncate">{hwFullscreenMedia.title}</span>
+                        </div>
+                        <button
+                          onClick={() => setHwFullscreenMedia(null)}
+                          className="text-white p-2 rounded-full hover:bg-white/10 active:scale-95 transition-all shrink-0 ml-2"
+                          aria-label="Close"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      {hwFullscreenMedia.type === 'audio' ? (
+                        <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
+                          <div className="w-28 h-28 rounded-full bg-purple-700 flex items-center justify-center shadow-2xl">
+                            <span className="text-5xl">🎵</span>
+                          </div>
+                          <p className="text-white font-bold text-base text-center leading-snug">{hwFullscreenMedia.title}</p>
+                          {hwFullscreenMedia.url.includes('drive.google.com') ? (
+                            <div className="w-full max-w-sm relative">
+                              <iframe
+                                src={formatDriveLink(hwFullscreenMedia.url)}
+                                className="w-full border-none rounded-2xl bg-purple-900"
+                                style={{ height: '80px' }}
+                                sandbox="allow-scripts allow-same-origin allow-presentation"
+                                allow="autoplay"
+                                title="Audio"
+                              />
+                            </div>
+                          ) : (
+                            <audio
+                              controls
+                              autoPlay
+                              src={hwFullscreenMedia.url}
+                              className="w-full max-w-sm"
+                              controlsList="nodownload noremoteplayback"
+                            />
+                          )}
+                          <p className="text-gray-500 text-xs text-center">🔒 Audio app ke andar chal raha hai</p>
+                        </div>
+                      ) : (
+                        <div className="flex-1 relative bg-black">
+                          <iframe
+                            src={hwFullscreenMedia.url.includes('drive.google.com')
+                              ? formatDriveLink(hwFullscreenMedia.url)
+                              : formatVideoEmbed(hwFullscreenMedia.url)}
+                            className="absolute inset-0 w-full h-full border-none"
+                            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                            allowFullScreen
+                            sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
+                            title="Video"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -13100,36 +13154,26 @@ export const StudentDashboard: React.FC<Props> = ({
                                 </div>
                               )}
                               {hw.videoUrl && (
-                                compUnlockedVideos.has(hw.id || `idx-${i}`)
-                                  ? (
-                                    <div className="bg-rose-50 border border-rose-200 rounded-xl overflow-hidden">
-                                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                                        <iframe src={formatVideoEmbed(hw.videoUrl)} className="absolute inset-0 w-full h-full border-none" allow="autoplay; encrypted-media; fullscreen" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="Video" />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        const _vk = `nst_vid_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
-                                        if (!checkDailyGate('video', _vk)) return;
-                                        const _id = hw.id || `idx-${i}`;
-                                        setCompUnlockedVideos(prev => new Set([...prev, _id]));
-                                      }}
-                                      className="w-full bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center gap-3 hover:bg-rose-100 active:scale-[0.98] transition-all"
-                                    >
-                                      <span className="text-rose-600 text-lg">🎬</span>
-                                      <span className="text-sm font-bold text-rose-800">Video Dekhein</span>
-                                    </button>
-                                  )
+                                <button
+                                  onClick={() => {
+                                    const _vk = `nst_vid_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
+                                    if (!checkDailyGate('video', _vk)) return;
+                                    setHwFullscreenMedia({ type: 'video', url: hw.videoUrl!, title: hw.title || 'Video Lecture' });
+                                  }}
+                                  className="w-full bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center gap-3 hover:bg-rose-100 active:scale-[0.98] transition-all"
+                                >
+                                  <span className="text-rose-600 text-lg">🎬</span>
+                                  <span className="text-sm font-bold text-rose-800">Video Dekhein</span>
+                                </button>
                               )}
                               {hw.audioUrl && (
-                                <div className="bg-purple-50 border border-purple-200 p-3 rounded-xl">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Headphones className="text-purple-600 shrink-0" size={14} />
-                                    <span className="text-xs font-bold text-purple-800">Audio</span>
-                                  </div>
-                                  <audio controls src={hw.audioUrl} className="w-full h-8" controlsList="nodownload noremoteplayback" />
-                                </div>
+                                <button
+                                  onClick={() => setHwFullscreenMedia({ type: 'audio', url: hw.audioUrl!, title: hw.title || 'Audio Lecture' })}
+                                  className="w-full bg-purple-50 border border-purple-200 p-3 rounded-xl flex items-center gap-3 hover:bg-purple-100 active:scale-[0.98] transition-all"
+                                >
+                                  <Headphones className="text-purple-600 shrink-0" size={16} />
+                                  <span className="text-sm font-bold text-purple-800">Audio Sunein</span>
+                                </button>
                               )}
                               {hw.pdfUrl && (
                                 <button onClick={() => {
@@ -17523,7 +17567,7 @@ RULES:
                     className="w-full h-full border-none"
                     allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                     allowFullScreen
-                    sandbox="allow-scripts allow-same-origin allow-presentation"
+                    sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
                     title="Lesson Video"
                   />
                   {/* Drive blocker — covers the "Open in Drive" button top-right */}
