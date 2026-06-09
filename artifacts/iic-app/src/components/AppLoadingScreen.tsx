@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, HelpCircle, Video, Headphones, BrainCircuit, BarChart2, WifiOff, Zap, SkipForward } from 'lucide-react';
+import { BookOpen, HelpCircle, Video, Headphones, BrainCircuit, BarChart2, WifiOff, Zap } from 'lucide-react';
 import { APP_VERSION } from '../constants';
 import { getSplashFontById, ensureGoogleFontLoaded } from '../utils/splashFonts';
 
@@ -65,7 +65,7 @@ function buildEmbedUrl(url: string): string {
     else if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
     else if (url.includes('embed/')) videoId = url.split('embed/')[1].split('?')[0];
     if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&enablejsapi=1&showinfo=0&mute=0`;
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&enablejsapi=1&showinfo=0&disablekb=1&fs=0&mute=0`;
     }
   }
   if (url.includes('drive.google.com')) {
@@ -229,45 +229,17 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
   // ── VIDEO LOADING SCREEN ───────────────────────────────────────────────────
   if (hasVideo) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-black flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-[9999] bg-black overflow-hidden">
         {/* Full-screen video */}
-        <div className="flex-1 relative">
-          <iframe
-            src={embedUrl}
-            className="absolute inset-0 w-full h-full"
-            allow="autoplay; fullscreen; encrypted-media"
-            allowFullScreen
-            frameBorder="0"
-            title="Loading Screen"
-          />
-        </div>
-
-        {/* Skip button — top right */}
-        <button
-          onClick={() => onCompleteRef.current()}
-          className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-black/60 hover:bg-black/80 text-white text-xs font-bold px-3 py-2 rounded-full backdrop-blur-md border border-white/20 active:scale-95 transition-all"
-        >
-          <SkipForward size={13} /> Skip
-        </button>
-
-        {/* Progress bar at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 z-10">
-          <div
-            className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 transition-[width] duration-100 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* App name + developer badge — bottom center */}
-        <div className="absolute bottom-3 left-0 right-0 z-10 flex items-center justify-center gap-2 pointer-events-none">
-          <p className="text-[10px] font-bold text-white/40 tracking-wide">
-            {appName}
-          </p>
-          <span className="text-white/20">|</span>
-          <p className="text-[10px] text-white/30 font-mono font-bold tracking-widest">
-            v{APP_VERSION}
-          </p>
-        </div>
+        <iframe
+          src={embedUrl}
+          className="absolute inset-0 w-full h-full"
+          allow="autoplay; encrypted-media"
+          frameBorder="0"
+          title="Loading Screen"
+        />
+        {/* Transparent overlay — user cannot pause/click/interact with video */}
+        <div className="absolute inset-0 z-10" style={{ background: 'transparent' }} />
       </div>
     );
   }
