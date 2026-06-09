@@ -1197,6 +1197,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
   const saveChapterContent = async () => {
     if (!editingChapterId || !selSubject) return;
+    if (isContentLoading) {
+      alert('⏳ Content abhi load ho raha hai, please wait karo aur phir save karo.');
+      return;
+    }
     setIsContentLoading(true);
     
     // STRICT KEY MATCHING (Must match VideoPlaylistView logic)
@@ -1205,7 +1209,21 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
     
     try {
       const existing = await storage.getItem(key);
-      const existingData = existing || {};
+      // CRITICAL FIX: If local cache is empty, fetch from Firebase FIRST before saving.
+      // Without this, saving on a fresh browser/device wipes all previous Firebase content
+      // because existingData becomes {} and overwrites everything with only the current UI state.
+      let existingData: any = existing || {};
+      if (!existing) {
+        try {
+          const cloudData = await getChapterData(key);
+          if (cloudData) {
+            existingData = cloudData;
+            await storage.setItem(key, cloudData);
+          }
+        } catch (e) {
+          console.warn('[IIC] Could not fetch cloud data before save (proceeding with local state):', e);
+        }
+      }
       
       const modePrefix = syllabusMode === 'SCHOOL' ? 'school' : 'competition';
 
