@@ -2129,12 +2129,12 @@ export const StudentDashboard: React.FC<Props> = ({
   const dotsFirstReadyRef = React.useRef(false);
 
   // Auto-hide dots after everything is green; re-show instantly on any problem.
-  // Hide after 3s whether first load or reconnect.
+  // First load: 8s (content needs time to render). Reconnect: 3s.
   useEffect(() => {
     const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
     if (allOk) {
       if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current);
-      const delay = 3000;
+      const delay = dotsFirstReadyRef.current ? 3000 : 8000;
       dotsHideTimerRef.current = setTimeout(() => {
         dotsFirstReadyRef.current = true;
         setShowDots(false);
