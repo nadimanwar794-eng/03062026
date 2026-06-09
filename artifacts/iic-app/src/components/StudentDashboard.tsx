@@ -2652,7 +2652,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [generatedContentCode, setGeneratedContentCode] = useState<string | null>(null);
   // Notes/MCQ split view: 'choose' shows a chooser overlay, 'notes' shows notes (with optional MCQ switch button),
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
-  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'choose'>('notes');
+  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose'>('notes');
   const [hwImmersive, setHwImmersive] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
@@ -3583,8 +3583,12 @@ export const StudentDashboard: React.FC<Props> = ({
     const hw = entry.hw;
     const hasNotes = !!(hw && (hw.notes?.trim() || (hw as any).chunkNotes?.trim() || (hw as any).htmlNotes?.trim()));
     const hasMcq = !!(hw && hw.parsedMcqs && hw.parsedMcqs.length > 0);
-    if (hasNotes && hasMcq) setHwViewMode('notes'); // Resume into notes
+    const hasAudioEntry = !!(hw as any)?.audioUrl;
+    const hasVideoEntry = !!(hw as any)?.videoUrl;
+    if (hasNotes) setHwViewMode('notes');
     else if (hasMcq) setHwViewMode('mcq');
+    else if (hasAudioEntry) setHwViewMode('audio');
+    else if (hasVideoEntry) setHwViewMode('video');
     else setHwViewMode('notes');
     setHwNotesViewMode('chunk');
 
@@ -5690,10 +5694,14 @@ export const StudentDashboard: React.FC<Props> = ({
 
         const hasNotes = !!(combinedNotes && combinedNotes.trim()) || !!((activeHw as any).chunkNotes?.trim()) || !!((activeHw as any).htmlNotes?.trim());
         const hasMcq = !!(activeHw.parsedMcqs && activeHw.parsedMcqs.length > 0);
-        const hasMedia = !!(activeHw.audioUrl || activeHw.videoUrl);
+        const hasAudio = !!activeHw.audioUrl;
+        const hasVideo = !!activeHw.videoUrl;
+        const hasMedia = hasAudio || hasVideo;
         // Effective view mode — guard against stale state if content lacks the requested mode.
-        const effectiveMode: 'notes' | 'mcq' | 'choose' =
-          hwViewMode === 'choose' && (!hasNotes || !hasMcq)
+        const effectiveMode: 'notes' | 'mcq' | 'audio' | 'video' | 'choose' =
+          hwViewMode === 'audio' && !hasAudio ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
+          : hwViewMode === 'video' && !hasVideo ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
+          : hwViewMode === 'choose' && (!hasNotes || !hasMcq)
             ? (hasMcq && !hasNotes ? 'mcq' : 'notes')
             : (hwViewMode === 'mcq' && !hasMcq ? 'notes'
               : hwViewMode === 'notes' && !hasNotes && hasMcq ? 'mcq'
@@ -5710,8 +5718,12 @@ export const StudentDashboard: React.FC<Props> = ({
           // Reset view mode for the new item.
           const tNotes = !!(target.notes?.trim() || (target as any).chunkNotes?.trim() || (target as any).htmlNotes?.trim());
           const tMcq = !!(target.parsedMcqs && target.parsedMcqs.length > 0);
+          const tAudio = !!(target as any).audioUrl;
+          const tVideo = !!(target as any).videoUrl;
           if (tNotes) setHwViewMode('notes');
           else if (tMcq) setHwViewMode('mcq');
+          else if (tAudio) setHwViewMode('audio');
+          else if (tVideo) setHwViewMode('video');
           else setHwViewMode('notes');
         };
         // Expose filtered list + goToHw to the back-navigation popstate handler
@@ -5867,8 +5879,103 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Scrollable content */}
-            {effectiveMode !== 'choose' && (
+            {/* ── Tab bar: NOTES | MCQ | VIDEO | AUDIO ── */}
+            {effectiveMode !== 'choose' && !hwImmersive && (hasNotes || hasMcq || hasAudio || hasVideo) && (
+              <div className="shrink-0 border-b border-slate-100 bg-white px-3 flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                {hasNotes && (
+                  <button
+                    onClick={() => setHwViewMode('notes')}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'notes' ? `border-current ${theme.text}` : 'border-transparent text-slate-400'}`}
+                  >
+                    <BookOpen size={13} /> Notes
+                  </button>
+                )}
+                {hasMcq && (
+                  <button
+                    onClick={() => setHwViewMode('mcq')}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'mcq' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-400'}`}
+                  >
+                    <CheckSquare size={13} /> MCQ
+                  </button>
+                )}
+                {hasVideo && (
+                  <button
+                    onClick={() => setHwViewMode('video')}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'video' ? 'border-rose-500 text-rose-700' : 'border-transparent text-slate-400'}`}
+                  >
+                    <Play size={13} /> Video
+                  </button>
+                )}
+                {hasAudio && (
+                  <button
+                    onClick={() => setHwViewMode('audio')}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'audio' ? 'border-purple-500 text-purple-700' : 'border-transparent text-slate-400'}`}
+                  >
+                    <Headphones size={13} /> Audio
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* VIDEO PAGE */}
+            {effectiveMode === 'video' && hasVideo && (
+              <div className="flex-1 flex flex-col bg-black overflow-hidden pb-[72px]">
+                <div className="flex-1 relative">
+                  <iframe
+                    src={activeHw.videoUrl!.includes('drive.google.com')
+                      ? formatDriveLink(activeHw.videoUrl!)
+                      : formatVideoEmbed(activeHw.videoUrl!)}
+                    className="absolute inset-0 w-full h-full border-none"
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
+                    title="Video"
+                  />
+                </div>
+                <div className="shrink-0 px-4 py-2 bg-gray-900">
+                  <p className="text-white/60 text-[11px] font-bold text-center">🔒 Video app ke andar chal raha hai</p>
+                </div>
+              </div>
+            )}
+
+            {/* AUDIO PAGE */}
+            {effectiveMode === 'audio' && hasAudio && (
+              <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 pb-[72px]" style={{ background: 'linear-gradient(135deg, #3b0764 0%, #1e1b4b 100%)' }}>
+                <div className="w-32 h-32 rounded-full bg-purple-600 flex items-center justify-center shadow-2xl border-4 border-purple-400/40">
+                  <span className="text-5xl">🎵</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-black text-lg leading-snug">{activeHw.title || 'Audio Lecture'}</p>
+                  {activeHw.date && (
+                    <p className="text-purple-300 text-xs mt-1">{new Date(activeHw.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  )}
+                </div>
+                {activeHw.audioUrl!.includes('drive.google.com') ? (
+                  <div className="w-full max-w-sm relative">
+                    <iframe
+                      src={formatDriveLink(activeHw.audioUrl!)}
+                      className="w-full border-none rounded-2xl"
+                      style={{ height: '80px', background: 'transparent' }}
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      allow="autoplay"
+                      title="Audio"
+                    />
+                  </div>
+                ) : (
+                  <audio
+                    controls
+                    autoPlay
+                    src={activeHw.audioUrl!}
+                    className="w-full max-w-sm"
+                    controlsList="nodownload noremoteplayback"
+                  />
+                )}
+                <p className="text-purple-300/60 text-[11px]">🔒 Audio app ke andar chal raha hai</p>
+              </div>
+            )}
+
+            {/* Scrollable content (notes/mcq only) */}
+            {effectiveMode !== 'choose' && effectiveMode !== 'video' && effectiveMode !== 'audio' && (
             <div
               ref={hwScrollContainerRef}
               className={`flex-1 overflow-y-auto ${!hwImmersive ? 'pb-[72px]' : ''}`}
@@ -6114,41 +6221,18 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {/* Media Tiles: Audio / Video / PDF — click opens fullscreen overlay */}
-                  {(activeHw.audioUrl || activeHw.videoUrl || activeHw.pdfUrl) && (
+                  {/* PDF button only — Audio/Video are now separate tabs */}
+                  {activeHw.pdfUrl && (
                     <div className="mx-4 mb-3">
-                      <div className={`grid gap-2 ${[activeHw.audioUrl, activeHw.videoUrl, activeHw.pdfUrl].filter(Boolean).length === 1 ? 'grid-cols-1' : [activeHw.audioUrl, activeHw.videoUrl, activeHw.pdfUrl].filter(Boolean).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                        {activeHw.audioUrl && (
-                          <button
-                            onClick={() => setHwFullscreenMedia({ type: 'audio', url: activeHw.audioUrl!, title: activeHw.title || 'Audio Lecture' })}
-                            className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl active:scale-95 transition-all border-2 bg-purple-50 border-purple-200">
-                            <Headphones size={22} className="text-purple-600" />
-                            <span className="text-[10px] font-black text-purple-700 uppercase tracking-wide">Audio</span>
-                          </button>
-                        )}
-                        {activeHw.videoUrl && (
-                          <button onClick={() => {
-                            const _k = `nst_vid_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
-                            if (!checkDailyGate('video', _k)) return;
-                            setHwFullscreenMedia({ type: 'video', url: activeHw.videoUrl!, title: activeHw.title || 'Video Lecture' });
-                          }}
-                            className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-2xl active:scale-95 transition-all border-2 bg-rose-50 border-rose-200">
-                            <Play size={22} className="text-rose-600" />
-                            <span className="text-[10px] font-black text-rose-700 uppercase tracking-wide">Video</span>
-                          </button>
-                        )}
-                        {activeHw.pdfUrl && (
-                          <button onClick={() => {
-                            const _k = `nst_pdf_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
-                            if (!checkDailyGate('pdf', _k)) return;
-                            setHwActivePdf(activeHw.pdfUrl!);
-                          }}
-                            className="aspect-square flex flex-col items-center justify-center gap-1.5 bg-amber-50 border-2 border-amber-200 rounded-2xl active:scale-95 transition-all">
-                            <FileText size={22} className="text-amber-600" />
-                            <span className="text-[10px] font-black text-amber-700 uppercase tracking-wide">PDF</span>
-                          </button>
-                        )}
-                      </div>
+                      <button onClick={() => {
+                        const _k = `nst_pdf_daily_${user.id}_${new Date().toISOString().split('T')[0]}`;
+                        if (!checkDailyGate('pdf', _k)) return;
+                        setHwActivePdf(activeHw.pdfUrl!);
+                      }}
+                        className="w-full flex items-center gap-3 bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-3 active:scale-95 transition-all">
+                        <FileText size={20} className="text-amber-600 shrink-0" />
+                        <span className="text-sm font-black text-amber-700">PDF Kholein</span>
+                      </button>
                     </div>
                   )}
 
@@ -12014,9 +12098,13 @@ export const StudentDashboard: React.FC<Props> = ({
         const openHomeworkDirect = (hw: typeof allHw[number], subId: string) => {
           const hasNotes = !!(hw.notes?.trim() || (hw as any).chunkNotes?.trim() || (hw as any).htmlNotes?.trim());
           const hasMcq = !!(hw.parsedMcqs && hw.parsedMcqs.length > 0);
-          // Pre-set the view mode — always open notes if available; MCQ via content picker only.
+          // Pre-set the view mode — open notes if available, else MCQ, else audio, else video.
+          const hasAudioDirect = !!(hw as any)?.audioUrl;
+          const hasVideoDirect = !!(hw as any)?.videoUrl;
           if (hasNotes) setHwViewMode('notes');
           else if (hasMcq) setHwViewMode('mcq');
+          else if (hasAudioDirect) setHwViewMode('audio');
+          else if (hasVideoDirect) setHwViewMode('video');
           else setHwViewMode('notes');
 
           setShowHomeworkHistory(false);
