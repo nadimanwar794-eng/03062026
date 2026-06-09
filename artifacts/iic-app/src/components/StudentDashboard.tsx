@@ -3657,15 +3657,11 @@ export const StudentDashboard: React.FC<Props> = ({
     const autoOpen = hwAutoOpenRef.current;
     hwAutoOpenRef.current = null;
     if (autoOpen === 'audio') {
-      setHwAudioVisible(true);
-      setHwVideoVisible(false);
+      setHwViewMode('audio');
     } else if (autoOpen === 'video') {
-      setHwVideoVisible(true);
-      setHwAudioVisible(false);
-    } else {
-      setHwAudioVisible(false);
-      setHwVideoVisible(false);
+      setHwViewMode('video');
     }
+    // else: keep existing mode reset logic (handled by openHwEntry)
   }, [hwActiveHwId]);
 
   // Track time spent reading homework notes (for History → Flashcards/Notes Read tab)
@@ -16403,8 +16399,13 @@ export const StudentDashboard: React.FC<Props> = ({
               tryOpenLucentNote(entry, pageIdx);
             }
           } else {
-            hwAutoOpenRef.current = 'video';
-            if (hw?.id) setHwActiveHwId(hw.id);
+            // If reader already open with this hw → directly switch mode
+            if (hwActiveHwId === hw?.id) {
+              setHwViewMode('video');
+            } else {
+              hwAutoOpenRef.current = 'video';
+              if (hw?.id) setHwActiveHwId(hw.id);
+            }
           }
         };
         const openAudio = () => {
@@ -16416,12 +16417,17 @@ export const StudentDashboard: React.FC<Props> = ({
               stopSpeech();
               setLucentActiveTab('AUDIO');
             } else {
-              const url = (page as any)?.audioUrl;
-              if (url) window.open(url, '_blank', 'noopener,noreferrer');
+              lucentInitialTabRef.current = { tab: 'AUDIO' };
+              tryOpenLucentNote(entry, pageIdx);
             }
           } else {
-            hwAutoOpenRef.current = 'audio';
-            if (hw?.id) setHwActiveHwId(hw.id);
+            // If reader already open with this hw → directly switch mode
+            if (hwActiveHwId === hw?.id) {
+              setHwViewMode('audio');
+            } else {
+              hwAutoOpenRef.current = 'audio';
+              if (hw?.id) setHwActiveHwId(hw.id);
+            }
           }
         };
 
