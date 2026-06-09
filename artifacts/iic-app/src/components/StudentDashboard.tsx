@@ -5894,13 +5894,13 @@ export const StudentDashboard: React.FC<Props> = ({
                     sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
                     title="Video"
                   />
-                  {/* Click blocker — prevents any tap from navigating to Drive or external site */}
+                  {/* Targeted blocker — only covers the top-right "Open in Drive" button */}
                   <div
-                    className="absolute inset-0 z-10"
-                    style={{ pointerEvents: 'all', background: 'transparent', cursor: 'default' }}
-                    onClickCapture={e => e.stopPropagation()}
-                    onMouseDownCapture={e => e.stopPropagation()}
-                    onTouchStartCapture={e => e.stopPropagation()}
+                    className="absolute z-10"
+                    style={{ top: 0, right: 0, width: '56px', height: '56px', pointerEvents: 'all', background: 'transparent', cursor: 'not-allowed' }}
+                    onClickCapture={e => { e.preventDefault(); e.stopPropagation(); }}
+                    onMouseDownCapture={e => { e.preventDefault(); e.stopPropagation(); }}
+                    onTouchStartCapture={e => { e.preventDefault(); e.stopPropagation(); }}
                     onContextMenu={e => e.preventDefault()}
                   />
                 </div>
@@ -5932,13 +5932,13 @@ export const StudentDashboard: React.FC<Props> = ({
                       allow="autoplay"
                       title="Audio"
                     />
-                    {/* Click blocker — Drive ke buttons block karo */}
+                    {/* Targeted blocker — only covers the right-side "Open in Drive" button on audio bar */}
                     <div
-                      className="absolute inset-0 z-10 rounded-2xl"
-                      style={{ pointerEvents: 'all', background: 'transparent', cursor: 'default' }}
-                      onClickCapture={e => e.stopPropagation()}
-                      onMouseDownCapture={e => e.stopPropagation()}
-                      onTouchStartCapture={e => e.stopPropagation()}
+                      className="absolute z-10"
+                      style={{ top: 0, right: 0, width: '48px', height: '80px', pointerEvents: 'all', background: 'transparent', cursor: 'not-allowed' }}
+                      onClickCapture={e => { e.preventDefault(); e.stopPropagation(); }}
+                      onMouseDownCapture={e => { e.preventDefault(); e.stopPropagation(); }}
+                      onTouchStartCapture={e => { e.preventDefault(); e.stopPropagation(); }}
                       onContextMenu={e => e.preventDefault()}
                     />
                   </div>
