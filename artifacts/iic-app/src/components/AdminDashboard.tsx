@@ -9,7 +9,7 @@ import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -14902,6 +14902,34 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           🛟 Local Cache se Content Recover karo → Firebase
                       </button>
                       <p id="iic-recovery-status" className="text-xs text-green-700 mt-2 font-mono min-h-[18px]"></p>
+                  </div>
+
+                  {/* ── Rebuild Content Index (Badge fixer) ── */}
+                  <div className="mt-4 p-4 bg-violet-50 border border-violet-200 rounded-xl">
+                      <h4 className="text-violet-800 font-black mb-1 flex items-center gap-2 text-sm">🏷️ Subject Card Badges Rebuild</h4>
+                      <p className="text-xs text-violet-700 mb-1">Student app ke subject cards pe <b>📝 Notes · 📄 PDF · 📊 MCQ · 🎥 Video · 🔊 Audio</b> badges dikhte hain. Ye badges ek index se aate hain jo sirf new saves pe update hota hai.</p>
+                      <p className="text-xs text-violet-600 mb-3">Agar badges nahi dikh rahe ya galat count hai, to ye button ek baar dabao — saara existing content scan ho kar index fresh ho jayega.</p>
+                      <button
+                          onClick={async () => {
+                              if (!confirm("🏷️ Content Index Rebuild karein?\n\nYe saara Firebase content scan karega aur subject card badges ke liye fresh index banayega.\n\nKuch seconds lag sakte hain. Confirm?")) return;
+                              const statusEl = document.getElementById('iic-index-status');
+                              if (statusEl) statusEl.textContent = '⏳ Scanning content...';
+                              try {
+                                  const result = await rebuildContentIndex((done, total, key) => {
+                                      if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key.replace('nst_content_', '')}`;
+                                  });
+                                  if (statusEl) statusEl.textContent = `✅ Done! ${result.indexed} chapters indexed. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
+                                  alert(`✅ Index Rebuild Complete!\n\n${result.indexed} chapters ka index fresh ho gaya.\nAb student app ke subject cards pe badges dikhenge.\n${result.failed > 0 ? `⚠️ ${result.failed} fail (console check karein).` : '✅ Sab theek!'}`);
+                              } catch(e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
+                                  alert('❌ Index rebuild failed: ' + e?.message);
+                              }
+                          }}
+                          className="w-full py-3 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700 flex items-center justify-center gap-2 text-sm"
+                      >
+                          🏷️ Rebuild Subject Card Badges Index
+                      </button>
+                      <p id="iic-index-status" className="text-xs text-violet-700 mt-2 font-mono min-h-[18px]"></p>
                   </div>
 
                   <button

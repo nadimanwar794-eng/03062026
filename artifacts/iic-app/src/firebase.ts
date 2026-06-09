@@ -414,6 +414,53 @@ export const resetAllContent = async () => {
   }
 };
 
+// ── Rebuild content_index from ALL existing content_data in Firebase ──────────
+// Run this once to backfill the index for any content uploaded before the
+// real-time index feature existed. After this, every saveChapterData call keeps
+// the index fresh automatically. Progress callback: (done, total, key) => void.
+export const rebuildContentIndex = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ indexed: number; failed: number }> => {
+  let indexed = 0, failed = 0;
+  try {
+    const snap = await get(ref(rtdb, 'content_data'));
+    if (!snap.exists()) return { indexed: 0, failed: 0 };
+    const all = snap.val() as Record<string, any>;
+    const keys = Object.keys(all).filter(k => k.startsWith('nst_content_'));
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      try {
+        const data = all[key] || {};
+        const withoutPrefix = key.slice('nst_content_'.length);
+        const parts = withoutPrefix.split('_');
+        if (parts.length < 3) continue;
+        const board      = parts[0];
+        const classLevel = parts[1];
+        const statsKey   = `${board}_${classLevel}`;
+        const safeKey    = key.replace(/[.#$[\]/]/g, '-');
+        const subjectName = parts.slice(2, parts.length - 1).join(' ');
+        const hasNotes = !!(data.freeNotes || data.topicNotes?.length || data.premiumNotes || data.content || data.teachingStrategyNotes);
+        const hasPdf   = !!(data.pdfUrl || data.pdfList?.length);
+        const hasVideo = !!(data.videoPlaylist?.length || data.topicVideos?.length);
+        const hasAudio = !!(data.audioPlaylist?.length);
+        const hasMcq   = !!(data.manualMcqData?.length || data.weeklyTestMcqData?.length || data.mcqList?.length);
+        await set(ref(rtdb, `content_index/${statsKey}/${safeKey}`), {
+          notes: hasNotes, pdf: hasPdf, video: hasVideo, audio: hasAudio, mcq: hasMcq,
+          subject: subjectName,
+        });
+        indexed++;
+        onProgress?.(i + 1, keys.length, key);
+      } catch {
+        failed++;
+      }
+    }
+  } catch (e) {
+    console.error('[IIC] rebuildContentIndex failed:', e);
+    throw e;
+  }
+  return { indexed, failed };
+};
+
 // --- DUAL WRITE / SMART READ LOGIC ---
 
 // 1. User Data Sync
