@@ -789,12 +789,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
     ...customBooksList.map(b => b.id),
   ];
 
-  // SYNC WITH PROP UPDATES (Ensure Admin sees live changes)
-  // NOTE: Local edits take precedence over incoming cloud sync so that
+  // Track whether the initial Firebase settings have been applied.
+  // On the FIRST load we let Firebase win completely (so no hardcoded defaults
+  // silently override what the admin previously configured and saved).
+  // On every SUBSEQUENT subscription update we keep local edits on top, so that
   // a Firestore listener firing mid-edit cannot revert what the admin is typing.
+  const _settingsLoadedRef = useRef(false);
   useEffect(() => {
       if (settings) {
-          setLocalSettings(prev => ({ ...settings, ...prev }));
+          if (!_settingsLoadedRef.current) {
+              // First load — Firebase values win over initial-state defaults
+              setLocalSettings(settings);
+              _settingsLoadedRef.current = true;
+          } else {
+              // Subsequent updates — preserve any in-progress local edits
+              setLocalSettings(prev => ({ ...settings, ...prev }));
+          }
       }
   }, [settings]);
 

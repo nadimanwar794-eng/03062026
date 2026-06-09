@@ -1125,10 +1125,13 @@ export const bulkSaveLinks = async (updates: Record<string, any>) => {
     // RTDB
     promises.push(update(ref(rtdb, 'content_links'), sanitizedUpdates));
     
-    // Firestore - We save each update as a document in 'content_data' collection
-    // 'updates' is a map of key -> data
+    // Firestore - Merge into existing content_data documents so that only
+    // freeLink/premiumLink/price fields are updated — all other fields (notes,
+    // videos, PDFs, MCQs) are preserved even if they are absent from `data`.
+    // Using plain setDoc (no merge) here would REPLACE the entire document and
+    // silently wipe all chapter content whenever localStorage is stale/empty.
     Object.entries(sanitizedUpdates).forEach(([key, data]) => {
-         promises.push(setDoc(doc(db, "content_data", key), data));
+         promises.push(setDoc(doc(db, "content_data", key), data, { merge: true }));
     });
 
     const results = await Promise.allSettled(promises);
