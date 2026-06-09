@@ -558,12 +558,30 @@ const _savePerItemCollection = async (
   writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
   writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
 
+  // ── Safety: only cleanup orphans when new array is non-empty ────────────────
+  // If newIds is empty it almost certainly means the array wasn't loaded yet
+  // (race condition or partial settings save). Never delete ALL entries just
+  // because the incoming list happens to be empty — that would silently wipe
+  // all educational content from Firebase.
+  if (newIds.length === 0) {
+    console.warn(`[IIC] _savePerItemCollection(${collectionName}): new array is empty — skipping orphan cleanup to protect existing Firebase data.`);
+    return;
+  }
+
   try {
     const oldSnap = await getDoc(doc(db, "config", indexFsDocId));
     if (oldSnap.exists()) {
       const oldIds: string[] = oldSnap.data()?.ids ?? [];
       const newIdSet = new Set(newIds);
-      oldIds.filter(id => !newIdSet.has(id)).forEach(id => {
+      const orphanIds = oldIds.filter(id => !newIdSet.has(id));
+      // Extra safety: never delete more than 95% of existing entries in one save.
+      // Deleting nearly everything at once is almost always a bug, not intent.
+      const maxAllowedDeletions = Math.ceil(oldIds.length * 0.95);
+      if (orphanIds.length > maxAllowedDeletions) {
+        console.error(`[IIC] SAFETY BLOCK: attempted to delete ${orphanIds.length}/${oldIds.length} entries from ${collectionName}. This looks like a bug — deletion skipped. Please use the explicit delete action instead.`);
+        return;
+      }
+      orphanIds.forEach(id => {
         writes.push(deleteDoc(doc(db, collectionName, id)));
         writes.push(remove(ref(rtdb, `${rtdbBasePath}/${id}`)));
       });
