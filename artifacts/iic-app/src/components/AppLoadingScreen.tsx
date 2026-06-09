@@ -133,18 +133,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     } catch { return { enabled: true, url: '/splash-logo.png', size: 140 }; }
   });
 
-  // ── Loading Screen Video (admin-controlled, plays ONLY ONCE per URL) ────────
-  // localStorage key 'nst_loading_video_seen' stores the last URL that was shown.
-  // If it matches the current URL → skip video (0 MB used). New URL = shows once again.
+  // ── Loading Screen Video (admin-controlled, plays every time app opens) ──────
   const [loadingVideoUrl] = useState<string>(() => {
     try {
       const s = localStorage.getItem('nst_system_settings');
       const o = s ? JSON.parse(s) : null;
-      const url = (o?.loadingScreenVideoUrl || '').toString().trim();
-      if (!url) return '';
-      const seenUrl = localStorage.getItem('nst_loading_video_seen') || '';
-      if (seenUrl === url) return ''; // already played this video — skip forever
-      return url;
+      return (o?.loadingScreenVideoUrl || '').toString().trim();
     } catch { return ''; }
   });
 
@@ -200,12 +194,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     return () => clearInterval(timer);
   }, [hasVideo, appName]);
 
-  // ── Mark video as seen & proceed ──────────────────────────────────────────
-  const markSeenAndComplete = () => {
-    try { localStorage.setItem('nst_loading_video_seen', loadingVideoUrl); } catch {}
-    onCompleteRef.current();
-  };
-
   // ── YouTube postMessage — detect video ended ────────────────────────────────
   useEffect(() => {
     if (!hasVideo) return;
@@ -213,7 +201,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
       try {
         const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
         if (data?.event === 'onStateChange' && data?.info === 0) {
-          markSeenAndComplete();
+          onCompleteRef.current();
         }
       } catch {}
     };
@@ -225,7 +213,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
   useEffect(() => {
     if (!hasVideo) return;
     const timeout = setTimeout(() => {
-      markSeenAndComplete();
+      onCompleteRef.current();
     }, 60000); // 60 seconds max — phir auto skip
     return () => clearTimeout(timeout);
   }, [hasVideo]);
