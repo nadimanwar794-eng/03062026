@@ -58,28 +58,6 @@ const THEME_STYLES: Record<ThemeVariant, {
   },
 };
 
-function buildEmbedUrl(url: string): string {
-  let videoId = '';
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
-    else if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
-    else if (url.includes('embed/')) videoId = url.split('embed/')[1].split('?')[0];
-    if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&enablejsapi=1&showinfo=0&disablekb=1&fs=0`;
-    }
-  }
-  if (url.includes('drive.google.com')) {
-    const m = url.match(/[-\w]{25,}/);
-    const fileId = m ? m[0] : '';
-    return `https://drive.google.com/file/d/${fileId}/preview?autoplay=1&rm=minimal`;
-  }
-  if (url.includes('notebooklm.google.com')) return url;
-  return url;
-}
-
-function isDriveUrl(url: string): boolean {
-  return url.includes('drive.google.com');
-}
 
 export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, isPremium = false, subscriptionLevel = 'FREE' }) => {
   const [progress, setProgress] = useState(0);
@@ -137,25 +115,13 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     } catch { return { enabled: true, url: '/splash-logo.png', size: 140 }; }
   });
 
-  // ── Loading Screen Video (admin-controlled, plays every time app opens) ──────
-  const [loadingVideoUrl] = useState<string>(() => {
-    try {
-      const s = localStorage.getItem('nst_system_settings');
-      const o = s ? JSON.parse(s) : null;
-      return (o?.loadingScreenVideoUrl || '').toString().trim();
-    } catch { return ''; }
-  });
-
-  const hasVideo = !!loadingVideoUrl;
-  const embedUrl = hasVideo ? buildEmbedUrl(loadingVideoUrl) : '';
-
   useEffect(() => {
     if (activeFont.gfontParam) ensureGoogleFontLoaded(activeFont.gfontParam);
   }, [activeFont.gfontParam]);
 
-  // ── Normal loading progress (always runs in background) ────────────────────
+  // ── Normal loading progress ────────────────────────────────────────────────
   useEffect(() => {
-    const duration = hasVideo ? 8000 : 2000;
+    const duration = 2000;
     const intervalTime = 50;
     const steps = duration / intervalTime;
     let currentStep = 0;
@@ -181,46 +147,20 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
 
       if (currentStep >= steps) {
         clearInterval(timer);
-        if (!hasVideo) {
-          try {
-            const utterance = new SpeechSynthesisUtterance('Welcome to ' + appName);
-            utterance.lang = 'en-US';
-            utterance.rate = 1;
-            utterance.pitch = 1;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
-          } catch {}
-          setTimeout(() => onCompleteRef.current(), 300);
-        }
+        try {
+          const utterance = new SpeechSynthesisUtterance('Welcome to ' + appName);
+          utterance.lang = 'en-US';
+          utterance.rate = 1;
+          utterance.pitch = 1;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+        } catch {}
+        setTimeout(() => onCompleteRef.current(), 300);
       }
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [hasVideo, appName]);
-
-  // ── YouTube postMessage — detect video ended ────────────────────────────────
-  useEffect(() => {
-    if (!hasVideo) return;
-    const handler = (e: MessageEvent) => {
-      try {
-        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (data?.event === 'onStateChange' && data?.info === 0) {
-          onCompleteRef.current();
-        }
-      } catch {}
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [hasVideo]);
-
-  // ── Fallback timer — agar video load na ho (no internet) ──────────────────
-  useEffect(() => {
-    if (!hasVideo) return;
-    const timeout = setTimeout(() => {
-      onCompleteRef.current();
-    }, 60000); // 60 seconds max — phir auto skip
-    return () => clearTimeout(timeout);
-  }, [hasVideo]);
+  }, [appName]);
 
   const handleLogoTap = () => {
     if (logoTapped) return;
@@ -239,45 +179,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
   const iconColor7 = themeVariant === 'light' ? 'text-teal-600' : 'text-teal-400';
   const iconColor8 = themeVariant === 'light' ? 'text-orange-500' : 'text-orange-400';
 
-  // ── VIDEO LOADING SCREEN ───────────────────────────────────────────────────
-  if (hasVideo) {
-    const isDrive = isDriveUrl(loadingVideoUrl);
-    return (
-      <div className="fixed inset-0 z-[9999] bg-black overflow-hidden">
-        {/* Full-screen video */}
-        <iframe
-          src={embedUrl}
-          className="absolute inset-0 w-full h-full"
-          allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          frameBorder="0"
-          title="Loading Screen"
-        />
-        {/* YouTube only: overlay blocks pause/controls — Drive needs tap to play so no overlay */}
-        {!isDrive && (
-          <div className="absolute inset-0 z-10" style={{ background: 'transparent' }} />
-        )}
-        {/* App logo — covers Google Drive's external-link button (top-right) */}
-        <div
-          className="absolute top-0 right-0 z-20 w-14 h-14 flex items-center justify-center bg-black"
-          style={{ pointerEvents: 'none' }}
-        >
-          <img
-            src={splashLogo.url || '/splash-logo.png'}
-            alt={appName}
-            draggable={false}
-            onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement;
-              if (!img.src.includes('/splash-logo.png')) img.src = '/splash-logo.png';
-            }}
-            className="w-9 h-9 object-contain"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // ── DEFAULT ANIMATED LOADING SCREEN ───────────────────────────────────────
   return (
     <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${t.bg} ${t.text} overflow-hidden w-full mx-auto`}>
       {/* Animated background gradient */}
