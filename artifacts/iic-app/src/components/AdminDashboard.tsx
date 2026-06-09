@@ -6753,6 +6753,37 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               </p>
                           </div>
 
+                      {/* Loading Screen Video URL */}
+                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800 mb-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Video className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          <span className="font-bold text-purple-700 dark:text-purple-300 text-sm">Loading Screen Video</span>
+                          {localSettings.loadingScreenVideoUrl && (
+                            <span className="ml-auto text-[10px] font-black bg-purple-600 text-white px-2 py-0.5 rounded-full">VIDEO ON</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-purple-600 dark:text-purple-400 mb-3 leading-snug">
+                          Jab students app kholen, pehle ye video dikhega (loading screen ki jagah). Video khatam hone ya Skip dabane pe app open hoga. YouTube ya Google Drive URL daalein.
+                        </p>
+                        <input
+                          type="url"
+                          value={localSettings.loadingScreenVideoUrl || ''}
+                          onChange={e => setLocalSettings({ ...localSettings, loadingScreenVideoUrl: e.target.value.trim() })}
+                          placeholder="https://www.youtube.com/watch?v=... ya Google Drive link"
+                          className="w-full p-3 border-2 border-purple-200 dark:border-purple-700 rounded-xl text-sm bg-white dark:bg-gray-800 focus:border-purple-500 focus:outline-none"
+                        />
+                        {localSettings.loadingScreenVideoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setLocalSettings({ ...localSettings, loadingScreenVideoUrl: '' })}
+                            className="mt-2 text-[11px] font-black text-red-500 hover:text-red-700 underline"
+                          >
+                            ✕ Remove video (default loading screen wapas)
+                          </button>
+                        )}
+                        <p className="text-[10px] text-purple-500 mt-2">💡 Save Settings dabana na bhulen. Sirf ek baar dikhega per session.</p>
+                      </div>
+
                       {/* AI Model Control */}
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
                         <div className="flex items-center gap-2 mb-4 text-blue-700 dark:text-blue-400 font-bold">
