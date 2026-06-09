@@ -936,7 +936,10 @@ export const saveSystemSettings = async (settings: any) => {
     ];
 
     // ── homework: per-item documents (each can be large — HTML + MCQs) ───────
-    if (homework != null && Array.isArray(homework)) {
+    // BUG FIX: Only save homework when array has actual entries.
+    // An empty array passed before the subscription loads would wipe ALL homework entries.
+    // This mirrors the same protection already applied to lucentNotes in handleSaveSettings.
+    if (homework != null && Array.isArray(homework) && homework.length > 0) {
       await _savePerItemCollection(
         "homework_entries", "homework_entries",
         "homework_index", "homework_index",

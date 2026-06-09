@@ -1694,9 +1694,19 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       }
   }, [activeTab, dbKey]);
 
-  // Clear selections when switching main tabs
+  // Clear selections when switching away from CONTENT tab only
+  // BUG FIX: removed `if (true)` which was unconditionally wiping selSubject and
+  // editingChapterId on EVERY tab change — including switching to Settings/Theme
+  // and back — making content appear "deleted" even though Firebase data was intact.
+  const prevActiveTabRef = useRef<string | null>(null);
   useEffect(() => {
-      if (true) {
+      const prevTab = prevActiveTabRef.current;
+      prevActiveTabRef.current = activeTab;
+      // Only reset the chapter editor when navigating AWAY from a content-editing tab.
+      // Never reset when coming BACK to a content tab — that was destroying the editor.
+      const contentTabs = ['CONTENT', 'COMPETITION_CONTENT', 'NOTES', 'VIDEO', 'AUDIO', 'MCQ'];
+      const leavingContentTab = prevTab && contentTabs.includes(prevTab) && !contentTabs.includes(activeTab);
+      if (leavingContentTab) {
           setSelSubject(null);
           setEditingChapterId(null);
       }
