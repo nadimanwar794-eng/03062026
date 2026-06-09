@@ -5879,43 +5879,6 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
             )}
 
-            {/* ── Tab bar: NOTES | MCQ | VIDEO | AUDIO ── */}
-            {effectiveMode !== 'choose' && !hwImmersive && (hasNotes || hasMcq || hasAudio || hasVideo) && (
-              <div className="shrink-0 border-b border-slate-100 bg-white px-3 flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-                {hasNotes && (
-                  <button
-                    onClick={() => setHwViewMode('notes')}
-                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'notes' ? `border-current ${theme.text}` : 'border-transparent text-slate-400'}`}
-                  >
-                    <BookOpen size={13} /> Notes
-                  </button>
-                )}
-                {hasMcq && (
-                  <button
-                    onClick={() => setHwViewMode('mcq')}
-                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'mcq' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-400'}`}
-                  >
-                    <CheckSquare size={13} /> MCQ
-                  </button>
-                )}
-                {hasVideo && (
-                  <button
-                    onClick={() => setHwViewMode('video')}
-                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'video' ? 'border-rose-500 text-rose-700' : 'border-transparent text-slate-400'}`}
-                  >
-                    <Play size={13} /> Video
-                  </button>
-                )}
-                {hasAudio && (
-                  <button
-                    onClick={() => setHwViewMode('audio')}
-                    className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide shrink-0 border-b-2 transition-all ${effectiveMode === 'audio' ? 'border-purple-500 text-purple-700' : 'border-transparent text-slate-400'}`}
-                  >
-                    <Headphones size={13} /> Audio
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* VIDEO PAGE */}
             {effectiveMode === 'video' && hasVideo && (
