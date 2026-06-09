@@ -5830,6 +5830,16 @@ export const StudentDashboard: React.FC<Props> = ({
                   </button>
                 </div>
               )}
+              {/* More button — visible in audio / video / pdf / mcq modes (not write-notes, not choose) */}
+              {effectiveMode !== 'choose' && !(effectiveMode === 'notes' && hwNotesViewMode === 'html') && (
+                <button
+                  onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                  title="More — Switch Content"
+                >
+                  <LayoutGrid size={14} />
+                </button>
+              )}
               <span className="bg-white/20 text-white text-[11px] font-black px-2.5 py-1 rounded-full shrink-0">
                 {flatIdx + 1}/{filteredHw.length}
               </span>
@@ -16821,6 +16831,16 @@ export const StudentDashboard: React.FC<Props> = ({
                         <LayoutGrid size={14} />
                       </button>
                     </>
+                  )}
+                  {/* More Options — for AUDIO / VIDEO / MCQ tabs */}
+                  {lucentActiveTab !== 'PDF' && (
+                    <button
+                      onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                      title="More — Switch Content"
+                    >
+                      <LayoutGrid size={14} />
+                    </button>
                   )}
                   <span className="bg-white/20 px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap">
                     {safeIndex + 1}/{totalPages}
