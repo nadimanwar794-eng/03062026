@@ -9,7 +9,7 @@ import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -1812,17 +1812,27 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   };
 
   // Always writes directly to Firebase + localStorage.
-  const permanentDeleteNote = async (newSettings: SystemSettings, label: string) => {
+  // permanentDeleteNote: updates local state AND calls dedicated Firebase delete.
+  // NEVER relies on saveSystemSettings to handle deletion — that was the root
+  // cause of accidental data loss (race condition with partial array loads).
+  const permanentDeleteNote = async (
+      newSettings: SystemSettings,
+      label: string,
+      deletedId?: string,
+      deleteType?: 'homework' | 'lucent'
+  ) => {
       setLocalSettings(newSettings);
       if (onUpdateSettings) onUpdateSettings(newSettings);
-      const toSave = { ...newSettings };
-      // NOTE: Do NOT remove lucentNotes even when empty — an empty array signals
-      // intentional deletion of the last entry. saveSystemSettings will update
-      // the index and delete the removed Firestore/RTDB documents correctly.
-      // (Only unrelated saves strip lucentNotes to avoid race-condition wipes.)
-      localStorage.setItem('nst_system_settings', JSON.stringify(toSave));
+      localStorage.setItem('nst_system_settings', JSON.stringify(newSettings));
       try {
-          await saveSystemSettings(toSave);
+          if (deletedId && deleteType === 'homework') {
+              await deleteHomeworkEntry(deletedId);
+          } else if (deletedId && deleteType === 'lucent') {
+              await deleteLucentEntry(deletedId);
+          } else {
+              // Fallback: save settings (for non-Firebase deletions like MCQ batches)
+              await saveSystemSettings(newSettings);
+          }
           setAlertConfig({ isOpen: true, message: `🗑️ "${label}" permanently deleted!` });
       } catch (e: any) {
           setAlertConfig({ isOpen: true, message: `❌ Delete failed — try again. (${e?.message || 'Network error'})` });
@@ -10559,7 +10569,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                   e.stopPropagation();
                                                   if (!confirm(`⚠️ PERMANENT DELETE\n\n"${entry.lessonTitle}"\n\nYeh Lucent lesson hamesha ke liye delete ho jaayega — wapis nahi aayega.\n\nKya aap sure hain?`)) return;
                                                   const updated = (localSettings.lucentNotes || []).filter((_, idx) => idx !== i);
-                                                  permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note');
+                                                  permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note', entry.id, 'lucent');
                                               }} className="absolute top-2 right-10 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors opacity-50 group-hover:opacity-100" title="Permanently Delete">
                                                   <Trash2 size={16} />
                                               </button>
@@ -13706,7 +13716,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                   <button onClick={() => {
                                                       if (!confirm(`⚠️ DELETE\n\n"${entry.lessonTitle}"\n\nHamesha ke liye delete hoga.\n\nSure?`)) return;
                                                       const updated = (localSettings.lucentNotes || []).filter((_, i) => i !== origIdx);
-                                                      permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note');
+                                                      permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note', entry.id, 'lucent');
                                                   }} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={13}/></button>
                                               </div>
                                           );
@@ -13779,7 +13789,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                   <button onClick={() => {
                                                       if (!confirm(`⚠️ PERMANENT DELETE\n\n"${hw.title}"\n\nYeh note hamesha ke liye delete ho jaayega — wapis nahi aayega.\n\nKya aap sure hain?`)) return;
                                                       const updated = (localSettings.homework || []).filter(h => h.id !== hw.id);
-                                                      permanentDeleteNote({...localSettings, homework: updated}, hw.title || 'Book Note');
+                                                      permanentDeleteNote({...localSettings, homework: updated}, hw.title || 'Book Note', hw.id, 'homework');
                                                   }} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Permanently Delete"><Trash2 size={14}/></button>
                                               </div>
                                           </div>
@@ -14102,6 +14112,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                           if (!confirm(`"${entry.lessonTitle}" delete karein?`)) return;
                                                           if (cn612EditingId === entry.id) setCn612EditingId(null);
                                                           const updated = (localSettings.lucentNotes || []).filter((n: LucentNoteEntry) => n.id !== entry.id);
+                                                          deleteLucentEntry(entry.id).catch(console.error);
                                                           saveLucentEntryDirectly(updated, `🗑️ "${entry.lessonTitle}" deleted!`);
                                                       }}
                                                       className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"

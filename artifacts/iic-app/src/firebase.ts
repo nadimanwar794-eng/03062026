@@ -210,6 +210,77 @@ export const recoverContentFromCache = async (
 
 // PROTECTED: content_data is NEVER deleted — it contains all educational content.
 // Only local caches are cleared. User sessions and cloud data are preserved.
+// ── Explicit single-item delete — ONLY way to remove homework/lucent entries ──
+// These are the ONLY functions allowed to delete from homework_entries or
+// lucent_entries. _savePerItemCollection NEVER deletes — it only writes/updates.
+export const deleteHomeworkEntry = async (id: string): Promise<void> => {
+  // Save to trash before deleting
+  try {
+    const snap = await getDoc(doc(db, 'homework_entries', id));
+    const data = snap.exists() ? snap.data() : { id };
+    await storage.setItem(`nst_trash_homework_entries_${id}_${Date.now()}`, {
+      trashKey: `nst_trash_homework_entries_${id}_${Date.now()}`,
+      collectionName: 'homework_entries',
+      rtdbBasePath: 'homework_entries',
+      id,
+      data,
+      name: (data as any)?.title || id,
+      deletedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  } catch {}
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'homework_entries', id)),
+    remove(ref(rtdb, `homework_entries/${id}`)),
+    remove(ref(rtdb, `__backup__/homework_entries/${id}`)),
+  ]);
+  // Update index: remove this id from config/homework_index
+  try {
+    const idxSnap = await getDoc(doc(db, 'config', 'homework_index'));
+    const oldIds: string[] = idxSnap.exists() ? (idxSnap.data()?.ids ?? []) : [];
+    const newIds = oldIds.filter(i => i !== id);
+    await Promise.allSettled([
+      setDoc(doc(db, 'config', 'homework_index'), { ids: newIds }),
+      set(ref(rtdb, 'homework_index'), { ids: newIds }),
+    ]);
+  } catch {}
+  console.log(`[IIC] deleteHomeworkEntry: ${id} deleted from Firebase`);
+};
+
+export const deleteLucentEntry = async (id: string): Promise<void> => {
+  // Save to trash before deleting
+  try {
+    const snap = await getDoc(doc(db, 'lucent_entries', id));
+    const data = snap.exists() ? snap.data() : { id };
+    await storage.setItem(`nst_trash_lucent_entries_${id}_${Date.now()}`, {
+      trashKey: `nst_trash_lucent_entries_${id}_${Date.now()}`,
+      collectionName: 'lucent_entries',
+      rtdbBasePath: 'lucent_entries',
+      id,
+      data,
+      name: (data as any)?.lessonTitle || id,
+      deletedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  } catch {}
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'lucent_entries', id)),
+    remove(ref(rtdb, `lucent_entries/${id}`)),
+    remove(ref(rtdb, `__backup__/lucent_entries/${id}`)),
+  ]);
+  // Update index: remove this id from config/lucent_index
+  try {
+    const idxSnap = await getDoc(doc(db, 'config', 'lucent_index'));
+    const oldIds: string[] = idxSnap.exists() ? (idxSnap.data()?.ids ?? []) : [];
+    const newIds = oldIds.filter(i => i !== id);
+    await Promise.allSettled([
+      setDoc(doc(db, 'config', 'lucent_index'), { ids: newIds }),
+      set(ref(rtdb, 'lucent_index'), { ids: newIds }),
+    ]);
+  } catch {}
+  console.log(`[IIC] deleteLucentEntry: ${id} deleted from Firebase`);
+};
+
 export const resetAllContent = async () => {
   let cloudError = null;
   try {
@@ -670,39 +741,19 @@ const _savePerItemCollection = async (
     if (oldSnap.exists()) {
       const oldIds: string[] = oldSnap.data()?.ids ?? [];
       const newIdSet = new Set(newIds);
-      const orphanIds = oldIds.filter(id => !newIdSet.has(id));
-      // Extra safety: never delete more than 95% of existing entries in one save.
-      // Deleting nearly everything at once is almost always a bug, not intent.
-      const maxAllowedDeletions = Math.ceil(oldIds.length * 0.95);
-      if (orphanIds.length > maxAllowedDeletions) {
-        console.error(`[IIC] SAFETY BLOCK: attempted to delete ${orphanIds.length}/${oldIds.length} entries from ${collectionName}. This looks like a bug — deletion skipped. Please use the explicit delete action instead.`);
-        return;
-      }
-      // ── Trash: save orphan items to IndexedDB before deleting ──────────────
-      // This allows admin to recover accidentally deleted homework/lucent items.
-      for (const id of orphanIds) {
-        try {
-          const orphanSnap = await getDoc(doc(db, collectionName, id));
-          const orphanData = orphanSnap.exists() ? orphanSnap.data() : { id };
-          const trashKey = `nst_trash_${collectionName}_${id}_${Date.now()}`;
-          await storage.setItem(trashKey, {
-            trashKey,
-            collectionName,
-            rtdbBasePath,
-            id,
-            data: orphanData,
-            deletedAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-          });
-          console.log(`[IIC] Trash: saved ${collectionName}/${id} to IndexedDB before deletion`);
-        } catch (trashErr) {
-          console.warn(`[IIC] Trash save failed for ${collectionName}/${id}:`, trashErr);
-        }
-      }
-      orphanIds.forEach(id => {
-        writes.push(deleteDoc(doc(db, collectionName, id)));
-        writes.push(remove(ref(rtdb, `${rtdbBasePath}/${id}`)));
-      });
+      // ── ORPHAN CLEANUP IS PERMANENTLY DISABLED ────────────────────────────
+      // _savePerItemCollection now ONLY writes/updates — it never deletes.
+      // Reason: any settings save (theme, font, anything) that runs before the
+      // full homework/lucent array loads would treat unloaded items as "orphans"
+      // and delete them — this was the root cause of all accidental data loss.
+      //
+      // Deletion is now ONLY done by explicit calls to:
+      //   deleteHomeworkEntry(id)   — for homework_entries
+      //   deleteLucentEntry(id)     — for lucent_entries
+      //
+      // The index is still updated to reflect the current order, but missing
+      // IDs are never removed from the collection.
+      console.log(`[IIC] _savePerItemCollection(${collectionName}): orphan cleanup skipped — use explicit delete functions for intentional removal.`);
     }
   } catch (e) {
     console.warn(`${indexFsDocId} cleanup read failed — skipping:`, e);
