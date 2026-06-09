@@ -5931,6 +5931,15 @@ export const StudentDashboard: React.FC<Props> = ({
                     sandbox="allow-scripts allow-same-origin allow-presentation allow-fullscreen"
                     title="Video"
                   />
+                  {/* Click blocker — prevents any tap from navigating to Drive or external site */}
+                  <div
+                    className="absolute inset-0 z-10"
+                    style={{ pointerEvents: 'all', background: 'transparent', cursor: 'default' }}
+                    onClickCapture={e => e.stopPropagation()}
+                    onMouseDownCapture={e => e.stopPropagation()}
+                    onTouchStartCapture={e => e.stopPropagation()}
+                    onContextMenu={e => e.preventDefault()}
+                  />
                 </div>
                 <div className="shrink-0 px-4 py-2 bg-gray-900">
                   <p className="text-white/60 text-[11px] font-bold text-center">🔒 Video app ke andar chal raha hai</p>
@@ -5959,6 +5968,15 @@ export const StudentDashboard: React.FC<Props> = ({
                       sandbox="allow-scripts allow-same-origin allow-presentation"
                       allow="autoplay"
                       title="Audio"
+                    />
+                    {/* Click blocker — Drive ke buttons block karo */}
+                    <div
+                      className="absolute inset-0 z-10 rounded-2xl"
+                      style={{ pointerEvents: 'all', background: 'transparent', cursor: 'default' }}
+                      onClickCapture={e => e.stopPropagation()}
+                      onMouseDownCapture={e => e.stopPropagation()}
+                      onTouchStartCapture={e => e.stopPropagation()}
+                      onContextMenu={e => e.preventDefault()}
                     />
                   </div>
                 ) : (
