@@ -7283,7 +7283,21 @@ export const StudentDashboard: React.FC<Props> = ({
       );
     }
 
-    return null;
+    return (
+      <div className={`flex-1 flex flex-col items-center justify-center p-8 gap-5 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+        <span className="text-6xl">📭</span>
+        <div className="text-center">
+          <p className={`text-lg font-black ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>Abhi tak koi content nahi hai</p>
+          <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Admin ne abhi is section mein kuch upload nahi kiya hai.</p>
+        </div>
+        <button
+          onClick={goBack}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm ${isDarkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'} transition-colors`}
+        >
+          <ArrowLeft size={16} /> Wapas Jao
+        </button>
+      </div>
+    );
   };
 
   // --- MENU ITEM GENERATOR WITH LOCKS ---
@@ -9821,7 +9835,21 @@ export const StudentDashboard: React.FC<Props> = ({
       );
     }
 
-    return null;
+    return (
+      <div className={`flex-1 flex flex-col items-center justify-center p-8 gap-5 min-h-[60vh] ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>
+        <span className="text-6xl">📭</span>
+        <div className="text-center">
+          <p className={`text-lg font-black ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>Koi content nahi mila</p>
+          <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Yahan abhi kuch nahi hai. Home pe wapas jao.</p>
+        </div>
+        <button
+          onClick={() => onTabChange('HOME')}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all shadow-md"
+        >
+          <ArrowLeft size={16} /> Home pe Jao
+        </button>
+      </div>
+    );
   };
 
   if (showBoardPromptForClass) {
