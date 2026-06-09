@@ -410,6 +410,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   // --- DATA LISTS ---
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [recycleBin, setRecycleBin] = useState<RecycleBinItem[]>([]);
+  const [indexedDbTrash, setIndexedDbTrash] = useState<any[]>([]);
   const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([]);
   const [demands, setDemands] = useState<any[]>([]);
   const [globalChatMessages, setGlobalChatMessages] = useState<any[]>([]);
@@ -1731,6 +1732,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       const parsedNotes = _sp<string>(boardNotesStr, '');
       if (parsedNotes) setBoardNotes(parsedNotes);
 
+      // Load IndexedDB trash (auto-saved before Firebase deletions)
+      loadIndexedDbTrash();
   };
 
   // --- AI AUTO-PILOT LOGIC ---
@@ -1898,6 +1901,29 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
 
   // --- RECYCLE BIN HANDLERS ---
+
+  // Load all nst_trash_* items from IndexedDB (saved by firebase.ts before deletion)
+  const loadIndexedDbTrash = async () => {
+      try {
+          const allKeys = await storage.keys();
+          const trashKeys = allKeys.filter((k: string) => k.startsWith('nst_trash_'));
+          const now = new Date();
+          const items: any[] = [];
+          for (const key of trashKeys) {
+              const item = await storage.getItem(key);
+              if (item && new Date((item as any).expiresAt) > now) {
+                  items.push(item);
+              } else if (item) {
+                  await storage.removeItem(key);
+              }
+          }
+          items.sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime());
+          setIndexedDbTrash(items);
+      } catch (e) {
+          console.warn('loadIndexedDbTrash error:', e);
+      }
+  };
+
   const softDelete = (type: RecycleBinItem['type'], name: string, data: any, originalKey?: string, originalId?: string) => {
       if (!window.confirm(`DELETE "${name}"?\n(Moved to Recycle Bin for 90 days)`)) return false;
 
@@ -1915,6 +1941,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       const newBin = [...recycleBin, newItem];
       setRecycleBin(newBin);
       localStorage.setItem('nst_recycle_bin', JSON.stringify(newBin));
+      // Also save to IndexedDB for extra durability
+      const trashKey = `nst_trash_admin_${type}_${newItem.id}`;
+      storage.setItem(trashKey, { trashKey, collectionName: type, id: newItem.id, data, name, deletedAt: newItem.deletedAt, expiresAt: newItem.expiresAt, originalKey }).catch(() => {});
       return true;
   };
 
@@ -1970,6 +1999,31 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           setRecycleBin(newBin);
           localStorage.setItem('nst_recycle_bin', JSON.stringify(newBin));
       }
+  };
+
+  // Restore an IndexedDB trash item back to Firebase
+  const handleRestoreFromIndexedDbTrash = async (item: any) => {
+      if (!window.confirm(`"${item.name || item.id}" ko Firebase pe wapas bhejein?\n\nCollection: ${item.collectionName}`)) return;
+      try {
+          const { ref: fbRef, set: fbSet } = await import('firebase/database');
+          const { doc, setDoc } = await import('firebase/firestore');
+          // Restore to RTDB
+          await fbSet(fbRef(rtdb, `${item.rtdbBasePath || item.collectionName}/${item.id}`), item.data);
+          // Restore to Firestore
+          await setDoc(doc(db, item.collectionName, item.id), item.data);
+          // Remove from IndexedDB trash
+          await storage.removeItem(item.trashKey);
+          setIndexedDbTrash(prev => prev.filter(t => t.trashKey !== item.trashKey));
+          alert(`✅ "${item.name || item.id}" wapas Firebase pe aa gaya!`);
+      } catch (e: any) {
+          alert('❌ Restore failed: ' + e?.message);
+      }
+  };
+
+  const handleDeleteFromIndexedDbTrash = async (item: any) => {
+      if (!window.confirm('Permanently delete this item? Ye wapas nahi aayega.')) return;
+      await storage.removeItem(item.trashKey);
+      setIndexedDbTrash(prev => prev.filter(t => t.trashKey !== item.trashKey));
   };
 
   // --- USER MANAGEMENT (Enhanced) ---
@@ -16611,25 +16665,66 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
       {activeTab === 'RECYCLE' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-bottom-4">
-              <div className="flex items-center gap-4 mb-6"><button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button><h3 className="text-xl font-black text-slate-800">Recycle Bin (90 Days)</h3></div>
-              <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 border-b border-slate-100 text-slate-600"><tr className="uppercase text-xs"><th className="p-4">Item</th><th className="p-4">Type</th><th className="p-4">Deleted</th><th className="p-4 text-right">Actions</th></tr></thead>
-                      <tbody className="divide-y divide-slate-50">
-                          {recycleBin.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-slate-500">Bin is empty.</td></tr>}
-                          {recycleBin.map(item => (
-                              <tr key={item.id} className="hover:bg-red-50 transition-colors">
-                                  <td className="p-4 font-bold text-slate-700">{item.name}</td>
-                                  <td className="p-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{item.type}</span></td>
-                                  <td className="p-4 text-xs text-slate-600">{new Date(item.deletedAt).toLocaleDateString()}</td>
-                                  <td className="p-4 text-right flex justify-end gap-2">
-                                      <button onClick={() => handleRestoreItem(item)} className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100"><RotateCcw size={16} /></button>
-                                      <button onClick={() => handlePermanentDelete(item.id)} className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"><X size={16} /></button>
-                                  </td>
-                              </tr>
+              <div className="flex items-center gap-4 mb-6">
+                  <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
+                  <h3 className="text-xl font-black text-slate-800">🗑️ Recycle Bin (90 Days)</h3>
+                  <button onClick={loadIndexedDbTrash} className="ml-auto text-xs bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-lg hover:bg-blue-200 flex items-center gap-1"><RotateCcw size={12} /> Refresh</button>
+              </div>
+
+              {/* ── IndexedDB Trash (Homework/Lucent auto-saved before Firebase deletion) ── */}
+              {indexedDbTrash.length > 0 && (
+                  <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                          <span className="text-sm font-black text-orange-800">🔥 Firebase se Delete Hue Items ({indexedDbTrash.length})</span>
+                          <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">IndexedDB mein safe hain</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-3">Ye items Firebase se delete hone se pehle automatically save ho gaye the. "Firebase pe Wapas Bhejo" button se restore karo.</p>
+                      <div className="space-y-2">
+                          {indexedDbTrash.map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                                  <div className="flex-1 min-w-0">
+                                      <p className="font-bold text-slate-800 text-sm truncate">{item.name || item.id}</p>
+                                      <p className="text-xs text-slate-500">{item.collectionName} • {new Date(item.deletedAt).toLocaleDateString('hi-IN')} ko delete hua</p>
+                                  </div>
+                                  <button
+                                      onClick={() => handleRestoreFromIndexedDbTrash(item)}
+                                      className="shrink-0 px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 flex items-center gap-1"
+                                  >
+                                      <RotateCcw size={12} /> Firebase pe Wapas Bhejo
+                                  </button>
+                                  <button
+                                      onClick={() => handleDeleteFromIndexedDbTrash(item)}
+                                      className="shrink-0 p-1.5 text-red-500 hover:text-red-700"
+                                      title="Permanently Delete"
+                                  ><X size={14} /></button>
+                              </div>
                           ))}
-                      </tbody>
-                  </table>
+                      </div>
+                  </div>
+              )}
+
+              {/* ── Admin localStorage Recycle Bin ── */}
+              <div>
+                  <p className="text-sm font-black text-slate-700 mb-3">📋 Admin Recycle Bin ({recycleBin.length} items)</p>
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                          <thead className="bg-slate-50 border-b border-slate-100 text-slate-600"><tr className="uppercase text-xs"><th className="p-4">Item</th><th className="p-4">Type</th><th className="p-4">Deleted</th><th className="p-4 text-right">Actions</th></tr></thead>
+                          <tbody className="divide-y divide-slate-50">
+                              {recycleBin.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-slate-500">Bin is empty.</td></tr>}
+                              {recycleBin.map(item => (
+                                  <tr key={item.id} className="hover:bg-red-50 transition-colors">
+                                      <td className="p-4 font-bold text-slate-700">{item.name}</td>
+                                      <td className="p-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{item.type}</span></td>
+                                      <td className="p-4 text-xs text-slate-600">{new Date(item.deletedAt).toLocaleDateString()}</td>
+                                      <td className="p-4 text-right flex justify-end gap-2">
+                                          <button onClick={() => handleRestoreItem(item)} className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100"><RotateCcw size={16} /></button>
+                                          <button onClick={() => handlePermanentDelete(item.id)} className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"><X size={16} /></button>
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
               </div>
           </div>
       )}

@@ -320,7 +320,8 @@ export interface SubscriptionPlan {
 export interface RecycleBinItem {
   id: string; // Unique delete ID
   originalId: string; // ID of the actual item
-  type: 'USER' | 'CHAPTER' | 'CONTENT' | 'POST' | 'MCQ_BATCH';
+  type: 'USER' | 'CHAPTER' | 'CONTENT' | 'POST' | 'MCQ_BATCH' | 'HOMEWORK_ENTRY' | 'LUCENT_ENTRY' | 'CONTENT_DATA';
+  firebaseCollection?: string;
   name: string; // For display
   data: any; // Full object to restore
   deletedAt: string;

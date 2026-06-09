@@ -41,6 +41,15 @@ export const storage = {
     }
   },
 
+  keys: async (): Promise<string[]> => {
+    try {
+      return await localforage.keys();
+    } catch (err) {
+      console.error('Error getting keys from localforage:', err);
+      return [];
+    }
+  },
+
   clear: async (): Promise<void> => {
     // PROTECTED: Full wipe disabled — only content cache is cleared.
     // This prevents accidental deletion of user data stored in IndexedDB.

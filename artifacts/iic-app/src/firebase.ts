@@ -678,6 +678,27 @@ const _savePerItemCollection = async (
         console.error(`[IIC] SAFETY BLOCK: attempted to delete ${orphanIds.length}/${oldIds.length} entries from ${collectionName}. This looks like a bug — deletion skipped. Please use the explicit delete action instead.`);
         return;
       }
+      // ── Trash: save orphan items to IndexedDB before deleting ──────────────
+      // This allows admin to recover accidentally deleted homework/lucent items.
+      for (const id of orphanIds) {
+        try {
+          const orphanSnap = await getDoc(doc(db, collectionName, id));
+          const orphanData = orphanSnap.exists() ? orphanSnap.data() : { id };
+          const trashKey = `nst_trash_${collectionName}_${id}_${Date.now()}`;
+          await storage.setItem(trashKey, {
+            trashKey,
+            collectionName,
+            rtdbBasePath,
+            id,
+            data: orphanData,
+            deletedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+          console.log(`[IIC] Trash: saved ${collectionName}/${id} to IndexedDB before deletion`);
+        } catch (trashErr) {
+          console.warn(`[IIC] Trash save failed for ${collectionName}/${id}:`, trashErr);
+        }
+      }
       orphanIds.forEach(id => {
         writes.push(deleteDoc(doc(db, collectionName, id)));
         writes.push(remove(ref(rtdb, `${rtdbBasePath}/${id}`)));
