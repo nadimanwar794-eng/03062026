@@ -9,7 +9,7 @@ import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -14652,6 +14652,33 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   >
                       <RefreshCw size={18} /> 🧹 Clear Local Cache Only (Fix "Old Notes")
                   </button>
+
+                  {/* ── Content Recovery ── */}
+                  <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                      <h4 className="text-green-800 font-black mb-1 flex items-center gap-2 text-sm">🛟 Content Recovery (Cache → Firebase)</h4>
+                      <p className="text-xs text-green-700 mb-3">Agar Firebase se content delete ho gaya ho lekin is device pe abhi bhi cached hai, to ye button use karein. Ye local IndexedDB cache se saara chapter content wapas Firebase pe upload kar dega.</p>
+                      <button
+                          onClick={async () => {
+                              if (!confirm("🛟 Content Recovery shuru karein?\n\nYe is device ke local cache se saara 'nst_content_*' data Firebase pe re-upload karega.\n\nConfirm karo?")) return;
+                              const statusEl = document.getElementById('iic-recovery-status');
+                              if (statusEl) statusEl.textContent = '⏳ Recovery shuru ho rahi hai...';
+                              try {
+                                  const result = await recoverContentFromCache((done, total, key) => {
+                                      if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key.replace('nst_content_', '')}`;
+                                  });
+                                  if (statusEl) statusEl.textContent = `✅ Recovery complete! ${result.recovered} chapters Firebase pe upload hue. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
+                                  alert(`✅ Recovery Complete!\n\n${result.recovered} chapters successfully recovered.\n${result.failed > 0 ? `${result.failed} chapters fail hue (console check karein).` : 'Koi error nahi!'}`);
+                              } catch(e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
+                                  alert('❌ Recovery failed: ' + e?.message);
+                              }
+                          }}
+                          className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 flex items-center justify-center gap-2 text-sm"
+                      >
+                          🛟 Cache se Content Recover karo → Firebase
+                      </button>
+                      <p id="iic-recovery-status" className="text-xs text-green-700 mt-2 font-mono min-h-[18px]"></p>
+                  </div>
 
                   <button
                       onClick={() => {

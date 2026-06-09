@@ -113,6 +113,37 @@ export const subscribeToAuth = (callback: (user: any) => void) => {
 };
 
 // --- SAFE CACHE RESET (replaces Nuclear Reset) ---
+// ── Content Recovery: re-uploads all cached chapter data from IndexedDB → Firebase ──
+// Useful when Firebase content got accidentally deleted but local cache (IndexedDB) still has it.
+// Reads all 'nst_content_*' keys from localforage and pushes them back to RTDB + Firestore.
+export const recoverContentFromCache = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ recovered: number; failed: number; keys: string[] }> => {
+  const localforage = (await import('localforage')).default;
+  localforage.config({ name: 'nst_storage' });
+  const allKeys = await localforage.keys();
+  const contentKeys = allKeys.filter(k => k.startsWith('nst_content_'));
+  let recovered = 0;
+  let failed = 0;
+  const recoveredKeys: string[] = [];
+  for (let i = 0; i < contentKeys.length; i++) {
+    const key = contentKeys[i];
+    try {
+      const data = await localforage.getItem<any>(key);
+      if (!data) { failed++; continue; }
+      await saveChapterData(key, data);
+      recovered++;
+      recoveredKeys.push(key);
+      onProgress?.(i + 1, contentKeys.length, key);
+    } catch (e) {
+      console.error(`[IIC] Recovery failed for ${key}:`, e);
+      failed++;
+    }
+  }
+  console.log(`[IIC] Recovery complete: ${recovered} recovered, ${failed} failed`);
+  return { recovered, failed, keys: recoveredKeys };
+};
+
 // PROTECTED: content_data is NEVER deleted — it contains all educational content.
 // Only local caches are cleared. User sessions and cloud data are preserved.
 export const resetAllContent = async () => {
