@@ -14725,9 +14725,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       <div className="flex items-center gap-2 bg-green-100 border border-green-200 rounded-lg px-3 py-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0"></span>
                           <div className="flex-1">
-                              <p className="text-xs font-black text-green-800">🛡️ Auto-Backup: ACTIVE</p>
+                              <p className="text-xs font-black text-green-800">🛡️ Auto-Backup: ON</p>
                               <p className="text-[10px] text-green-700">Har naya data save hote hi automatically backup hota hai — koi manual action nahi chahiye</p>
                           </div>
+                          <span className="bg-green-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 uppercase tracking-wide">ON</span>
                       </div>
 
                       {/* What is backed up */}
@@ -14757,17 +14758,17 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       {/* Full Snapshot (replaces "Backup Now") */}
                       <button
                           onClick={async () => {
-                              if (!confirm("💾 Full Snapshot lein?\n\nYe saare existing chapters + homework + lucent ko safe backup path mein copy karega.\n\nKuch seconds lag sakte hain.")) return;
+                              if (!confirm("💾 Full Snapshot lein?\n\nYe saara existing data safe backup path mein copy karega:\n• Class 6-12 + Competition Notes\n• Homework & Lucent Entries\n• Competition MCQs\n• Daily GK\n• Notifications & Codes\n\nKuch seconds lag sakte hain.")) return;
                               const statusEl = document.getElementById('iic-backup-status');
                               if (statusEl) statusEl.textContent = '⏳ Snapshot shuru ho raha hai...';
                               try {
                                   const result = await backupAllContentToFirebase((done, total, key) => {
-                                      if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key.replace('nst_content_', '')}`;
+                                      if (statusEl) statusEl.textContent = `⏳ ${done} items backed up — ${key.replace('nst_content_', '')}`;
                                   });
                                   const ts = new Date().toLocaleString('hi-IN');
                                   localStorage.setItem('nst_last_backup_ts', ts);
                                   if (statusEl) statusEl.textContent = `✅ Snapshot complete! ${result.backed} items safe. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
-                                  alert(`✅ Full Snapshot Complete!\n${result.backed} chapters backup mein aa gaye.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Sab safe!'}`);
+                                  alert(`✅ Full Snapshot Complete!\n\n${result.backed} items backup mein aa gaye:\n• Notes, Homework, Lucent\n• Competition MCQs, Daily GK\n• Notifications & Codes\n\n${result.failed > 0 ? `⚠️ ${result.failed} items fail (console check karein).` : '✅ Sab safe!'}`);
                               } catch(e: any) {
                                   if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
                                   alert('❌ Snapshot failed: ' + e?.message);

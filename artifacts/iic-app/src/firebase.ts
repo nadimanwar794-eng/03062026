@@ -119,29 +119,70 @@ export const subscribeToAuth = (callback: (user: any) => void) => {
 export const backupAllContentToFirebase = async (
   onProgress?: (done: number, total: number, key: string) => void
 ): Promise<{ backed: number; failed: number }> => {
-  const snap = await get(ref(rtdb, 'content_data'));
-  if (!snap.exists()) return { backed: 0, failed: 0 };
-  const all = snap.val() as Record<string, any>;
-  const keys = Object.keys(all);
   let backed = 0, failed = 0;
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    try {
-      await set(ref(rtdb, `__backup__/content_data/${key}`), all[key]);
-      backed++;
-      onProgress?.(i + 1, keys.length, key);
-    } catch {
-      failed++;
+
+  // ── 1. content_data (chapters / notes) ──────────────────────────────────────
+  try {
+    const snap = await get(ref(rtdb, 'content_data'));
+    if (snap.exists()) {
+      const all = snap.val() as Record<string, any>;
+      const keys = Object.keys(all);
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        try {
+          await set(ref(rtdb, `__backup__/content_data/${key}`), all[key]);
+          backed++;
+          onProgress?.(i + 1, keys.length, key);
+        } catch {
+          failed++;
+        }
+      }
     }
-  }
-  // Also backup homework & lucent index lists
+  } catch {}
+
+  // ── 2. homework_entries & lucent_entries (per-item collections) ──────────────
   try {
     const hwSnap = await get(ref(rtdb, 'homework_entries'));
     if (hwSnap.exists()) await set(ref(rtdb, '__backup__/homework_entries'), hwSnap.val());
+    backed++;
+  } catch { failed++; }
+  try {
     const luSnap = await get(ref(rtdb, 'lucent_entries'));
     if (luSnap.exists()) await set(ref(rtdb, '__backup__/lucent_entries'), luSnap.val());
-  } catch {}
-  console.log(`[IIC] Backup complete: ${backed} chapters backed up, ${failed} failed`);
+    backed++;
+  } catch { failed++; }
+
+  // ── 3. Sharded arrays: competition MCQs, daily GK, and related ───────────────
+  const shardedPaths = [
+    'competition_mcqs',
+    'daily_gk',
+    'notifications',
+    'broadcast_codes',
+    'global_challenge_mcq',
+  ];
+  for (const prefix of shardedPaths) {
+    try {
+      // Read meta to know how many shards exist
+      const metaSnap = await get(ref(rtdb, `${prefix}_meta`));
+      const shardCount: number = metaSnap.exists() ? (metaSnap.val()?.shardCount ?? 1) : 1;
+      for (let idx = 0; idx < shardCount; idx++) {
+        try {
+          const shardSnap = await get(ref(rtdb, `${prefix}_shard_${idx}`));
+          if (shardSnap.exists()) {
+            await set(ref(rtdb, `__backup__/${prefix}_shard_${idx}`), shardSnap.val());
+            backed++;
+            onProgress?.(backed, backed + failed, `${prefix}_shard_${idx}`);
+          }
+        } catch { failed++; }
+      }
+      // Also backup meta
+      if (metaSnap.exists()) {
+        await set(ref(rtdb, `__backup__/${prefix}_meta`), metaSnap.val());
+      }
+    } catch {}
+  }
+
+  console.log(`[IIC] Full Snapshot complete: ${backed} items backed up, ${failed} failed`);
   return { backed, failed };
 };
 
@@ -166,14 +207,49 @@ export const restoreContentFromFirebaseBackup = async (
       failed++;
     }
   }
-  // Restore homework & lucent
+  // ── Restore homework & lucent entries ────────────────────────────────────────
   try {
     const hwSnap = await get(ref(rtdb, '__backup__/homework_entries'));
     if (hwSnap.exists()) await set(ref(rtdb, 'homework_entries'), hwSnap.val());
+    restored++;
+  } catch { failed++; }
+  try {
     const luSnap = await get(ref(rtdb, '__backup__/lucent_entries'));
     if (luSnap.exists()) await set(ref(rtdb, 'lucent_entries'), luSnap.val());
-  } catch {}
-  console.log(`[IIC] Restore complete: ${restored} chapters restored, ${failed} failed`);
+    restored++;
+  } catch { failed++; }
+
+  // ── Restore sharded arrays: competition MCQs, daily GK, and related ──────────
+  const shardedPaths = [
+    'competition_mcqs',
+    'daily_gk',
+    'notifications',
+    'broadcast_codes',
+    'global_challenge_mcq',
+  ];
+  for (const prefix of shardedPaths) {
+    try {
+      const metaSnap = await get(ref(rtdb, `__backup__/${prefix}_meta`));
+      const shardCount: number = metaSnap.exists() ? (metaSnap.val()?.shardCount ?? 1) : 1;
+      for (let idx = 0; idx < shardCount; idx++) {
+        try {
+          const shardSnap = await get(ref(rtdb, `__backup__/${prefix}_shard_${idx}`));
+          if (shardSnap.exists()) {
+            await set(ref(rtdb, `${prefix}_shard_${idx}`), shardSnap.val());
+            await setDoc(doc(db, 'config', `${prefix}_shard_${idx}`), sanitizeForFirestore(shardSnap.val()));
+            restored++;
+            onProgress?.(restored, restored + failed, `${prefix}_shard_${idx}`);
+          }
+        } catch { failed++; }
+      }
+      if (metaSnap.exists()) {
+        await set(ref(rtdb, `${prefix}_meta`), metaSnap.val());
+        await setDoc(doc(db, 'config', `${prefix}_meta`), sanitizeForFirestore(metaSnap.val()));
+      }
+    } catch {}
+  }
+
+  console.log(`[IIC] Restore complete: ${restored} items restored, ${failed} failed`);
   return { restored, failed };
 };
 
