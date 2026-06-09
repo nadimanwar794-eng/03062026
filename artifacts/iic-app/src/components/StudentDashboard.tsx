@@ -2128,25 +2128,39 @@ export const StudentDashboard: React.FC<Props> = ({
   // Track whether dots have successfully reached green at least once (initial load)
   const dotsFirstReadyRef = React.useRef(false);
 
-  // Auto-hide dots after everything is green; re-show instantly on any problem.
-  // First load: 8s (content needs time to render). Reconnect: 3s.
+  // Auto-hide dots only after content is confirmed rendered on screen.
+  // Conditions: Firebase connected (level≥5) + settings loaded + classContentStats populated + no errors.
+  // Uses requestAnimationFrame so the DOM has actually painted before timer starts.
+  // First load: 3s after paint. Reconnect: 3s after paint.
+  const contentRenderReadyRef = React.useRef(false);
   useEffect(() => {
-    const allOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
+    const connOk = fbConnectLevel >= 5 && fbDotErrors.every(e => !e);
+    const settingsOk = !!(settings?.appName || settings?.appShortName);
+    const contentOk = Object.keys(classContentStats).length > 0;
+    const allOk = connOk && settingsOk && contentOk;
+
     if (allOk) {
       if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current);
-      const delay = dotsFirstReadyRef.current ? 3000 : 8000;
-      dotsHideTimerRef.current = setTimeout(() => {
-        dotsFirstReadyRef.current = true;
-        setShowDots(false);
-        setShowSysStatus(false);
-      }, delay);
+      // Wait for browser to paint content, then start 3s timer
+      const raf = requestAnimationFrame(() => {
+        dotsHideTimerRef.current = setTimeout(() => {
+          dotsFirstReadyRef.current = true;
+          contentRenderReadyRef.current = true;
+          setShowDots(false);
+          setShowSysStatus(false);
+        }, 3000);
+      });
+      return () => {
+        cancelAnimationFrame(raf);
+        if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current);
+      };
     } else {
       // Problem detected — show immediately and cancel any pending hide
       if (dotsHideTimerRef.current) { clearTimeout(dotsHideTimerRef.current); dotsHideTimerRef.current = null; }
       setShowDots(true);
     }
     return () => { if (dotsHideTimerRef.current) clearTimeout(dotsHideTimerRef.current); };
-  }, [fbConnectLevel, fbDotErrors]);
+  }, [fbConnectLevel, fbDotErrors, settings?.appName, settings?.appShortName, classContentStats]);
 
   // Live 1-second clock for profile card countdown — only runs when Profile tab is open
   const [_profileNow, _setProfileNow] = useState(Date.now());
