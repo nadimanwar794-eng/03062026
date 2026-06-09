@@ -14718,48 +14718,78 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       <RefreshCw size={18} /> 🧹 Clear Local Cache Only (Fix "Old Notes")
                   </button>
 
-                  {/* ── Firebase Backup System ── */}
+                  {/* ── Auto-Backup System ── */}
                   <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
-                      <h4 className="text-blue-900 font-black text-sm flex items-center gap-2">💾 Firebase Backup System</h4>
-                      <p className="text-xs text-blue-700 leading-relaxed">
-                          Ye system ek <b>alag backup path</b> mein saara content save karta hai jo <b>kabhi auto-delete nahi hota</b>.<br/>
-                          Ab se har chapter save pe automatically backup hota rahega. Pehli baar "Backup Now" dabaao to existing content backup ho jaye.
+
+                      {/* Status Banner */}
+                      <div className="flex items-center gap-2 bg-green-100 border border-green-200 rounded-lg px-3 py-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0"></span>
+                          <div className="flex-1">
+                              <p className="text-xs font-black text-green-800">🛡️ Auto-Backup: ACTIVE</p>
+                              <p className="text-[10px] text-green-700">Har naya data save hote hi automatically backup hota hai — koi manual action nahi chahiye</p>
+                          </div>
+                      </div>
+
+                      {/* What is backed up */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                              { icon: '📚', label: 'Class 6-12 Notes', desc: 'Har save pe auto-backup' },
+                              { icon: '🏆', label: 'Competition Notes', desc: 'Har save pe auto-backup' },
+                              { icon: '📝', label: 'Homework Entries', desc: 'Har save pe auto-backup' },
+                              { icon: '📖', label: 'Lucent Notes', desc: 'Har save pe auto-backup' },
+                              { icon: '❓', label: 'Competition MCQs', desc: 'Har save pe auto-backup' },
+                              { icon: '📰', label: 'Daily GK', desc: 'Har save pe auto-backup' },
+                          ].map(item => (
+                              <div key={item.label} className="flex items-start gap-2 bg-white rounded-lg p-2 border border-blue-100">
+                                  <span className="text-base leading-none">{item.icon}</span>
+                                  <div>
+                                      <p className="text-[10px] font-black text-slate-700">{item.label}</p>
+                                      <p className="text-[9px] text-green-600 font-bold">{item.desc}</p>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+
+                      <p className="text-[10px] text-blue-600 leading-relaxed bg-blue-100 rounded-lg px-3 py-2">
+                          <b>Pehli baar:</b> Neeche "Full Snapshot" dabao — existing saara data ek baar backup path mein copy ho jayega. Uske baad sab automatic hai.
                       </p>
 
-                      {/* Backup Now */}
+                      {/* Full Snapshot (replaces "Backup Now") */}
                       <button
                           onClick={async () => {
-                              if (!confirm("💾 Firebase Backup shuru karein?\n\nYe saare existing chapters ko ek safe backup path mein copy karega. Kuch minutes lag sakte hain.")) return;
+                              if (!confirm("💾 Full Snapshot lein?\n\nYe saare existing chapters + homework + lucent ko safe backup path mein copy karega.\n\nKuch seconds lag sakte hain.")) return;
                               const statusEl = document.getElementById('iic-backup-status');
-                              if (statusEl) statusEl.textContent = '⏳ Backup shuru ho raha hai...';
+                              if (statusEl) statusEl.textContent = '⏳ Snapshot shuru ho raha hai...';
                               try {
                                   const result = await backupAllContentToFirebase((done, total, key) => {
-                                      if (statusEl) statusEl.textContent = `⏳ Backup: ${done}/${total} — ${key.replace('nst_content_', '')}`;
+                                      if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key.replace('nst_content_', '')}`;
                                   });
-                                  if (statusEl) statusEl.textContent = `✅ Backup complete! ${result.backed} chapters safe. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
-                                  alert(`✅ Backup Complete!\n${result.backed} chapters Firebase backup mein save ho gaye.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Sab safe hai!'}`);
+                                  const ts = new Date().toLocaleString('hi-IN');
+                                  localStorage.setItem('nst_last_backup_ts', ts);
+                                  if (statusEl) statusEl.textContent = `✅ Snapshot complete! ${result.backed} items safe. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
+                                  alert(`✅ Full Snapshot Complete!\n${result.backed} chapters backup mein aa gaye.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Sab safe!'}`);
                               } catch(e: any) {
                                   if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
-                                  alert('❌ Backup failed: ' + e?.message);
+                                  alert('❌ Snapshot failed: ' + e?.message);
                               }
                           }}
                           className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
                       >
-                          💾 Backup Now — Saara Content Firebase mein Safe Karo
+                          💾 Full Snapshot — Saara Existing Data Ek Baar Backup Karo
                       </button>
 
                       {/* Restore from Backup */}
                       <button
                           onClick={async () => {
-                              if (!confirm("🔄 Firebase Backup se Restore karein?\n\nYe backup copy se saara content wapas main database mein laa dega.\n\nTabhi use karo jab content delete ho gaya ho. Confirm?")) return;
+                              if (!confirm("🔄 Backup se Restore karein?\n\nYe backup copy se saara content wapas main database mein laa dega.\n\nTabhi use karo jab content delete ho gaya ho. Confirm?")) return;
                               const statusEl = document.getElementById('iic-backup-status');
                               if (statusEl) statusEl.textContent = '⏳ Restore shuru ho raha hai...';
                               try {
                                   const result = await restoreContentFromFirebaseBackup((done, total, key) => {
                                       if (statusEl) statusEl.textContent = `⏳ Restore: ${done}/${total} — ${key.replace('nst_content_', '')}`;
                                   });
-                                  if (statusEl) statusEl.textContent = `✅ Restore complete! ${result.restored} chapters wapas aa gaye. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
-                                  alert(`✅ Restore Complete!\n${result.restored} chapters wapas aa gaye.\n${result.failed > 0 ? `${result.failed} fail.` : 'Sab theek hai!'}`);;
+                                  if (statusEl) statusEl.textContent = `✅ Restore complete! ${result.restored} chapters wapas aa gaye.`;
+                                  alert(`✅ Restore Complete!\n${result.restored} chapters wapas aa gaye.\n${result.failed > 0 ? `${result.failed} fail.` : 'Sab theek hai!'}`);
                                   window.location.reload();
                               } catch(e: any) {
                                   if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
@@ -14772,6 +14802,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       </button>
 
                       <p id="iic-backup-status" className="text-xs text-blue-700 font-mono min-h-[18px]"></p>
+                      {localStorage.getItem('nst_last_backup_ts') && (
+                          <p className="text-[10px] text-slate-500">Last full snapshot: {localStorage.getItem('nst_last_backup_ts')}</p>
+                      )}
                   </div>
 
                   {/* ── Content Recovery from Local Cache ── */}

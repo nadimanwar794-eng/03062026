@@ -604,6 +604,8 @@ const _saveShardsForArray = async (
   shards.forEach((shardItems, idx) => {
     writes.push(setDoc(doc(db, "config", `${fsPrefix}_shard_${idx}`), { items: shardItems }));
     writes.push(set(ref(rtdb, `${rtdbPrefix}_shard_${idx}`), { items: shardItems }));
+    // ── Auto-backup mirror (never deleted) ──────────────────────────────────
+    writes.push(set(ref(rtdb, `__backup__/${rtdbPrefix}_shard_${idx}`), { items: shardItems }));
   });
 
   for (let i = newShardCount; i < oldShardCount; i++) {
