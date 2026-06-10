@@ -7177,7 +7177,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       setContentViewStep("CHAPTERS");
                     }
                     // For 'Lucent': stay on SUBJECTS — LUCENT_CATEGORIES grid will render next
-                  }} className={`${theme.bg} border-2 ${theme.border} p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left`}>
+                  }} className={`nst-lesson-card ${theme.bg} border-2 ${theme.border} p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left`}>
                     <div className={`w-12 h-12 rounded-xl ${theme.bg} ${theme.border} border flex items-center justify-center text-2xl`}>
                       {theme.emoji}
                     </div>
