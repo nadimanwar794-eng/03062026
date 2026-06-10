@@ -8,7 +8,8 @@ import {
   Package, Wallet, X
 } from 'lucide-react';
 import { saveUserToLive } from '../firebase';
-import { getLevelInfo, getScoreDiscountFromScore, getNextLevelInfo, getLevelProgress } from '../utils/levelSystem';
+import { getLevelInfo, getScoreDiscountFromScore, getNextLevelInfo, getLevelProgress, getLevelDailyLimitsWithOverride, UNLIMITED } from '../utils/levelSystem';
+import { SCORE_MULTIPLIERS, getDailyScoreLimit } from '../utils/scoreSystem';
 import { addSubscription } from '../utils/subscriptionUtils';
 import { recordCreditTx } from '../utils/creditHistory';
 
@@ -918,30 +919,63 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                           </div>
                         </div>
 
-                        {/* ▌▌ Stat bars — FF-style ▌▌ */}
-                        <div className="relative" style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
-                          <div className="px-3 py-1.5 flex items-center gap-1.5"
-                            style={{ background: 'rgba(255,255,255,0.035)', borderBottom: `1px solid rgba(255,255,255,0.055)` }}>
-                            <Zap size={9} color={ffBorder} />
-                            <span className="text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: ffBorder }}>
-                              {isPro ? 'PRO' : 'MAX'} PLAN LIMITS
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-3" style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
-                            {[
-                              { icon: '📅', value: isPro ? '7,000' : '10,000', sub: 'PTS/DIN' },
-                              { icon: '⚡', value: isPro ? '1.2×' : '1.5×', sub: 'SCORE BOOST' },
-                              { icon: '🏆', value: 'Up to 30%', sub: 'PAR PURCHASE' },
-                            ].map((item, i) => (
-                              <div key={i} className="flex flex-col items-center py-3 gap-0.5 relative"
-                                style={{ borderRight: i < 2 ? `1px solid rgba(255,255,255,0.06)` : 'none' }}>
-                                <span className="text-[17px] leading-none mb-0.5">{item.icon}</span>
-                                <span className="text-[13px] font-black tabular-nums" style={{ color: ffGold }}>{item.value}</span>
-                                <span className="text-[8px] font-black uppercase tracking-wide text-center leading-tight" style={{ color: 'rgba(255,255,255,0.28)' }}>{item.sub}</span>
+                        {/* ▌▌ Stat bars — FF-style (dynamic from level system) ▌▌ */}
+                        {(() => {
+                          const userLevel = getLevelInfo(user.totalScore || 0).level;
+                          const ld = getLevelDailyLimitsWithOverride(userLevel, settings);
+                          const tier = isPro ? 'BASIC' : 'ULTRA';
+                          const dailyScore = getDailyScoreLimit(tier, true);
+                          const multiplier = SCORE_MULTIPLIERS[tier] ?? 1.0;
+                          const mcqLimit = ld?.mcq?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 70 : 100);
+                          const pdfLimit = ld?.pdf?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 5 : 10);
+                          const videoLimit = ld?.video?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 4 : 7);
+                          const flashLimit = ld?.flashcard?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 15 : 20);
+                          const fmtLim = (v: number) => v === UNLIMITED ? '∞' : v.toLocaleString('en-IN');
+
+                          const topStats = [
+                            { icon: '📅', value: dailyScore.toLocaleString('en-IN'), sub: 'PTS/DIN' },
+                            { icon: '⚡', value: `${multiplier}×`, sub: 'SCORE BOOST' },
+                            { icon: '❓', value: fmtLim(mcqLimit), sub: 'MCQ/DIN' },
+                          ];
+                          const bottomStats = [
+                            { icon: '📄', label: 'PDF / Notes', value: fmtLim(pdfLimit) + '/day' },
+                            { icon: '🎬', label: 'Video',       value: fmtLim(videoLimit) + '/day' },
+                            { icon: '🃏', label: 'Flashcard',   value: fmtLim(flashLimit) + '/day' },
+                          ];
+
+                          return (
+                            <div className="relative" style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
+                              <div className="px-3 py-1.5 flex items-center gap-1.5"
+                                style={{ background: 'rgba(255,255,255,0.035)', borderBottom: `1px solid rgba(255,255,255,0.055)` }}>
+                                <Zap size={9} color={ffBorder} />
+                                <span className="text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: ffBorder }}>
+                                  {isPro ? 'PRO' : 'MAX'} PLAN LIMITS — Level {userLevel}
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
+                              {/* Top 3 main stats */}
+                              <div className="grid grid-cols-3" style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                                {topStats.map((item, i) => (
+                                  <div key={i} className="flex flex-col items-center py-3 gap-0.5 relative"
+                                    style={{ borderRight: i < 2 ? `1px solid rgba(255,255,255,0.06)` : 'none' }}>
+                                    <span className="text-[17px] leading-none mb-0.5">{item.icon}</span>
+                                    <span className="text-[13px] font-black tabular-nums" style={{ color: ffGold }}>{item.value}</span>
+                                    <span className="text-[8px] font-black uppercase tracking-wide text-center leading-tight" style={{ color: 'rgba(255,255,255,0.28)' }}>{item.sub}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Bottom activity limits row */}
+                              <div className="grid grid-cols-3" style={{ background: 'rgba(0,0,0,0.18)' }}>
+                                {bottomStats.map((item, i) => (
+                                  <div key={i} className="flex items-center justify-center gap-1 py-2 px-1"
+                                    style={{ borderRight: i < 2 ? `1px solid rgba(255,255,255,0.05)` : 'none' }}>
+                                    <span className="text-[11px] leading-none">{item.icon}</span>
+                                    <span className="text-[10px] font-black tabular-nums" style={{ color: ffGoldDim }}>{item.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* ▌▌ Feature list ▌▌ */}
                         <div className="px-4 py-3 grid grid-cols-2 gap-x-3 gap-y-2" style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
