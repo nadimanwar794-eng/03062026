@@ -5371,7 +5371,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 return (
                   <div
                     key={entry.id}
-                    className={`rounded-2xl overflow-hidden border-2 transition-all hover:shadow-md ${_isLocked ? 'opacity-75' : ''}`}
+                    className={`nst-lesson-card rounded-2xl overflow-hidden border-2 transition-all hover:shadow-md ${_isLocked ? 'opacity-75' : ''}`}
                     style={{ background: tierTheme.profileCardBg, borderColor: _isLocked ? '#ef4444' : tierTheme.primary }}
                   >
                     <button
@@ -5574,7 +5574,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const topicNames = [...new Set((entry.pages || []).map(p => (p.topicName || '').trim()).filter(Boolean))];
               const _isEntryLocked = _lucentIsLocked(entry);
               return (
-                <div key={entry.id} className={`border-2 rounded-2xl overflow-hidden hover:shadow-md transition-all ${_isEntryLocked ? 'opacity-75' : ''}`} style={{ background: tierTheme.profileCardBg, borderColor: _isEntryLocked ? '#ef4444' : tierTheme.primary }}>
+                <div key={entry.id} className={`nst-lesson-card border-2 rounded-2xl overflow-hidden hover:shadow-md transition-all ${_isEntryLocked ? 'opacity-75' : ''}`} style={{ background: tierTheme.profileCardBg, borderColor: _isEntryLocked ? '#ef4444' : tierTheme.primary }}>
                   {/* Main read area */}
                   <button
                     onClick={() => {
@@ -7280,7 +7280,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     setLoadingChapters(false);
                   });
                 }
-              }} className={`bg-white p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left border-2 ${lessonCount === 0 ? 'opacity-50' : ''}`}
+              }} className={`nst-lesson-card bg-white p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left border-2 ${lessonCount === 0 ? 'opacity-50' : ''}`}
                 style={{ borderColor: lessonCount > 0 ? `${tierTheme.primary}55` : '#e2e8f0' }}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black border-2"
                   style={{ background: `${tierTheme.primary}18`, borderColor: `${tierTheme.primary}40`, color: tierTheme.primary }}>
