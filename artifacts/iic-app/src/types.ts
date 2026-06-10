@@ -712,6 +712,7 @@ export interface SystemSettings {
   // ── Home Page Section Card Colors (Advanced Theme) ──
   homeClass612CardBg?: string;
   homeClass612CardBorder?: string;
+  homeClass612Card3D?: boolean;
   homeCompetitionCardBg?: string;
   homeCompetitionCardBorder?: string;
   homeQuickAccessCardBg?: string;

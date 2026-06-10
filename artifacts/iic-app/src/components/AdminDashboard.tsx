@@ -11552,6 +11552,18 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       <button key={c} onClick={() => setLocalSettings({...localSettings, homeClass612CardBg: c})} className="w-5 h-5 rounded border-2 transition-all hover:scale-110" style={{ background: c, borderColor: (localSettings.homeClass612CardBg||'') === c ? '#6366f1' : '#e2e8f0' }} title={c} />
                                     ))}
                                   </div>
+                                  <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-slate-100">
+                                    <div>
+                                      <p className="text-[9px] font-black text-slate-700">Card Style</p>
+                                      <p className="text-[8px] text-slate-400 mt-0.5">{localSettings.homeClass612Card3D ? '🎲 3D raised — depth shadow on' : '⬜ 2D flat — clean minimal'}</p>
+                                    </div>
+                                    <button
+                                      onClick={() => setLocalSettings({...localSettings, homeClass612Card3D: !localSettings.homeClass612Card3D})}
+                                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border ${localSettings.homeClass612Card3D ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
+                                    >
+                                      {localSettings.homeClass612Card3D ? '🎲 3D ON' : '⬜ 2D'}
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Competition Card */}

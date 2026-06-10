@@ -7943,16 +7943,26 @@ export const StudentDashboard: React.FC<Props> = ({
               const _c612Bdr = settings?.homeClass612CardBorder  || tierTheme.primary;
               const _cmpBg   = settings?.homeCompetitionCardBg   || tierTheme.profileCardBg;
               const _cmpBdr  = settings?.homeCompetitionCardBorder || tierTheme.primary;
+              const _card3D  = settings?.homeClass612Card3D ?? false;
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjectCount = getSubjectsList(c, _stream, _board).length;
                 const isBoard = boardClasses.includes(c);
+                const cardStyle3D = _card3D ? {
+                  background: _c612Bg,
+                  border: `2px solid ${_c612Bdr}`,
+                  boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${_c612Bdr}bb, 0 7px 18px ${_c612Bdr}28`,
+                  transform: 'translateY(-1px)',
+                } : {
+                  background: _c612Bg,
+                  border: `2px solid ${_c612Bdr}`,
+                };
                 return (
                   <button
                     key={c}
                     onClick={() => goToClassHome(c)}
-                    className="relative flex flex-col p-2.5 rounded-xl active:scale-95 transition-all text-left shadow-sm"
-                    style={{ background: _c612Bg, border: `2px solid ${_c612Bdr}` }}
+                    className="relative flex flex-col p-2.5 rounded-xl active:scale-95 transition-all text-left"
+                    style={cardStyle3D}
                   >
                     {isBoard ? (
                       <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[7px] font-black bg-amber-400 text-amber-900 leading-none">👑</span>
