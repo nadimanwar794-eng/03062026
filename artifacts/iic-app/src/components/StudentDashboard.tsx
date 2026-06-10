@@ -7726,11 +7726,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       </SwipeToDismiss>
                     );
                   })}
-                  {/* More / Less toggle */}
-                  {totalFiltered > 1 && (
+                  {/* More / Less toggle — only show when 2+ additional items exist */}
+                  {totalFiltered > 2 && (
                     <button
                       onClick={() => setShowAllContinueReading(v => !v)}
-                      className="w-full mt-1 py-2 flex items-center justify-center gap-1.5 rounded-xl text-[11px] font-black transition-all active:scale-95 border border-dashed"
+                      className="w-full mt-0.5 py-1.5 flex items-center justify-center gap-1.5 rounded-xl text-[11px] font-black transition-all active:scale-95 border border-dashed"
                       style={{ color: tierTheme.primary, background: tierTheme.cardBg || '#ffffff', borderColor: `${tierTheme.primary}40` }}
                     >
                       {showAllContinueReading
