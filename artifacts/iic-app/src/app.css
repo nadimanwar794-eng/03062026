@@ -180,6 +180,75 @@
 .nst-chapter-card.nst-chapter-locked  { border-left-color: #94a3b8; opacity: 0.75; }
 .nst-chapter-card.nst-chapter-current { border-left-color: var(--nst-color-brand); }
 
+/* ══════════════════════════════════════════════════════
+   GLOBAL 3D CARDS MODE — admin toggle se activate hota hai
+   Jab <html class="global-cards-3d"> ho, saare cards 3D
+   ══════════════════════════════════════════════════════ */
+.global-cards-3d .nst-card {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 4px 0 var(--nst-card-border, rgba(59,130,246,0.45)),
+    0 8px 20px rgba(0,0,0,0.13) !important;
+  transform: translateY(-2px);
+  border-width: 1.5px;
+}
+.global-cards-3d .nst-card:hover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 5px 0 var(--nst-card-border, rgba(59,130,246,0.55)),
+    0 12px 28px rgba(0,0,0,0.17) !important;
+  transform: translateY(-4px);
+}
+.global-cards-3d .nst-card-brand {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 4px 0 var(--nst-color-brand),
+    0 8px 20px rgba(0,0,0,0.13) !important;
+  transform: translateY(-2px);
+}
+.global-cards-3d .nst-card-brand:hover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 5px 0 var(--nst-color-brand),
+    0 12px 28px rgba(0,0,0,0.18) !important;
+  transform: translateY(-4px);
+}
+.global-cards-3d .nst-chapter-card {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 4px 0 var(--nst-color-brand),
+    0 8px 20px rgba(0,0,0,0.12) !important;
+  transform: translateY(-2px);
+}
+.global-cards-3d .nst-chapter-card:hover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 5px 0 var(--nst-color-brand),
+    0 12px 24px rgba(0,0,0,0.16) !important;
+  transform: translateY(-4px);
+}
+.global-cards-3d .nst-subject-card {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.90) inset,
+    0 4px 0 var(--nst-card-border, rgba(59,130,246,0.45)),
+    0 8px 20px rgba(0,0,0,0.12) !important;
+  transform: translateY(-2px);
+  transition: box-shadow 0.18s ease, transform 0.18s ease !important;
+}
+.global-cards-3d .nst-subject-card:hover {
+  transform: translateY(-4px) !important;
+}
+/* Dark mode: stronger bottom shadow for depth on dark bg */
+.global-cards-3d.dark-mode .nst-card,
+.global-cards-3d.dark-mode .nst-card-brand,
+.global-cards-3d.dark-mode .nst-chapter-card,
+.global-cards-3d.dark-mode .nst-subject-card {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.08) inset,
+    0 4px 0 var(--nst-color-brand),
+    0 8px 24px rgba(0,0,0,0.50) !important;
+}
+
 /* ══════════════════════════════════════════════════
    NST BUTTON SYSTEM — unified across all components
    Usage: class="nst-btn nst-btn-primary"

@@ -333,6 +333,15 @@ const App: React.FC = () => {
   // IN-APP BROWSER (banner tap → iframe overlay instead of new tab)
   const [inAppBrowserUrl, setInAppBrowserUrl] = useState<string | null>(null);
 
+  // Global 3D cards — toggle class on <html> when admin setting changes
+  useEffect(() => {
+      if (state.settings?.globalCards3D) {
+          document.documentElement.classList.add('global-cards-3d');
+      } else {
+          document.documentElement.classList.remove('global-cards-3d');
+      }
+  }, [state.settings?.globalCards3D]);
+
   // BANNER AUTO-HIDE LOGIC
   useEffect(() => {
       const top = state.settings.bannerConfig?.top;

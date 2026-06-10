@@ -11521,6 +11521,26 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                 <p className="text-[10px] text-slate-400 mt-1.5">👤 Sirf Profile page par apply hoga — baaki app ka background alag rahega. Default: Light Gray (#f0f4f8)</p>
                               </div>
 
+                              {/* ── GLOBAL 3D CARDS — POORA APP ── */}
+                              <div className="mt-4 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border-2 border-purple-300">
+                                <label className="text-xs font-black text-purple-800 uppercase block mb-1">🌐 Global 3D — Poora App</label>
+                                <p className="text-[10px] text-purple-500 mb-2">Ek button se poore app ke saare cards 3D ho jayenge — har jagah, har screen.</p>
+                                <button
+                                  onClick={async () => {
+                                    const updated = { ...localSettings, globalCards3D: !localSettings.globalCards3D };
+                                    setLocalSettings(updated);
+                                    if (onUpdateSettings) onUpdateSettings(updated);
+                                    localStorage.setItem('nst_system_settings', JSON.stringify(updated));
+                                    await saveSystemSettings(updated);
+                                  }}
+                                  className={`w-full py-3 rounded-xl text-sm font-black transition-all border-2 flex items-center justify-center gap-2 ${localSettings.globalCards3D ? 'bg-purple-600 text-white border-purple-700 shadow-lg shadow-purple-200' : 'bg-white text-purple-600 border-purple-300 hover:bg-purple-50'}`}
+                                >
+                                  <span className="text-lg">{localSettings.globalCards3D ? '🎲' : '⬜'}</span>
+                                  {localSettings.globalCards3D ? 'GLOBAL 3D — ON (Sab Cards 3D Hain)' : 'GLOBAL 3D — OFF (Normal/Flat)'}
+                                </button>
+                                <p className="text-[9px] text-purple-400 mt-1.5 text-center">{localSettings.globalCards3D ? '✅ nst-card · nst-card-brand · chapter card · subject card — sab raised 3D hain' : 'Ye toggle ON karne se poore app mein saare cards 3D raise ho jayenge'}</p>
+                              </div>
+
                               {/* ── ADVANCED: HOME PAGE SECTION CARD COLORS ── */}
                               <div className="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-200">
                                 <label className="text-xs font-black text-indigo-800 uppercase block mb-1">🎨 Advanced — Home Page Card Colors</label>
