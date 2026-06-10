@@ -14504,7 +14504,17 @@ export const StudentDashboard: React.FC<Props> = ({
       >
         <div
           key={activeTab}
-          className={`${contentViewStep === "PLAYER" && selectedChapter ? "h-full" : "animate-in fade-in duration-150 ease-out"}`}
+          className={`${contentViewStep === "PLAYER" && selectedChapter ? "h-full" : "animate-in fade-in duration-150 ease-out"} ${
+            (() => {
+              if (activeTab === "HOME") return "nst-3d-100";
+              if (activeTab === "COURSES") {
+                if (contentViewStep === "CHAPTERS" || contentViewStep === "PLAYER") return "nst-3d-60";
+                if (class612SubjectView || homeworkSubjectView || lucentCategoryView) return "nst-3d-70";
+                return "nst-3d-80";
+              }
+              return "nst-3d-80";
+            })()
+          }`}
         >
           {/* ErrorBoundary so a render-time crash inside one page (e.g. History
               or Teacher Store) never blanks the whole dashboard — the user can
