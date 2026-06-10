@@ -7572,18 +7572,18 @@ export const StudentDashboard: React.FC<Props> = ({
               { key: 'mcq',         label: 'MCQ',          emoji: '❓', count: counts.mcq,        activeBg: 'bg-violet-600',   activeText: 'text-white' },
             ].filter(c => c.count > 0);
             return (
-              <div className="rounded-3xl p-4 shadow-sm" style={{ background: `linear-gradient(135deg,${tierTheme.primary}14,${tierTheme.cardBg || '#ffffff'},${tierTheme.primary}08)`, border: `1px solid ${tierTheme.primary}28` }}>
-                <div className="flex items-center justify-between mb-3">
+              <div className="rounded-3xl p-3.5 shadow-md" style={{ background: `linear-gradient(145deg,${tierTheme.primary}18,${tierTheme.cardBg || '#ffffff'}ee,${tierTheme.primary}0a)`, border: `1.5px solid ${tierTheme.primary}30`, boxShadow: `0 4px 20px ${tierTheme.primary}12` }}>
+                <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-xl text-white flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
-                      <BookOpen size={16} />
+                    <div className="w-7 h-7 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm" style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
+                      <BookOpen size={13} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: tierTheme.primary }}>Continue Reading</p>
-                      <p className="text-xs font-medium truncate" style={{ color: `${tierTheme.primary}80` }}>Where you left off · <span className="font-bold" style={{ color: `${tierTheme.primary}99` }}>← swipe to remove</span></p>
+                      <p className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: tierTheme.primary }}>Continue Reading</p>
+                      <p className="text-[10px] font-medium leading-none mt-0.5 truncate" style={{ color: `${tierTheme.primary}70` }}>Where you left off · <span className="font-semibold">← swipe to remove</span></p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: tierTheme.primary, background: tierTheme.cardBg || '#fff', border: `1px solid ${tierTheme.primary}35` }}>
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm" style={{ color: tierTheme.primary, background: `${tierTheme.primary}12`, border: `1px solid ${tierTheme.primary}30` }}>
                     {merged.length}{activeFilter !== 'all' ? `/${allMerged.length}` : ''}
                   </span>
                 </div>
@@ -7632,102 +7632,28 @@ export const StudentDashboard: React.FC<Props> = ({
                         <SwipeToDismiss
                           key={`ch_${entry.id}`}
                           onDismiss={() => dismissRecentChapter(entry.id)}
-                          className="rounded-2xl shadow-sm p-3 flex flex-col gap-2"
-                          style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '20'}` }}
+                          className="rounded-xl overflow-hidden"
+                          style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                         >
-                          <button
-                            onClick={() => openRecentChapter(entry)}
-                            className="text-left"
-                          >
-                            <p className="text-[9px] font-black uppercase tracking-widest truncate" style={{ color: tierTheme.primary }}>
-                              Class {entry.classLevel} · {entry.subject?.name || 'Subject'}
-                            </p>
-                            <p className="text-sm font-black leading-snug line-clamp-2 mt-1" style={{ color: tierTheme.textColor || '#0f172a' }}>
-                              {entry.chapter?.title || 'Chapter'}
-                            </p>
+                          <button onClick={() => openRecentChapter(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-start gap-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[8.5px] font-black uppercase tracking-widest truncate mb-0.5" style={{ color: tierTheme.primary }}>
+                                Class {entry.classLevel} · {entry.subject?.name || 'Subject'}
+                              </p>
+                              <p className="text-[12.5px] font-black leading-tight line-clamp-1" style={{ color: tierTheme.textColor || '#0f172a' }}>
+                                {entry.chapter?.title || 'Chapter'}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-black text-white px-2.5 py-1 rounded-full flex items-center gap-0.5 shadow-sm mt-0.5"
+                              style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
+                              Resume <ChevronRight size={9} />
+                            </span>
                           </button>
-                          <div className="mt-1">
-                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full"
-                                style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}
-                              />
+                          <div className="px-3 pb-2.5">
+                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
                             </div>
-                            <div className="flex items-center justify-between mt-1.5">
-                              <span className="text-[10px] text-slate-500 font-semibold">{entry.scrollPct}% read</span>
-                              <button
-                                onClick={() => openRecentChapter(entry)}
-                                className="text-[10px] font-black text-white px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 transition-all"
-                                style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}
-                              >
-                                Resume <ChevronRight size={10} />
-                              </button>
-                            </div>
-                            {/* Action row — Save Offline + Download MHTML, parity with Competition section.
-                                Standardized 28px tall buttons in a single row for clean alignment. */}
-                            <div className="grid grid-cols-2 gap-1.5 mt-2">
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    await saveOfflineItem({
-                                      id: `chapter_${entry.id}`,
-                                      type: 'NOTE',
-                                      title: entry.chapter?.title || 'Chapter',
-                                      subtitle: `Class ${entry.classLevel} · ${entry.subject?.name || ''}`,
-                                      data: {
-                                        kind: 'CHAPTER_REF',
-                                        classLevel: entry.classLevel,
-                                        subject: entry.subject,
-                                        chapter: entry.chapter,
-                                        scrollPct: entry.scrollPct,
-                                      },
-                                    });
-                                    try { (window as any).__toast?.({ type: 'success', message: 'Saved offline ✓' }); } catch {}
-                                  } catch (err) { console.error(err); }
-                                }}
-                                className="h-7 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-emerald-200"
-                                title="Save Offline"
-                              >
-                                <CloudOff size={11} /> <span>Offline</span>
-                              </button>
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    const wrapper = document.createElement('div');
-                                    wrapper.id = `ch-print-${entry.id}`;
-                                    const safeTitle = (entry.chapter?.title || 'Chapter').replace(/</g,'&lt;');
-                                    wrapper.innerHTML = `
-                                      <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:24px;color:white;border-radius:18px 18px 0 0;font-family:Inter,system-ui,sans-serif;">
-                                        <div style="font-size:11px;font-weight:900;letter-spacing:.18em;opacity:.9;text-transform:uppercase;">${(settings?.appName || 'IIC')} · Continue Reading</div>
-                                        <div style="font-size:22px;font-weight:900;margin-top:6px;">${safeTitle}</div>
-                                        <div style="font-size:12px;font-weight:700;opacity:.85;margin-top:4px;">Class ${entry.classLevel} · ${entry.subject?.name || ''}</div>
-                                      </div>
-                                      <div style="background:#fff;border:1px solid #e5e7eb;border-top:0;padding:24px;border-radius:0 0 18px 18px;font-family:Inter,system-ui,sans-serif;color:#0f172a;line-height:1.7;">
-                                        <div style="font-size:13px;color:#475569;font-weight:600;">Reading progress: ${entry.scrollPct}%</div>
-                                        <div style="margin-top:14px;font-size:11px;color:#6366f1;font-weight:800;">Resume this chapter inside the IIC app to continue from where you left off.</div>
-                                      </div>`;
-                                    wrapper.style.position = 'fixed';
-                                    wrapper.style.left = '-9999px';
-                                    document.body.appendChild(wrapper);
-                                    const fname = (entry.chapter?.title || 'chapter').slice(0,40).replace(/[^a-z0-9]+/gi,'_');
-                                    await checkAndDoDownload(async () => {
-                                      await downloadAsMHTML(wrapper.id, `${fname}_${new Date().toISOString().slice(0,10)}`, {
-                                        appName: settings?.appShortName || settings?.appName || 'IIC',
-                                        pageTitle: entry.chapter?.title || 'Chapter',
-                                        subtitle: `Class ${entry.classLevel || ''} · ${entry.subject?.name || ''}`.trim(),
-                                      });
-                                    });
-                                    setTimeout(() => { try { document.body.removeChild(wrapper); } catch {} }, 500);
-                                  } catch (err) { console.error(err); }
-                                }}
-                                className="h-7 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-[10px] font-black flex items-center justify-center gap-1 active:scale-95 transition-all border border-blue-200"
-                                title="Download (MHTML)"
-                              >
-                                <Download size={11} /> <span>Download</span>
-                              </button>
-                            </div>
+                            <p className="text-[9px] text-slate-400 font-semibold mt-1">{entry.scrollPct}% read</p>
                           </div>
                         </SwipeToDismiss>
                       );
@@ -7739,45 +7665,30 @@ export const StudentDashboard: React.FC<Props> = ({
                         <SwipeToDismiss
                           key={`luc_${entry.id}`}
                           onDismiss={() => { removeRecentLucent(entry.id); setRecentLucent(getRecentLucent()); }}
-                          className="rounded-2xl shadow-sm p-3 flex flex-col gap-2"
-                          style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '20'}` }}
+                          className="rounded-xl overflow-hidden"
+                          style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                         >
-                          <button
-                            onClick={() => openRecentLucent(entry)}
-                            className="text-left"
-                          >
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <span className="inline-block text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-teal-100 text-teal-700">
-                                📗 Lucent
-                              </span>
-                              {entry.pageNo && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">
-                                  P.{entry.pageNo}
-                                </span>
-                              )}
+                          <button onClick={() => openRecentLucent(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-start gap-2.5">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-teal-100 text-teal-700">📗 Lucent</span>
+                                {entry.pageNo && (
+                                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">P.{entry.pageNo}</span>
+                                )}
+                              </div>
+                              <p className="text-[12.5px] font-black leading-tight line-clamp-1" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.lessonTitle}</p>
+                              <p className="text-[9px] font-semibold truncate mt-0.5" style={{ color: tierTheme.textSecondary || '#64748b' }}>{entry.subject}</p>
                             </div>
-                            <p className="text-sm font-black leading-snug line-clamp-2 mt-1" style={{ color: tierTheme.textColor || '#0f172a' }}>
-                              {entry.lessonTitle}
-                            </p>
-                            <p className="text-[10px] font-semibold mt-0.5 truncate" style={{ color: tierTheme.textSecondary || '#64748b' }}>{entry.subject}</p>
+                            <span className="shrink-0 text-[10px] font-black text-white px-2.5 py-1 rounded-full flex items-center gap-0.5 shadow-sm mt-0.5"
+                              style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
+                              Resume <ChevronRight size={9} />
+                            </span>
                           </button>
-                          <div className="mt-1">
-                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full"
-                                style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}
-                              />
+                          <div className="px-3 pb-2.5">
+                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
                             </div>
-                            <div className="flex items-center justify-between mt-1.5">
-                              <span className="text-[10px] text-slate-500 font-semibold">{entry.scrollPct}% read</span>
-                              <button
-                                onClick={() => openRecentLucent(entry)}
-                                className="text-[10px] font-black text-white px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 transition-all"
-                                style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}
-                              >
-                                Resume <ChevronRight size={10} />
-                              </button>
-                            </div>
+                            <p className="text-[9px] text-slate-400 font-semibold mt-1">{entry.scrollPct}% read</p>
                           </div>
                         </SwipeToDismiss>
                       );
@@ -7789,43 +7700,28 @@ export const StudentDashboard: React.FC<Props> = ({
                       <SwipeToDismiss
                         key={`hw_${entry.id}`}
                         onDismiss={() => dismissRecentHw(entry.id)}
-                        className="rounded-2xl shadow-sm p-3 flex flex-col gap-2"
-                        style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '20'}` }}
+                        className="rounded-xl overflow-hidden"
+                        style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                       >
-                        <button
-                          onClick={() => openRecentHw(entry)}
-                          className="text-left"
-                        >
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className={`inline-block text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${meta.chipBg} ${meta.chipText}`}>
-                              {meta.label}
-                            </span>
-                            {entry.hw?.pageNo && (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">
-                                📖 P.{entry.hw.pageNo}
-                              </span>
-                            )}
+                        <button onClick={() => openRecentHw(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-start gap-2.5">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest ${meta.chipBg} ${meta.chipText}`}>{meta.label}</span>
+                              {entry.hw?.pageNo && (
+                                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">P.{entry.hw.pageNo}</span>
+                              )}
+                            </div>
+                            <p className="text-[12.5px] font-black leading-tight line-clamp-1" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.title}</p>
                           </div>
-                          <p className="text-sm font-black leading-snug line-clamp-2 mt-1" style={{ color: tierTheme.textColor || '#0f172a' }}>
-                            {entry.title}
-                          </p>
+                          <span className={`shrink-0 text-[10px] font-black text-white ${meta.btnBg} px-2.5 py-1 rounded-full flex items-center gap-0.5 shadow-sm mt-0.5`}>
+                            Resume <ChevronRight size={9} />
+                          </span>
                         </button>
-                        <div className="mt-1">
-                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo}`}
-                              style={{ width: `${Math.max(2, entry.scrollPct)}%` }}
-                            />
+                        <div className="px-3 pb-2.5">
+                          <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo}`} style={{ width: `${Math.max(2, entry.scrollPct)}%` }} />
                           </div>
-                          <div className="flex items-center justify-between mt-1.5">
-                            <span className="text-[10px] text-slate-500 font-semibold">{entry.scrollPct}% read</span>
-                            <button
-                              onClick={() => openRecentHw(entry)}
-                              className={`text-[10px] font-black text-white ${meta.btnBg} ${meta.btnHover} px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 transition-all`}
-                            >
-                              Resume <ChevronRight size={10} />
-                            </button>
-                          </div>
+                          <p className="text-[9px] text-slate-400 font-semibold mt-1">{entry.scrollPct}% read</p>
                         </div>
                       </SwipeToDismiss>
                     );
