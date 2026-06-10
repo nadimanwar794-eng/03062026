@@ -7606,7 +7606,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                     <div className="min-w-0">
                       <p className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: tierTheme.primary }}>Continue Reading</p>
-                      <p className="text-[10px] font-medium leading-none mt-0.5 truncate" style={{ color: `${tierTheme.primary}70` }}>Where you left off · <span className="font-semibold">← swipe to remove</span></p>
+                      <p className="text-[8.5px] font-normal leading-none mt-0.5 truncate opacity-40" style={{ color: tierTheme.primary }}>Where you left off · ← swipe to remove</p>
                     </div>
                   </div>
                   <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm" style={{ color: tierTheme.primary, background: `${tierTheme.primary}12`, border: `1px solid ${tierTheme.primary}30` }}>
@@ -7661,7 +7661,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           className="rounded-xl overflow-hidden"
                           style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                         >
-                          <button onClick={() => openRecentChapter(entry)} className="w-full text-left px-3 py-2 flex items-center gap-2">
+                          <button onClick={() => openRecentChapter(entry)} className="w-full text-left px-3 py-1.5 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-[8px] font-black uppercase tracking-widest truncate leading-none" style={{ color: tierTheme.primary }}>
                                 Class {entry.classLevel} · {entry.subject?.name || 'Subject'}
@@ -7676,9 +7676,9 @@ export const StudentDashboard: React.FC<Props> = ({
                                 <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
                               </div>
                             </div>
-                            <span className="shrink-0 text-[10px] font-black text-white px-2 py-1 rounded-full flex items-center gap-0.5 shadow-sm"
+                            <span className="shrink-0 text-[9px] font-black text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm"
                               style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
-                              Resume <ChevronRight size={9} />
+                              Resume <ChevronRight size={8} />
                             </span>
                           </button>
                         </SwipeToDismiss>
@@ -7694,7 +7694,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           className="rounded-xl overflow-hidden"
                           style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                         >
-                          <button onClick={() => openRecentLucent(entry)} className="w-full text-left px-3 py-2 flex items-center gap-2">
+                          <button onClick={() => openRecentLucent(entry)} className="w-full text-left px-3 py-1.5 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 leading-none">
                                 <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-teal-100 text-teal-700">📗 Lucent</span>
@@ -7710,9 +7710,9 @@ export const StudentDashboard: React.FC<Props> = ({
                                 <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
                               </div>
                             </div>
-                            <span className="shrink-0 text-[10px] font-black text-white px-2 py-1 rounded-full flex items-center gap-0.5 shadow-sm"
+                            <span className="shrink-0 text-[9px] font-black text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm"
                               style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
-                              Resume <ChevronRight size={9} />
+                              Resume <ChevronRight size={8} />
                             </span>
                           </button>
                         </SwipeToDismiss>
@@ -7728,7 +7728,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         className="rounded-xl overflow-hidden"
                         style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                       >
-                        <button onClick={() => openRecentHw(entry)} className="w-full text-left px-3 py-2 flex items-center gap-2">
+                        <button onClick={() => openRecentHw(entry)} className="w-full text-left px-3 py-1.5 flex items-center gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 leading-none">
                               <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest ${meta.chipBg} ${meta.chipText}`}>{meta.label}</span>
@@ -7744,8 +7744,8 @@ export const StudentDashboard: React.FC<Props> = ({
                               <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
                             </div>
                           </div>
-                          <span className={`shrink-0 text-[10px] font-black text-white ${meta.btnBg} px-2 py-1 rounded-full flex items-center gap-0.5 shadow-sm`}>
-                            Resume <ChevronRight size={9} />
+                          <span className={`shrink-0 text-[9px] font-black text-white ${meta.btnBg} px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm`}>
+                            Resume <ChevronRight size={8} />
                           </span>
                         </button>
                       </SwipeToDismiss>
