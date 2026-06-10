@@ -14877,6 +14877,136 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       )}
                   </div>
 
+                  {/* ── Backup Status Dashboard ── */}
+                  <div className="mt-4 space-y-3">
+                      {/* Category item counts */}
+                      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+                              <span className="text-sm">💾</span>
+                              <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Backup Status</p>
+                              <span className="ml-auto text-[9px] font-black bg-green-100 text-green-700 px-2 py-0.5 rounded-full uppercase">Live Counts</span>
+                          </div>
+                          <table className="w-full text-xs">
+                              <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100">
+                                      <th className="text-left px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Category</th>
+                                      <th className="text-center px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Items</th>
+                                      <th className="text-right px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                  {[
+                                      { icon: '📗', label: 'Lucent Notes',      count: (localSettings.lucentNotes || []).length },
+                                      { icon: '❓', label: 'Competition MCQs',  count: (localSettings.competitionMcqs || []).length },
+                                      { icon: '📰', label: 'Daily GK',          count: (localSettings.dailyGk || []).length },
+                                      { icon: '📚', label: 'Class Notes',       count: null },
+                                      { icon: '🏆', label: 'Competition Notes', count: null },
+                                      { icon: '📝', label: 'Homework Entries',  count: null },
+                                  ].map(row => (
+                                      <tr key={row.label} className="hover:bg-slate-50">
+                                          <td className="px-3 py-2 flex items-center gap-2">
+                                              <span>{row.icon}</span>
+                                              <span className="font-semibold text-slate-700">{row.label}</span>
+                                          </td>
+                                          <td className="px-3 py-2 text-center">
+                                              {row.count !== null
+                                                  ? <span className="font-black text-slate-800">{row.count}</span>
+                                                  : <span className="text-slate-400 text-[9px]">Firebase Synced</span>
+                                              }
+                                          </td>
+                                          <td className="px-3 py-2 text-right">
+                                              <span className="inline-flex items-center gap-0.5 text-[9px] font-black text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">✅ Auto</span>
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                          {localStorage.getItem('nst_last_backup_ts') && (
+                              <div className="px-3 py-1.5 bg-blue-50 border-t border-blue-100 text-[10px] text-blue-600 font-semibold">
+                                  Last full snapshot: {localStorage.getItem('nst_last_backup_ts')}
+                              </div>
+                          )}
+                      </div>
+
+                      {/* Full Snapshot Contains checklist */}
+                      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+                              <span className="text-sm">📦</span>
+                              <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Full Snapshot Contains</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-0 divide-y divide-slate-50">
+                              {[
+                                  '✅ Class 6–12 Notes',
+                                  '✅ Competition Notes',
+                                  '✅ Lucent Notes',
+                                  '✅ Homework Entries',
+                                  '✅ Competition MCQs',
+                                  '✅ Daily GK',
+                                  '✅ Subject Badge Index',
+                                  '✅ Notifications & Codes',
+                              ].map((item, i) => (
+                                  <div key={i} className={`px-3 py-2 text-xs font-semibold text-slate-700 ${i % 2 === 0 ? 'border-r border-slate-50' : ''}`}>{item}</div>
+                              ))}
+                          </div>
+                      </div>
+
+                      {/* Deleted Content Queue */}
+                      <div className="bg-white border border-orange-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border-b border-orange-100">
+                              <span className="text-sm">🗑️</span>
+                              <p className="text-[11px] font-black text-orange-800 uppercase tracking-widest">Deleted Content Queue</p>
+                              <span className="ml-auto text-[9px] font-black px-2 py-0.5 rounded-full uppercase"
+                                  style={{ background: indexedDbTrash.length > 0 ? '#fef3c7' : '#f0fdf4', color: indexedDbTrash.length > 0 ? '#92400e' : '#166534' }}>
+                                  {indexedDbTrash.length} item{indexedDbTrash.length !== 1 ? 's' : ''}
+                              </span>
+                          </div>
+                          {indexedDbTrash.length === 0 ? (
+                              <p className="px-3 py-3 text-xs text-slate-500 text-center">No deleted items in queue — sab safe hai ✅</p>
+                          ) : (
+                              <div>
+                                  <div className="divide-y divide-orange-50 max-h-48 overflow-y-auto">
+                                      {indexedDbTrash.slice(0, 5).map((item: any, idx: number) => (
+                                          <div key={idx} className="flex items-center gap-2 px-3 py-2">
+                                              <div className="flex-1 min-w-0">
+                                                  <p className="text-xs font-bold text-slate-800 truncate">{item.name || item.id}</p>
+                                                  <p className="text-[9px] text-slate-500">{item.collectionName} · {new Date(item.deletedAt).toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                                              </div>
+                                              <button
+                                                  onClick={() => handleRestoreFromIndexedDbTrash(item)}
+                                                  className="shrink-0 text-[9px] font-black text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 active:scale-95 transition-all"
+                                              >
+                                                  Restore
+                                              </button>
+                                          </div>
+                                      ))}
+                                      {indexedDbTrash.length > 5 && (
+                                          <p className="px-3 py-1.5 text-[10px] text-slate-400 text-center">+{indexedDbTrash.length - 5} more in Recycle Bin</p>
+                                      )}
+                                  </div>
+                                  <div className="flex gap-2 p-2 border-t border-orange-100">
+                                      <button
+                                          onClick={async () => {
+                                              if (!confirm(`🔄 Saare ${indexedDbTrash.length} deleted items restore karein?`)) return;
+                                              for (const item of [...indexedDbTrash]) {
+                                                  try { await handleRestoreFromIndexedDbTrash(item); } catch {}
+                                              }
+                                          }}
+                                          className="flex-1 py-1.5 bg-green-600 text-white text-[10px] font-black rounded-lg hover:bg-green-700 active:scale-95 transition-all"
+                                      >
+                                          🔄 Restore All ({indexedDbTrash.length})
+                                      </button>
+                                      <button
+                                          onClick={() => setActiveTab('RECYCLE')}
+                                          className="flex-1 py-1.5 bg-orange-100 text-orange-800 text-[10px] font-black rounded-lg hover:bg-orange-200 border border-orange-200 active:scale-95 transition-all"
+                                      >
+                                          📋 View Full Bin
+                                      </button>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+
                   {/* ── Content Recovery from Local Cache ── */}
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
                       <h4 className="text-green-800 font-black mb-1 flex items-center gap-2 text-sm">🛟 Local Cache Recovery (Device → Firebase)</h4>
