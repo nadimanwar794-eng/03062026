@@ -9,7 +9,7 @@ import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -15005,6 +15005,79 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               </div>
                           )}
                       </div>
+                  </div>
+
+                  {/* ── Export JSON + Import from JSON File ── */}
+                  <div className="mt-4 p-4 bg-slate-800 border border-slate-700 rounded-xl space-y-3">
+                      <div className="flex items-center gap-2">
+                          <span className="text-base">🗂️</span>
+                          <div>
+                              <p className="text-[11px] font-black text-white uppercase tracking-widest">File Backup</p>
+                              <p className="text-[9px] text-slate-400">Phone ya PC pe JSON file me save karo — Firebase ke bahar safe copy</p>
+                          </div>
+                      </div>
+
+                      {/* Export button */}
+                      <button
+                          onClick={async () => {
+                              const statusEl = document.getElementById('iic-json-status');
+                              if (statusEl) statusEl.textContent = '⏳ Backup data collect ho raha hai…';
+                              try {
+                                  await exportBackupAsJson((msg) => {
+                                      if (statusEl) statusEl.textContent = msg;
+                                  });
+                                  if (statusEl) statusEl.textContent = '✅ JSON file download ho gayi!';
+                              } catch (e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ ${e?.message}`;
+                              }
+                          }}
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95 transition-all"
+                      >
+                          ⬇️ Export Backup as JSON File
+                      </button>
+
+                      {/* Import button — hidden file input */}
+                      <div>
+                          <input
+                              id="iic-json-import-input"
+                              type="file"
+                              accept=".json,application/json"
+                              className="hidden"
+                              onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const statusEl = document.getElementById('iic-json-status');
+                                  if (!confirm(`📂 "${file.name}" se saara data Firebase mein restore karein?\n\nYe existing data ke upar overwrite karega. Confirm?`)) {
+                                      (e.target as HTMLInputElement).value = '';
+                                      return;
+                                  }
+                                  try {
+                                      if (statusEl) statusEl.textContent = '⏳ File padh raha hai…';
+                                      const text = await file.text();
+                                      const bundle = JSON.parse(text);
+                                      if (statusEl) statusEl.textContent = '⏳ Firebase mein restore ho raha hai…';
+                                      const result = await importBackupFromJson(bundle, (done, total, key) => {
+                                          if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key}`;
+                                      });
+                                      if (statusEl) statusEl.textContent = `✅ Restore complete! ${result.restored} items wapas aa gaye.${result.failed > 0 ? ` ❌ ${result.failed} fail.` : ''}`;
+                                      alert(`✅ JSON Import Complete!\n\n${result.restored} items successfully restore hue.\n${result.failed > 0 ? `⚠️ ${result.failed} fail (console check karein).` : '✅ Sab theek!'}\n\nPage reload hoga.`);
+                                      window.location.reload();
+                                  } catch (err: any) {
+                                      if (statusEl) statusEl.textContent = `❌ Error: ${err?.message}`;
+                                      alert('❌ Import failed: ' + err?.message);
+                                  }
+                                  (e.target as HTMLInputElement).value = '';
+                              }}
+                          />
+                          <button
+                              onClick={() => document.getElementById('iic-json-import-input')?.click()}
+                              className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95 transition-all border border-slate-500"
+                          >
+                              📂 Import from JSON File → Firebase
+                          </button>
+                      </div>
+
+                      <p id="iic-json-status" className="text-[10px] text-slate-300 font-mono min-h-[16px] text-center"></p>
                   </div>
 
                   {/* ── Content Recovery from Local Cache ── */}

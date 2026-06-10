@@ -253,6 +253,131 @@ export const restoreContentFromFirebaseBackup = async (
   return { restored, failed };
 };
 
+// ── Export __backup__ snapshot → downloadable JSON file ──────────────────────
+// Reads all data from RTDB __backup__ path and triggers a browser file download.
+export const exportBackupAsJson = async (
+  onProgress?: (msg: string) => void
+): Promise<void> => {
+  const SHARDED = ['competition_mcqs', 'daily_gk', 'notifications', 'broadcast_codes', 'global_challenge_mcq'];
+  const bundle: Record<string, any> = {
+    _version: 2,
+    _exportedAt: new Date().toISOString(),
+    _app: 'IIC',
+  };
+
+  onProgress?.('Reading content_data…');
+  try {
+    const snap = await get(ref(rtdb, '__backup__/content_data'));
+    if (snap.exists()) bundle.content_data = snap.val();
+  } catch {}
+
+  onProgress?.('Reading homework & lucent entries…');
+  try {
+    const hw = await get(ref(rtdb, '__backup__/homework_entries'));
+    if (hw.exists()) bundle.homework_entries = hw.val();
+  } catch {}
+  try {
+    const lu = await get(ref(rtdb, '__backup__/lucent_entries'));
+    if (lu.exists()) bundle.lucent_entries = lu.val();
+  } catch {}
+
+  for (const prefix of SHARDED) {
+    try {
+      const metaSnap = await get(ref(rtdb, `__backup__/${prefix}_meta`));
+      const shardCount: number = metaSnap.exists() ? (metaSnap.val()?.shardCount ?? 1) : 1;
+      if (metaSnap.exists()) bundle[`${prefix}_meta`] = metaSnap.val();
+      for (let idx = 0; idx < shardCount; idx++) {
+        onProgress?.(`Reading ${prefix} shard ${idx}…`);
+        try {
+          const s = await get(ref(rtdb, `__backup__/${prefix}_shard_${idx}`));
+          if (s.exists()) bundle[`${prefix}_shard_${idx}`] = s.val();
+        } catch {}
+      }
+    } catch {}
+  }
+
+  const json = JSON.stringify(bundle, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `iic_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  onProgress?.('✅ Download shuru ho gaya!');
+};
+
+// ── Import JSON backup file → restore everything to Firebase ─────────────────
+// Takes a parsed JSON bundle (from exportBackupAsJson) and writes it back.
+export const importBackupFromJson = async (
+  bundle: Record<string, any>,
+  onProgress?: (done: number, total: number, msg: string) => void
+): Promise<{ restored: number; failed: number }> => {
+  if (!bundle._version) throw new Error('Invalid backup file — IIC JSON backup nahi hai.');
+  const SHARDED = ['competition_mcqs', 'daily_gk', 'notifications', 'broadcast_codes', 'global_challenge_mcq'];
+  let restored = 0, failed = 0;
+  let step = 0;
+  const totalSteps = Object.keys(bundle).filter(k => !k.startsWith('_')).length;
+
+  // Restore content_data
+  if (bundle.content_data) {
+    const keys = Object.keys(bundle.content_data);
+    for (const key of keys) {
+      try {
+        await set(ref(rtdb, `content_data/${key}`), bundle.content_data[key]);
+        await setDoc(doc(db, 'content_data', key), sanitizeForFirestore(bundle.content_data[key]));
+        restored++;
+      } catch { failed++; }
+      onProgress?.(++step, totalSteps, `content_data/${key}`);
+    }
+  }
+
+  // Restore homework_entries
+  if (bundle.homework_entries) {
+    try {
+      await set(ref(rtdb, 'homework_entries'), bundle.homework_entries);
+      restored++;
+    } catch { failed++; }
+    onProgress?.(++step, totalSteps, 'homework_entries');
+  }
+
+  // Restore lucent_entries
+  if (bundle.lucent_entries) {
+    try {
+      await set(ref(rtdb, 'lucent_entries'), bundle.lucent_entries);
+      restored++;
+    } catch { failed++; }
+    onProgress?.(++step, totalSteps, 'lucent_entries');
+  }
+
+  // Restore sharded arrays
+  for (const prefix of SHARDED) {
+    try {
+      const meta = bundle[`${prefix}_meta`];
+      const shardCount: number = meta?.shardCount ?? 1;
+      if (meta) {
+        await set(ref(rtdb, `${prefix}_meta`), meta);
+        await setDoc(doc(db, 'config', `${prefix}_meta`), sanitizeForFirestore(meta));
+      }
+      for (let idx = 0; idx < shardCount; idx++) {
+        const shardKey = `${prefix}_shard_${idx}`;
+        const shardData = bundle[shardKey];
+        if (!shardData) continue;
+        try {
+          await set(ref(rtdb, shardKey), shardData);
+          await setDoc(doc(db, 'config', shardKey), sanitizeForFirestore(shardData));
+          restored++;
+        } catch { failed++; }
+        onProgress?.(++step, totalSteps, shardKey);
+      }
+    } catch {}
+  }
+
+  console.log(`[IIC] JSON Import complete: ${restored} restored, ${failed} failed`);
+  return { restored, failed };
+};
+
 // ── Content Recovery: re-uploads all cached chapter data from IndexedDB → Firebase ──
 // Useful when Firebase content got accidentally deleted but local cache (IndexedDB) still has it.
 // Reads all 'nst_content_*' keys from localforage and pushes them back to RTDB + Firestore.
