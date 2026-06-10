@@ -9,7 +9,7 @@ import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -14909,6 +14909,42 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           <b>Pehli baar:</b> Neeche "Full Snapshot" dabao — existing saara data ek baar backup path mein copy ho jayega. Uske baad sab automatic hai.
                       </p>
 
+                      {/* ── Diagnose Recovery ── */}
+                      <button
+                          onClick={async () => {
+                              const statusEl = document.getElementById('iic-backup-status');
+                              if (statusEl) statusEl.textContent = '🔍 Checking all sources...';
+                              try {
+                                  const s = await checkRecoveryStatus();
+                                  const msg = [
+                                      `📊 Recovery Diagnosis:`,
+                                      ``,
+                                      `🔥 Firebase LIVE content_data: ${s.liveCount} chapters`,
+                                      `💾 Firebase BACKUP (__backup__): ${s.backupCount} chapters`,
+                                      `📱 This device browser cache: ${s.localforageCount} chapters`,
+                                      ``,
+                                      s.liveCount === 0 && s.backupCount > 0
+                                          ? `✅ SOLUTION: "Restore from Backup" use karo — ${s.backupCount} chapters wapas aa sakte hain.`
+                                          : s.liveCount === 0 && s.localforageCount > 0
+                                          ? `✅ SOLUTION: "Local Cache Recovery" use karo — ${s.localforageCount} chapters is device se upload ho sakte hain.`
+                                          : s.liveCount === 0 && s.backupCount === 0 && s.localforageCount === 0
+                                          ? `❌ Koi bhi recovery source nahi mila. JSON backup file hai toh neeche se import karo.`
+                                          : s.liveCount > 0
+                                          ? `✅ Firebase mein ${s.liveCount} chapters hain — content delete nahi hua, refresh karke dekho.`
+                                          : `⚠️ Unknown state — console check karein.`,
+                                  ].join('\n');
+                                  if (statusEl) statusEl.textContent = `Live: ${s.liveCount} | Backup: ${s.backupCount} | Cache: ${s.localforageCount}`;
+                                  alert(msg);
+                              } catch(e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ Diagnose error: ${e?.message}`;
+                                  alert('❌ Diagnose failed: ' + e?.message);
+                              }
+                          }}
+                          className="w-full py-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 flex items-center justify-center gap-2 text-sm"
+                      >
+                          🔍 Diagnose — Recovery Ke Options Check Karo
+                      </button>
+
                       {/* Full Snapshot (replaces "Backup Now") */}
                       <button
                           onClick={async () => {
@@ -15178,8 +15214,14 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   const result = await recoverContentFromCache((done, total, key) => {
                                       if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key.replace('nst_content_', '')}`;
                                   });
-                                  if (statusEl) statusEl.textContent = `✅ Recovery complete! ${result.recovered} chapters Firebase pe upload hue. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
-                                  alert(`✅ Recovery Complete!\n\n${result.recovered} chapters successfully recovered.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Koi error nahi!'}`);
+                                  if (result.recovered === 0) {
+                                      if (statusEl) statusEl.textContent = `⚠️ Is device ke cache mein koi chapter nahi mila (0 items). "Restore from Backup" try karo.`;
+                                      alert(`⚠️ Is device ke browser cache mein koi content nahi mila.\n\nYe tab kaam karta hai jab:\n• Content pehle isi device pe khola gaya ho\n• Browser history/cache delete na hua ho\n\n👉 Upar wala "Diagnose" button dabao — aur agar backup available hai to "Restore from Backup" try karo.`);
+                                  } else {
+                                      if (statusEl) statusEl.textContent = `✅ Recovery complete! ${result.recovered} chapters Firebase pe upload hue. ${result.failed > 0 ? `❌ ${result.failed} fail.` : ''}`;
+                                      alert(`✅ Recovery Complete!\n\n${result.recovered} chapters successfully recovered.\n${result.failed > 0 ? `${result.failed} fail (console check karein).` : 'Koi error nahi!'}\n\nPage ab reload hoga.`);
+                                      window.location.reload();
+                                  }
                               } catch(e: any) {
                                   if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
                                   alert('❌ Recovery failed: ' + e?.message);

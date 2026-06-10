@@ -409,6 +409,52 @@ export const recoverContentFromCache = async (
   return { recovered, failed, keys: recoveredKeys };
 };
 
+// ── Check what's available for recovery — shows counts from all sources ──────
+// Run this BEFORE recovery to understand what options exist.
+export const checkRecoveryStatus = async (): Promise<{
+  localforageCount: number;
+  backupCount: number;
+  liveCount: number;
+  localforageKeys: string[];
+  backupKeys: string[];
+}> => {
+  const localforage = (await import('localforage')).default;
+  localforage.config({ name: 'nst_storage' });
+
+  // 1. Check localforage (this device's browser cache)
+  let localforageKeys: string[] = [];
+  try {
+    const allKeys = await localforage.keys();
+    localforageKeys = allKeys.filter(k => k.startsWith('nst_content_'));
+  } catch {}
+
+  // 2. Check Firebase __backup__/content_data
+  let backupKeys: string[] = [];
+  try {
+    const snap = await get(ref(rtdb, '__backup__/content_data'));
+    if (snap.exists()) {
+      backupKeys = Object.keys(snap.val()).filter(k => k.startsWith('nst_content_'));
+    }
+  } catch {}
+
+  // 3. Check live content_data in Firebase
+  let liveCount = 0;
+  try {
+    const snap = await get(ref(rtdb, 'content_data'));
+    if (snap.exists()) {
+      liveCount = Object.keys(snap.val()).filter(k => k.startsWith('nst_content_')).length;
+    }
+  } catch {}
+
+  return {
+    localforageCount: localforageKeys.length,
+    backupCount: backupKeys.length,
+    liveCount,
+    localforageKeys,
+    backupKeys,
+  };
+};
+
 // PROTECTED: content_data is NEVER deleted — it contains all educational content.
 // Only local caches are cleared. User sessions and cloud data are preserved.
 // ── Explicit single-item delete — ONLY way to remove homework/lucent entries ──
