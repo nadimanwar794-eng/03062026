@@ -14741,17 +14741,30 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   <p className="text-xs text-red-600 mb-4">This action will delete ALL content (Notes, Videos, Syllabus) from the database. This cannot be undone.</p>
                   <button
                       onClick={async () => {
-                          const steps = ["RESET", "DELETE", "CONFIRM", "1234", "FINAL"];
+                          const steps = [
+                              { code: "RESET ALL DATA", hint: "Type exactly: RESET ALL DATA" },
+                              { code: "I UNDERSTAND THIS IS PERMANENT", hint: "Type: I UNDERSTAND THIS IS PERMANENT" },
+                              { code: "DELETE EVERYTHING", hint: "Type: DELETE EVERYTHING" },
+                              { code: "NO BACKUP EXISTS", hint: "Type: NO BACKUP EXISTS" },
+                              { code: "WIPE FIREBASE NOW", hint: "Type: WIPE FIREBASE NOW" },
+                              { code: "83621", hint: "Type the security code: 83621" },
+                              { code: "CONFIRMED BY ADMIN", hint: "Final step — Type: CONFIRMED BY ADMIN" },
+                          ];
                           for (let i = 0; i < steps.length; i++) {
-                              const input = prompt(`SECURITY CHECK (${i+1}/5):\nTo proceed, type: ${steps[i]}`);
-                              if (input !== steps[i]) {
-                                  alert("❌ Incorrect Code. Reset Aborted.");
+                              const input = prompt(`☢️ SECURITY CHECK (${i+1}/7)\n\n${steps[i].hint}`);
+                              if (input !== steps[i].code) {
+                                  alert("❌ Galat code. Reset Aborted.\n\nAapne galat type kiya. Dobara try karna ho toh button phir dabayein.");
                                   return;
                               }
                           }
 
-                          if (confirm("⚠️ NUCLEAR RESET: Are you sure you want to delete ALL content data?")) {
-                              if (confirm("🔴 FINAL WARNING: This will wipe Firebase Content. Are you absolutely sure?")) {
+                          if (confirm("⚠️ NUCLEAR RESET (8/9):\n\nAap SAARA CONTENT delete karne wale hain — Notes, Videos, Syllabus sab.\n\nKya aap bilkul sure hain?")) {
+                              const finalWord = prompt("🔴 LAST CHANCE (9/9):\n\nEk baar aur confirm karein. Type karein: HAAN DELETE KARO");
+                              if (finalWord !== "HAAN DELETE KARO") {
+                                  alert("❌ Reset cancelled.");
+                                  return;
+                              }
+                              if (confirm("🔴 ABSOLUTELY FINAL WARNING:\n\nYeh action UNDO nahi ho sakta. Firebase ka saara content wipe ho jaayega.\n\nProceed?")) {
                                   resetAllContent()
                                     .then(() => {
                                         alert("✅ Database Reset Complete.");
