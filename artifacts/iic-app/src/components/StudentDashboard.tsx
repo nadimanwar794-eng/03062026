@@ -7195,10 +7195,17 @@ export const StudentDashboard: React.FC<Props> = ({
       }
 
       // STEP 2 — Subject categories (only for 'Lucent' book)
+      // Pre-compute lesson counts per subject so we can show badges and block empty navigation
+      const _allCompNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
+        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (!n.board || n.board === _curBoard));
+      const _lucentSubjectCount = (catId: string) =>
+        _allCompNotes.filter(n => n.subject?.toLowerCase().trim() === catId.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent').length;
+
       return (
-        <div className="p-4 pt-2 max-w-3xl mx-auto pb-8 animate-in fade-in">
-          <div className="flex items-center gap-3 mb-5">
-            <button onClick={() => { setSelectedLucentBook(null); setSelectedSubject(null); }} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 text-slate-700">
+        <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
+          {/* Sticky back-button header */}
+          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm px-4 py-3 flex items-center gap-3 border-b border-slate-100 mb-4">
+            <button onClick={() => { setSelectedLucentBook(null); setSelectedSubject(null); }} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 text-slate-700 shrink-0">
               <ChevronRight size={18} className="rotate-180" />
             </button>
             <div>
@@ -7206,8 +7213,10 @@ export const StudentDashboard: React.FC<Props> = ({
               <p className="text-xs text-slate-500">Subject chuniye</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-3">
-            {LUCENT_CATEGORIES.map((cat) => (
+          <div className="px-4 grid grid-cols-1 gap-3">
+            {LUCENT_CATEGORIES.map((cat) => {
+              const lessonCount = _lucentSubjectCount(cat.id);
+              return (
               <button key={cat.id} onClick={() => {
                 const _minPg = (n: LucentNoteEntry): number => {
                   let m = Infinity;
@@ -7223,6 +7232,12 @@ export const StudentDashboard: React.FC<Props> = ({
                   .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (!n.board || n.board === _curBoard))
                   .sort((a, b) => _minPg(a) - _minPg(b));
 
+                // No lessons yet — don't navigate to a blank page
+                if (subjectEntries.length === 0) {
+                  showAlert(`📭 ${cat.name.split('(')[1]?.replace(')', '') || cat.name} ke liye abhi koi notes nahi hain. Admin jald hi add karega!`, 'INFO');
+                  return;
+                }
+
                 // If exactly 1 lesson → skip chapters, go straight to page list
                 if (subjectEntries.length === 1) {
                   const entry = subjectEntries[0];
@@ -7237,7 +7252,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   return;
                 }
 
-                // Multiple/zero lessons → show chapters list as before
+                // Multiple lessons → show chapters list
                 const lang = (activeSessionBoard || user.board) === "BSEB" ? "Hindi" : "English";
                 const adminLucentLessons: Chapter[] = subjectEntries.map(n => {
                   const mp = _minPg(n);
@@ -7265,8 +7280,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     setLoadingChapters(false);
                   });
                 }
-              }} className="bg-white p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left border-2"
-                style={{ borderColor: `${tierTheme.primary}55` }}>
+              }} className={`bg-white p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left border-2 ${lessonCount === 0 ? 'opacity-50' : ''}`}
+                style={{ borderColor: lessonCount > 0 ? `${tierTheme.primary}55` : '#e2e8f0' }}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black border-2"
                   style={{ background: `${tierTheme.primary}18`, borderColor: `${tierTheme.primary}40`, color: tierTheme.primary }}>
                   {cat.name.charAt(0)}
@@ -7274,10 +7289,21 @@ export const StudentDashboard: React.FC<Props> = ({
                 <div className="flex-1">
                   <p className="font-black text-base text-slate-800">{cat.name.split('(')[1]?.replace(')', '') || cat.name}</p>
                   <p className="text-xs text-slate-500">{cat.name.split('(')[0].trim()}</p>
+                  {lessonCount > 0 ? (
+                    <span className="inline-flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-black border"
+                      style={{ background: '#dcfce7', color: '#16a34a', borderColor: '#86efac' }}>
+                      📚 {lessonCount} lesson{lessonCount !== 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-slate-400">
+                      No content yet
+                    </span>
+                  )}
                 </div>
-                <ChevronRight size={18} style={{ color: tierTheme.primary }} />
+                <ChevronRight size={18} style={{ color: lessonCount > 0 ? tierTheme.primary : '#cbd5e1' }} />
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       );

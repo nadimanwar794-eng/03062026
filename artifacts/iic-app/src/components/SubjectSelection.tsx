@@ -77,6 +77,11 @@ const getSubjectStats = (
       if (hw.videoUrl) video++;
       if (hw.pdfUrl) pdf++;
     });
+    // Also count lucent-style lessons added for this book (e.g. Speedy Science, Sar Sangrah)
+    const bookLucentCount = lucentNotes.filter(
+      (n: any) => (n.bookName?.trim() || 'Lucent') === subject.name.trim()
+    ).length;
+    notes += bookLucentCount;
     return { notes, pdf, video, audio, mcq, lucentNotes: 0 };
   }
 
@@ -219,8 +224,10 @@ export const SubjectSelection: React.FC<Props> = ({
                       </span>
                     ))}
                   </div>
+                ) : settings != null ? (
+                  <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-40">No content yet</p>
                 ) : (
-                  <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-60">Content loading…</p>
+                  <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-60">Loading…</p>
                 )}
               </div>
               <ChevronRight size={18} className="nst-card-arrow opacity-70 shrink-0" />
