@@ -11526,6 +11526,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                 <label className="text-xs font-black text-indigo-800 uppercase block mb-1">🎨 Advanced — Home Page Card Colors</label>
                                 <p className="text-[10px] text-indigo-500 mb-3">Har section ke card ka alag color set karo. Default: App Theme Color se match karta hai.</p>
 
+                                {/* Master 3D Toggle */}
+                                <div className="mb-3 p-2.5 bg-white rounded-xl border-2 border-indigo-200">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-[10px] font-black text-slate-800">🎲 Master 3D — Sabhi Cards</p>
+                                      <p className="text-[8px] text-slate-400 mt-0.5">{localSettings.homeAllCards3D ? 'Class + Competition + Quick Access — teeno 3D ON hain' : 'Sab cards 2D flat hain (individual setting se override hoti hai)'}</p>
+                                    </div>
+                                    <button
+                                      onClick={() => setLocalSettings({...localSettings, homeAllCards3D: !localSettings.homeAllCards3D})}
+                                      className={`px-3 py-2 rounded-xl text-[11px] font-black transition-all border shrink-0 ${localSettings.homeAllCards3D ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
+                                    >
+                                      {localSettings.homeAllCards3D ? '🎲 ALL 3D' : '⬜ ALL 2D'}
+                                    </button>
+                                  </div>
+                                </div>
+
                                 {/* Class 6-12 Cards */}
                                 <div className="mb-3 p-2.5 bg-white rounded-xl border border-indigo-100">
                                   <p className="text-[10px] font-black text-slate-700 mb-1.5">📚 Class 6-12 Cards</p>

@@ -7943,8 +7943,9 @@ export const StudentDashboard: React.FC<Props> = ({
               const _c612Bdr = settings?.homeClass612CardBorder  || tierTheme.primary;
               const _cmpBg   = settings?.homeCompetitionCardBg   || tierTheme.profileCardBg;
               const _cmpBdr  = settings?.homeCompetitionCardBorder || tierTheme.primary;
-              const _cmp3D   = settings?.homeCompetitionCard3D ?? false;
-              const _card3D  = settings?.homeClass612Card3D ?? false;
+              const _masterAll3D = settings?.homeAllCards3D ?? false;
+              const _cmp3D   = _masterAll3D || (settings?.homeCompetitionCard3D ?? false);
+              const _card3D  = _masterAll3D || (settings?.homeClass612Card3D ?? false);
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjectCount = getSubjectsList(c, _stream, _board).length;
@@ -8034,7 +8035,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     {(() => {
                       const _qaBg  = settings?.homeQuickAccessCardBg     || tierTheme.profileCardBg;
                       const _qaBdr = settings?.homeQuickAccessCardBorder  || tierTheme.primary;
-                      const _qa3D  = settings?.homeQuickAccessCard3D ?? false;
+                      const _qa3D  = _masterAll3D || (settings?.homeQuickAccessCard3D ?? false);
                       return (
                     <div className="grid grid-cols-3 gap-2">
                       {([
