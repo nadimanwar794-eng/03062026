@@ -7943,6 +7943,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const _c612Bdr = settings?.homeClass612CardBorder  || tierTheme.primary;
               const _cmpBg   = settings?.homeCompetitionCardBg   || tierTheme.profileCardBg;
               const _cmpBdr  = settings?.homeCompetitionCardBorder || tierTheme.primary;
+              const _cmp3D   = settings?.homeCompetitionCard3D ?? false;
               const _card3D  = settings?.homeClass612Card3D ?? false;
 
               const ClassBtn = ({ c }: { c: string }) => {
@@ -8002,8 +8003,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                       <button
                         onClick={() => { hapticStrong(); setSyllabusMode('COMPETITION'); setActiveSessionClass('COMPETITION'); setActiveSessionBoard(_board); setContentViewStep('SUBJECTS'); setInitialParentSubject(null); setClass612SubjectView(null); setHomeworkSubjectView(null); setLucentCategoryView(false); onTabChange('COURSES'); }}
-                        className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm"
-                        style={{ background: _cmpBg, border: `2px solid ${_cmpBdr}` }}
+                        className="w-full relative overflow-hidden rounded-2xl text-left active:scale-[0.99] transition-all"
+                        style={_cmp3D ? { background: _cmpBg, border: `2px solid ${_cmpBdr}`, boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${_cmpBdr}bb, 0 7px 18px ${_cmpBdr}28`, transform: 'translateY(-1px)' } : { background: _cmpBg, border: `2px solid ${_cmpBdr}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                       >
                         <div className="flex items-center justify-between px-4 py-4">
                           <div className="flex-1 min-w-0 pr-2">
@@ -8033,6 +8034,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     {(() => {
                       const _qaBg  = settings?.homeQuickAccessCardBg     || tierTheme.profileCardBg;
                       const _qaBdr = settings?.homeQuickAccessCardBorder  || tierTheme.primary;
+                      const _qa3D  = settings?.homeQuickAccessCard3D ?? false;
                       return (
                     <div className="grid grid-cols-3 gap-2">
                       {([
@@ -8046,8 +8048,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         <button
                           key={item.page}
                           onClick={() => { hapticStrong(); onTabChange(item.page as any); }}
-                          className="flex flex-col items-start gap-2 p-3 rounded-2xl active:scale-95 transition-all shadow-sm"
-                          style={{ background: _qaBg, border: `2px solid ${_qaBdr}` }}
+                          className="flex flex-col items-start gap-2 p-3 rounded-2xl active:scale-95 transition-all"
+                          style={_qa3D ? { background: _qaBg, border: `2px solid ${_qaBdr}`, boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${_qaBdr}bb, 0 7px 18px ${_qaBdr}28`, transform: 'translateY(-1px)' } : { background: _qaBg, border: `2px solid ${_qaBdr}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                         >
                           <div className="flex items-center justify-between w-full">
                             <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: `${_qaBdr}18` }}>

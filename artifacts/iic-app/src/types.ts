@@ -715,6 +715,8 @@ export interface SystemSettings {
   homeClass612Card3D?: boolean;
   homeCompetitionCardBg?: string;
   homeCompetitionCardBorder?: string;
+  homeCompetitionCard3D?: boolean;
+  homeQuickAccessCard3D?: boolean;
   homeQuickAccessCardBg?: string;
   homeQuickAccessCardBorder?: string;
   statusBarColor?: string;
