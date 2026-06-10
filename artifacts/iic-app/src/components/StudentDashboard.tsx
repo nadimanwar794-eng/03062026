@@ -7661,26 +7661,26 @@ export const StudentDashboard: React.FC<Props> = ({
                           className="rounded-xl overflow-hidden"
                           style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                         >
-                          <button onClick={() => openRecentChapter(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-start gap-2.5">
+                          <button onClick={() => openRecentChapter(entry)} className="w-full text-left px-3 py-2 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-[8.5px] font-black uppercase tracking-widest truncate mb-0.5" style={{ color: tierTheme.primary }}>
+                              <p className="text-[8px] font-black uppercase tracking-widest truncate leading-none" style={{ color: tierTheme.primary }}>
                                 Class {entry.classLevel} · {entry.subject?.name || 'Subject'}
                               </p>
-                              <p className="text-[12.5px] font-black leading-tight line-clamp-1" style={{ color: tierTheme.textColor || '#0f172a' }}>
+                              <p className="text-[12px] font-black leading-snug line-clamp-1 mt-0.5" style={{ color: tierTheme.textColor || '#0f172a' }}>
                                 {entry.chapter?.title || 'Chapter'}
                               </p>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <div className="flex-1 h-px bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
+                                </div>
+                                <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
+                              </div>
                             </div>
-                            <span className="shrink-0 text-[10px] font-black text-white px-2.5 py-1 rounded-full flex items-center gap-0.5 shadow-sm mt-0.5"
+                            <span className="shrink-0 text-[10px] font-black text-white px-2 py-1 rounded-full flex items-center gap-0.5 shadow-sm"
                               style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
                               Resume <ChevronRight size={9} />
                             </span>
                           </button>
-                          <div className="px-3 pb-2.5">
-                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
-                            </div>
-                            <p className="text-[9px] text-slate-400 font-semibold mt-1">{entry.scrollPct}% read</p>
-                          </div>
                         </SwipeToDismiss>
                       );
                     }
@@ -7694,28 +7694,27 @@ export const StudentDashboard: React.FC<Props> = ({
                           className="rounded-xl overflow-hidden"
                           style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                         >
-                          <button onClick={() => openRecentLucent(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-start gap-2.5">
+                          <button onClick={() => openRecentLucent(entry)} className="w-full text-left px-3 py-2 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 mb-0.5">
+                              <div className="flex items-center gap-1 leading-none">
                                 <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-teal-100 text-teal-700">📗 Lucent</span>
                                 {entry.pageNo && (
                                   <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">P.{entry.pageNo}</span>
                                 )}
                               </div>
-                              <p className="text-[12.5px] font-black leading-tight line-clamp-1" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.lessonTitle}</p>
-                              <p className="text-[9px] font-semibold truncate mt-0.5" style={{ color: tierTheme.textSecondary || '#64748b' }}>{entry.subject}</p>
+                              <p className="text-[12px] font-black leading-snug line-clamp-1 mt-0.5" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.lessonTitle}</p>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <div className="flex-1 h-px bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
+                                </div>
+                                <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
+                              </div>
                             </div>
-                            <span className="shrink-0 text-[10px] font-black text-white px-2.5 py-1 rounded-full flex items-center gap-0.5 shadow-sm mt-0.5"
+                            <span className="shrink-0 text-[10px] font-black text-white px-2 py-1 rounded-full flex items-center gap-0.5 shadow-sm"
                               style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
                               Resume <ChevronRight size={9} />
                             </span>
                           </button>
-                          <div className="px-3 pb-2.5">
-                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
-                            </div>
-                            <p className="text-[9px] text-slate-400 font-semibold mt-1">{entry.scrollPct}% read</p>
-                          </div>
                         </SwipeToDismiss>
                       );
                     }
@@ -7729,26 +7728,26 @@ export const StudentDashboard: React.FC<Props> = ({
                         className="rounded-xl overflow-hidden"
                         style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
                       >
-                        <button onClick={() => openRecentHw(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-start gap-2.5">
+                        <button onClick={() => openRecentHw(entry)} className="w-full text-left px-3 py-2 flex items-center gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-0.5">
+                            <div className="flex items-center gap-1 leading-none">
                               <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest ${meta.chipBg} ${meta.chipText}`}>{meta.label}</span>
                               {entry.hw?.pageNo && (
                                 <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">P.{entry.hw.pageNo}</span>
                               )}
                             </div>
-                            <p className="text-[12.5px] font-black leading-tight line-clamp-1" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.title}</p>
+                            <p className="text-[12px] font-black leading-snug line-clamp-1 mt-0.5" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.title}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <div className="flex-1 h-px bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo}`} style={{ width: `${Math.max(2, entry.scrollPct)}%` }} />
+                              </div>
+                              <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
+                            </div>
                           </div>
-                          <span className={`shrink-0 text-[10px] font-black text-white ${meta.btnBg} px-2.5 py-1 rounded-full flex items-center gap-0.5 shadow-sm mt-0.5`}>
+                          <span className={`shrink-0 text-[10px] font-black text-white ${meta.btnBg} px-2 py-1 rounded-full flex items-center gap-0.5 shadow-sm`}>
                             Resume <ChevronRight size={9} />
                           </span>
                         </button>
-                        <div className="px-3 pb-2.5">
-                          <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo}`} style={{ width: `${Math.max(2, entry.scrollPct)}%` }} />
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-semibold mt-1">{entry.scrollPct}% read</p>
-                        </div>
                       </SwipeToDismiss>
                     );
                   })}
