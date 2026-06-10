@@ -310,6 +310,7 @@ export const exportBackupAsJson = async (
 
 // ── Import JSON backup file → restore everything to Firebase ─────────────────
 // Takes a parsed JSON bundle (from exportBackupAsJson) and writes it back.
+// RTDB is the primary store — Firestore sync is best-effort (permission errors are tolerated).
 export const importBackupFromJson = async (
   bundle: Record<string, any>,
   onProgress?: (done: number, total: number, msg: string) => void
@@ -318,22 +319,36 @@ export const importBackupFromJson = async (
   const SHARDED = ['competition_mcqs', 'daily_gk', 'notifications', 'broadcast_codes', 'global_challenge_mcq'];
   let restored = 0, failed = 0;
   let step = 0;
-  const totalSteps = Object.keys(bundle).filter(k => !k.startsWith('_')).length;
+  const contentKeys = bundle.content_data ? Object.keys(bundle.content_data) : [];
+  const totalSteps = contentKeys.length + Object.keys(bundle).filter(k => !k.startsWith('_') && k !== 'content_data').length;
 
-  // Restore content_data
-  if (bundle.content_data) {
-    const keys = Object.keys(bundle.content_data);
-    for (const key of keys) {
-      try {
-        await set(ref(rtdb, `content_data/${key}`), bundle.content_data[key]);
-        await setDoc(doc(db, 'content_data', key), sanitizeForFirestore(bundle.content_data[key]));
-        restored++;
-      } catch { failed++; }
-      onProgress?.(++step, totalSteps, `content_data/${key}`);
+  // ── Restore content_data (primary: RTDB, secondary: Firestore best-effort) ──
+  for (const key of contentKeys) {
+    const data = bundle.content_data[key];
+    let rtdbOk = false;
+    try {
+      await set(ref(rtdb, `content_data/${key}`), data);
+      // Also write to backup path so future exports work
+      await set(ref(rtdb, `__backup__/content_data/${key}`), data);
+      rtdbOk = true;
+    } catch (e) {
+      console.error(`[IIC] RTDB write failed for ${key}:`, e);
     }
+    if (rtdbOk) {
+      // Firestore is best-effort — permission errors are common in dev; don't fail the item
+      try {
+        await setDoc(doc(db, 'content_data', key), sanitizeForFirestore(data));
+      } catch (e) {
+        console.warn(`[IIC] Firestore sync skipped for ${key} (non-fatal):`, (e as any)?.code ?? e);
+      }
+      restored++;
+    } else {
+      failed++;
+    }
+    onProgress?.(++step, totalSteps, `content_data/${key}`);
   }
 
-  // Restore homework_entries
+  // ── Restore homework_entries ──
   if (bundle.homework_entries) {
     try {
       await set(ref(rtdb, 'homework_entries'), bundle.homework_entries);
@@ -342,7 +357,7 @@ export const importBackupFromJson = async (
     onProgress?.(++step, totalSteps, 'homework_entries');
   }
 
-  // Restore lucent_entries
+  // ── Restore lucent_entries ──
   if (bundle.lucent_entries) {
     try {
       await set(ref(rtdb, 'lucent_entries'), bundle.lucent_entries);
@@ -351,24 +366,25 @@ export const importBackupFromJson = async (
     onProgress?.(++step, totalSteps, 'lucent_entries');
   }
 
-  // Restore sharded arrays
+  // ── Restore sharded arrays ──
   for (const prefix of SHARDED) {
     try {
       const meta = bundle[`${prefix}_meta`];
       const shardCount: number = meta?.shardCount ?? 1;
       if (meta) {
-        await set(ref(rtdb, `${prefix}_meta`), meta);
-        await setDoc(doc(db, 'config', `${prefix}_meta`), sanitizeForFirestore(meta));
+        try { await set(ref(rtdb, `${prefix}_meta`), meta); } catch {}
+        try { await setDoc(doc(db, 'config', `${prefix}_meta`), sanitizeForFirestore(meta)); } catch {}
       }
       for (let idx = 0; idx < shardCount; idx++) {
         const shardKey = `${prefix}_shard_${idx}`;
         const shardData = bundle[shardKey];
         if (!shardData) continue;
-        try {
-          await set(ref(rtdb, shardKey), shardData);
-          await setDoc(doc(db, 'config', shardKey), sanitizeForFirestore(shardData));
+        let ok = false;
+        try { await set(ref(rtdb, shardKey), shardData); ok = true; } catch { failed++; }
+        if (ok) {
+          try { await setDoc(doc(db, 'config', shardKey), sanitizeForFirestore(shardData)); } catch {}
           restored++;
-        } catch { failed++; }
+        }
         onProgress?.(++step, totalSteps, shardKey);
       }
     } catch {}
