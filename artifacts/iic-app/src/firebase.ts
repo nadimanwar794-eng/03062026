@@ -390,6 +390,34 @@ export const importBackupFromJson = async (
     } catch {}
   }
 
+  // ── Post-import: clear stale localforage so RTDB data is fetched fresh ──────
+  // getChapterData reads localforage FIRST. If old empty data was cached there,
+  // it returns that instead of the freshly imported RTDB data. We must wipe it.
+  try {
+    const localforage = (await import('localforage')).default;
+    localforage.config({ name: 'nst_storage' });
+    const allCachedKeys = await localforage.keys();
+    const contentCachedKeys = allCachedKeys.filter(k => k.startsWith('nst_content_'));
+    await Promise.all(contentCachedKeys.map(k => localforage.removeItem(k)));
+    console.log(`[IIC] Cleared ${contentCachedKeys.length} stale localforage entries`);
+  } catch (e) {
+    console.warn('[IIC] localforage clear failed (non-fatal):', e);
+  }
+  // Also clear in-memory chapter cache
+  try { invalidateChapterCache(); } catch {}
+
+  // ── Post-import: rebuild content_index so subject card badges update ────────
+  // content_index is what SubjectSelection reads for Notes/PDF/MCQ badge counts.
+  // Without this, all subject cards show 0 even though content is in RTDB.
+  if (bundle.content_data && Object.keys(bundle.content_data).length > 0) {
+    try {
+      await rebuildContentIndex();
+      console.log('[IIC] content_index rebuilt after JSON import');
+    } catch (e) {
+      console.warn('[IIC] content_index rebuild failed (non-fatal):', e);
+    }
+  }
+
   console.log(`[IIC] JSON Import complete: ${restored} restored, ${failed} failed`);
   return { restored, failed };
 };

@@ -15201,6 +15201,36 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       <p id="iic-json-status" className="text-[10px] text-slate-300 font-mono min-h-[16px] text-center"></p>
                   </div>
 
+                  {/* ── Force Refresh: Clear stale cache so Firebase data shows up ── */}
+                  <div className="mt-4 p-4 bg-orange-50 border border-orange-300 rounded-xl">
+                      <h4 className="text-orange-800 font-black mb-1 flex items-center gap-2 text-sm">🔄 Data Firebase Mein Hai But App Mein Nahi Dikh Raha?</h4>
+                      <p className="text-xs text-orange-700 mb-3">Agar aapne JSON import kiya ya backup restore kiya lekin app mein content nahi dikh raha — purana stale cache block kar raha hoga. Ye button cache saaf karke Firebase se fresh data load karega.</p>
+                      <button
+                          onClick={async () => {
+                              if (!confirm("🔄 Local Cache saaf karein?\n\nYe browser ke stored content ko wipe karega taaki app Firebase se fresh data le.\n\nConfirm karo?")) return;
+                              const statusEl = document.getElementById('iic-cache-clear-status');
+                              if (statusEl) statusEl.textContent = '⏳ Cache saaf ho raha hai...';
+                              try {
+                                  const lf = (await import('localforage')).default;
+                                  lf.config({ name: 'nst_storage' });
+                                  const allKeys = await lf.keys();
+                                  const contentKeys = allKeys.filter((k: string) => k.startsWith('nst_content_'));
+                                  await Promise.all(contentKeys.map((k: string) => lf.removeItem(k)));
+                                  if (statusEl) statusEl.textContent = `✅ ${contentKeys.length} cached entries saaf ho gayi. Reloading...`;
+                                  alert(`✅ ${contentKeys.length} stale entries clear ho gayi!\n\nAb page reload hoga aur Firebase se fresh content load hoga.`);
+                                  window.location.reload();
+                              } catch(e: any) {
+                                  if (statusEl) statusEl.textContent = `❌ Error: ${e?.message}`;
+                                  alert('❌ Cache clear failed: ' + e?.message);
+                              }
+                          }}
+                          className="w-full py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 flex items-center justify-center gap-2 text-sm"
+                      >
+                          🔄 Stale Cache Clear Karo → Firebase Se Fresh Load
+                      </button>
+                      <p id="iic-cache-clear-status" className="text-xs text-orange-700 mt-2 font-mono min-h-[18px]"></p>
+                  </div>
+
                   {/* ── Content Recovery from Local Cache ── */}
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
                       <h4 className="text-green-800 font-black mb-1 flex items-center gap-2 text-sm">🛟 Local Cache Recovery (Device → Firebase)</h4>
