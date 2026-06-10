@@ -2645,6 +2645,8 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => { window.removeEventListener('storage', onStorage); window.clearInterval(t); };
   }, []);
   const [tabSnapshots, setTabSnapshots] = useState<Record<string, any>>({});
+  const tabSnapshotsRef = React.useRef<Record<string, any>>({});
+  const currentLogicalTabRef = React.useRef<string>('HOME');
   // Last-read line index per homework note id (for tap-to-resume after tab switch).
   const [hwNotePositions, setHwNotePositions] = useState<Record<string, number>>({});
 
@@ -5300,6 +5302,7 @@ export const StudentDashboard: React.FC<Props> = ({
           setSelectedChapter(null);
           setChapterOpenedFrom('COURSES');
           onTabChange("HOME");
+          currentLogicalTabRef.current = 'HOME';
           setCurrentLogicalTab('HOME');
           return;
         }
@@ -5517,6 +5520,7 @@ export const StudentDashboard: React.FC<Props> = ({
               // Return to Home tab cleanly.
               setShowHomeworkHistory(false);
               onTabChange('HOME');
+              currentLogicalTabRef.current = 'HOME';
               setCurrentLogicalTab('HOME');
             } else {
               setShowHomeworkHistory(true);
@@ -8121,7 +8125,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <RevisionHubV2
           user={user}
           settings={settings}
-          onBack={() => { onTabChange("HOME"); setCurrentLogicalTab("HOME"); }}
+          onBack={() => { onTabChange("HOME"); currentLogicalTabRef.current = 'HOME'; setCurrentLogicalTab("HOME"); }}
           onOpenChapter={(subjectId, chapterId, chapterTitle) => {
             try {
               handleChapterSelect({ id: chapterId, title: chapterTitle || 'Chapter' } as any);
@@ -8492,7 +8496,18 @@ export const StudentDashboard: React.FC<Props> = ({
           <ThemeCustomizer
             user={user}
             onUpdateUser={handleUserUpdate}
-            onBack={() => onTabChange(themeOpenerRef.current === 'PROFILE' ? 'PROFILE' : 'HOME' as any)}
+            onBack={() => {
+              const backTab = themeOpenerRef.current === 'PROFILE' ? 'PROFILE' : 'HOME';
+              const savedSnap = tabSnapshotsRef.current[backTab];
+              if (savedSnap) {
+                // Restore chapters, selectedSubject, contentViewStep etc. from saved snapshot
+                if (savedSnap.selectedSubject !== undefined) setSelectedSubject(savedSnap.selectedSubject ?? null);
+                if (savedSnap.selectedChapter !== undefined) setSelectedChapter(savedSnap.selectedChapter ?? null);
+                if (savedSnap.chapters !== undefined && savedSnap.chapters.length > 0) setChapters(savedSnap.chapters);
+                if (savedSnap.contentViewStep !== undefined) setContentViewStep(savedSnap.contentViewStep ?? 'SUBJECTS');
+              }
+              onTabChange(backTab as any);
+            }}
             settings={settings}
           />
         </div>
@@ -9195,7 +9210,7 @@ export const StudentDashboard: React.FC<Props> = ({
               return (
                 <div className="mx-3 rounded-2xl mb-3" style={{ background: _pCard, border: _pBdrSoft }}>
                   <button
-                    onClick={() => { themeOpenerRef.current = 'PROFILE'; onTabChange('THEME_CUSTOMIZER' as any); }}
+                    onClick={() => { themeOpenerRef.current = 'PROFILE'; tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTabRef.current]: { selectedSubject, selectedChapter, chapters, contentViewStep } }; onTabChange('THEME_CUSTOMIZER' as any); }}
                     className={`w-full px-4 py-3.5 flex items-center gap-3 ${_pHovCls} transition-colors`}
                   >
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -9229,7 +9244,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 return (
                   <div className="mx-3 rounded-2xl mb-3" style={{ background: _pCard, border: `1px solid rgba(139,92,246,0.3)` }}>
                     <button
-                      onClick={() => { themeOpenerRef.current = 'PROFILE'; onTabChange('THEME_CUSTOMIZER' as any); }}
+                      onClick={() => { themeOpenerRef.current = 'PROFILE'; tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTabRef.current]: { selectedSubject, selectedChapter, chapters, contentViewStep } }; onTabChange('THEME_CUSTOMIZER' as any); }}
                       className={`w-full px-4 py-3.5 flex items-center gap-3 transition-colors active:scale-[0.98]`}
                     >
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -10318,7 +10333,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                         <p className="text-[9px] font-black text-red-400 mb-2">⏰ {endCountdown} — open now!</p>
                                       )}
                                       <button
-                                        onClick={() => { setShowEventDrawer(false); themeOpenerRef.current = 'HOME'; onTabChange('THEME_CUSTOMIZER' as any); }}
+                                        onClick={() => { setShowEventDrawer(false); themeOpenerRef.current = 'HOME'; tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTabRef.current]: { selectedSubject, selectedChapter, chapters, contentViewStep } }; onTabChange('THEME_CUSTOMIZER' as any); }}
                                         className="w-full py-2.5 rounded-xl font-black text-xs text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                                         style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}
                                       >
@@ -12112,6 +12127,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     setHwActiveHwId(null);
                     setHwOpenedDirect(false);
                     onTabChange('HOME');
+                    currentLogicalTabRef.current = 'HOME';
                     setCurrentLogicalTab('HOME');
                   }}
                   className="p-2 hover:bg-slate-100 rounded-full text-slate-700 transition-colors"
@@ -14794,6 +14810,8 @@ export const StudentDashboard: React.FC<Props> = ({
               showAllNotesCatalog,
               viewingUserHistory,
               selectedSubject,
+              selectedChapter,
+              chapters,
               contentViewStep,
               lucentCategoryView,
             });
@@ -14822,6 +14840,8 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowAllNotesCatalog(false);
               setViewingUserHistory(s.viewingUserHistory ?? null);
               setSelectedSubject(s.selectedSubject ?? null);
+              if (s.selectedChapter !== undefined) setSelectedChapter(s.selectedChapter ?? null);
+              if (s.chapters !== undefined && s.chapters.length > 0) setChapters(s.chapters);
               setContentViewStep(s.contentViewStep ?? 'SUBJECTS');
               setLucentCategoryView(!!s.lucentCategoryView);
             };
@@ -14945,9 +14965,11 @@ export const StudentDashboard: React.FC<Props> = ({
                 ? activeTab
                 : (defaultSnapshotForTab(currentLogicalTab) as any).activeTab;
               const snap = { ...captureSnapshot(), activeTab: sanitizedActiveTab };
+              tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTab]: snap };
               setTabSnapshots(prev => ({ ...prev, [currentLogicalTab]: snap }));
-              const restore = tabSnapshots[target];
+              const restore = tabSnapshotsRef.current[target] ?? tabSnapshots[target];
               applySnapshot(restore ?? defaultSnapshotForTab(target));
+              currentLogicalTabRef.current = target;
               setCurrentLogicalTab(target);
             };
 
