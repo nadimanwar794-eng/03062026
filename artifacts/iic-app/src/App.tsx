@@ -2858,6 +2858,7 @@ const App: React.FC = () => {
                               isDarkMode={darkMode}
                               onToggleDarkMode={setDarkMode}
                               onLogout={handleLogout}
+                              onUpdateSettings={updateSettings}
                               onRecoverData={() => {
                                   if (cloudUser) {
                                       setShowCloudRecoveryModal(true);

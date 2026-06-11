@@ -358,6 +358,7 @@ interface Props {
   onToggleDarkMode?: (v: boolean) => void;
   onLogout?: () => void;
   onRecoverData?: () => void;
+  onUpdateSettings?: (s: SystemSettings) => void;
 }
 
 const DashboardSectionWrapper = ({
@@ -483,6 +484,7 @@ export const StudentDashboard: React.FC<Props> = ({
   onToggleDarkMode,
   onLogout,
   onRecoverData,
+  onUpdateSettings,
 }) => {
   const analysisLogs = (() => { try { return JSON.parse(localStorage.getItem("nst_universal_analysis_logs") || "[]"); } catch { return []; } })();
   const isGameEnabled = settings?.isGameEnabled !== false;
@@ -8500,7 +8502,6 @@ export const StudentDashboard: React.FC<Props> = ({
               const backTab = themeOpenerRef.current === 'PROFILE' ? 'PROFILE' : 'HOME';
               const savedSnap = tabSnapshotsRef.current[backTab];
               if (savedSnap) {
-                // Restore chapters, selectedSubject, contentViewStep etc. from saved snapshot
                 if (savedSnap.selectedSubject !== undefined) setSelectedSubject(savedSnap.selectedSubject ?? null);
                 if (savedSnap.selectedChapter !== undefined) setSelectedChapter(savedSnap.selectedChapter ?? null);
                 if (savedSnap.chapters !== undefined && savedSnap.chapters.length > 0) setChapters(savedSnap.chapters);
@@ -8509,6 +8510,7 @@ export const StudentDashboard: React.FC<Props> = ({
               onTabChange(backTab as any);
             }}
             settings={settings}
+            onUpdateSettings={onUpdateSettings}
           />
         </div>
       );
