@@ -11732,25 +11732,25 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                             <label className="text-xs font-black text-slate-700 uppercase block mb-2">🎨 Free / Basic / Ultra — Default Tier Colors</label>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               {/* ULTRA */}
-                              <div className="bg-white p-3 rounded-xl border border-yellow-200 shadow-sm">
+                              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span>⚡</span>
-                                  <label className="text-[11px] font-black text-yellow-700 uppercase">Ultra</label>
+                                  <span>⬛</span>
+                                  <label className="text-[11px] font-black text-slate-700 uppercase">Ultra</label>
                                   {localSettings.ultraThemeColor && (
                                     <button onClick={() => setLocalSettings({...localSettings, ultraThemeColor: undefined})} className="ml-auto text-[10px] text-red-400 hover:text-red-600">Reset</button>
                                   )}
                                 </div>
-                                <button onClick={() => setLocalSettings({...localSettings, ultraThemeColor: '#c8a020'})}
+                                <button onClick={() => setLocalSettings({...localSettings, ultraThemeColor: '#374151'})}
                                   className="w-full mb-2 py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
-                                  style={{background:'linear-gradient(135deg,#7a5c10,#c8a020)',color:'#fff'}}>
-                                  ⚡ Default Gold
+                                  style={{background:'linear-gradient(135deg,#111827,#374151)',color:'#fff'}}>
+                                  ⬛ Default Dark Slate
                                 </button>
                                 <div className="flex items-center gap-2 mb-2">
-                                  <input type="color" value={localSettings.ultraThemeColor || '#c8a020'} onChange={e => setLocalSettings({...localSettings, ultraThemeColor: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border-none shrink-0" />
-                                  <input type="text" value={localSettings.ultraThemeColor || ''} onChange={e => setLocalSettings({...localSettings, ultraThemeColor: e.target.value})} placeholder="#c8a020" className="flex-1 p-1.5 border rounded-lg text-[10px] uppercase font-mono" />
+                                  <input type="color" value={localSettings.ultraThemeColor || '#374151'} onChange={e => setLocalSettings({...localSettings, ultraThemeColor: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border-none shrink-0" />
+                                  <input type="text" value={localSettings.ultraThemeColor || ''} onChange={e => setLocalSettings({...localSettings, ultraThemeColor: e.target.value})} placeholder="#374151" className="flex-1 p-1.5 border rounded-lg text-[10px] uppercase font-mono" />
                                 </div>
                                 <div className="grid grid-cols-6 gap-1">
-                                  {['#c8a020','#f59e0b','#e11d48','#7c3aed','#0ea5e9','#10b981'].map(c => (
+                                  {['#374151','#1f2937','#475569','#334155','#4b5563','#6b7280'].map(c => (
                                     <button key={c} onClick={() => setLocalSettings({...localSettings, ultraThemeColor: c})} className="h-5 rounded border-2 transition-all" style={{background: c, borderColor: localSettings.ultraThemeColor === c ? '#1e293b' : 'transparent'}} />
                                   ))}
                                 </div>
@@ -11764,41 +11764,41 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                     <button onClick={() => setLocalSettings({...localSettings, basicThemeColor: undefined})} className="ml-auto text-[10px] text-red-400 hover:text-red-600">Reset</button>
                                   )}
                                 </div>
-                                <button onClick={() => setLocalSettings({...localSettings, basicThemeColor: '#2563eb'})}
+                                <button onClick={() => setLocalSettings({...localSettings, basicThemeColor: '#213252'})}
                                   className="w-full mb-2 py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
-                                  style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)',color:'#fff'}}>
-                                  ⭐ Default Blue
+                                  style={{background:'linear-gradient(135deg,#0e1f3a,#213252)',color:'#fff'}}>
+                                  ⭐ Default Navy
                                 </button>
                                 <div className="flex items-center gap-2 mb-2">
-                                  <input type="color" value={localSettings.basicThemeColor || '#2563eb'} onChange={e => setLocalSettings({...localSettings, basicThemeColor: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border-none shrink-0" />
-                                  <input type="text" value={localSettings.basicThemeColor || ''} onChange={e => setLocalSettings({...localSettings, basicThemeColor: e.target.value})} placeholder="#2563eb" className="flex-1 p-1.5 border rounded-lg text-[10px] uppercase font-mono" />
+                                  <input type="color" value={localSettings.basicThemeColor || '#213252'} onChange={e => setLocalSettings({...localSettings, basicThemeColor: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border-none shrink-0" />
+                                  <input type="text" value={localSettings.basicThemeColor || ''} onChange={e => setLocalSettings({...localSettings, basicThemeColor: e.target.value})} placeholder="#213252" className="flex-1 p-1.5 border rounded-lg text-[10px] uppercase font-mono" />
                                 </div>
                                 <div className="grid grid-cols-6 gap-1">
-                                  {['#2563eb','#0ea5e9','#7c3aed','#059669','#f97316','#ec4899'].map(c => (
+                                  {['#213252','#1e3a8a','#1d4ed8','#2563eb','#3b82f6','#0ea5e9'].map(c => (
                                     <button key={c} onClick={() => setLocalSettings({...localSettings, basicThemeColor: c})} className="h-5 rounded border-2 transition-all" style={{background: c, borderColor: localSettings.basicThemeColor === c ? '#1e293b' : 'transparent'}} />
                                   ))}
                                 </div>
                               </div>
                               {/* FREE */}
-                              <div className="bg-white p-3 rounded-xl border border-green-200 shadow-sm">
+                              <div className="bg-white p-3 rounded-xl border border-teal-200 shadow-sm">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span>🎓</span>
-                                  <label className="text-[11px] font-black text-green-700 uppercase">Free</label>
+                                  <span>💎</span>
+                                  <label className="text-[11px] font-black text-teal-700 uppercase">Free</label>
                                   {localSettings.freeThemeColor && (
                                     <button onClick={() => setLocalSettings({...localSettings, freeThemeColor: undefined})} className="ml-auto text-[10px] text-red-400 hover:text-red-600">Reset</button>
                                   )}
                                 </div>
-                                <button onClick={() => setLocalSettings({...localSettings, freeThemeColor: '#0ea5e9'})}
+                                <button onClick={() => setLocalSettings({...localSettings, freeThemeColor: '#366669'})}
                                   className="w-full mb-2 py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
-                                  style={{background:'linear-gradient(135deg,#0284c7,#0ea5e9)',color:'#fff'}}>
-                                  🎓 Default Sky
+                                  style={{background:'linear-gradient(135deg,#1b3f41,#366669)',color:'#fff'}}>
+                                  💎 Default Teal
                                 </button>
                                 <div className="flex items-center gap-2 mb-2">
-                                  <input type="color" value={localSettings.freeThemeColor || '#0ea5e9'} onChange={e => setLocalSettings({...localSettings, freeThemeColor: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border-none shrink-0" />
-                                  <input type="text" value={localSettings.freeThemeColor || ''} onChange={e => setLocalSettings({...localSettings, freeThemeColor: e.target.value})} placeholder="#0ea5e9" className="flex-1 p-1.5 border rounded-lg text-[10px] uppercase font-mono" />
+                                  <input type="color" value={localSettings.freeThemeColor || '#366669'} onChange={e => setLocalSettings({...localSettings, freeThemeColor: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border-none shrink-0" />
+                                  <input type="text" value={localSettings.freeThemeColor || ''} onChange={e => setLocalSettings({...localSettings, freeThemeColor: e.target.value})} placeholder="#366669" className="flex-1 p-1.5 border rounded-lg text-[10px] uppercase font-mono" />
                                 </div>
                                 <div className="grid grid-cols-6 gap-1">
-                                  {['#0ea5e9','#10b981','#06b6d4','#3b82f6','#a855f7','#f59e0b'].map(c => (
+                                  {['#366669','#4a8487','#265052','#0d9488','#0f766e','#115e59'].map(c => (
                                     <button key={c} onClick={() => setLocalSettings({...localSettings, freeThemeColor: c})} className="h-5 rounded border-2 transition-all" style={{background: c, borderColor: localSettings.freeThemeColor === c ? '#1e293b' : 'transparent'}} />
                                   ))}
                                 </div>
