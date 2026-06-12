@@ -9298,6 +9298,19 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
             )}
 
+            {/* Theme Studio — permanent for Admin */}
+            {(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') && (
+              <button onClick={() => { themeOpenerRef.current = 'PROFILE'; onTabChange('THEME_CUSTOMIZER' as any); }}
+                className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
+                style={{ borderBottom: _pSep }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.35)' }}>
+                  <Palette size={17} style={{ color: '#a855f7' }} />
+                </div>
+                <p className={`flex-1 text-sm font-bold text-left ${_pTxt}`}>Theme Studio</p>
+                <ChevronRight size={15} style={{ color: _pTxtMutedColor }} className="shrink-0" />
+              </button>
+            )}
+
             {/* Teacher Store */}
             {user.role === 'TEACHER' && (
               <button onClick={() => onTabChange('TEACHER_STORE' as any)}
