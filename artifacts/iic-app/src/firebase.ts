@@ -581,7 +581,7 @@ export const resetAllContent = async () => {
     try {
         const PRESERVE_KEYS = [
           'nst_current_user', 'nst_users', 'nst_firebase_project_id',
-          'nst_system_settings',
+          'nst_system_settings', 'nst_user_history',
         ];
         const keysToRemove = Object.keys(localStorage).filter(k => !PRESERVE_KEYS.includes(k));
         keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });

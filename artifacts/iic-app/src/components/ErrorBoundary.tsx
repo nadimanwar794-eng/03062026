@@ -89,9 +89,9 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleReset = () => {
-    // Only clear content/cache keys — preserve user session (nst_current_user etc.)
+    // Only clear content/cache keys — preserve user session and saved notes
     // so the user doesn't get logged out and lose access to their data.
-    const KEEP_KEYS = ['nst_current_user', 'nst_users', 'nst_firebase_project_id'];
+    const KEEP_KEYS = ['nst_current_user', 'nst_users', 'nst_firebase_project_id', 'nst_user_history', 'nst_system_settings'];
     Object.keys(localStorage).forEach(k => {
       if (!KEEP_KEYS.includes(k)) localStorage.removeItem(k);
     });
