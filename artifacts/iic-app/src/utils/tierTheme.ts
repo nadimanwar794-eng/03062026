@@ -39,7 +39,7 @@ export const TIER_THEME = {
     navBg:         '#ffffff',
     navActive:     '#475569',
     navInactive:   '#94a3b8',
-    cardBg:        '#f8fafc',
+    cardBg:        '#ffffff',
     cardBorder:    '#e2e8f0',
     appBg:         '#ffffff',
     label:         'ULTRA',
@@ -101,8 +101,8 @@ export const TIER_THEME = {
     navBg:         '#ffffff',
     navActive:     '#10b981',
     navInactive:   '#94a3b8',
-    cardBg:        '#ecfdf5',
-    cardBorder:    '#a7f3d0',
+    cardBg:        '#ffffff',
+    cardBorder:    '#e2e8f0',
     appBg:         '#ffffff',
     label:         'FREE',
     emoji:         '💎',
@@ -241,6 +241,8 @@ export const buildGranularTierTheme = (
     flashcardBg2:    (t as any).flashcardBg2 || `rgb(${Math.round(r*0.22)},${Math.round(g*0.22)},${Math.round(b*0.22)})`,
     chapterAccent:   (t as any).chapterAccent || accent,
     mcqTabActive:    (t as any).mcqTabActive  || accent,
+    // Cards are always white regardless of theme
+    cardBg:          '#ffffff',
     // Granular extras — accessible via (tierTheme as any).xxx
     navActive:       t.navActive    || accent,
     navBorderColor:  t.navBorder    || `rgba(${r},${g},${b},0.22)`,

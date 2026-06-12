@@ -712,9 +712,8 @@ export const StudentDashboard: React.FC<Props> = ({
     s.setProperty('--nst-nav-border',       (tierTheme as any).navBorderColor || `rgba(${r},${g},${b},0.22)`);
     // Card border (use actual cardBorder color, not just primary-derived)
     s.setProperty('--nst-card-border',      (tierTheme as any).cardBorderColor|| `rgba(${r},${g},${b},0.28)`);
-    // Card / surface background
-    const cardBg = (tierTheme as any).profileCardBg;
-    if (cardBg && !isDarkMode) s.setProperty('--nst-color-surface', cardBg);
+    // Card / surface background — always white in light mode
+    if (!isDarkMode) s.setProperty('--nst-color-surface', '#ffffff');
     // Text colors (only override in light mode to preserve dark-mode CSS class)
     if (!isDarkMode) {
       const tp = (tierTheme as any).textPrimary;
