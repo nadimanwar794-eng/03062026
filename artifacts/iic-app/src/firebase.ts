@@ -1054,6 +1054,15 @@ const _savePerItemCollection = async (
   const sanitized: any[] = sanitizeForFirestore(items);
   const newIds: string[] = sanitized.map((e: any) => e?.id).filter(Boolean);
 
+  // ── If new array is empty, skip entirely — never touch index ────────────────
+  // An empty array almost certainly means the collection hasn't loaded yet
+  // (race condition). Overwriting with empty would hide all existing entries.
+  if (newIds.length === 0) {
+    console.warn(`[IIC] _savePerItemCollection(${collectionName}): new array is empty — skipping entirely to protect existing Firebase data.`);
+    return;
+  }
+
+  // Write/update every document in this batch
   sanitized.forEach((entry: any) => {
     if (!entry?.id) return;
     writes.push(setDoc(doc(db, collectionName, entry.id), entry));
@@ -1062,41 +1071,28 @@ const _savePerItemCollection = async (
     writes.push(set(ref(rtdb, `__backup__/${rtdbBasePath}/${entry.id}`), entry));
   });
 
-  const indexPayload = { ids: newIds };
-  writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
-  writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
-
-  // ── Safety: only cleanup orphans when new array is non-empty ────────────────
-  // If newIds is empty it almost certainly means the array wasn't loaded yet
-  // (race condition or partial settings save). Never delete ALL entries just
-  // because the incoming list happens to be empty — that would silently wipe
-  // all educational content from Firebase.
-  if (newIds.length === 0) {
-    console.warn(`[IIC] _savePerItemCollection(${collectionName}): new array is empty — skipping orphan cleanup to protect existing Firebase data.`);
-    return;
-  }
-
+  // ── SAFE INDEX UPDATE: MERGE, not overwrite ───────────────────────────────
+  // Read the current index from Firebase and UNION it with newIds.
+  // This ensures IDs present in Firebase but not in this batch (because the
+  // admin session hadn't loaded them yet) are NEVER silently removed.
+  // Removal from the index happens ONLY via explicit deleteHomeworkEntry /
+  // deleteLucentEntry calls — never as a side-effect of a settings save.
   try {
     const oldSnap = await getDoc(doc(db, "config", indexFsDocId));
-    if (oldSnap.exists()) {
-      const oldIds: string[] = oldSnap.data()?.ids ?? [];
-      const newIdSet = new Set(newIds);
-      // ── ORPHAN CLEANUP IS PERMANENTLY DISABLED ────────────────────────────
-      // _savePerItemCollection now ONLY writes/updates — it never deletes.
-      // Reason: any settings save (theme, font, anything) that runs before the
-      // full homework/lucent array loads would treat unloaded items as "orphans"
-      // and delete them — this was the root cause of all accidental data loss.
-      //
-      // Deletion is now ONLY done by explicit calls to:
-      //   deleteHomeworkEntry(id)   — for homework_entries
-      //   deleteLucentEntry(id)     — for lucent_entries
-      //
-      // The index is still updated to reflect the current order, but missing
-      // IDs are never removed from the collection.
-      console.log(`[IIC] _savePerItemCollection(${collectionName}): orphan cleanup skipped — use explicit delete functions for intentional removal.`);
-    }
+    const existingIds: string[] = oldSnap.exists() ? (oldSnap.data()?.ids ?? []) : [];
+    // Union: keep all existing IDs + add any brand-new ones from this batch
+    const mergedIds: string[] = [...new Set([...existingIds, ...newIds])];
+    const indexPayload = { ids: mergedIds };
+    writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
+    writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
+    console.log(`[IIC] _savePerItemCollection(${collectionName}): index merged — existing ${existingIds.length} + new ${newIds.length} → ${mergedIds.length} total IDs`);
   } catch (e) {
-    console.warn(`${indexFsDocId} cleanup read failed — skipping:`, e);
+    // If index read fails, fall back to writing only what we know — still safe
+    // because we never shrink below newIds
+    console.warn(`[IIC] _savePerItemCollection(${collectionName}): index read failed, falling back to newIds only:`, e);
+    const indexPayload = { ids: newIds };
+    writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
+    writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
   }
 };
 
