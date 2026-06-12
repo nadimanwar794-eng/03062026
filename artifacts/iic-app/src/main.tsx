@@ -13,6 +13,15 @@ registerSW({
   },
 });
 
+// Request persistent storage so the browser does NOT auto-evict
+// IndexedDB data (nst_content_* chapter cache, nst_user_history, etc.)
+// This prevents the daily content-deletion issue on mobile Chrome.
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().then(granted => {
+    console.log(`[IIC] Persistent storage ${granted ? 'granted ✅' : 'not granted (browser may still evict)'}`);
+  }).catch(() => {});
+}
+
 const isNetworkLikeError = (reason: any): boolean => {
   if (!reason) return false;
   const code = reason.code || reason.name || '';
