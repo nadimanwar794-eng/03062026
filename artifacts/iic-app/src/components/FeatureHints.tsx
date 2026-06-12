@@ -52,13 +52,6 @@ const HINTS: Hint[] = [
     title: 'Daily Login Coins',
     body: 'Login every day to earn coins. Maintain your streak — the longer the streak, the more coins!',
   },
-  {
-    id: 'theme_studio',
-    emoji: '🎨',
-    title: 'Theme Studio',
-    body: 'Go to Profile → Theme Studio to create your custom color theme. Unlocks at Level 4+!',
-    tab: 'PROFILE',
-  },
 ];
 
 interface Props {

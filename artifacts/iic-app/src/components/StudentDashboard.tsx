@@ -1861,32 +1861,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const rotateFullscreenRef = useRef(false);
   const themeOpenerRef = useRef<'PROFILE' | 'HOME'>('HOME');
 
-  // Real-time Theme Studio access guard — redirect if event expires while user is inside
-  useEffect(() => {
-    const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' || isImpersonating;
-    if (_isAdminUser || (activeTab as string) !== 'THEME_CUSTOMIZER') return;
-
-    const checkAndRedirect = () => {
-      const _now = Date.now();
-      const _tse = (settings as any)?.themeStudioEvent;
-      const _tseActive = _tse?.enabled && meetsEventLevel(EVENT_MIN_LEVELS.themeStudio) &&
-        (_tse.startsAt ? new Date(_tse.startsAt).getTime() <= _now : true) &&
-        (_tse.endsAt ? new Date(_tse.endsAt).getTime() > _now : true);
-      const _sbe = (settings as any)?.scoreBoostEvent;
-      const _sbeTheme = _sbe?.enabled && _sbe?.themeStudioEnabled && meetsEventLevel(EVENT_MIN_LEVELS.scoreBoost) &&
-        (_sbe.startsAt ? new Date(_sbe.startsAt).getTime() <= _now : true) &&
-        (_sbe.endsAt ? new Date(_sbe.endsAt).getTime() > _now : true);
-      if (!_tseActive && !_sbeTheme) {
-        onTabChange('HOME' as any);
-      }
-    };
-
-    // Check immediately, then every 30 seconds
-    checkAndRedirect();
-    const _timer = setInterval(checkAndRedirect, 30000);
-    return () => clearInterval(_timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, user.role, isImpersonating, settings]);
 
   const topBarScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -8476,23 +8450,11 @@ export const StudentDashboard: React.FC<Props> = ({
       return <AppStore settings={settings} />;
     }
     if ((activeTab as string) === "THEME_CUSTOMIZER") {
-      // Gate access for non-admin users — Theme Studio only available during active event
+      // Only admins can access Theme Customizer — all other users are redirected
       const _isAdminTC = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' || isImpersonating;
       if (!_isAdminTC) {
-        const _nowTC = Date.now();
-        const _tseTC = (settings as any)?.themeStudioEvent;
-        const _tseActiveTC = _tseTC?.enabled && meetsEventLevel(EVENT_MIN_LEVELS.themeStudio) &&
-          (_tseTC.startsAt ? new Date(_tseTC.startsAt).getTime() <= _nowTC : true) &&
-          (_tseTC.endsAt ? new Date(_tseTC.endsAt).getTime() > _nowTC : true);
-        const _sbeTC = (settings as any)?.scoreBoostEvent;
-        const _sbeThemeTC = _sbeTC?.enabled && _sbeTC?.themeStudioEnabled && meetsEventLevel(EVENT_MIN_LEVELS.scoreBoost) &&
-          (_sbeTC.startsAt ? new Date(_sbeTC.startsAt).getTime() <= _nowTC : true) &&
-          (_sbeTC.endsAt ? new Date(_sbeTC.endsAt).getTime() > _nowTC : true);
-        if (!_tseActiveTC && !_sbeThemeTC) {
-          // Event over — silently redirect away
-          setTimeout(() => onTabChange('HOME' as any), 0);
-          return null;
-        }
+        setTimeout(() => onTabChange('HOME' as any), 0);
+        return null;
       }
       return (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -9204,73 +9166,7 @@ export const StudentDashboard: React.FC<Props> = ({
             );
           })()}
 
-          {/* ── THEME: Admin → Studio button | Users → Theme history picker ── */}
           {(() => {
-            const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' || isImpersonating;
-
-            /* ── ADMIN: Full Theme Studio button ── */
-            if (_isAdminUser) {
-              return (
-                <div className="mx-3 rounded-2xl mb-3" style={{ background: _pCard, border: _pBdrSoft }}>
-                  <button
-                    onClick={() => { themeOpenerRef.current = 'PROFILE'; tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTabRef.current]: { selectedSubject, selectedChapter, chapters, contentViewStep } }; onTabChange('THEME_CUSTOMIZER' as any); }}
-                    className={`w-full px-4 py-3.5 flex items-center gap-3 ${_pHovCls} transition-colors`}
-                  >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: `${tierTheme.primary}18`, border: `1px solid ${tierTheme.primary}50` }}>
-                      <span className="text-base">🎨</span>
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <p className={`text-sm font-bold ${_pTxt}`}>Theme Studio</p>
-                      <p className={`text-[10px] mt-0.5 ${_pTxtMuted}`}>Customize your app theme</p>
-                    </div>
-                    <ChevronRight size={14} style={{ color: _pTxtMutedColor }} className="shrink-0" />
-                  </button>
-                </div>
-              );
-            }
-
-            /* ── REGULAR USERS: show Theme Studio button only when themeStudioEvent is active ── */
-            {
-              const _now2 = Date.now();
-              const _tse = (settings as any)?.themeStudioEvent;
-              const _tseActive = _tse?.enabled && meetsEventLevel(EVENT_MIN_LEVELS.themeStudio) &&
-                (_tse.startsAt ? new Date(_tse.startsAt).getTime() <= _now2 : true) &&
-                (_tse.endsAt ? new Date(_tse.endsAt).getTime() > _now2 : true);
-              const _sbe = (settings as any)?.scoreBoostEvent;
-              const _sbeTheme = _sbe?.enabled && _sbe?.themeStudioEnabled && meetsEventLevel(EVENT_MIN_LEVELS.scoreBoost) &&
-                (_sbe.startsAt ? new Date(_sbe.startsAt).getTime() <= _now2 : true) &&
-                (_sbe.endsAt ? new Date(_sbe.endsAt).getTime() > _now2 : true);
-              if (_tseActive || _sbeTheme) {
-                const _days = _sbeTheme ? Math.min(_sbe.themeStudioDays ?? 7, 7) : undefined;
-                const _endsAt = _tseActive ? _tse.endsAt : _sbe.endsAt;
-                return (
-                  <div className="mx-3 rounded-2xl mb-3" style={{ background: _pCard, border: `1px solid rgba(139,92,246,0.3)` }}>
-                    <button
-                      onClick={() => { themeOpenerRef.current = 'PROFILE'; tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTabRef.current]: { selectedSubject, selectedChapter, chapters, contentViewStep } }; onTabChange('THEME_CUSTOMIZER' as any); }}
-                      className={`w-full px-4 py-3.5 flex items-center gap-3 transition-colors active:scale-[0.98]`}
-                    >
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.4)' }}>
-                        <span className="text-base">🎨</span>
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className={`text-sm font-bold ${_pTxt}`}>Theme Studio
-                          <span className="ml-2 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-400">EVENT</span>
-                        </p>
-                        <p className={`text-[10px] mt-0.5 text-violet-400/80`}>
-                          {_endsAt ? `${new Date(_endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} tak — ` : ''}
-                          {_days ? `Customize your theme for ${_days} days` : 'Make the app your own!'}
-                        </p>
-                      </div>
-                      <ChevronRight size={14} style={{ color: 'rgba(139,92,246,0.7)' }} className="shrink-0" />
-                    </button>
-                  </div>
-                );
-              }
-            }
-            return null;
-
             // eslint-disable-next-line no-unreachable
             const _userTierStr = 'free';
             const _applicable: import('../types').ThemeHistoryEntry[] = [];
@@ -10056,7 +9952,6 @@ export const StudentDashboard: React.FC<Props> = ({
               const cfEnabled = settings?.creditFreeEvent?.enabled ?? (settings?.isCreditFreeEvent ?? false);
               pushActive('🪙 Credit Free', cfEnabled, (settings?.creditFreeEvent as any)?.startsAt, (settings?.creditFreeEvent as any)?.endsAt);
               pushActive('📈 Limit Boost', (settings as any)?.dailyLimitBoostEvent?.enabled ?? false, (settings as any)?.dailyLimitBoostEvent?.startsAt, (settings as any)?.dailyLimitBoostEvent?.endsAt);
-              pushActive('🎨 Theme Studio', (settings as any)?.themeStudioEvent?.enabled ?? false, (settings as any)?.themeStudioEvent?.startsAt, (settings as any)?.themeStudioEvent?.endsAt);
               pushActive(`🎁 ${settings?.creditBonusEvent?.eventName || 'Credit Bonus'}`, settings?.creditBonusEvent?.enabled ?? false, settings?.creditBonusEvent?.startsAt, settings?.creditBonusEvent?.endsAt);
               // ── 80% elapsed detection ──
               const elapsedPct = (s?: string, e?: string) => {
@@ -10076,7 +9971,6 @@ export const StudentDashboard: React.FC<Props> = ({
                   { label: '🌍 Free Access', startsAt: settings?.globalFreeAccessEvent?.startsAt, endsAt: settings?.globalFreeAccessEvent?.endsAt },
                   { label: '🪙 Credit Free', startsAt: (settings?.creditFreeEvent as any)?.startsAt, endsAt: (settings?.creditFreeEvent as any)?.endsAt },
                   { label: '📈 Limit Boost', startsAt: (settings as any)?.dailyLimitBoostEvent?.startsAt, endsAt: (settings as any)?.dailyLimitBoostEvent?.endsAt },
-                  { label: '🎨 Theme Studio', startsAt: (settings as any)?.themeStudioEvent?.startsAt, endsAt: (settings as any)?.themeStudioEvent?.endsAt },
                   { label: `🎁 ${settings?.creditBonusEvent?.eventName || 'Credit Bonus'}`, startsAt: settings?.creditBonusEvent?.startsAt, endsAt: settings?.creditBonusEvent?.endsAt },
                 ];
                 const hist: any[] = JSON.parse(localStorage.getItem(EVT_HIST_KEY) || '[]').filter((h: any) => now - h.expiredAt < sevenDays);
@@ -10101,7 +9995,6 @@ export const StudentDashboard: React.FC<Props> = ({
               pushUpcoming('🌍 Free Access', settings?.globalFreeAccessEvent?.enabled ?? false, settings?.globalFreeAccessEvent?.startsAt, settings?.globalFreeAccessEvent?.endsAt);
               pushUpcoming('🪙 Credit Free', settings?.creditFreeEvent?.enabled ?? (settings?.isCreditFreeEvent ?? false), (settings?.creditFreeEvent as any)?.startsAt, (settings?.creditFreeEvent as any)?.endsAt);
               pushUpcoming('📈 Limit Boost', (settings as any)?.dailyLimitBoostEvent?.enabled ?? false, (settings as any)?.dailyLimitBoostEvent?.startsAt, (settings as any)?.dailyLimitBoostEvent?.endsAt);
-              pushUpcoming('🎨 Theme Studio', (settings as any)?.themeStudioEvent?.enabled ?? false, (settings as any)?.themeStudioEvent?.startsAt, (settings as any)?.themeStudioEvent?.endsAt);
               pushUpcoming(`🎁 ${settings?.creditBonusEvent?.eventName || 'Credit Bonus'}`, settings?.creditBonusEvent?.enabled ?? false, settings?.creditBonusEvent?.startsAt, settings?.creditBonusEvent?.endsAt);
 
               if (activeEvents.length === 0 && upcomingEvents.length === 0) return null;
@@ -10191,7 +10084,6 @@ export const StudentDashboard: React.FC<Props> = ({
                               const msLeft = ae.endsAt ? new Date(ae.endsAt).getTime() - Date.now() : Infinity;
                               // Level gate for this event
                               const _evMinLvl = ev.includes('Score Boost') ? EVENT_MIN_LEVELS.scoreBoost
-                                : ev.includes('Theme Studio') ? EVENT_MIN_LEVELS.themeStudio
                                 : ev.includes('Credit Free') ? EVENT_MIN_LEVELS.creditFree
                                 : ev.includes('Free Access') ? EVENT_MIN_LEVELS.globalFreeAccess
                                 : ev.includes('Limit Boost') ? EVENT_MIN_LEVELS.dailyLimitBoost
@@ -10311,37 +10203,6 @@ export const StudentDashboard: React.FC<Props> = ({
                                         <span className="text-[10px] font-black text-emerald-300">Total Aaj</span>
                                         <span className="text-[10px] font-black text-white">{totalLimit} pts {extraPts > 0 && <span className="text-emerald-400">(+{Math.round((extraPts/Math.max(baseLimit,1))*100)}% extra!)</span>}</span>
                                       </div>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                              const isThemeStudio = ev.includes('Theme Studio');
-                              if (isThemeStudio) {
-                                const tsEvent = (settings as any)?.themeStudioEvent;
-                                const endsAt = tsEvent?.endsAt;
-                                return (
-                                  <div key={i} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.35)' }}>
-                                    <div className="px-4 pt-3.5 pb-3 flex items-center gap-3">
-                                      <span className="text-2xl shrink-0">🎨</span>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-black text-white text-sm">{tsEvent?.eventName || 'Theme Studio Event'}</p>
-                                        <p className="text-[10px] text-violet-400/80 mt-0.5">
-                                          {endsAt ? `Until ${new Date(endsAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' })} — ` : ''}Make the app your own!
-                                        </p>
-                                      </div>
-                                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${isEndingSoon ? 'bg-red-500/20 text-red-400' : 'bg-violet-500/20 text-violet-300'}`}>{isEndingSoon ? 'ENDING' : 'LIVE'}</span>
-                                    </div>
-                                    <div className="px-4 pb-3.5">
-                                      {isEndingSoon && endCountdown && (
-                                        <p className="text-[9px] font-black text-red-400 mb-2">⏰ {endCountdown} — open now!</p>
-                                      )}
-                                      <button
-                                        onClick={() => { setShowEventDrawer(false); themeOpenerRef.current = 'HOME'; tabSnapshotsRef.current = { ...tabSnapshotsRef.current, [currentLogicalTabRef.current]: { selectedSubject, selectedChapter, chapters, contentViewStep } }; onTabChange('THEME_CUSTOMIZER' as any); }}
-                                        className="w-full py-2.5 rounded-xl font-black text-xs text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}
-                                      >
-                                        🎨 Theme Studio Kholo
-                                      </button>
                                     </div>
                                   </div>
                                 );
@@ -20421,16 +20282,9 @@ RULES:
                     {
                       emoji: '🚀',
                       title: `Score Boost Event: ${_fl.level >= EVENT_MIN_LEVELS.scoreBoost ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.scoreBoost}+ required`}`,
-                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.scoreBoost} — boosted scores + Theme Studio access during the event`,
+                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.scoreBoost} — boosted scores during the event`,
                       color: _fl.level >= EVENT_MIN_LEVELS.scoreBoost ? '#f97316' : '#475569',
                       active: _fl.level >= EVENT_MIN_LEVELS.scoreBoost,
-                    },
-                    {
-                      emoji: '🎨',
-                      title: `Theme Studio Event: ${_fl.level >= EVENT_MIN_LEVELS.themeStudio ? '✓ Accessible' : `🔒 Level ${EVENT_MIN_LEVELS.themeStudio}+ required`}`,
-                      desc: `Unlocks at Level ${EVENT_MIN_LEVELS.themeStudio} — freely customize the app theme during the event`,
-                      color: _fl.level >= EVENT_MIN_LEVELS.themeStudio ? '#8b5cf6' : '#475569',
-                      active: _fl.level >= EVENT_MIN_LEVELS.themeStudio,
                     },
                     {
                       emoji: '🪙',
@@ -20834,10 +20688,7 @@ RULES:
             { emoji: '📈', title: '🎉 Daily Limit Boost Event — Unlocked!', desc: `Level 3 reached! Daily score limits get boosted further during Limit Boost events`, color: '#10b981', active: true },
           ] : []),
           ...(l.level === 5 ? [
-            { emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Score Boost events fully active at Level 5 — boosted scores + Theme Studio perk', color: '#f97316', active: true },
-          ] : []),
-          ...(l.level === 7 ? [
-            { emoji: '🎨', title: '🎉 Theme Studio Event — Unlocked!', desc: 'Theme Studio events accessible at Level 7 — customize the app look', color: '#8b5cf6', active: true },
+            { emoji: '🚀', title: '🎉 Score Boost Event — Unlocked!', desc: 'Score Boost events fully active at Level 5 — boosted scores', color: '#f97316', active: true },
           ] : []),
           ...(l.level === 8 ? [
             { emoji: '🪙', title: '🎉 Credit Free Event — Unlocked!', desc: 'Credit Free events at Level 8 — unlock content without spending coins', color: '#06b6d4', active: true },
@@ -20853,7 +20704,6 @@ RULES:
               l.level >= 1 ? '✓ Discount + Credit Bonus' : '🔒 Discount/Credit Bonus (L1)',
               l.level >= 3 ? '✓ Limit Boost' : `🔒 Limit Boost (L3)`,
               l.level >= 5 ? '✓ Score Boost' : `🔒 Score Boost (L5)`,
-              l.level >= 7 ? '✓ Theme Studio' : `🔒 Theme Studio (L7)`,
               l.level >= 8 ? '✓ Credit Free' : `🔒 Credit Free (L8)`,
               l.level >= 10 ? '✓ Global Free' : `🔒 Global Free (L10)`,
             ].join(' · '),

@@ -798,11 +798,10 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             personalTheme:      themeObj,
             personalThemeColor: theme.btnStart,
         };
-        // If score boost event has theme studio enabled, add theme expiry
+        // Event theme always expires after exactly 7 days, then reverts to default
         const sbe = (settings as any)?.scoreBoostEvent;
         if (!isAdmin && sbe?.enabled && sbe?.themeStudioEnabled) {
-            const days = Math.min(sbe.themeStudioDays ?? 7, 7);
-            (updated as any).personalThemeExpiry = new Date(Date.now() + days * 24 * 3600000).toISOString();
+            (updated as any).personalThemeExpiry = new Date(Date.now() + 7 * 24 * 3600000).toISOString();
         } else if (!isAdmin) {
             delete (updated as any).personalThemeExpiry;
         }

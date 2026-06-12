@@ -3934,7 +3934,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           <div className="flex items-center justify-between">
                               <div>
                                   <span className="text-xs font-bold text-orange-700">🚀 Score Boost Event</span>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Sabhi users ka score boost + Theme Studio access</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Sabhi users ka score boost</p>
                               </div>
                               <input
                                   type="checkbox"
@@ -3988,30 +3988,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               className="w-full p-2 border rounded text-xs"
                                           />
                                       </div>
-                                  </div>
-                                  <div className="flex items-center gap-3 pt-1">
-                                      <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer">
-                                          <input
-                                              type="checkbox"
-                                              checked={(localSettings as any).scoreBoostEvent?.themeStudioEnabled || false}
-                                              onChange={e => setLocalSettings({...localSettings, scoreBoostEvent: {...((localSettings as any).scoreBoostEvent || {}), themeStudioEnabled: e.target.checked}} as any)}
-                                              className="accent-orange-600"
-                                          />
-                                          🎨 Theme Studio Access
-                                      </label>
-                                      {(localSettings as any).scoreBoostEvent?.themeStudioEnabled && (
-                                          <div className="flex items-center gap-1">
-                                              <label className="text-[10px] text-slate-600">Theme Days (max 7):</label>
-                                              <input
-                                                  type="number"
-                                                  min={1}
-                                                  max={7}
-                                                  value={(localSettings as any).scoreBoostEvent?.themeStudioDays ?? 7}
-                                                  onChange={e => setLocalSettings({...localSettings, scoreBoostEvent: {...((localSettings as any).scoreBoostEvent || {}), themeStudioDays: Math.min(7, Number(e.target.value))}} as any)}
-                                                  className="w-12 p-1 border rounded text-xs"
-                                              />
-                                          </div>
-                                      )}
                                   </div>
                               </div>
                           )}
