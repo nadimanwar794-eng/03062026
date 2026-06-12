@@ -656,7 +656,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   // 6. Default tier theme
                   : getTierTheme(user);
 
-  // ── App background: personalTheme bgColor → admin override → dark mode → white ──
+  // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
   const _appBg = (() => {
     const themeBg = (tierTheme as any).appBgColor as string | null | undefined;
     if (themeBg && themeBg !== '#ffffff' && themeBg !== '#f8fafc' && themeBg !== '#f1f5f9') return themeBg;
@@ -666,7 +666,9 @@ export const StudentDashboard: React.FC<Props> = ({
       const themeType = localStorage.getItem('nst_dark_theme_type') || 'black';
       return themeType === 'blue' ? '#050d1f' : '#000000';
     }
-    return manual || '#ffffff';
+    // Use tier's own appBg (e.g. Ultra = #f8fafc light grey, others = white)
+    const tierAppBg = (tierTheme as any).appBg as string | undefined;
+    return manual || tierAppBg || '#ffffff';
   })();
 
   // ── Nav background luminance — for dynamic icon/text color ───────────────
