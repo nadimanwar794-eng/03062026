@@ -604,8 +604,9 @@ export const StudentDashboard: React.FC<Props> = ({
     }) || null;
   })();
 
-  // Admin users should not be affected by admin-controlled theme overrides
-  // (tier colors, broadcasts) when they themselves are managing those settings.
+  // Admin users are excluded ONLY from temporary broadcasts and scheduled themes
+  // (to avoid self-interference while managing settings).
+  // Tier-based default colors (officialTierTheme, overrideColor) apply to ALL users including admins.
   const _isAdminUser = (user as any).role === 'ADMIN' || (user as any).role === 'SUB_ADMIN';
 
   const tierTheme =
@@ -646,12 +647,11 @@ export const StudentDashboard: React.FC<Props> = ({
             ? buildOverrideTierTheme(getTierTheme(user), (user as any).personalThemeColor, getUserTier(user))
             : _customThemeActive && _customThemeRaw
               ? buildGranularTierTheme(getTierTheme(user), _customThemeRaw)
-              // 4. Official tier theme — admin ne set kiya, fallback when user has NO personal theme
-              //    Also skipped for admin users so their own tier config changes don't affect them
-              : (!_isAdminUser && _officialTierTheme)
+              // 4. Official tier theme — applies to ALL users including admins
+              : _officialTierTheme
                 ? buildGranularTierTheme(getTierTheme(user), _officialTierTheme)
-                // 5. Single-color override (redeem/tier/global) — skipped for admin users
-                : (!_isAdminUser && _overrideColor)
+                // 5. Single-color override (tier/global) — applies to ALL users including admins
+                : _overrideColor
                   ? buildOverrideTierTheme(getTierTheme(user), _overrideColor, getUserTier(user))
                   // 6. Default tier theme
                   : getTierTheme(user);
