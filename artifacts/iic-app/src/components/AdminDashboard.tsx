@@ -15133,13 +15133,19 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           ⬇️ Export Backup as JSON File
                       </button>
 
-                      {/* Import button — hidden file input */}
+                      {/* Import button — label triggers file input (most reliable cross-browser) */}
                       <div>
+                          <label
+                              htmlFor="iic-json-import-input"
+                              className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95 transition-all border border-slate-500 cursor-pointer"
+                          >
+                              📂 Import from JSON File → Firebase
+                          </label>
                           <input
                               id="iic-json-import-input"
                               type="file"
                               accept=".json,application/json"
-                              className="hidden"
+                              style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
                               onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (!file) return;
@@ -15152,6 +15158,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       if (statusEl) statusEl.textContent = '⏳ File padh raha hai…';
                                       const text = await file.text();
                                       const bundle = JSON.parse(text);
+                                      if (!bundle._version) throw new Error('Yeh valid IIC backup file nahi hai.');
                                       if (statusEl) statusEl.textContent = '⏳ Firebase mein restore ho raha hai…';
                                       const result = await importBackupFromJson(bundle, (done, total, key) => {
                                           if (statusEl) statusEl.textContent = `⏳ ${done}/${total} — ${key}`;
@@ -15166,12 +15173,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   (e.target as HTMLInputElement).value = '';
                               }}
                           />
-                          <button
-                              onClick={() => document.getElementById('iic-json-import-input')?.click()}
-                              className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm active:scale-95 transition-all border border-slate-500"
-                          >
-                              📂 Import from JSON File → Firebase
-                          </button>
                       </div>
 
                       <p id="iic-json-status" className="text-[10px] text-slate-300 font-mono min-h-[16px] text-center"></p>
