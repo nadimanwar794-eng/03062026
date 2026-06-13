@@ -85,6 +85,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     } catch { return 'Nadim Anwar'; }
   });
 
+  const [showFooter] = useState<boolean>(() => {
+    try {
+      const s = localStorage.getItem('nst_system_settings');
+      const o = s ? JSON.parse(s) : null;
+      return o?.showFooter !== false;
+    } catch { return true; }
+  });
+
   const [appNameSize] = useState<number>(() => {
     try {
       const s = localStorage.getItem('nst_system_settings');
@@ -293,10 +301,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
             />
           </div>
           <div className="flex items-center justify-center gap-2 mt-1">
-            <p className={`text-[11px] font-bold ${t.badge} tracking-wide`}>
-              Developed by {developerName}
-            </p>
-            <span className={t.badge}>|</span>
+            {showFooter && (
+              <>
+                <p className={`text-[11px] font-bold ${t.badge} tracking-wide`}>
+                  Developed by {developerName}
+                </p>
+                <span className={t.badge}>|</span>
+              </>
+            )}
             <p className={`text-[11px] ${t.badge} font-mono font-bold tracking-widest`}>
               v{APP_VERSION}
             </p>

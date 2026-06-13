@@ -5848,9 +5848,11 @@ export const StudentDashboard: React.FC<Props> = ({
                     <h2 className="mt-4 text-xl font-black text-slate-800 tracking-tight text-center">
                       {settings?.appName || 'IIC'}
                     </h2>
-                    <p className="mt-1 text-[11px] text-slate-500 font-semibold">
-                      Developed by {settings?.developerName?.trim() || 'Nadim Anwar'}
-                    </p>
+                    {settings?.showFooter !== false && (
+                      <p className="mt-1 text-[11px] text-slate-500 font-semibold">
+                        Developed by {settings?.developerName?.trim() || 'Nadim Anwar'}
+                      </p>
+                    )}
                     <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
                       v{APP_VERSION}
                     </span>
@@ -9599,7 +9601,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
           {/* Footer */}
           <p className={`text-center text-[10px] pb-4 ${_pTxtMuted}`}>
-            v{APP_VERSION} · {settings?.developerName?.trim() || 'Nadim Anwar'}
+            v{APP_VERSION}{settings?.showFooter !== false ? ` · ${settings?.developerName?.trim() || 'Nadim Anwar'}` : ''}
           </p>
 
           {/* ── Level Style Chooser Sheet ── */}

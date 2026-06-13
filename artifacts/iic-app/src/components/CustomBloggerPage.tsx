@@ -59,7 +59,7 @@ export const CustomBloggerPage: React.FC<Props> = ({ onBack, settings }) => {
             </div>
             <div className="flex flex-col items-end text-[10px] text-slate-600 font-medium leading-tight">
                 <span>App Version: {APP_VERSION}</span>
-                <span>Developed by {settings?.developerName?.trim() || 'Nadim Anwar'}</span>
+                {settings?.showFooter !== false && <span>Developed by {settings?.developerName?.trim() || 'Nadim Anwar'}</span>}
             </div>
         </div>
         
