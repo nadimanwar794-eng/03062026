@@ -118,8 +118,8 @@ export interface ScoreLogEntry {
 }
 
 const SCORE_LOG_KEY = (uid: string) => `nst_score_log_${uid}`;
-const MAX_LOG = 600;
-const RETENTION_DAYS = 14;
+const MAX_LOG = 900;
+const RETENTION_DAYS = 30;
 
 export const getScoreLog = (userId: string): ScoreLogEntry[] => {
   try { return JSON.parse(localStorage.getItem(SCORE_LOG_KEY(userId)) || '[]'); } catch { return []; }
@@ -129,14 +129,15 @@ export const logScoreActivity = (userId: string, activity: string, pts: number):
   if (pts <= 0) return;
   try {
     const log = getScoreLog(userId);
-    // Use local timezone date so midnight IST = new day (not 5:30 AM IST)
     log.push({ date: getLocalDateStr(), ts: Date.now(), activity, pts });
-    // Prune entries older than 14 days — auto-delete after retention period
     const cutoff = getLocalDateStr(-RETENTION_DAYS);
     const pruned = log.filter(e => e.date >= cutoff);
-    // Also cap total entries as safety
     if (pruned.length > MAX_LOG) pruned.splice(0, pruned.length - MAX_LOG);
     localStorage.setItem(SCORE_LOG_KEY(userId), JSON.stringify(pruned));
+    // Fire-and-forget Firebase sync so history persists across devices/browser clears
+    import('../firebase').then(({ saveScoreLogToFirebase }) => {
+      saveScoreLogToFirebase(userId, pruned).catch(() => {});
+    }).catch(() => {});
   } catch {}
 };
 

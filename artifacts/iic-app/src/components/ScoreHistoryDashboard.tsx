@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronDown, ChevronUp, TrendingUp, Award, Calendar, Zap, ArrowUp, ArrowDown, Minus, Clock } from "lucide-react";
 import { getScoreLog, ScoreLogEntry, getDailyScoreEarned, getDailyScoreLimit } from "../utils/scoreSystem";
 import { getLevelInfo, getNextLevelInfo } from "../utils/levelSystem";
+import { getScoreLogFromFirebase, saveScoreLogToFirebase } from "../firebase";
 
 interface Props {
   user: { id: string; totalScore?: number; subscriptionLevel?: string; isPremium?: boolean };
@@ -79,14 +80,43 @@ export const ScoreHistoryDashboard: React.FC<Props> = ({ user, onBack }) => {
   const [touchedBarIdx, setTouchedBarIdx] = useState<number | null>(null);
   const [countdown, setCountdown] = useState(getMidnightCountdown());
   const [showAllActivities, setShowAllActivities] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const dayRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // log as state so Firebase sync can update it
+  const [log, setLog] = useState<ScoreLogEntry[]>(() => getScoreLog(user.id));
 
   useEffect(() => {
     const t = setInterval(() => setCountdown(getMidnightCountdown()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const log = useMemo(() => getScoreLog(user.id), [user.id]);
+  // On mount: load from Firebase, merge with localStorage, save unified log back
+  useEffect(() => {
+    if (!user.id) return;
+    setSyncing(true);
+    getScoreLogFromFirebase(user.id).then(fbLog => {
+      const local = getScoreLog(user.id);
+      // Merge: union by (date + ts + activity), keep all unique entries
+      const seen = new Set<string>();
+      const merged: ScoreLogEntry[] = [];
+      for (const e of [...fbLog, ...local]) {
+        const key = `${e.date}_${e.ts}_${e.activity}`;
+        if (!seen.has(key)) { seen.add(key); merged.push(e); }
+      }
+      merged.sort((a, b) => a.ts - b.ts);
+      // Prune to 30 days
+      const cutoff = (() => {
+        const d = new Date(); d.setDate(d.getDate() - 30);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      })();
+      const pruned = merged.filter(e => e.date >= cutoff).slice(-900);
+      // Save merged back to localStorage + Firebase
+      try { localStorage.setItem(`nst_score_log_${user.id}`, JSON.stringify(pruned)); } catch {}
+      saveScoreLogToFirebase(user.id, pruned).catch(() => {});
+      setLog(pruned);
+    }).catch(() => {}).finally(() => setSyncing(false));
+  }, [user.id]);
 
   const today = getLocalDate();
   const todayKey = today;

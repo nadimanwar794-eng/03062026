@@ -676,6 +676,28 @@ export const rebuildContentIndex = async (
   return { indexed, failed };
 };
 
+// --- SCORE LOG FIREBASE SYNC ---
+// Saves the full score log array to RTDB under users/{uid}/scoreLog
+export const saveScoreLogToFirebase = async (userId: string, log: any[]): Promise<void> => {
+  if (!userId || !log) return;
+  try {
+    await set(ref(rtdb, `users/${userId}/scoreLog`), log);
+  } catch {}
+};
+
+// Reads score log from RTDB for a user
+export const getScoreLogFromFirebase = async (userId: string): Promise<any[]> => {
+  if (!userId) return [];
+  try {
+    const snap = await get(ref(rtdb, `users/${userId}/scoreLog`));
+    if (snap.exists()) {
+      const val = snap.val();
+      return Array.isArray(val) ? val : [];
+    }
+    return [];
+  } catch { return []; }
+};
+
 // --- DUAL WRITE / SMART READ LOGIC ---
 
 // 1. User Data Sync
