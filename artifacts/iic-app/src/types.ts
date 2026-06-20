@@ -197,7 +197,8 @@ export interface User {
   scoreBoostPercent?: number; // Active score boost % from SCORE_BOOST redeem code
   scoreBoostExpiry?: string; // ISO Date when score boost expires
   personalThemeExpiry?: string; // ISO Date when user's temporary custom theme expires (set during score boost event)
-  scoreLimitBoostPercent?: number; // Permanent daily score limit boost % from SCORE_LIMIT_BOOST redeem code
+  scoreLimitBoostPercent?: number; // Temporary daily score limit boost % from SCORE_LIMIT_BOOST redeem code
+  scoreLimitBoostExpiry?: string; // ISO Date when daily limit boost expires (reverts to default after this)
   bonusCredits?: number; // Permanent credits awarded with subscription (never expire)
   giftedCredits?: number; // Admin-gifted credits (separate from earned/bonus)
   giftedCreditsExpiry?: string; // ISO date when gifted credits expire
@@ -319,7 +320,8 @@ export interface SubscriptionPlan {
 export interface RecycleBinItem {
   id: string; // Unique delete ID
   originalId: string; // ID of the actual item
-  type: 'USER' | 'CHAPTER' | 'CONTENT' | 'POST' | 'MCQ_BATCH';
+  type: 'USER' | 'CHAPTER' | 'CONTENT' | 'POST' | 'MCQ_BATCH' | 'HOMEWORK_ENTRY' | 'LUCENT_ENTRY' | 'CONTENT_DATA';
+  firebaseCollection?: string;
   name: string; // For display
   data: any; // Full object to restore
   deletedAt: string;
@@ -433,7 +435,8 @@ export interface BroadcastRedeemCode {
     type: 'CREDITS' | 'SUBSCRIPTION' | 'DISCOUNT' | 'CONTENT_UNLOCK' | 'TOPBAR_EFFECT_COLOR' | 'TOPBAR_EFFECT_ID' | 'SCORE' | 'SCORE_BOOST' | 'SCORE_LIMIT_BOOST';
     scoreBoostPercent?: number; // For SCORE_BOOST type — how much % to boost score by
     scoreBoostDurationHours?: number; // How long the boost lasts
-    scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — permanent daily limit increase %
+    scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — temporary daily limit increase %
+    scoreLimitBoostDurationHours?: number; // How long the daily limit boost lasts (hours)
     message: string;
     title?: string;
     amount?: number;
@@ -572,6 +575,9 @@ export interface LucentNoteEntry {
    *  Students need a valid code (or an admin-generated timedUnlock / permanent unlock)
    *  to open it. Admins always bypass the gate. */
   locked?: boolean;
+  /** When true, this entry contains ONLY MCQs — no page-wise notes.
+   *  Students tap the title and are taken directly to MCQ view (no popup, no page list). */
+  mcqOnly?: boolean;
 }
 
 export interface AppNotification {
@@ -697,6 +703,13 @@ export interface SystemSettings {
   };
   playerBrandingText?: string; // NEW: Custom Video Player Overlay Text
   playerBlockShare?: boolean; // NEW: Block Share
+  iicNstaBadgePos?: {
+    portrait?: { bottom: number; right: number };
+    landscape?: { bottom: number; right: number };
+    fsButton?:  { bottom: number; right: number };
+  }; // Admin-saved badge position (% from edge) for portrait & landscape
+  playerBadgeLabel?: string;    // Text shown on the IIC×NSTA badge button (default: "IIC×NSTA")
+  playerFsButtonLabel?: string; // Text shown on the landscape "go-portrait" button (default: "Portrait")
   appLogo?: string; // NEW: Base64 Logo Image
   syllabusType?: 'SCHOOL' | 'COMPETITIVE' | 'DUAL'; // Updated: DUAL support
   footerText?: string; // NEW: Customized footer text
@@ -709,8 +722,13 @@ export interface SystemSettings {
   // ── Home Page Section Card Colors (Advanced Theme) ──
   homeClass612CardBg?: string;
   homeClass612CardBorder?: string;
+  globalCards3D?: boolean;
+  homeAllCards3D?: boolean;
+  homeClass612Card3D?: boolean;
   homeCompetitionCardBg?: string;
   homeCompetitionCardBorder?: string;
+  homeCompetitionCard3D?: boolean;
+  homeQuickAccessCard3D?: boolean;
   homeQuickAccessCardBg?: string;
   homeQuickAccessCardBorder?: string;
   statusBarColor?: string;
@@ -1199,7 +1217,8 @@ export interface GiftCode {
   type: 'CREDITS' | 'SUBSCRIPTION' | 'DISCOUNT' | 'CONTENT_UNLOCK' | 'TOPBAR_EFFECT_COLOR' | 'TOPBAR_EFFECT_ID' | 'SCORE' | 'SCORE_BOOST' | 'SCORE_LIMIT_BOOST' | 'THEME_COLOR'; // New: Type of code
   scoreBoostPercent?: number; // For SCORE_BOOST type
   scoreBoostDurationHours?: number; // Hours the boost lasts
-  scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — permanent daily limit increase %
+  scoreLimitBoostPercent?: number; // For SCORE_LIMIT_BOOST type — temporary daily limit increase %
+  scoreLimitBoostDurationHours?: number; // How long the daily limit boost lasts (hours)
   amount?: number; // For Credits
   discountPercent?: number; // For Discount
   effectColor?: string; // For TOPBAR_EFFECT_COLOR — hex color

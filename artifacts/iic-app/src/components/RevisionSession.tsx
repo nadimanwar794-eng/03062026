@@ -361,7 +361,7 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                                             <button
                                                 onClick={() => setNotesViewMode(m => m === 'html' ? 'chunk' : 'html')}
                                                 className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-black transition-all border ${notesViewMode === 'chunk' ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'}`}
-                                                title={notesViewMode === 'html' ? 'TTS Reader mein switch karo' : 'Styled Notes mein switch karo'}
+                                                title={notesViewMode === 'html' ? 'Switch to TTS Reader' : 'Switch to Styled Notes'}
                                             >
                                                 {notesViewMode === 'html' ? <Volume2 size={13} /> : <FileText size={13} />}
                                             </button>

@@ -251,7 +251,7 @@ const App: React.FC = () => {
         apiKeys: [],
         welcomeTitle: 'Unlock Smart Learning', 
         welcomeMessage: 'Experience the power of AI-driven education. Our AI filters out the noise of traditional textbooks to deliver only the essential, high-yield topics you need for success. Study smarter, not harder.',
-        marqueeLines: ["Welcome to Leon karo Classes", "Learn Smart", "Contact Admin for Credits"], 
+        marqueeLines: ["Welcome to Leon Classes", "Learn Smart", "Contact Admin for Credits"], 
         liveMessage1: 'Experience the power of AI-driven education.', 
         liveMessage2: 'Start learning today!', 
         bannerConfig: {
@@ -333,6 +333,15 @@ const App: React.FC = () => {
   // IN-APP BROWSER (banner tap → iframe overlay instead of new tab)
   const [inAppBrowserUrl, setInAppBrowserUrl] = useState<string | null>(null);
 
+  // Global 3D cards — toggle class on <html> when admin setting changes
+  useEffect(() => {
+      if (state.settings?.globalCards3D) {
+          document.documentElement.classList.add('global-cards-3d');
+      } else {
+          document.documentElement.classList.remove('global-cards-3d');
+      }
+  }, [state.settings?.globalCards3D]);
+
   // BANNER AUTO-HIDE LOGIC
   useEffect(() => {
       const top = state.settings.bannerConfig?.top;
@@ -354,7 +363,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     storage.getItem<StudentTab>('nst_active_student_tab').then(saved => {
-        if (saved) setStudentTab(saved);
+        // Always start from HOME — never restore a deep content view on app open
+        if (saved && saved !== 'COURSES' && saved !== 'PDF' && saved !== 'MCQ' && saved !== 'VIDEO' && saved !== 'AUDIO') {
+            setStudentTab(saved);
+        }
     });
   }, []);
 
@@ -545,7 +557,7 @@ const App: React.FC = () => {
                       const _wExp  = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 ghante
                       const _wMsg: any = {
                           id: _wId,
-                          text: `🎁 Level ${_wlvl} Weekly Sunday Bonus!\n\nIs hafte ka special reward aaya hai!\n\n💰 ${_wAmt} Bonus Credits — 12 ghante mein expire ho jayenge\n\nYe credits Store, MCQ unlock, Theme Studio sabhi jagah use ho sakte hain!\n\nNeeche "Claim Karo" dabao.`,
+                          text: `🎁 Level ${_wlvl} Weekly Sunday Bonus!\n\nYour special reward for this week is here!\n\n💰 ${_wAmt} Bonus Credits — expires in 12 hours\n\nThese credits can be used in Store, MCQ unlock, Theme Studio and more!\n\nTap "Claim" below.`,
                           date: new Date().toISOString(),
                           read: false,
                           type: 'GIFT',
@@ -672,13 +684,13 @@ const App: React.FC = () => {
                       } else if (chosen.type === 'DISCOUNT') {
                           const rgIdD = rgId + '-disc';
                           if (!(updatedUser.inbox || []).some((m: any) => m.id === rgIdD)) {
-                              const discMsg: any = { id: rgIdD, text: `🎲 Lucky Login Gift!\n\n${chosen.label || 'Aapko special discount mila!'}\n\n🏷️ Aaj aapke login par ${chosen.discountPercent || 10}% store discount mila!\n\nStore mein jao aur enjoy karo!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
+                              const discMsg: any = { id: rgIdD, text: `🎲 Lucky Login Gift!\n\n${chosen.label || 'You received a special discount!'}\n\n🏷️ Today's login earned you a ${chosen.discountPercent || 10}% store discount!\n\nHead to the Store and enjoy!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
                               updatedUser.inbox = [discMsg, ...(updatedUser.inbox || [])]; hasUpdates = true;
                           }
                       } else if (chosen.type === 'EFFECT') {
                           const rgIdE = rgId + '-eff';
                           if (!(updatedUser.inbox || []).some((m: any) => m.id === rgIdE)) {
-                              const effMsg: any = { id: rgIdE, text: `🎲 Lucky Effect Gift!\n\n${chosen.label || 'Special animation effect mila!'}\n\n✨ Aapko yeh animation mila: ${chosen.effectId || ''}\n\nRedeem section mein dalein ya admin se contact karein!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
+                              const effMsg: any = { id: rgIdE, text: `🎲 Lucky Effect Gift!\n\n${chosen.label || 'You received a special animation effect!'}\n\n✨ Your animation: ${chosen.effectId || ''}\n\nEnter it in the Redeem section or contact admin!`, date: new Date().toISOString(), read: false, type: 'TEXT' };
                               updatedUser.inbox = [effMsg, ...(updatedUser.inbox || [])]; hasUpdates = true;
                           }
                       }
@@ -1060,7 +1072,8 @@ const App: React.FC = () => {
                        view: nextView as any,
                        selectedClass: nextClass
                    }));
-                   setAlertConfig({isOpen: true, message: "Your subscription has expired. Premium features are locked."});
+                   const expiredTier = state.user?.subscriptionLevel === 'ULTRA' ? 'MAX (Ultra)' : 'PRO (Basic)';
+                   setAlertConfig({isOpen: true, message: `⏳ Aapka ${expiredTier} plan khatam ho gaya. Ab aap Free tier pe hain — sari premium features lock ho gayi hain.`});
               } else {
                    // Just update state silently
                    setState(prev => ({...prev, user: updatedUser}));
@@ -1071,6 +1084,7 @@ const App: React.FC = () => {
           // based on settings.popupConfigs. Removing it from App.tsx to prevent duplicate/competing popups.
       };
 
+      checkExpiry(); // Run immediately on mount/user-change
       const interval = setInterval(checkExpiry, 60000); // Check every minute
       return () => clearInterval(interval);
   }, [state.user, state.originalAdmin]);
@@ -1096,37 +1110,12 @@ const App: React.FC = () => {
                   settings: loadedSettings 
               }));
 
-              // --- CACHE CLEANUP (Admin Controlled) ---
-              // "user ka data auto clear hote jayega oar admin decide karega... History delete nahi hoga"
-              if (loadedSettings.cacheClearDays && loadedSettings.cacheClearDays > 0) {
-                  const now = Date.now();
-                  const retentionMs = loadedSettings.cacheClearDays * 24 * 60 * 60 * 1000;
-
-                  // Clean standard localStorage Content Cache
-                  Object.keys(localStorage).forEach(key => {
-                      if (key.startsWith('nst_content_')) {
-                          // We don't have timestamps on these keys usually, but if we did or if we rely on last access.
-                          // Since we can't track age easily on simple keys without metadata, we might need a more robust strategy.
-                          // However, assuming we want to clear *old* content.
-                          // Let's check if the key has a timestamp or if we just wipe all content occasionally?
-                          // Better: Use `storage` util which might have timestamps or just skip for now if too risky.
-                          // Wait, the requirement says "auto clear".
-                          // Let's implement a safe clear: Delete 'nst_content_' keys that haven't been accessed recently?
-                          // LocalStorage doesn't track access time.
-                          // Strategy: We will just clear ALL cached content if the "Last Clear Date" was > X days ago.
-                          const lastClear = parseInt(localStorage.getItem('nst_last_cache_clear') || '0');
-                          if (now - lastClear > retentionMs) {
-                              Object.keys(localStorage).forEach(k => {
-                                  if (k.startsWith('nst_content_')) localStorage.removeItem(k);
-                              });
-                              // Also clear indexedDB via storage util if possible (not exposed here, but we can try)
-                              storage.clear().catch(e => console.error(e));
-
-                              localStorage.setItem('nst_last_cache_clear', now.toString());
-                          }
-                      }
-                  });
-              }
+              // --- CACHE CLEANUP (DISABLED) ---
+              // Auto cache-clear was causing blank content pages: it wiped localforage
+              // so getChapterData had to fall back to RTDB/Firestore, but if the
+              // Firebase Auth session was stale those reads failed silently.
+              // Cache clearing is now a manual admin action only (Admin Dashboard → Reset Cache).
+              // DO NOT re-enable automatic cache clearing here.
 
           } catch(e) {}
       }
@@ -1148,6 +1137,16 @@ const App: React.FC = () => {
             return;
         }
 
+        // RE-ESTABLISH FIREBASE AUTH SESSION on startup.
+        // The custom session (nst_current_user) persists across reloads, but the
+        // Firebase Auth SDK session may have expired or been cleared. Without an
+        // active Firebase Auth user, ALL Firestore/RTDB reads fail with
+        // permission-denied — causing blank content pages.
+        // We call signInAnonymously here so Firebase Auth is always active when
+        // the user is already "logged in" via our custom session.
+        auth.currentUser === null && signInAnonymously(auth).catch(e =>
+            console.warn('[IIC] Background Firebase Auth restore failed:', e)
+        );
 
         // MIGRATION & RECALCULATION ON LOAD
         if (user.role !== 'ADMIN') {
@@ -1166,7 +1165,7 @@ const App: React.FC = () => {
             return; 
         }
 
-        let initialView = (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD';
+        let initialView = 'STUDENT_DASHBOARD';
         
         if ((user.role === 'STUDENT' || user.role === 'TEACHER') && !user.profileCompleted) {
              initialView = 'ONBOARDING';
@@ -1331,7 +1330,7 @@ const App: React.FC = () => {
                     // Add code to inbox as special message
                     const codeMsg: any = {
                         id: `code-${activeReward.id}`,
-                        text: `🎁 Engagement Reward Code: Aapko ek special redeem code mila! Code: ${genCode} | Valid ${codeExpiryHours} hours | ${ar.redeemCodeType === 'CREDITS' ? `+${ar.redeemCodeAmount} Credits` : ar.redeemCodeType === 'SUBSCRIPTION' ? `${ar.redeemCodeSubTier} ${ar.redeemCodeSubLevel} Plan` : ar.redeemCodeType === 'DISCOUNT' ? `${ar.redeemCodeDiscountPercent}% Discount` : 'Special Unlock'} | Store mein ja ke Redeem karo!`,
+                        text: `🎁 Engagement Reward Code: You received a special redeem code! Code: ${genCode} | Valid ${codeExpiryHours} hours | ${ar.redeemCodeType === 'CREDITS' ? `+${ar.redeemCodeAmount} Credits` : ar.redeemCodeType === 'SUBSCRIPTION' ? `${ar.redeemCodeSubTier} ${ar.redeemCodeSubLevel} Plan` : ar.redeemCodeType === 'DISCOUNT' ? `${ar.redeemCodeDiscountPercent}% Discount` : 'Special Unlock'} | Go to the Store to redeem!`,
                         date: new Date().toISOString(),
                         read: false,
                         type: 'GIFT',
@@ -1474,12 +1473,16 @@ const App: React.FC = () => {
     setState(prev => ({
       ...prev,
       user,
-      view: ((user.role === 'ADMIN' || user.role === 'SUB_ADMIN') ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD') as any,
+      view: 'STUDENT_DASHBOARD' as any,
       selectedBoard: user.board || null,
       selectedClass: user.classLevel || null,
       selectedStream: user.stream || null,
       language: user.board === 'BSEB' ? 'Hindi' : 'English',
     }));
+
+    if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
+      setTimeout(() => setAlertConfig({ isOpen: true, message: `👋 Welcome, ${user.name || 'Admin'}!\n\nAap Student Dashboard pe hain.\nAdmin Panel ke liye Profile → Admin Panel pe jayein.` }), 600);
+    }
   };
 
   const [logoutPending, setLogoutPending] = useState(false);
@@ -2410,11 +2413,7 @@ const App: React.FC = () => {
 
   // --- SAFE NAVIGATION LOGIC ---
   const goHome = () => {
-     if (state.user?.role === 'STUDENT' || state.originalAdmin) {
-         setState(prev => ({...prev, view: 'STUDENT_DASHBOARD'}));
-     } else if (state.user?.role === 'ADMIN') {
-         setState(prev => ({...prev, view: 'ADMIN_DASHBOARD'}));
-     }
+     setState(prev => ({...prev, view: 'STUDENT_DASHBOARD'}));
   };
 
   const handlePopupClose = (type: string) => {
@@ -2530,13 +2529,12 @@ const App: React.FC = () => {
       if (prev.view === 'STREAMS') return { ...prev, view: 'CLASSES', selectedStream: null };
       if (prev.view === 'CLASSES') return { ...prev, view: 'BOARDS', selectedClass: null };
 
-      // 4. Boards -> Dashboard or Admin
+      // 4. Boards -> Dashboard
       if (prev.view === 'BOARDS') {
-          const nextView = prev.user?.role === 'ADMIN' ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD';
-          return { ...prev, view: nextView as any, selectedBoard: null };
+          return { ...prev, view: 'STUDENT_DASHBOARD' as any, selectedBoard: null };
       }
 
-      return { ...prev, view: prev.user?.role === 'ADMIN' ? 'ADMIN_DASHBOARD' as any : 'STUDENT_DASHBOARD' as any };
+      return { ...prev, view: 'STUDENT_DASHBOARD' as any };
     });
   };
 
@@ -2766,7 +2764,7 @@ const App: React.FC = () => {
       {!isFullScreen && state.view !== 'STUDENT_DASHBOARD' && !isLessonImmersive && (
       <header className="bg-white sticky top-0 z-30 shadow-sm border-b border-slate-100">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-           <div onClick={() => setState(prev => ({ ...prev, view: (state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD' as any }))} className="flex items-center gap-2 cursor-pointer">
+           <div onClick={() => setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD' as any }))} className="flex items-center gap-2 cursor-pointer">
                <div className="flex items-center gap-3">
                  {state.settings.appLogo ? (
                    <img
@@ -2862,6 +2860,7 @@ const App: React.FC = () => {
                               isDarkMode={darkMode}
                               onToggleDarkMode={setDarkMode}
                               onLogout={handleLogout}
+                              onUpdateSettings={updateSettings}
                               onRecoverData={() => {
                                   if (cloudUser) {
                                       setShowCloudRecoveryModal(true);
@@ -2902,21 +2901,48 @@ const App: React.FC = () => {
                 {state.view === 'LESSON' && state.lessonContent && (
                     <ErrorBoundary fallbackLabel="Lesson" resetKey={state.selectedChapter?.id}>
                       <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-screen" aria-label="Loading lesson" aria-busy="true"><div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>}>
-                      <LessonView 
-                          content={state.lessonContent} 
-                          subject={state.selectedSubject!} 
-                          classLevel={state.selectedClass!} 
-                          chapter={state.selectedChapter!} 
-                          loading={state.loading && !isStreaming}
-                          onBack={goBack} 
-                          onMCQComplete={handleMCQComplete}
-                          user={state.user}
-                          settings={state.settings}
-                          isStreaming={isStreaming}
-                          onLaunchContent={(c: any) => handleContentGeneration(c.isPremium ? 'NOTES_PREMIUM' : 'NOTES_HTML_FREE', undefined, false, c)}
-                          onToggleAutoTts={handleToggleAutoTts}
-                          onImmersiveChange={setIsLessonImmersive}
-                      />
+                      {(() => {
+                        const _lcVal = state.lessonContent?.content || state.lessonContent?.pdfUrl || state.lessonContent?.videoUrl || '';
+                        const _lcIsUrl = _lcVal && (_lcVal.startsWith('http://') || _lcVal.startsWith('https://'));
+                        const _isPdfContent = state.lessonContent && (
+                          ['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type) ||
+                          (_lcIsUrl && !['VIDEO_LECTURE','MCQ_ANALYSIS','MCQ_SIMPLE','WEEKLY_TEST'].includes(state.lessonContent.type))
+                        );
+                        const _isVideoContent = state.lessonContent && (
+                          state.lessonContent.type === 'VIDEO_LECTURE' ||
+                          (_lcIsUrl && (
+                            _lcVal.includes('youtube') || _lcVal.includes('youtu.be') ||
+                            _lcVal.includes('drive.google.com') || _lcVal.includes('notebooklm')
+                          ))
+                        );
+                        const _curIdx = state.chapters.findIndex(c => c.id === state.selectedChapter?.id);
+                        const _nextChapter = _curIdx >= 0 && _curIdx < state.chapters.length - 1 ? state.chapters[_curIdx + 1] : null;
+                        const _pdfContentType = (['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent?.type || ''))
+                          ? state.lessonContent!.type as any
+                          : 'PDF_FREE';
+                        const _handleNextPdf = (_isPdfContent && _nextChapter) ? () => onChapterClick(_nextChapter, _pdfContentType) : undefined;
+                        const _handleNextVideo = (_isVideoContent && _nextChapter) ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
+                        const _handleNext = _handleNextVideo || _handleNextPdf;
+                        return (
+                          <LessonView
+                              content={state.lessonContent}
+                              subject={state.selectedSubject!}
+                              classLevel={state.selectedClass!}
+                              chapter={state.selectedChapter!}
+                              loading={state.loading && !isStreaming}
+                              onBack={goBack}
+                              onMCQComplete={handleMCQComplete}
+                              user={state.user}
+                              settings={state.settings}
+                              isStreaming={isStreaming}
+                              onLaunchContent={(c: any) => handleContentGeneration(c.isPremium ? 'NOTES_PREMIUM' : 'NOTES_HTML_FREE', undefined, false, c)}
+                              onToggleAutoTts={handleToggleAutoTts}
+                              onImmersiveChange={setIsLessonImmersive}
+                              onNext={_handleNext}
+                              nextTitle={_nextChapter?.title}
+                          />
+                        );
+                      })()}
                       </Suspense>
                     </ErrorBoundary>
                 )}

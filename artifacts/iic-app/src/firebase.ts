@@ -112,42 +112,506 @@ export const subscribeToAuth = (callback: (user: any) => void) => {
   });
 };
 
-// --- NUCLEAR RESET ---
+// --- SAFE CACHE RESET (replaces Nuclear Reset) ---
+// ── Backup ALL existing Firebase content_data → __backup__ path ──────────────
+// Run this once to seed the backup with existing data. After this, every
+// saveChapterData call automatically keeps the backup fresh.
+export const backupAllContentToFirebase = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ backed: number; failed: number }> => {
+  let backed = 0, failed = 0;
+
+  // ── 1. content_data (chapters / notes) ──────────────────────────────────────
+  try {
+    const snap = await get(ref(rtdb, 'content_data'));
+    if (snap.exists()) {
+      const all = snap.val() as Record<string, any>;
+      const keys = Object.keys(all);
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        try {
+          await set(ref(rtdb, `__backup__/content_data/${key}`), all[key]);
+          backed++;
+          onProgress?.(i + 1, keys.length, key);
+        } catch {
+          failed++;
+        }
+      }
+    }
+  } catch {}
+
+  // ── 2. homework_entries & lucent_entries (per-item collections) ──────────────
+  try {
+    const hwSnap = await get(ref(rtdb, 'homework_entries'));
+    if (hwSnap.exists()) await set(ref(rtdb, '__backup__/homework_entries'), hwSnap.val());
+    backed++;
+  } catch { failed++; }
+  try {
+    const luSnap = await get(ref(rtdb, 'lucent_entries'));
+    if (luSnap.exists()) await set(ref(rtdb, '__backup__/lucent_entries'), luSnap.val());
+    backed++;
+  } catch { failed++; }
+
+  // ── 3. Sharded arrays: competition MCQs, daily GK, and related ───────────────
+  const shardedPaths = [
+    'competition_mcqs',
+    'daily_gk',
+    'notifications',
+    'broadcast_codes',
+    'global_challenge_mcq',
+  ];
+  for (const prefix of shardedPaths) {
+    try {
+      // Read meta to know how many shards exist
+      const metaSnap = await get(ref(rtdb, `${prefix}_meta`));
+      const shardCount: number = metaSnap.exists() ? (metaSnap.val()?.shardCount ?? 1) : 1;
+      for (let idx = 0; idx < shardCount; idx++) {
+        try {
+          const shardSnap = await get(ref(rtdb, `${prefix}_shard_${idx}`));
+          if (shardSnap.exists()) {
+            await set(ref(rtdb, `__backup__/${prefix}_shard_${idx}`), shardSnap.val());
+            backed++;
+            onProgress?.(backed, backed + failed, `${prefix}_shard_${idx}`);
+          }
+        } catch { failed++; }
+      }
+      // Also backup meta
+      if (metaSnap.exists()) {
+        await set(ref(rtdb, `__backup__/${prefix}_meta`), metaSnap.val());
+      }
+    } catch {}
+  }
+
+  console.log(`[IIC] Full Snapshot complete: ${backed} items backed up, ${failed} failed`);
+  return { backed, failed };
+};
+
+// ── Restore content_data from __backup__ → main paths ────────────────────────
+// Use when content_data was accidentally deleted but backup survived.
+export const restoreContentFromFirebaseBackup = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ restored: number; failed: number }> => {
+  const snap = await get(ref(rtdb, '__backup__/content_data'));
+  if (!snap.exists()) throw new Error('Koi backup nahi mila Firebase mein. Pehle "Backup Now" karo.');
+  const all = snap.val() as Record<string, any>;
+  const keys = Object.keys(all);
+  let restored = 0, failed = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    try {
+      await set(ref(rtdb, `content_data/${key}`), all[key]);
+      await setDoc(doc(db, "content_data", key), sanitizeForFirestore(all[key]));
+      restored++;
+      onProgress?.(i + 1, keys.length, key);
+    } catch {
+      failed++;
+    }
+  }
+  // ── Restore homework & lucent entries ────────────────────────────────────────
+  try {
+    const hwSnap = await get(ref(rtdb, '__backup__/homework_entries'));
+    if (hwSnap.exists()) await set(ref(rtdb, 'homework_entries'), hwSnap.val());
+    restored++;
+  } catch { failed++; }
+  try {
+    const luSnap = await get(ref(rtdb, '__backup__/lucent_entries'));
+    if (luSnap.exists()) await set(ref(rtdb, 'lucent_entries'), luSnap.val());
+    restored++;
+  } catch { failed++; }
+
+  // ── Restore sharded arrays: competition MCQs, daily GK, and related ──────────
+  const shardedPaths = [
+    'competition_mcqs',
+    'daily_gk',
+    'notifications',
+    'broadcast_codes',
+    'global_challenge_mcq',
+  ];
+  for (const prefix of shardedPaths) {
+    try {
+      const metaSnap = await get(ref(rtdb, `__backup__/${prefix}_meta`));
+      const shardCount: number = metaSnap.exists() ? (metaSnap.val()?.shardCount ?? 1) : 1;
+      for (let idx = 0; idx < shardCount; idx++) {
+        try {
+          const shardSnap = await get(ref(rtdb, `__backup__/${prefix}_shard_${idx}`));
+          if (shardSnap.exists()) {
+            await set(ref(rtdb, `${prefix}_shard_${idx}`), shardSnap.val());
+            await setDoc(doc(db, 'config', `${prefix}_shard_${idx}`), sanitizeForFirestore(shardSnap.val()));
+            restored++;
+            onProgress?.(restored, restored + failed, `${prefix}_shard_${idx}`);
+          }
+        } catch { failed++; }
+      }
+      if (metaSnap.exists()) {
+        await set(ref(rtdb, `${prefix}_meta`), metaSnap.val());
+        await setDoc(doc(db, 'config', `${prefix}_meta`), sanitizeForFirestore(metaSnap.val()));
+      }
+    } catch {}
+  }
+
+  console.log(`[IIC] Restore complete: ${restored} items restored, ${failed} failed`);
+  return { restored, failed };
+};
+
+// ── Export __backup__ snapshot → downloadable JSON file ──────────────────────
+// Reads all data from RTDB __backup__ path and triggers a browser file download.
+export const exportBackupAsJson = async (
+  onProgress?: (msg: string) => void
+): Promise<void> => {
+  const SHARDED = ['competition_mcqs', 'daily_gk', 'notifications', 'broadcast_codes', 'global_challenge_mcq'];
+  const bundle: Record<string, any> = {
+    _version: 2,
+    _exportedAt: new Date().toISOString(),
+    _app: 'IIC',
+  };
+
+  onProgress?.('Reading content_data…');
+  try {
+    const snap = await get(ref(rtdb, '__backup__/content_data'));
+    if (snap.exists()) bundle.content_data = snap.val();
+  } catch {}
+
+  onProgress?.('Reading homework & lucent entries…');
+  try {
+    const hw = await get(ref(rtdb, '__backup__/homework_entries'));
+    if (hw.exists()) bundle.homework_entries = hw.val();
+  } catch {}
+  try {
+    const lu = await get(ref(rtdb, '__backup__/lucent_entries'));
+    if (lu.exists()) bundle.lucent_entries = lu.val();
+  } catch {}
+
+  for (const prefix of SHARDED) {
+    try {
+      const metaSnap = await get(ref(rtdb, `__backup__/${prefix}_meta`));
+      const shardCount: number = metaSnap.exists() ? (metaSnap.val()?.shardCount ?? 1) : 1;
+      if (metaSnap.exists()) bundle[`${prefix}_meta`] = metaSnap.val();
+      for (let idx = 0; idx < shardCount; idx++) {
+        onProgress?.(`Reading ${prefix} shard ${idx}…`);
+        try {
+          const s = await get(ref(rtdb, `__backup__/${prefix}_shard_${idx}`));
+          if (s.exists()) bundle[`${prefix}_shard_${idx}`] = s.val();
+        } catch {}
+      }
+    } catch {}
+  }
+
+  const json = JSON.stringify(bundle, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `iic_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  onProgress?.('✅ Download shuru ho gaya!');
+};
+
+// ── Import JSON backup file → restore everything to Firebase ─────────────────
+// Takes a parsed JSON bundle (from exportBackupAsJson) and writes it back.
+// RTDB is the primary store — Firestore sync is best-effort (permission errors are tolerated).
+export const importBackupFromJson = async (
+  bundle: Record<string, any>,
+  onProgress?: (done: number, total: number, msg: string) => void
+): Promise<{ restored: number; failed: number }> => {
+  if (!bundle._version) throw new Error('Invalid backup file — IIC JSON backup nahi hai.');
+  const SHARDED = ['competition_mcqs', 'daily_gk', 'notifications', 'broadcast_codes', 'global_challenge_mcq'];
+  let restored = 0, failed = 0;
+  let step = 0;
+  const contentKeys = bundle.content_data ? Object.keys(bundle.content_data) : [];
+  const totalSteps = contentKeys.length + Object.keys(bundle).filter(k => !k.startsWith('_') && k !== 'content_data').length;
+
+  // ── Restore content_data (primary: RTDB, secondary: Firestore best-effort) ──
+  for (const key of contentKeys) {
+    const data = bundle.content_data[key];
+    let rtdbOk = false;
+    try {
+      await set(ref(rtdb, `content_data/${key}`), data);
+      // Also write to backup path so future exports work
+      await set(ref(rtdb, `__backup__/content_data/${key}`), data);
+      rtdbOk = true;
+    } catch (e) {
+      console.error(`[IIC] RTDB write failed for ${key}:`, e);
+    }
+    if (rtdbOk) {
+      // Firestore is best-effort — permission errors are common in dev; don't fail the item
+      try {
+        await setDoc(doc(db, 'content_data', key), sanitizeForFirestore(data));
+      } catch (e) {
+        console.warn(`[IIC] Firestore sync skipped for ${key} (non-fatal):`, (e as any)?.code ?? e);
+      }
+      restored++;
+    } else {
+      failed++;
+    }
+    onProgress?.(++step, totalSteps, `content_data/${key}`);
+  }
+
+  // ── Restore homework_entries ──
+  if (bundle.homework_entries) {
+    try {
+      await set(ref(rtdb, 'homework_entries'), bundle.homework_entries);
+      restored++;
+    } catch { failed++; }
+    onProgress?.(++step, totalSteps, 'homework_entries');
+  }
+
+  // ── Restore lucent_entries ──
+  if (bundle.lucent_entries) {
+    try {
+      await set(ref(rtdb, 'lucent_entries'), bundle.lucent_entries);
+      restored++;
+    } catch { failed++; }
+    onProgress?.(++step, totalSteps, 'lucent_entries');
+  }
+
+  // ── Restore sharded arrays ──
+  for (const prefix of SHARDED) {
+    try {
+      const meta = bundle[`${prefix}_meta`];
+      const shardCount: number = meta?.shardCount ?? 1;
+      if (meta) {
+        try { await set(ref(rtdb, `${prefix}_meta`), meta); } catch {}
+        try { await setDoc(doc(db, 'config', `${prefix}_meta`), sanitizeForFirestore(meta)); } catch {}
+      }
+      for (let idx = 0; idx < shardCount; idx++) {
+        const shardKey = `${prefix}_shard_${idx}`;
+        const shardData = bundle[shardKey];
+        if (!shardData) continue;
+        let ok = false;
+        try { await set(ref(rtdb, shardKey), shardData); ok = true; } catch { failed++; }
+        if (ok) {
+          try { await setDoc(doc(db, 'config', shardKey), sanitizeForFirestore(shardData)); } catch {}
+          restored++;
+        }
+        onProgress?.(++step, totalSteps, shardKey);
+      }
+    } catch {}
+  }
+
+  // ── Post-import: clear stale localforage so RTDB data is fetched fresh ──────
+  // getChapterData reads localforage FIRST. If old empty data was cached there,
+  // it returns that instead of the freshly imported RTDB data. We must wipe it.
+  try {
+    const localforage = (await import('localforage')).default;
+    localforage.config({ name: 'nst_storage' });
+    const allCachedKeys = await localforage.keys();
+    const contentCachedKeys = allCachedKeys.filter(k => k.startsWith('nst_content_'));
+    await Promise.all(contentCachedKeys.map(k => localforage.removeItem(k)));
+    console.log(`[IIC] Cleared ${contentCachedKeys.length} stale localforage entries`);
+  } catch (e) {
+    console.warn('[IIC] localforage clear failed (non-fatal):', e);
+  }
+  // Also clear in-memory chapter cache
+  try { invalidateChapterCache(); } catch {}
+
+  // ── Post-import: rebuild content_index so subject card badges update ────────
+  // content_index is what SubjectSelection reads for Notes/PDF/MCQ badge counts.
+  // Without this, all subject cards show 0 even though content is in RTDB.
+  if (bundle.content_data && Object.keys(bundle.content_data).length > 0) {
+    try {
+      await rebuildContentIndex();
+      console.log('[IIC] content_index rebuilt after JSON import');
+    } catch (e) {
+      console.warn('[IIC] content_index rebuild failed (non-fatal):', e);
+    }
+  }
+
+  console.log(`[IIC] JSON Import complete: ${restored} restored, ${failed} failed`);
+  return { restored, failed };
+};
+
+// ── Content Recovery: re-uploads all cached chapter data from IndexedDB → Firebase ──
+// Useful when Firebase content got accidentally deleted but local cache (IndexedDB) still has it.
+// Reads all 'nst_content_*' keys from localforage and pushes them back to RTDB + Firestore.
+export const recoverContentFromCache = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ recovered: number; failed: number; keys: string[] }> => {
+  const localforage = (await import('localforage')).default;
+  localforage.config({ name: 'nst_storage' });
+  const allKeys = await localforage.keys();
+  const contentKeys = allKeys.filter(k => k.startsWith('nst_content_'));
+  let recovered = 0;
+  let failed = 0;
+  const recoveredKeys: string[] = [];
+  for (let i = 0; i < contentKeys.length; i++) {
+    const key = contentKeys[i];
+    try {
+      const data = await localforage.getItem<any>(key);
+      if (!data) { failed++; continue; }
+      await saveChapterData(key, data);
+      recovered++;
+      recoveredKeys.push(key);
+      onProgress?.(i + 1, contentKeys.length, key);
+    } catch (e) {
+      console.error(`[IIC] Recovery failed for ${key}:`, e);
+      failed++;
+    }
+  }
+  console.log(`[IIC] Recovery complete: ${recovered} recovered, ${failed} failed`);
+  return { recovered, failed, keys: recoveredKeys };
+};
+
+// ── Check what's available for recovery — shows counts from all sources ──────
+// Run this BEFORE recovery to understand what options exist.
+export const checkRecoveryStatus = async (): Promise<{
+  localforageCount: number;
+  backupCount: number;
+  liveCount: number;
+  localforageKeys: string[];
+  backupKeys: string[];
+}> => {
+  const localforage = (await import('localforage')).default;
+  localforage.config({ name: 'nst_storage' });
+
+  // 1. Check localforage (this device's browser cache)
+  let localforageKeys: string[] = [];
+  try {
+    const allKeys = await localforage.keys();
+    localforageKeys = allKeys.filter(k => k.startsWith('nst_content_'));
+  } catch {}
+
+  // 2. Check Firebase __backup__/content_data
+  let backupKeys: string[] = [];
+  try {
+    const snap = await get(ref(rtdb, '__backup__/content_data'));
+    if (snap.exists()) {
+      backupKeys = Object.keys(snap.val()).filter(k => k.startsWith('nst_content_'));
+    }
+  } catch {}
+
+  // 3. Check live content_data in Firebase
+  let liveCount = 0;
+  try {
+    const snap = await get(ref(rtdb, 'content_data'));
+    if (snap.exists()) {
+      liveCount = Object.keys(snap.val()).filter(k => k.startsWith('nst_content_')).length;
+    }
+  } catch {}
+
+  return {
+    localforageCount: localforageKeys.length,
+    backupCount: backupKeys.length,
+    liveCount,
+    localforageKeys,
+    backupKeys,
+  };
+};
+
+// PROTECTED: content_data is NEVER deleted — it contains all educational content.
+// Only local caches are cleared. User sessions and cloud data are preserved.
+// ── Explicit single-item delete — ONLY way to remove homework/lucent entries ──
+// These are the ONLY functions allowed to delete from homework_entries or
+// lucent_entries. _savePerItemCollection NEVER deletes — it only writes/updates.
+export const deleteHomeworkEntry = async (id: string): Promise<void> => {
+  // Save to trash before deleting
+  try {
+    const snap = await getDoc(doc(db, 'homework_entries', id));
+    const data = snap.exists() ? snap.data() : { id };
+    await storage.setItem(`nst_trash_homework_entries_${id}_${Date.now()}`, {
+      trashKey: `nst_trash_homework_entries_${id}_${Date.now()}`,
+      collectionName: 'homework_entries',
+      rtdbBasePath: 'homework_entries',
+      id,
+      data,
+      name: (data as any)?.title || id,
+      deletedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  } catch {}
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'homework_entries', id)),
+    remove(ref(rtdb, `homework_entries/${id}`)),
+    remove(ref(rtdb, `__backup__/homework_entries/${id}`)),
+  ]);
+  // Update index: remove this id from config/homework_index
+  try {
+    const idxSnap = await getDoc(doc(db, 'config', 'homework_index'));
+    const oldIds: string[] = idxSnap.exists() ? (idxSnap.data()?.ids ?? []) : [];
+    const newIds = oldIds.filter(i => i !== id);
+    await Promise.allSettled([
+      setDoc(doc(db, 'config', 'homework_index'), { ids: newIds }),
+      set(ref(rtdb, 'homework_index'), { ids: newIds }),
+    ]);
+  } catch {}
+  console.log(`[IIC] deleteHomeworkEntry: ${id} deleted from Firebase`);
+};
+
+export const deleteLucentEntry = async (id: string): Promise<void> => {
+  // Save to trash before deleting
+  try {
+    const snap = await getDoc(doc(db, 'lucent_entries', id));
+    const data = snap.exists() ? snap.data() : { id };
+    await storage.setItem(`nst_trash_lucent_entries_${id}_${Date.now()}`, {
+      trashKey: `nst_trash_lucent_entries_${id}_${Date.now()}`,
+      collectionName: 'lucent_entries',
+      rtdbBasePath: 'lucent_entries',
+      id,
+      data,
+      name: (data as any)?.lessonTitle || id,
+      deletedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  } catch {}
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'lucent_entries', id)),
+    remove(ref(rtdb, `lucent_entries/${id}`)),
+    remove(ref(rtdb, `__backup__/lucent_entries/${id}`)),
+  ]);
+  // Update index: remove this id from config/lucent_index
+  try {
+    const idxSnap = await getDoc(doc(db, 'config', 'lucent_index'));
+    const oldIds: string[] = idxSnap.exists() ? (idxSnap.data()?.ids ?? []) : [];
+    const newIds = oldIds.filter(i => i !== id);
+    await Promise.allSettled([
+      setDoc(doc(db, 'config', 'lucent_index'), { ids: newIds }),
+      set(ref(rtdb, 'lucent_index'), { ids: newIds }),
+    ]);
+  } catch {}
+  console.log(`[IIC] deleteLucentEntry: ${id} deleted from Firebase`);
+};
+
 export const resetAllContent = async () => {
   let cloudError = null;
   try {
-    console.log("STARTING NUCLEAR RESET...");
+    console.log("STARTING SAFE CACHE RESET...");
 
-    // 1. Clear Local Storage (Synchronous & Async) FIRST
-    // This ensures local cleanup happens regardless of cloud status
+    // 1. Clear only LOCAL CACHE — preserve user session and important keys
     try {
-        localStorage.clear(); // Clear standard local storage (Session, Settings, Cache)
-        await storage.clear(); // Clear IndexedDB/LocalForage (Heavy Content)
-        console.log("✅ Local Data Cleared Successfully");
+        const PRESERVE_KEYS = [
+          'nst_current_user', 'nst_users', 'nst_firebase_project_id',
+          'nst_system_settings', 'nst_user_history',
+        ];
+        const keysToRemove = Object.keys(localStorage).filter(k => !PRESERVE_KEYS.includes(k));
+        keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        // Only clear content cache in IndexedDB — NOT full wipe
+        await storage.clearContentCache();
+        console.log("✅ Local Cache Cleared (user session preserved)");
     } catch (localErr) {
         console.error("Local Clear Error (Non-Fatal):", localErr);
     }
 
-    // 2. RTDB Wipes
+    // 2. RTDB — only clear analytics/logs, NEVER content_data
     try {
-        const rtdbPaths = ['content_data', 'custom_syllabus', 'public_activity', 'ai_interactions', 'universal_analysis_logs'];
+        const rtdbPaths = ['public_activity', 'ai_interactions', 'universal_analysis_logs'];
         await Promise.all(rtdbPaths.map(path => remove(ref(rtdb, path))));
-        console.log("✅ RTDB Cleared Successfully");
+        console.log("✅ RTDB Analytics Cleared (content_data preserved)");
     } catch (e: any) {
         console.error("RTDB Reset Error:", e);
         cloudError = e;
     }
 
-    // 3. Firestore Wipes (Iterative delete)
+    // 3. Firestore — only clear analytics/logs, NEVER content_data or users
     try {
-        const collections = ['content_data', 'custom_syllabus', 'public_activity', 'ai_interactions', 'universal_analysis_logs'];
+        const collections = ['public_activity', 'ai_interactions', 'universal_analysis_logs'];
         for (const colName of collections) {
           const q = query(collection(db, colName));
           const snapshot = await getDocs(q);
           const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
           await Promise.all(deletePromises);
         }
-        console.log("✅ Firestore Cleared Successfully");
+        console.log("✅ Firestore Analytics Cleared (content_data & users preserved)");
     } catch (e: any) {
         console.error("Firestore Reset Error:", e);
         if (!cloudError) cloudError = e;
@@ -155,15 +619,83 @@ export const resetAllContent = async () => {
 
     // Report Outcome
     if (cloudError) {
-        // We throw modified error to inform UI that Local succeeded but Cloud failed
-        throw new Error(`LOCAL DATA CLEARED, but Cloud Reset Failed (Permission Denied). check Console.`);
+        throw new Error(`LOCAL CACHE CLEARED, but Cloud Reset had an error. Check Console.`);
     }
 
-    console.log("NUCLEAR RESET COMPLETE");
+    console.log("SAFE CACHE RESET COMPLETE");
   } catch (e) {
     console.error("RESET ERROR", e);
     throw e;
   }
+};
+
+// ── Rebuild content_index from ALL existing content_data in Firebase ──────────
+// Run this once to backfill the index for any content uploaded before the
+// real-time index feature existed. After this, every saveChapterData call keeps
+// the index fresh automatically. Progress callback: (done, total, key) => void.
+export const rebuildContentIndex = async (
+  onProgress?: (done: number, total: number, key: string) => void
+): Promise<{ indexed: number; failed: number }> => {
+  let indexed = 0, failed = 0;
+  try {
+    const snap = await get(ref(rtdb, 'content_data'));
+    if (!snap.exists()) return { indexed: 0, failed: 0 };
+    const all = snap.val() as Record<string, any>;
+    const keys = Object.keys(all).filter(k => k.startsWith('nst_content_'));
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      try {
+        const data = all[key] || {};
+        const withoutPrefix = key.slice('nst_content_'.length);
+        const parts = withoutPrefix.split('_');
+        if (parts.length < 3) continue;
+        const board      = parts[0];
+        const classLevel = parts[1];
+        const statsKey   = `${board}_${classLevel}`;
+        const safeKey    = key.replace(/[.#$[\]/]/g, '-');
+        const subjectName = parts.slice(2, parts.length - 1).join(' ');
+        const hasNotes = !!(data.freeNotes || data.topicNotes?.length || data.premiumNotes || data.content || data.teachingStrategyNotes);
+        const hasPdf   = !!(data.pdfUrl || data.pdfList?.length);
+        const hasVideo = !!(data.videoPlaylist?.length || data.topicVideos?.length);
+        const hasAudio = !!(data.audioPlaylist?.length);
+        const hasMcq   = !!(data.manualMcqData?.length || data.weeklyTestMcqData?.length || data.mcqList?.length);
+        await set(ref(rtdb, `content_index/${statsKey}/${safeKey}`), {
+          notes: hasNotes, pdf: hasPdf, video: hasVideo, audio: hasAudio, mcq: hasMcq,
+          subject: subjectName,
+        });
+        indexed++;
+        onProgress?.(i + 1, keys.length, key);
+      } catch {
+        failed++;
+      }
+    }
+  } catch (e) {
+    console.error('[IIC] rebuildContentIndex failed:', e);
+    throw e;
+  }
+  return { indexed, failed };
+};
+
+// --- SCORE LOG FIREBASE SYNC ---
+// Saves the full score log array to RTDB under users/{uid}/scoreLog
+export const saveScoreLogToFirebase = async (userId: string, log: any[]): Promise<void> => {
+  if (!userId || !log) return;
+  try {
+    await set(ref(rtdb, `users/${userId}/scoreLog`), log);
+  } catch {}
+};
+
+// Reads score log from RTDB for a user
+export const getScoreLogFromFirebase = async (userId: string): Promise<any[]> => {
+  if (!userId) return [];
+  try {
+    const snap = await get(ref(rtdb, `users/${userId}/scoreLog`));
+    if (snap.exists()) {
+      const val = snap.val();
+      return Array.isArray(val) ? val : [];
+    }
+    return [];
+  } catch { return []; }
 };
 
 // --- DUAL WRITE / SMART READ LOGIC ---
@@ -376,12 +908,306 @@ export const getSystemSettings = async () => {
     return null;
 };
 
+// ── Auto-sharding storage helpers ─────────────────────────────────────────────
+// Firestore limit: 1 MB per document. We use 512 KB (50%) as the shard
+// boundary so data stays safely under the limit even with metadata overhead.
+// Layout:
+//   Firestore: config/{prefix}_shard_0, config/{prefix}_shard_1, …
+//              config/{prefix}_meta  → { shardCount: N }
+//   RTDB:      {rtdbPrefix}_shard_0, …   /  {rtdbPrefix}_meta
+// Both stores are kept in sync. Firestore is the source of truth.
+
+const SHARD_LIMIT_BYTES = 512 * 1024; // 512 KB = 50% of Firestore 1 MB limit
+
+const _estimateBytes = (obj: any): number => {
+  try { return new TextEncoder().encode(JSON.stringify(obj)).length; } catch { return 999_999; }
+};
+
+const _splitIntoShards = (items: any[]): any[][] => {
+  if (items.length === 0) return [[]];
+  const shards: any[][] = [];
+  let shard: any[] = [];
+  let shardBytes = 2; // '[]' wrapper
+  for (const item of items) {
+    const sz = _estimateBytes(item) + 1; // +1 for comma
+    if (shardBytes + sz > SHARD_LIMIT_BYTES && shard.length > 0) {
+      shards.push(shard);
+      shard = [];
+      shardBytes = 2;
+    }
+    shard.push(item);
+    shardBytes += sz;
+  }
+  if (shard.length > 0) shards.push(shard);
+  if (shards.length === 0) shards.push([]);
+  return shards;
+};
+
+// Saves items across auto-sized shards. Returns a promise that resolves once
+// old-shard metadata is read (needed to delete stale shards).
+const _saveShardsForArray = async (
+  fsPrefix: string,
+  rtdbPrefix: string,
+  items: any[],
+  writes: Promise<any>[],
+): Promise<void> => {
+  const sanitized = sanitizeForFirestore(items);
+  const shards = _splitIntoShards(sanitized);
+  const newShardCount = shards.length;
+
+  let oldShardCount = 1;
+  try {
+    const metaSnap = await getDoc(doc(db, "config", `${fsPrefix}_meta`));
+    if (metaSnap.exists()) oldShardCount = metaSnap.data()?.shardCount ?? 1;
+  } catch {}
+
+  shards.forEach((shardItems, idx) => {
+    writes.push(setDoc(doc(db, "config", `${fsPrefix}_shard_${idx}`), { items: shardItems }));
+    writes.push(set(ref(rtdb, `${rtdbPrefix}_shard_${idx}`), { items: shardItems }));
+    // ── Auto-backup mirror (never deleted) ──────────────────────────────────
+    writes.push(set(ref(rtdb, `__backup__/${rtdbPrefix}_shard_${idx}`), { items: shardItems }));
+  });
+
+  for (let i = newShardCount; i < oldShardCount; i++) {
+    writes.push(deleteDoc(doc(db, "config", `${fsPrefix}_shard_${i}`)));
+    writes.push(remove(ref(rtdb, `${rtdbPrefix}_shard_${i}`)));
+  }
+
+  writes.push(setDoc(doc(db, "config", `${fsPrefix}_meta`), { shardCount: newShardCount }));
+  writes.push(set(ref(rtdb, `${rtdbPrefix}_meta`), { shardCount: newShardCount }));
+};
+
+// Real-time subscription that dynamically tracks shard count and rebuilds the
+// merged array whenever any shard or the metadata doc changes.
+const _subscribeShardedArray = (
+  fsPrefix: string,
+  rtdbPrefix: string,
+  onUpdate: (arr: any[]) => void,
+): (() => void) => {
+  let shardCount = 1;
+  const shardsData: Record<number, any[]> = {};
+  const shardsConfirmed = new Set<number>(); // which shards have fired at least once
+  let metaConfirmed = false;                 // meta doc has fired at least once
+  let shardUnsubs: (() => void)[] = [];
+
+  // Only emit once meta AND every known shard have responded at least once.
+  // This prevents partial / out-of-order data from being shown during initial load.
+  const _rebuild = () => {
+    if (!metaConfirmed) return;
+    for (let i = 0; i < shardCount; i++) {
+      if (!shardsConfirmed.has(i)) return; // still waiting for this shard
+    }
+    const all: any[] = [];
+    for (let i = 0; i < shardCount; i++) {
+      const s = shardsData[i];
+      if (s) all.push(...s);
+    }
+    onUpdate(all);
+  };
+
+  const _listenToShard = (idx: number): (() => void) => {
+    let fsOk = false;
+    const unsubFs = onSnapshot(doc(db, "config", `${fsPrefix}_shard_${idx}`), (snap) => {
+      fsOk = true;
+      shardsData[idx] = snap.exists() ? (snap.data()?.items ?? []) : [];
+      shardsConfirmed.add(idx);
+      _rebuild();
+    });
+    const unsubRtdb = onValue(ref(rtdb, `${rtdbPrefix}_shard_${idx}`), (snap) => {
+      if (fsOk) return;
+      shardsData[idx] = snap.val()?.items ?? [];
+      shardsConfirmed.add(idx);
+      _rebuild();
+    });
+    return () => { unsubFs(); unsubRtdb(); };
+  };
+
+  const _applyShardCount = (count: number) => {
+    if (count === shardCount && shardUnsubs.length === count) return;
+    // Tear down extra listeners if shard count shrank
+    for (let i = count; i < shardUnsubs.length; i++) {
+      shardUnsubs[i]?.();
+      delete shardsData[i];
+      shardsConfirmed.delete(i);
+    }
+    shardUnsubs = shardUnsubs.slice(0, count);
+    // Add new listeners for newly added shards
+    for (let i = shardUnsubs.length; i < count; i++) {
+      shardUnsubs.push(_listenToShard(i));
+    }
+    shardCount = count;
+  };
+
+  // Start listening to shard 0 immediately — it will be ready before meta.
+  _applyShardCount(1);
+
+  let metaFromFs = false;
+  const unsubMeta = onSnapshot(doc(db, "config", `${fsPrefix}_meta`), (snap) => {
+    metaFromFs = true;
+    metaConfirmed = true;
+    _applyShardCount(snap.exists() ? (snap.data()?.shardCount ?? 1) : 1);
+    _rebuild(); // re-check now that meta is confirmed
+  });
+  const unsubMetaRtdb = onValue(ref(rtdb, `${rtdbPrefix}_meta`), (snap) => {
+    if (metaFromFs) return;
+    metaConfirmed = true;
+    _applyShardCount(snap.val()?.shardCount ?? 1);
+    _rebuild();
+  });
+
+  return () => {
+    shardUnsubs.forEach(u => u());
+    unsubMeta();
+    unsubMetaRtdb();
+  };
+};
+
+// Per-item collection helper: saves each item as its own Firestore document
+// (identical to the lucent_entries pattern). Use for arrays whose individual
+// items can themselves be large (e.g. HomeworkItem with embedded HTML + MCQs).
+const _savePerItemCollection = async (
+  collectionName: string,
+  rtdbBasePath: string,
+  indexFsDocId: string,
+  rtdbIndexPath: string,
+  items: any[],
+  writes: Promise<any>[],
+): Promise<void> => {
+  const sanitized: any[] = sanitizeForFirestore(items);
+  const newIds: string[] = sanitized.map((e: any) => e?.id).filter(Boolean);
+
+  // ── If new array is empty, skip entirely — never touch index ────────────────
+  // An empty array almost certainly means the collection hasn't loaded yet
+  // (race condition). Overwriting with empty would hide all existing entries.
+  if (newIds.length === 0) {
+    console.warn(`[IIC] _savePerItemCollection(${collectionName}): new array is empty — skipping entirely to protect existing Firebase data.`);
+    return;
+  }
+
+  // Write/update every document in this batch
+  sanitized.forEach((entry: any) => {
+    if (!entry?.id) return;
+    writes.push(setDoc(doc(db, collectionName, entry.id), entry));
+    writes.push(set(ref(rtdb, `${rtdbBasePath}/${entry.id}`), entry));
+    // ── Backup mirror (NEVER deleted by any cleanup) ─────────────────────────
+    writes.push(set(ref(rtdb, `__backup__/${rtdbBasePath}/${entry.id}`), entry));
+  });
+
+  // ── SAFE INDEX UPDATE: MERGE, not overwrite ───────────────────────────────
+  // Read the current index from Firebase and UNION it with newIds.
+  // This ensures IDs present in Firebase but not in this batch (because the
+  // admin session hadn't loaded them yet) are NEVER silently removed.
+  // Removal from the index happens ONLY via explicit deleteHomeworkEntry /
+  // deleteLucentEntry calls — never as a side-effect of a settings save.
+  try {
+    const oldSnap = await getDoc(doc(db, "config", indexFsDocId));
+    const existingIds: string[] = oldSnap.exists() ? (oldSnap.data()?.ids ?? []) : [];
+    // Union: keep all existing IDs + add any brand-new ones from this batch
+    const mergedIds: string[] = [...new Set([...existingIds, ...newIds])];
+    const indexPayload = { ids: mergedIds };
+    writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
+    writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
+    console.log(`[IIC] _savePerItemCollection(${collectionName}): index merged — existing ${existingIds.length} + new ${newIds.length} → ${mergedIds.length} total IDs`);
+  } catch (e) {
+    // If index read fails, fall back to writing only what we know — still safe
+    // because we never shrink below newIds
+    console.warn(`[IIC] _savePerItemCollection(${collectionName}): index read failed, falling back to newIds only:`, e);
+    const indexPayload = { ids: newIds };
+    writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
+    writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
+  }
+};
+
+// Per-item collection subscriber. Returns up to 4 unsub functions.
+// IMPORTANT: only emits once BOTH the collection snapshot AND the index have
+// responded at least once. This prevents empty-flash (index loads first →
+// order=[] → empty array emitted) or orphan-flash (collection loads first →
+// items shown in arbitrary order before index arrives).
+const _subscribePerItemCollection = (
+  collectionName: string,
+  rtdbBasePath: string,
+  indexFsDocId: string,
+  rtdbIndexPath: string,
+  onUpdate: (arr: any[]) => void,
+): (() => void)[] => {
+  let itemMap: Record<string, any> = {};
+  let order: string[] = [];
+  let collectionConfirmed = false; // collection snapshot has fired at least once
+  let indexConfirmed = false;      // index snapshot has fired at least once
+  let collectionFromFs = false;
+  let indexFromFs = false;
+
+  // Only emit when BOTH collection AND index are confirmed.
+  const _rebuild = () => {
+    if (!collectionConfirmed || !indexConfirmed) return;
+    onUpdate(order.map(id => itemMap[id]).filter(Boolean));
+  };
+
+  // Firestore collection — source of truth for item data
+  const unsubCollection = onSnapshot(collection(db, collectionName), (snapshot) => {
+    collectionFromFs = true;
+    collectionConfirmed = true;
+    itemMap = {};
+    snapshot.forEach(d => { itemMap[d.id] = d.data(); });
+    _rebuild();
+  });
+
+  // RTDB backup — only fills itemMap before Firestore confirms (offline / cold start)
+  const unsubRtdb = onValue(ref(rtdb, rtdbBasePath), (snap) => {
+    if (collectionFromFs) return; // Firestore is source of truth once it responds
+    const data = snap.val();
+    if (data && typeof data === 'object') {
+      collectionConfirmed = true;
+      Object.entries(data).forEach(([id, entry]: [string, any]) => {
+        if (!itemMap[id]) itemMap[id] = entry;
+      });
+      _rebuild();
+    }
+  });
+
+  // Firestore index — source of truth for ordering
+  const unsubIndex = onSnapshot(doc(db, "config", indexFsDocId), (snap) => {
+    indexFromFs = true;
+    indexConfirmed = true;
+    order = snap.exists() ? (snap.data()?.ids ?? []) : [];
+    _rebuild();
+  });
+
+  // RTDB index backup
+  const unsubIndexRtdb = onValue(ref(rtdb, rtdbIndexPath), (snap) => {
+    if (indexFromFs) return;
+    const d = snap.val();
+    if (d?.ids) {
+      indexConfirmed = true;
+      order = d.ids;
+      _rebuild();
+    } else if (!indexConfirmed) {
+      // RTDB responded but no index yet — treat as confirmed empty so we don't block forever
+      indexConfirmed = true;
+      _rebuild();
+    }
+  });
+
+  return [unsubCollection, unsubRtdb, unsubIndex, unsubIndexRtdb];
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const saveSystemSettings = async (settings: any) => {
   try {
-    // Separate lucentNotes from core settings completely.
-    // Each LucentNoteEntry is stored as its own document in lucent_entries/{id}
-    // so a single Firestore document never hits the 1MB limit — even with 2000+ pages.
-    const { lucentNotes, ...coreSettings } = settings;
+    // ── Extract ALL bulky arrays from core settings ───────────────────────────
+    // config/system_settings now contains ONLY scalar settings — it will never
+    // approach 1 MB. Each array type lives in its own segregated storage path.
+    const {
+      lucentNotes,
+      homework,
+      competitionMcqs,
+      dailyGk,
+      notifications,
+      broadcastRedeemCodes,
+      globalChallengeMcq,
+      ...coreSettings
+    } = settings;
     const sanitizedCore = sanitizeForFirestore(coreSettings);
 
     const writes: Promise<any>[] = [
@@ -389,42 +1215,50 @@ export const saveSystemSettings = async (settings: any) => {
       setDoc(doc(db, "config", "system_settings"), sanitizedCore),
     ];
 
-    // Process lucentNotes only when explicitly provided (non-null).
-    // An empty array [] is valid here — it means "delete all remaining entries"
-    // (e.g. admin deleted the last Lucent note). This is different from lucentNotes
-    // being absent/undefined which signals a race-condition / unrelated save.
+    // ── homework: per-item documents (each can be large — HTML + MCQs) ───────
+    // BUG FIX: Only save homework when array has actual entries.
+    // An empty array passed before the subscription loads would wipe ALL homework entries.
+    // This mirrors the same protection already applied to lucentNotes in handleSaveSettings.
+    if (homework != null && Array.isArray(homework) && homework.length > 0) {
+      await _savePerItemCollection(
+        "homework_entries", "homework_entries",
+        "homework_index", "homework_index",
+        homework, writes,
+      );
+    }
+
+    // ── competitionMcqs: auto-sharded at 512 KB ───────────────────────────────
+    if (competitionMcqs != null && Array.isArray(competitionMcqs)) {
+      await _saveShardsForArray("competition_mcqs", "competition_mcqs", competitionMcqs, writes);
+    }
+
+    // ── dailyGk: auto-sharded at 512 KB ──────────────────────────────────────
+    if (dailyGk != null && Array.isArray(dailyGk)) {
+      await _saveShardsForArray("daily_gk", "daily_gk", dailyGk, writes);
+    }
+
+    // ── notifications: auto-sharded at 512 KB ────────────────────────────────
+    if (notifications != null && Array.isArray(notifications)) {
+      await _saveShardsForArray("notifications", "notifications", notifications, writes);
+    }
+
+    // ── broadcastRedeemCodes: auto-sharded at 512 KB ──────────────────────────
+    if (broadcastRedeemCodes != null && Array.isArray(broadcastRedeemCodes)) {
+      await _saveShardsForArray("broadcast_codes", "broadcast_codes", broadcastRedeemCodes, writes);
+    }
+
+    // ── globalChallengeMcq: auto-sharded at 512 KB ───────────────────────────
+    if (globalChallengeMcq != null && Array.isArray(globalChallengeMcq)) {
+      await _saveShardsForArray("global_challenge_mcq", "global_challenge_mcq", globalChallengeMcq, writes);
+    }
+
+    // ── lucentNotes: per-item documents (existing pattern — unchanged) ────────
     if (lucentNotes != null && Array.isArray(lucentNotes)) {
-      const entries: any[] = lucentNotes;
-      const sanitizedEntries: any[] = sanitizeForFirestore(entries);
-      const newIds: string[] = sanitizedEntries.map((e: any) => e?.id).filter(Boolean);
-
-      // 1. Upsert each remaining entry as its own document (skip if empty)
-      sanitizedEntries.forEach((entry: any) => {
-        if (!entry?.id) return;
-        writes.push(setDoc(doc(db, "lucent_entries", entry.id), entry));
-        writes.push(set(ref(rtdb, `lucent_entries/${entry.id}`), entry));
-      });
-
-      // 2. Save ordered index so subscriber can reconstruct the array in order
-      const indexPayload = { ids: newIds };
-      writes.push(setDoc(doc(db, "config", "lucent_index"), indexPayload));
-      writes.push(set(ref(rtdb, 'lucent_index'), indexPayload));
-
-      // 3. Delete documents that were removed — read old index first
-      try {
-        const oldIndexSnap = await getDoc(doc(db, "config", "lucent_index"));
-        if (oldIndexSnap.exists()) {
-          const oldIds: string[] = oldIndexSnap.data()?.ids ?? [];
-          const newIdSet = new Set(newIds);
-          const toDelete = oldIds.filter((id: string) => !newIdSet.has(id));
-          toDelete.forEach((id: string) => {
-            writes.push(deleteDoc(doc(db, "lucent_entries", id)));
-            writes.push(remove(ref(rtdb, `lucent_entries/${id}`)));
-          });
-        }
-      } catch (e) {
-        console.warn("lucent_index read failed — skipping deletion cleanup:", e);
-      }
+      await _savePerItemCollection(
+        "lucent_entries", "lucent_entries",
+        "lucent_index", "lucent_index",
+        lucentNotes, writes,
+      );
     }
 
     const results = await Promise.allSettled(writes);
@@ -443,75 +1277,122 @@ export const saveSystemSettings = async (settings: any) => {
 };
 
 export const subscribeToSettings = (callback: (settings: any) => void) => {
-  // Core settings and lucent entries come from separate paths and are merged before emit.
+  // ── State ────────────────────────────────────────────────────────────────────
   let latestCore: any = null;
-  let latestLucentMap: Record<string, any> = {};  // id → entry
-  let latestOrder: string[] = [];                  // ordered list of ids
-  // Guard: don't emit lucentNotes until at least one Firestore snapshot has confirmed
-  // the collection state. This prevents emitting [] while entries are still loading,
-  // which could cause a subsequent save to wipe all Lucent data (race condition bug).
+
+  // Bulky arrays — null = not yet loaded (fall back to embedded value in latestCore).
+  let latestHomework:          any[] | null = null;
+  let latestCompetitionMcqs:   any[] | null = null;
+  let latestDailyGk:           any[] | null = null;
+  let latestNotifications:     any[] | null = null;
+  let latestBroadcastCodes:    any[] | null = null;
+  let latestGlobalChallengeMcq: any[] | null = null;
+
+  // Lucent per-item state
+  let latestLucentMap: Record<string, any> = {};
+  let latestOrder: string[] = [];
   let lucentEntriesConfirmed = false;
 
+  // ── Emit ─────────────────────────────────────────────────────────────────────
   const emit = () => {
     if (latestCore == null) return;
-    // Only include lucentNotes once we have a confirmed snapshot from Firestore
-    if (!lucentEntriesConfirmed) {
-      callback({ ...latestCore });
-      return;
+
+    // Prefer separately-loaded arrays; fall back to any embedded value in
+    // latestCore for backward compat with data saved before this migration.
+    const merged: any = {
+      ...latestCore,
+      homework:            latestHomework            ?? latestCore.homework            ?? [],
+      competitionMcqs:     latestCompetitionMcqs     ?? latestCore.competitionMcqs     ?? [],
+      dailyGk:             latestDailyGk             ?? latestCore.dailyGk             ?? [],
+      notifications:       latestNotifications       ?? latestCore.notifications       ?? [],
+      broadcastRedeemCodes: latestBroadcastCodes     ?? latestCore.broadcastRedeemCodes ?? [],
+      globalChallengeMcq:  latestGlobalChallengeMcq  ?? latestCore.globalChallengeMcq  ?? [],
+    };
+
+    if (lucentEntriesConfirmed) {
+      merged.lucentNotes = latestOrder.map(id => latestLucentMap[id]).filter(Boolean);
     }
-    // Rebuild ordered array using ONLY the index — do NOT append orphan entries.
-    // Orphan entries are deleted notes that RTDB may still hold temporarily;
-    // appending them would cause deleted notes to reappear in the UI.
-    const ordered = latestOrder.map(id => latestLucentMap[id]).filter(Boolean);
-    callback({ ...latestCore, lucentNotes: ordered });
+
+    callback(merged);
   };
 
-  // --- Core system settings ---
-  const unsubFs = onSnapshot(doc(db, "config", "system_settings"), (snap) => {
+  // ── Core settings (Firestore primary, RTDB backup) ────────────────────────
+  let coreFromFs = false;
+  const unsubCoreFs = onSnapshot(doc(db, "config", "system_settings"), (snap) => {
+    coreFromFs = true;
     if (snap.exists()) { latestCore = snap.data(); emit(); }
   });
-  const unsubRtdb = onValue(ref(rtdb, 'system_settings'), (snap) => {
+  const unsubCoreRtdb = onValue(ref(rtdb, 'system_settings'), (snap) => {
+    if (coreFromFs) return;
     const d = snap.val(); if (d) { latestCore = d; emit(); }
   });
 
-  // --- Lucent entries (Firestore collection — each entry is its own document) ---
-  const unsubEntries = onSnapshot(collection(db, "lucent_entries"), (snapshot) => {
+  // ── homework: per-item collection subscription ────────────────────────────
+  const unsubHomework = _subscribePerItemCollection(
+    "homework_entries", "homework_entries", "homework_index", "homework_index",
+    (arr) => { latestHomework = arr; emit(); },
+  );
+
+  // ── sharded array subscriptions ───────────────────────────────────────────
+  const unsubCompetition = _subscribeShardedArray(
+    "competition_mcqs", "competition_mcqs",
+    (arr) => { latestCompetitionMcqs = arr; emit(); },
+  );
+  const unsubDailyGk = _subscribeShardedArray(
+    "daily_gk", "daily_gk",
+    (arr) => { latestDailyGk = arr; emit(); },
+  );
+  const unsubNotifs = _subscribeShardedArray(
+    "notifications", "notifications",
+    (arr) => { latestNotifications = arr; emit(); },
+  );
+  const unsubBroadcast = _subscribeShardedArray(
+    "broadcast_codes", "broadcast_codes",
+    (arr) => { latestBroadcastCodes = arr; emit(); },
+  );
+  const unsubGlobalMcq = _subscribeShardedArray(
+    "global_challenge_mcq", "global_challenge_mcq",
+    (arr) => { latestGlobalChallengeMcq = arr; emit(); },
+  );
+
+  // ── lucent: per-item collection (Firestore primary) ───────────────────────
+  const unsubLucentEntries = onSnapshot(collection(db, "lucent_entries"), (snapshot) => {
     latestLucentMap = {};
     snapshot.forEach(d => { latestLucentMap[d.id] = d.data(); });
-    lucentEntriesConfirmed = true; // Firestore has responded — safe to include in emit
+    lucentEntriesConfirmed = true;
     emit();
   });
-
-  // --- RTDB backup for lucent entries (covers Firestore offline edge cases) ---
-  const unsubEntriesRtdb = onValue(ref(rtdb, 'lucent_entries'), (snap) => {
+  const unsubLucentRtdb = onValue(ref(rtdb, 'lucent_entries'), (snap) => {
+    if (lucentEntriesConfirmed) return;
     const data = snap.val();
     if (data && typeof data === 'object') {
-      if (!lucentEntriesConfirmed) {
-        // Before Firestore confirms, use RTDB as initial data source
-        Object.entries(data).forEach(([id, entry]: [string, any]) => {
-          if (!latestLucentMap[id]) latestLucentMap[id] = entry;
-        });
-        lucentEntriesConfirmed = true;
-        emit();
-      }
-      // After Firestore has confirmed, RTDB is NOT used to add entries —
-      // doing so would bring back recently deleted notes that RTDB still holds in cache.
-      // Firestore is the source of truth for lucent_entries after confirmation.
+      Object.entries(data).forEach(([id, entry]: [string, any]) => {
+        if (!latestLucentMap[id]) latestLucentMap[id] = entry;
+      });
+      lucentEntriesConfirmed = true;
+      emit();
     }
   });
-
-  // --- Lucent index (ordering + deletion awareness) ---
-  const unsubIndex = onSnapshot(doc(db, "config", "lucent_index"), (snap) => {
+  let lucentIndexFromFs = false;
+  const unsubLucentIndex = onSnapshot(doc(db, "config", "lucent_index"), (snap) => {
+    lucentIndexFromFs = true;
     if (snap.exists()) { latestOrder = snap.data()?.ids ?? []; emit(); }
   });
-  const unsubIndexRtdb = onValue(ref(rtdb, 'lucent_index'), (snap) => {
+  const unsubLucentIndexRtdb = onValue(ref(rtdb, 'lucent_index'), (snap) => {
+    if (lucentIndexFromFs) return;
     const d = snap.val(); if (d?.ids) { latestOrder = d.ids; emit(); }
   });
 
   return () => {
-    unsubFs(); unsubRtdb();
-    unsubEntries(); unsubEntriesRtdb();
-    unsubIndex(); unsubIndexRtdb();
+    unsubCoreFs(); unsubCoreRtdb();
+    unsubHomework.forEach(u => u());
+    unsubCompetition();
+    unsubDailyGk();
+    unsubNotifs();
+    unsubBroadcast();
+    unsubGlobalMcq();
+    unsubLucentEntries(); unsubLucentRtdb();
+    unsubLucentIndex(); unsubLucentIndexRtdb();
   };
 };
 
@@ -524,10 +1405,13 @@ export const bulkSaveLinks = async (updates: Record<string, any>) => {
     // RTDB
     promises.push(update(ref(rtdb, 'content_links'), sanitizedUpdates));
     
-    // Firestore - We save each update as a document in 'content_data' collection
-    // 'updates' is a map of key -> data
+    // Firestore - Merge into existing content_data documents so that only
+    // freeLink/premiumLink/price fields are updated — all other fields (notes,
+    // videos, PDFs, MCQs) are preserved even if they are absent from `data`.
+    // Using plain setDoc (no merge) here would REPLACE the entire document and
+    // silently wipe all chapter content whenever localStorage is stale/empty.
     Object.entries(sanitizedUpdates).forEach(([key, data]) => {
-         promises.push(setDoc(doc(db, "content_data", key), data));
+         promises.push(setDoc(doc(db, "content_data", key), data, { merge: true }));
     });
 
     const results = await Promise.allSettled(promises);
@@ -560,6 +1444,8 @@ export const saveChapterData = async (key: string, data: any) => {
     const promises: Promise<any>[] = [];
     promises.push(set(ref(rtdb, `content_data/${key}`), sanitizedData));
     promises.push(setDoc(doc(db, "content_data", key), sanitizedData));
+    // ── Backup mirror: RTDB __backup__/content_data/{key} — never deleted ────
+    promises.push(set(ref(rtdb, `__backup__/content_data/${key}`), sanitizedData));
 
     // 4. Update content_index for real-time stats on home screen
     if (key.startsWith('nst_content_')) {
@@ -747,12 +1633,32 @@ export const subscribeToChapterData = (key: string, callback: (data: any) => voi
         if (snapshot.exists()) {
             callback(snapshot.val());
         } else {
-            // If not in RTDB, check Firestore (one-time fetch or snapshot?)
-            // For now, let's just do one-time fetch to avoid complexity of double listeners
-            getDoc(doc(db, "content_data", key)).then(docSnap => {
-                if (docSnap.exists()) callback(docSnap.data());
-            });
+            // RTDB empty — fall back to Firestore with error handling.
+            // Errors are logged but never silently swallowed so the caller
+            // can detect failures (previously: blank page with no clue why).
+            getDoc(doc(db, "content_data", key))
+                .then(docSnap => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        // Write back to RTDB so next read is fast and offline-safe
+                        set(ref(rtdb, `content_data/${key}`), data).catch(() => {});
+                        callback(data);
+                    }
+                    // else: document truly doesn't exist yet — leave content blank (correct)
+                })
+                .catch(e => {
+                    console.error(`[IIC] subscribeToChapterData Firestore fallback failed for "${key}":`, e);
+                    // Re-try once with anonymous auth in case the session expired
+                    import('firebase/auth').then(({ signInAnonymously: _signIn }) =>
+                        _signIn(auth)
+                            .then(() => getDoc(doc(db, "content_data", key)))
+                            .then(docSnap => { if (docSnap.exists()) callback(docSnap.data()); })
+                            .catch(e2 => console.error('[IIC] Auth retry also failed:', e2))
+                    );
+                });
         }
+    }, (error) => {
+        console.error(`[IIC] subscribeToChapterData RTDB error for "${key}":`, error);
     });
 };
 
@@ -1498,4 +2404,65 @@ export const updateUserUID = async (oldUid: string, newUid: string, userData: an
         console.error("Error migrating UID:", e);
         return false;
     }
+};
+
+// ── Admin Important Highlights — shared, visible to ALL users ────────────────
+// Admin stars a topic → saved in Realtime Database (RTDB) → all users see
+// an orange background on those points in ChunkedNotesReader in real-time.
+// RTDB path: admin_highlights/{noteKey}/topics  (string[])
+// Using RTDB instead of Firestore so regular users can read without
+// needing special Firestore security-rule grants.
+
+export const saveAdminMark2Topics = async (noteKey: string, topics: string[]): Promise<void> => {
+    if (!noteKey) return;
+    try {
+        const safeKey = noteKey.replace(/[.#$[\]]/g, '_');
+        await set(ref(rtdb, `admin_highlights/${safeKey}`), { topics, updatedAt: new Date().toISOString() });
+    } catch (e) {
+        console.error('[AdminHighlight] Error saving:', e);
+    }
+};
+
+export const subscribeAdminMark2Topics = (
+    noteKey: string,
+    callback: (topics: string[]) => void
+): (() => void) => {
+    if (!noteKey) { callback([]); return () => {}; }
+    const safeKey = noteKey.replace(/[.#$[\]]/g, '_');
+    const unsubFn = onValue(
+        ref(rtdb, `admin_highlights/${safeKey}`),
+        (snap) => {
+            if (snap.exists()) {
+                callback((snap.val()?.topics as string[]) || []);
+            } else {
+                callback([]);
+            }
+        },
+        () => callback([])
+    );
+    return unsubFn;
+};
+
+// ── Admin control: lock/unlock user Important Mark button ────────────────────
+// When userMarkLocked = true, regular users cannot star/mark notes.
+// Stored globally in Firestore so all users are affected in real-time.
+// Collection: admin_settings / Document: important_mark / Field: userMarkLocked
+
+export const saveUserMarkLock = async (locked: boolean): Promise<void> => {
+    try {
+        await setDoc(doc(db, 'admin_settings', 'important_mark'), { userMarkLocked: locked, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+        console.error('[MarkLock] Error saving:', e);
+    }
+};
+
+export const subscribeUserMarkLock = (
+    callback: (locked: boolean) => void
+): (() => void) => {
+    const unsub = onSnapshot(
+        doc(db, 'admin_settings', 'important_mark'),
+        (snap) => callback(snap.exists() ? (snap.data()?.userMarkLocked as boolean) ?? false : false),
+        () => callback(false)
+    );
+    return unsub;
 };

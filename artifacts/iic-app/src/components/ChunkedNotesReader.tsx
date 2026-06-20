@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff } from 'lucide-react';
+import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame } from 'lucide-react';
 import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayPrefs';
 import { speakText, stopSpeech } from '../utils/textToSpeech';
 import { splitIntoTopics, NotesTopic as Topic } from '../utils/notesSplitter';
@@ -10,7 +10,7 @@ import { ReadingScoreSession, ReadingScoreState, ReadingScoreConfig } from '../u
 import { ReadingScoreHUD } from './ReadingScoreHUD';
 import { getLevelInfo, LEVEL_INFO } from '../utils/levelSystem';
 
-const FONT_SIZES = [13, 15, 17, 20] as const;
+const FONT_SIZES = [13, 15, 17, 20, 24, 28, 32, 36, 40] as const;
 const FONT_SIZE_KEY = 'nst_reading_font_size';
 const FONT_FAMILY_KEY = 'nst_reading_font_family';
 const FONT_WEIGHT_KEY = 'nst_reading_font_weight';
@@ -38,7 +38,7 @@ const getStoredFontFamilyId = (): string | null => {
 const getStoredFontIdx = (): number => {
   try {
     const v = parseInt(localStorage.getItem(FONT_SIZE_KEY) || '1', 10);
-    return isNaN(v) || v < 0 || v > 3 ? 1 : v;
+    return isNaN(v) || v < 0 || v > 8 ? 1 : v;
   } catch { return 1; }
 };
 
@@ -183,10 +183,18 @@ interface Props {
   isSavedOffline?: boolean;
   /** Reading score config — when provided, activates time-based score tracking with HUD */
   readingScoreConfig?: ReadingScoreConfig;
+  /** True if the current user is an admin (ADMIN or SUB_ADMIN role). */
+  isAdmin?: boolean;
+  /** When true and isAdmin, show Important Mark 2 button instead of the regular star button. */
+  useImportantMark2?: boolean;
+  /** Returns true if a topic text has been marked with Important Mark 2 by admin. */
+  isMarked2?: (text: string) => boolean;
+  /** Called when admin taps the Important Mark 2 button on a topic. */
+  onMark2Toggle?: (text: string) => void;
 }
 
 
-export const ChunkedNotesReader: React.FC<Props> = ({ content, className, language = 'hi-IN', topBarLabel, autoStart, onComplete, onReadingStart, hideTopBar, initialIndex, onPositionChange, noteKey, isStarred, onStarToggle, searchQuery, getStarCount, textColorOverride, preferChunkMode, onDesktopModeChange, hideDesktopToggle, suppressStickyControls, htmlContent, isUltraUser, ultraHtmlRemaining, userCredits = 0, htmlUnlockCost = 5, onSpendCredits, onHtmlOpen, onUpgradeClick, isBasicUser = false, basicHtmlRemaining = 0, onHtmlViewChange, onMoreOptions, triggerControlsRef, hideInline3dot, onBack, onSaveOffline, isSavedOffline, readingScoreConfig }) => {
+export const ChunkedNotesReader: React.FC<Props> = ({ content, className, language = 'hi-IN', topBarLabel, autoStart, onComplete, onReadingStart, hideTopBar, initialIndex, onPositionChange, noteKey, isStarred, onStarToggle, searchQuery, getStarCount, textColorOverride, preferChunkMode, onDesktopModeChange, hideDesktopToggle, suppressStickyControls, htmlContent, isUltraUser, ultraHtmlRemaining, userCredits = 0, htmlUnlockCost = 5, onSpendCredits, onHtmlOpen, onUpgradeClick, isBasicUser = false, basicHtmlRemaining = 0, onHtmlViewChange, onMoreOptions, triggerControlsRef, hideInline3dot, onBack, onSaveOffline, isSavedOffline, readingScoreConfig, isAdmin, useImportantMark2, isMarked2, onMark2Toggle }) => {
   const topics = useMemo(() => splitIntoTopics(content), [content]);
 
   // ── Strips [span_N](start_span) / [span_N](end_span) TTS markers ──
@@ -510,19 +518,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const [scoreState, setScoreState] = useState<ReadingScoreState | null>(null);
   const maxTopicReachedRef = useRef<number>(0);
 
-  // Touch Protection explanation popup (shown once per device)
-  const TP_SEEN_KEY = 'iic_touch_protection_seen';
-  const [showTouchProtectionPopup, setShowTouchProtectionPopup] = useState(false);
-  const touchProtectionPopupShownRef = useRef(false);
-  // 🛡️ Touch Protection badge tap → touch protection info
+  // 🛡️ Touch Protection popup — opens only on icon tap
   const [showReadingActiveInfo, setShowReadingActiveInfo] = useState(false);
-  const tpAutoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tpManualOpenRef = useRef(false); // true = user tapped manually (no auto-dismiss)
-  const openReadingActiveInfo = () => {
-    tpManualOpenRef.current = true;
-    if (tpAutoTimerRef.current) { clearTimeout(tpAutoTimerRef.current); tpAutoTimerRef.current = null; }
-    setShowReadingActiveInfo(true);
-  };
+  const openReadingActiveInfo = () => setShowReadingActiveInfo(true);
   // 📖 Book icon tap → reading score info
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const openScoreInfo = () => setShowScoreInfo(true);
@@ -532,6 +530,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const [showTtsSuggestPopup, setShowTtsSuggestPopup] = useState(false);
   const manualTapTimestampsRef = useRef<number[]>([]);
   const ttsSuggestShownRef = useRef(false);
+
+  // Tracks whether current TTS session was started via "Read All" / Smart Reading popup (AUTO)
+  // or via a manual topic tap (MANUAL). Only AUTO sessions earn READ_TTS_HIGHLIGHT rewards.
+  const ttsIsAutoRef = useRef(false);
+
+  // Swipe-to-dismiss touch tracking for Reading Score banner and Touch Protection banner
+  const scoreBannerSwipeX = useRef(0);
+  const tpBannerSwipeX = useRef(0);
 
   // Called on every manual topic tap to check if we should suggest TTS
   const trackManualTap = useCallback(() => {
@@ -556,21 +562,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     return () => { session.stop(); scoreSessionRef.current = null; };
   }, [readingScoreConfig?.userId, readingScoreConfig?.userLevel]);
 
-  // Auto-show 🛡️ popup when touch protection triggers, auto-dismiss in 2s
-  const prevTouchActiveRef = useRef(false);
-  useEffect(() => {
-    const active = scoreState?.touchProtectionActive ?? false;
-    if (active && !prevTouchActiveRef.current) {
-      tpManualOpenRef.current = false;
-      setShowReadingActiveInfo(true);
-      if (tpAutoTimerRef.current) clearTimeout(tpAutoTimerRef.current);
-      tpAutoTimerRef.current = setTimeout(() => {
-        if (!tpManualOpenRef.current) setShowReadingActiveInfo(false);
-        tpAutoTimerRef.current = null;
-      }, 2000);
-    }
-    prevTouchActiveRef.current = active;
-  }, [scoreState?.touchProtectionActive]);
+  // (Auto-show removed — popups only open on manual icon tap)
 
   // Update net-forward progress whenever activeIdx changes
   useEffect(() => {
@@ -692,6 +684,45 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     return () => window.removeEventListener('scroll', handleScroll);
   }, [showControls]);
 
+  // Auto-dismiss all open banners/controls 10s after user scrolls away
+  useEffect(() => {
+    const anyOpen = showScoreInfo || showReadingActiveInfo || showControls;
+    if (!anyOpen) return;
+    let dismissTimer: ReturnType<typeof setTimeout> | null = null;
+    let armed = false;
+    const dismiss = () => {
+      setShowScoreInfo(false);
+      setShowReadingActiveInfo(false);
+      setShowControls(false);
+    };
+    const arm = (scrollTop: number) => {
+      if (scrollTop > 40 && !armed) {
+        armed = true;
+        dismissTimer = setTimeout(dismiss, 10000);
+      }
+    };
+    // Listen on window scroll
+    const onWindowScroll = () => arm(window.scrollY || document.documentElement.scrollTop);
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    // Also listen on the inner scroll container (same logic as toolbar-hidden effect)
+    let innerScrollEl: HTMLElement | null = null;
+    const onInnerScroll = () => arm(innerScrollEl?.scrollTop ?? 0);
+    if (toolbarRef.current) {
+      let p = toolbarRef.current.parentElement;
+      while (p) {
+        const ov = window.getComputedStyle(p).overflowY;
+        if ((ov === 'auto' || ov === 'scroll') && p.scrollHeight > p.clientHeight + 10) { innerScrollEl = p; break; }
+        p = p.parentElement;
+      }
+    }
+    if (innerScrollEl) innerScrollEl.addEventListener('scroll', onInnerScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onWindowScroll);
+      if (innerScrollEl) innerScrollEl.removeEventListener('scroll', onInnerScroll);
+      if (dismissTimer) clearTimeout(dismissTimer);
+    };
+  }, [showScoreInfo, showReadingActiveInfo, showControls]);
+
   // Re-apply desktop mode on orientation/resize changes so it survives rotation
   useEffect(() => {
     const reapply = () => {
@@ -767,7 +798,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     const sync = () => {
       try {
         const v = parseInt(localStorage.getItem(FONT_SIZE_KEY) || '1', 10);
-        if (!isNaN(v) && v >= 0 && v <= 3) setFontIdx(v);
+        if (!isNaN(v) && v >= 0 && v <= 8) setFontIdx(v);
       } catch {}
       try {
         const id = localStorage.getItem(FONT_FAMILY_KEY);
@@ -819,7 +850,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     }
     setActiveIdx(idx);
     // TTS highlight → +1 score per topic read aloud
-    if (scoreSessionRef.current && !activeTopicList[idx]?.isHeading) {
+    // Only fires in AUTO mode (Read All / Smart Reading popup). Manual topic taps
+    // have their own separate reward (READ_MANUAL_TOPIC_10S +2) via Touch Protection.
+    if (scoreSessionRef.current && !activeTopicList[idx]?.isHeading && ttsIsAutoRef.current) {
       scoreSessionRef.current.onTtsHighlight();
     }
     setTimeout(() => {
@@ -932,7 +965,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       return;
     }
     if (activeTopicList.length === 0) return;
-    const t = setTimeout(() => startFromIndex(0), 200);
+    const t = setTimeout(() => { ttsIsAutoRef.current = true; startFromIndex(0); }, 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, content]);
@@ -954,6 +987,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     if (matchIdx < 0) return;
     const t = setTimeout(() => {
       itemRefs.current[matchIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ttsIsAutoRef.current = true;
       startFromIndex(matchIdx);
     }, 250);
     return () => clearTimeout(t);
@@ -1112,6 +1146,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 stopAll();
               } else {
                 try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
+                ttsIsAutoRef.current = true;
                 startFromIndex(initialIndex ?? 0);
               }
             }}
@@ -1126,9 +1161,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
       {!hideTopBar && (
-        <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3">
-          {/* ── Slim bar — title + READ MODE watermark ── */}
-          <div className="flex items-center gap-2 px-2 py-1.5">
+        <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3" style={{ width: '100vw', marginLeft: 'calc(-1 * (100vw - 100%) / 2)', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
+          {/* ── Slim bar — back + counter + icons ── */}
+          <div className="flex items-center gap-1.5 px-2 py-1.5">
             {onBack && (
               <button
                 type="button"
@@ -1139,14 +1174,21 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <ChevronRight size={15} className="rotate-180" />
               </button>
             )}
-            <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
-              <span className="text-xs font-bold text-slate-700 truncate">
-                {topBarLabel || 'Notes'}
+            {/* Counter / READING ACTIVE label */}
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
+              <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
+                {isReading && activeIdx !== null
+                  ? `${activeIdx + 1}/${activeTopicList.length}`
+                  : activeTopicList.length > 0
+                    ? `1/${activeTopicList.length}`
+                    : ''}
               </span>
-              <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-slate-300 select-none">
-                {isReading && activeIdx !== null ? `${activeIdx + 1}/${activeTopicList.length}` : 'READ MODE'}
-              </span>
-              {/* Live session score — silently updates as user reads/TTS plays */}
+              {isReading && (
+                <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.14em] text-indigo-400 select-none">
+                  READING ACTIVE
+                </span>
+              )}
+              {/* Live session score */}
               {scoreState && scoreState.totalSessionScore > 0 && (
                 <span
                   className="shrink-0 text-[9px] font-black tabular-nums px-1.5 py-0.5 rounded-full"
@@ -1161,18 +1203,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 </span>
               )}
             </div>
-            {onSaveOffline && (
-              <button
-                type="button"
-                onClick={onSaveOffline}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isSavedOffline ? 'bg-emerald-100 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
-                title={isSavedOffline ? 'Saved!' : 'Save Offline'}
-              >
-                <WifiOff size={13} />
-              </button>
-            )}
-            {/* 📖 Book icon button — score info popup */}
-            {readingScoreConfig && scoreState && (
+            {/* 📖 Book icon button — score info popup (hidden when popup is open) */}
+            {readingScoreConfig && scoreState && !showScoreInfo && (
               <button
                 type="button"
                 onClick={openScoreInfo}
@@ -1190,30 +1222,25 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
               </button>
             )}
-            {/* 🛡️ Touch Protection badge */}
-            {readingScoreConfig && (
+            {/* 🛡️ Touch Protection — icon-only compact button (hidden when popup is open) */}
+            {readingScoreConfig && !showReadingActiveInfo && (
               <button
                 type="button"
                 onClick={openReadingActiveInfo}
                 title="Touch Protection info"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  padding: '3px 7px', borderRadius: 999,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 8,
                   background: 'rgba(100,116,139,0.10)',
                   border: '1px solid rgba(100,116,139,0.2)',
                   cursor: 'pointer', flexShrink: 0,
                   transition: 'all 0.2s',
                 }}
               >
-                <span style={{ fontSize: 10 }}>🛡️</span>
-                <span style={{
-                  fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#94a3b8', whiteSpace: 'nowrap',
-                }}>
-                  Touch Protection
-                </span>
+                <span style={{ fontSize: 14, lineHeight: 1 }}>🛡️</span>
               </button>
             )}
+            {/* Grid icon — parent more options */}
             {onMoreOptions && !hideInline3dot && (
               <button
                 type="button"
@@ -1224,141 +1251,266 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <LayoutGrid size={14} />
               </button>
             )}
+            {/* 3-dot — opens full controls panel */}
+            <button
+              type="button"
+              onClick={() => setShowControls(s => !s)}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${showControls ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+              title="Controls"
+            >
+              <MoreVertical size={14} />
+            </button>
           </div>
 
-          {/* ── 5-button compact row — hides on scroll down ── */}
-          <div className={`overflow-hidden transition-all duration-200 ${toolbarHidden ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-12 opacity-100'}`}>
-            <div className="flex items-center gap-1 px-2 pb-2">
-              {/* READ ALL */}
+          {/* ── Reading Score banner — inline inside toolbar (row 1 or 2 depending on order) ── */}
+          {showScoreInfo && scoreState && (
+            <div
+              onTouchStart={(e) => { scoreBannerSwipeX.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                const dx = scoreBannerSwipeX.current - e.changedTouches[0].clientX;
+                if (dx > 60) setShowScoreInfo(false);
+              }}
+              style={{
+                borderTop: '2px solid #6366f1',
+                background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 12px',
+                animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+                userSelect: 'none', touchAction: 'pan-y',
+                boxShadow: '0 3px 10px rgba(99,102,241,0.13), inset 0 -1px 0 #c7d2fe',
+              }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                {isReading ? 'Reading Active' : 'Reading Score'}
+              </span>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#6366f1', lineHeight: 1.2 }}>+{scoreState.totalSessionScore}</span>
+              </div>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{Math.round(scoreState.progressPercent)}%</span>
+              </div>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              {(() => {
+                const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
+                  : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
+                const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
+                const _base = scoreState.mode === 'reading' ? 5 : 25;
+                const _pts = Math.max(1, Math.round(_base * _subMul * _boostMul));
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+                    <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
+                      {!scoreState.isPaused ? `+${_pts} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+                    </span>
+                  </div>
+                );
+              })()}
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowScoreInfo(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+                  borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0,
+                }}
+                aria-label="Dismiss"
+              >✕</button>
+            </div>
+          )}
+
+          {/* ── Touch Protection banner — inline inside toolbar, stacks below Reading Score if both open ── */}
+          {showReadingActiveInfo && (() => {
+            const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
+              : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
+            const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
+            const _tp2pts = Math.max(1, Math.round(2 * _subMul * _boostMul));
+            return (
+              <div
+                onTouchStart={(e) => { tpBannerSwipeX.current = e.touches[0].clientX; }}
+                onTouchEnd={(e) => {
+                  const dx = tpBannerSwipeX.current - e.changedTouches[0].clientX;
+                  if (dx > 60) setShowReadingActiveInfo(false);
+                }}
+                style={{
+                  borderTop: '2px solid #0ea5e9',
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%)',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 12px',
+                  animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+                  userSelect: 'none', touchAction: 'pan-y',
+                  boxShadow: '0 3px 10px rgba(14,165,233,0.12), inset 0 -1px 0 #bae6fd',
+                }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>🛡️</span>
+                <span style={{ fontSize: 10, fontWeight: 900, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                  Touch Pro
+                </span>
+                <span style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>
+                  10s ruko → <span style={{ color: '#16a34a', fontWeight: 800 }}>+{_tp2pts} milega</span>
+                </span>
+                <div style={{ flex: 1, height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', minWidth: 32 }}>
+                  <div style={{
+                    width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+                    borderRadius: 99,
+                    transition: 'width 0.9s linear',
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#6366f1', flexShrink: 0, minWidth: 22, textAlign: 'right' }}>
+                  {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
+                </span>
+                <button
+                  onClick={() => setShowReadingActiveInfo(false)}
+                  style={{
+                    background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+                    borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0,
+                  }}
+                  aria-label="Dismiss"
+                >✕</button>
+              </div>
+            );
+          })()}
+
+          {/* ── Controls panel — Row 1: bar style matching READING SCORE / TOUCH PRO ── */}
+          {showControls && (
+            <div style={{ borderTop: '2px solid #e2e8f0', background: 'linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%)', display: 'flex', alignItems: 'stretch', animation: 'tp-banner-in 0.18s cubic-bezier(0.34,1.56,0.64,1)', boxShadow: '0 3px 10px rgba(0,0,0,0.07)' }}>
+              {/* READ ALL / STOP */}
               <button
                 type="button"
                 onClick={() => {
                   if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); }
-                  else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} startFromIndex(initialIndex ?? 0); }
+                  else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} ttsIsAutoRef.current = true; startFromIndex(initialIndex ?? 0); }
                 }}
-                className={`flex-1 flex items-center justify-center gap-1 h-8 rounded-xl text-[11px] font-black active:scale-95 transition ${isReading ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'}`}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isReading ? '#fef2f2' : '#eef2ff', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}
               >
-                {isReading ? <><Square size={11}/> Stop</> : <><Volume2 size={11}/> {initialIndex ? 'Resume' : 'Read All'}</>}
+                {isReading ? <Square size={12} style={{ color: '#ef4444' }} /> : <Volume2 size={12} style={{ color: '#6366f1' }} />}
+                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: isReading ? '#ef4444' : '#6366f1', lineHeight: 1 }}>
+                  {isReading ? 'Stop' : (initialIndex ? 'Resume' : 'Read')}
+                </span>
               </button>
               {/* A− */}
               <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
-                className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
-                A−
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 0 ? 0.3 : 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A−</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
               </button>
               {/* A+ */}
               <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
-                className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[13px] font-black active:scale-95 transition disabled:opacity-35">
-                A+
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 3 ? 0.3 : 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A+</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
               </button>
               {/* Rotate */}
               <button type="button" onClick={handleRotate}
-                className="flex-1 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                <RotateCcw size={14} className="text-slate-600" />
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <RotateCcw size={12} style={{ color: '#64748b' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Reset</span>
               </button>
-              {/* More */}
-              <button type="button" onClick={() => setShowControls(s => !s)}
-                className={`flex-1 h-8 flex items-center justify-center rounded-xl border active:scale-95 transition ${showControls ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                <MoreVertical size={14} />
-              </button>
+              {/* Offline Save */}
+              {onSaveOffline && (
+                <button type="button" onClick={() => { onSaveOffline(); setShowControls(false); }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isSavedOffline ? '#f0fdf4' : 'transparent', cursor: 'pointer', border: 'none' }}>
+                  <WifiOff size={12} style={{ color: isSavedOffline ? '#16a34a' : '#64748b' }} />
+                  <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: isSavedOffline ? '#16a34a' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>
+                    {isSavedOffline ? 'Saved' : 'Save'}
+                  </span>
+                </button>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* ── MORE panel — Style, Color, Search, Speed, Ultra ── */}
+          {/* ── MORE panel — Row 2: bar style matching READING SCORE / TOUCH PRO ── */}
           {showControls && (
-            <div className="px-2 pb-2 pt-1 border-t border-slate-100 animate-in slide-in-from-top-1 duration-150">
-              <div className="grid grid-cols-5 gap-1">
+            <div style={{ borderTop: '1px solid #e2e8f0', background: 'linear-gradient(180deg, #e8edf3 0%, #f1f5f9 100%)', display: 'flex', alignItems: 'stretch', boxShadow: 'inset 0 -2px 0 #d1d9e0' }}>
 
-                {/* Font Style */}
-                <button type="button"
-                  onClick={() => { setShowFontFamilyMenu(true); setShowControls(false); TOP_10_READING_FONTS.forEach(f => ensureReadingFontLoaded(f.gfontParam)); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${activeFont ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}>
-                  <Type size={13} className={activeFont ? 'text-indigo-600' : 'text-slate-600'} />
-                  <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${activeFont ? 'text-indigo-500' : 'text-slate-400'}`}>Style</span>
-                </button>
+              {/* Font Style */}
+              <button type="button"
+                onClick={() => { setShowFontFamilyMenu(true); setShowControls(false); TOP_10_READING_FONTS.forEach(f => ensureReadingFontLoaded(f.gfontParam)); }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: activeFont ? '#eef2ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <Type size={12} style={{ color: activeFont ? '#6366f1' : '#64748b' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: activeFont ? '#6366f1' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Style</span>
+              </button>
 
-                {/* Text Color */}
-                {!textColorOverride ? (
-                  <div className="relative">
-                    <button type="button" onClick={() => setShowColorMenu(s => !s)}
-                      className="w-full flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                      <div className="flex items-center gap-0.5">
-                        <Palette size={11} className="text-slate-600" />
-                        <span className="w-3 h-3 rounded-full border-2 border-slate-300" style={{ backgroundColor: textColor }} />
-                      </div>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Color</span>
-                    </button>
-                    {showColorMenu && (
-                      <>
-                        <div className="fixed inset-0 z-[310]" onClick={() => setShowColorMenu(false)} />
-                        <div className="absolute left-0 top-full mt-1 z-[320] bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 animate-in fade-in slide-in-from-top-2 duration-150">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
-                            Text Color · {themeMode === 'blue' ? 'Blue' : themeMode === 'dark' ? 'Dark' : 'Light'} mode
-                          </p>
-                          <div className="grid grid-cols-6 gap-2">
-                            {READING_PALETTE[themeMode].map((sw, i) => {
-                              const isSelected = sw.hex.toLowerCase() === textColor.toLowerCase();
-                              const isRecommended = i === 0;
-                              return (
-                                <button key={sw.hex} type="button"
-                                  onClick={() => { pickColor(sw.hex); setShowColorMenu(false); }}
-                                  title={`${sw.name}${isRecommended ? ' · Recommended' : ''}`}
-                                  className={`relative aspect-square rounded-lg border-2 transition-all active:scale-90 ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-400'}`}
-                                  style={{ backgroundColor: sw.hex }}>
-                                  {isSelected && <span className="absolute inset-0 flex items-center justify-center"><Check size={12} className="text-white drop-shadow" strokeWidth={4} /></span>}
-                                  {isRecommended && !isSelected && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 text-[8px] font-black text-white flex items-center justify-center shadow">★</span>}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-2">★ = recommended for this mode</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : <div />}
-
-                {/* Search */}
-                <button type="button"
-                  onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border active:scale-95 transition ${inlineSearch ? 'bg-blue-600 border-blue-600' : 'bg-slate-50 border-slate-200'}`}>
-                  <Search size={13} className={inlineSearch ? 'text-white' : 'text-slate-600'} />
-                  <span className={`text-[8px] font-bold uppercase tracking-wide leading-none ${inlineSearch ? 'text-white' : 'text-slate-400'}`}>Search</span>
-                </button>
-
-                {/* Voice Speed */}
-                <button type="button" onClick={cycleSpeed}
-                  className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                  <span className="text-[11px] font-black text-slate-700 leading-none">{SPEED_LABELS[speedIdx]}</span>
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Speed</span>
-                </button>
-
-                {/* Ultra View */}
-                {hasHtmlToShow ? (
-                  isUltraUser ? (
-                    <button type="button"
-                      onClick={() => { stopAll(); setHtmlViewMode('html'); onHtmlOpen?.(); setShowControls(false); }}
-                      className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-violet-50 border border-violet-200 active:scale-95 transition">
-                      <span className="text-sm leading-none">⚡</span>
-                      <span className="text-[8px] font-bold text-violet-500 uppercase tracking-wide leading-none">Ultra</span>
-                    </button>
-                  ) : (
-                    <button type="button"
-                      onClick={() => { setShowHtmlUnlockPrompt(true); setShowControls(false); }}
-                      className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-slate-50 border border-slate-200 active:scale-95 transition">
-                      <span className="text-sm leading-none">🔒</span>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-none">Ultra</span>
-                    </button>
-                  )
-                ) : onMoreOptions ? (
-                  <button type="button"
-                    onClick={() => { setShowControls(false); onMoreOptions(); }}
-                    className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl bg-indigo-50 border border-indigo-200 active:scale-95 transition">
-                    <Layers size={13} className="text-indigo-600" />
-                    <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-wide leading-none">Opt</span>
+              {/* Text Color */}
+              {!textColorOverride ? (
+                <div style={{ flex: 1, position: 'relative', borderRight: '1px solid #e2e8f0' }}>
+                  <button type="button" onClick={() => setShowColorMenu(s => !s)}
+                    style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Palette size={10} style={{ color: '#64748b' }} />
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #cbd5e1', backgroundColor: textColor, display: 'inline-block' }} />
+                    </div>
+                    <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Color</span>
                   </button>
-                ) : <div />}
+                  {showColorMenu && (
+                    <>
+                      <div className="fixed inset-0 z-[310]" onClick={() => setShowColorMenu(false)} />
+                      <div className="absolute left-0 top-full mt-1 z-[320] bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 animate-in fade-in slide-in-from-top-2 duration-150">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                          Text Color · {themeMode === 'blue' ? 'Blue' : themeMode === 'dark' ? 'Dark' : 'Light'} mode
+                        </p>
+                        <div className="grid grid-cols-6 gap-2">
+                          {READING_PALETTE[themeMode].map((sw, i) => {
+                            const isSelected = sw.hex.toLowerCase() === textColor.toLowerCase();
+                            const isRecommended = i === 0;
+                            return (
+                              <button key={sw.hex} type="button"
+                                onClick={() => { pickColor(sw.hex); setShowColorMenu(false); }}
+                                title={`${sw.name}${isRecommended ? ' · Recommended' : ''}`}
+                                className={`relative aspect-square rounded-lg border-2 transition-all active:scale-90 ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-400'}`}
+                                style={{ backgroundColor: sw.hex }}>
+                                {isSelected && <span className="absolute inset-0 flex items-center justify-center"><Check size={12} className="text-white drop-shadow" strokeWidth={4} /></span>}
+                                {isRecommended && !isSelected && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 text-[8px] font-black text-white flex items-center justify-center shadow">★</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-2">★ = recommended for this mode</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : <div style={{ flex: 1, borderRight: '1px solid #e2e8f0' }} />}
 
-              </div>
+              {/* Search */}
+              <button type="button"
+                onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: inlineSearch ? '#eff6ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <Search size={12} style={{ color: inlineSearch ? '#3b82f6' : '#64748b' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: inlineSearch ? '#3b82f6' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Search</span>
+              </button>
+
+              {/* Voice Speed */}
+              <button type="button" onClick={cycleSpeed}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#334155', lineHeight: 1 }}>{SPEED_LABELS[speedIdx]}</span>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Speed</span>
+              </button>
+
+              {/* Ultra View */}
+              {hasHtmlToShow ? (
+                isUltraUser ? (
+                  <button type="button"
+                    onClick={() => { stopAll(); setHtmlViewMode('html'); onHtmlOpen?.(); setShowControls(false); }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: '#f5f3ff', cursor: 'pointer', border: 'none' }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>⚡</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#7c3aed', letterSpacing: '0.05em', lineHeight: 1 }}>Ultra</span>
+                  </button>
+                ) : (
+                  <button type="button"
+                    onClick={() => { setShowHtmlUnlockPrompt(true); setShowControls(false); }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>🔒</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Ultra</span>
+                  </button>
+                )
+              ) : <div style={{ flex: 1 }} />}
+
             </div>
           )}
 
@@ -1454,6 +1606,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                         setInlineQuery('');
                         setTimeout(() => {
                           itemRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          ttsIsAutoRef.current = true;
                           startFromIndex(idx);
                         }, 100);
                       }}
@@ -1472,281 +1625,72 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         </div>
       )}
 
-      {/* Touch Protection — non-blocking top banner (first-time auto notification) */}
-      {showTouchProtectionPopup && (
-        <div
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-            padding: '8px 12px 0',
-            pointerEvents: 'none',
-            animation: 'tp-banner-in 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(10,12,28,0.97)',
-              border: '1px solid #6366f155',
-              borderRadius: 14,
-              padding: '10px 14px',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
-              display: 'flex', alignItems: 'center', gap: 10,
-              pointerEvents: 'auto',
-              overflow: 'hidden', position: 'relative',
-            }}
-          >
-            {/* auto-scroll marquee text */}
-            <span style={{ fontSize: 18, flexShrink: 0 }}>🛡️</span>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 10, fontWeight: 900, color: '#a5b4fc', marginBottom: 1, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                Touch Protection Active
-              </div>
-              <div style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                <span style={{
-                  display: 'inline-block',
-                  fontSize: 10, color: '#94a3b8',
-                  animation: 'tp-scroll 9s linear 0.5s 1 forwards',
-                }}>
-                  📖 Topic open karo &nbsp;·&nbsp; ⏱️ 10 sec padho &nbsp;·&nbsp; ✨ +2 reward milega &nbsp;·&nbsp; TTS auto-reading always exempt hai
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowTouchProtectionPopup(false)}
-              style={{
-                background: 'rgba(99,102,241,0.2)', border: '1px solid #6366f144',
-                borderRadius: 8, padding: '3px 8px',
-                color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0,
-              }}
-            >
-              OK
-            </button>
-          </div>
-          <style>{`
-            @keyframes tp-banner-in {
-              from { transform: translateY(-100%); opacity: 0; }
-              to   { transform: translateY(0);    opacity: 1; }
-            }
-            @keyframes tp-scroll {
-              0%   { transform: translateX(0); }
-              100% { transform: translateX(-60%); }
-            }
-          `}</style>
-        </div>
-      )}
 
-      {/* READING ACTIVE info popup — non-blocking, triggered by tapping badge in top bar */}
-      {showReadingActiveInfo && (
-        <div
-          style={{
-            position: 'fixed', top: 8, left: 8, zIndex: 9999,
-            width: 160,
-            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(8,12,28,0.96)',
-              border: '1px solid #6366f155',
-              borderRadius: 14,
-              padding: '12px 12px',
-              boxShadow: '0 6px 28px rgba(0,0,0,0.5)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-              <span style={{ fontSize: 16 }}>🛡️</span>
-              <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', flex: 1 }}>
-                Touch Protection
-              </span>
-              <button
-                onClick={() => setShowReadingActiveInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
-            </div>
-            <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 8, lineHeight: 1.5 }}>
-              Topic par <span style={{ color: '#e2e8f0', fontWeight: 700 }}>10 sec</span> rukne ke baad<br />
-              <span style={{ color: '#86efac', fontWeight: 700 }}>+2 reward</span> milega
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ flex: 1, height: 4, background: '#1e2030', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{
-                  width: scoreState ? `${Math.round(((10 - (scoreState.touchProtectionCooldownSec ?? 0)) / 10) * 100)}%` : '0%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #6366f1, #818cf8)',
-                  borderRadius: 99,
-                  transition: 'width 0.9s linear',
-                }} />
-              </div>
-              <span style={{ color: '#818cf8', fontWeight: 900, fontSize: 12, minWidth: 24, textAlign: 'right' }}>
-                {scoreState?.touchProtectionCooldownSec != null ? `${String(Math.max(0, Math.round(scoreState.touchProtectionCooldownSec))).padStart(2,'0')}s` : '--'}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 📖 Score info popup — book icon se open hota hai, auto-dismiss 2s */}
-      {showScoreInfo && scoreState && (
-        <div
-          style={{
-            position: 'fixed', top: 8, right: 8, zIndex: 9999,
-            width: 190,
-            animation: 'tp-banner-in 0.28s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(10,12,28,0.97)',
-              border: '1px solid #6366f155',
-              borderRadius: 14,
-              padding: '12px 14px',
-              boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 20 }}>📖</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 900 }}>
-                  {isReading ? 'Reading Active' : 'Reading Score'}
-                </div>
-                <div style={{ color: '#475569', fontSize: 9, marginTop: 1 }}>Session progress</div>
-              </div>
-              <button
-                onClick={() => setShowScoreInfo(false)}
-                style={{
-                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
-                  borderRadius: 8, padding: '3px 9px',
-                  color: '#a5b4fc', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                OK
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <div style={{
-                flex: 1, background: 'rgba(99,102,241,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(99,102,241,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Score</div>
-                <div style={{ color: '#a5b4fc', fontSize: 18, fontWeight: 900 }}>+{scoreState.totalSessionScore}</div>
-              </div>
-              <div style={{
-                flex: 1, background: 'rgba(34,197,94,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(34,197,94,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Progress</div>
-                <div style={{ color: '#4ade80', fontSize: 18, fontWeight: 900 }}>{Math.round(scoreState.progressPercent)}%</div>
-              </div>
-              <div style={{
-                flex: 1, background: 'rgba(251,191,36,0.08)', borderRadius: 8, padding: '8px 10px',
-                border: '1px solid rgba(251,191,36,0.12)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>Next</div>
-                <div style={{ color: '#fbbf24', fontSize: 14, fontWeight: 900 }}>
-                  {!scoreState.isPaused ? `+${scoreState.mode === 'reading' ? 5 : 25} in ${scoreState.nextRewardInSec}s` : 'Paused'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Smart TTS Suggestion popup — shown once when rapid manual tapping detected */}
+      {/* Smart TTS Suggestion popup — compact, non-blocking, bottom-anchored */}
       {showTtsSuggestPopup && (
         <div
           style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-            padding: '0 16px 28px',
+            position: 'fixed', bottom: 132, left: 12, right: 12, zIndex: 9998,
+            pointerEvents: 'none',
+            animation: 'tp-banner-in 0.22s cubic-bezier(0.34,1.56,0.64,1)',
           }}
-          onClick={() => setShowTtsSuggestPopup(false)}
         >
           <div
-            onClick={e => e.stopPropagation()}
             style={{
-              background: 'rgba(10,14,32,0.98)',
-              border: '1px solid #38bdf820',
-              borderRadius: 22,
-              padding: '22px 20px 18px',
-              maxWidth: 340,
-              width: '100%',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-              animation: 'rshud-slide 0.22s ease',
+              background: 'rgba(10,14,32,0.97)',
+              border: '1px solid #38bdf830',
+              borderRadius: 16,
+              padding: '12px 14px 10px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+              pointerEvents: 'auto',
             }}
           >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 22 }}>💡</span>
-              <div>
-                <div style={{ color: '#7dd3fc', fontSize: 13, fontWeight: 900 }}>Better Learning Tip</div>
-                <div style={{ color: '#475569', fontSize: 10, marginTop: 1 }}>App ki taraf se suggestion</div>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 16 }}>🎧</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ color: '#7dd3fc', fontSize: 12, fontWeight: 900 }}>Smart Reading Suggestion</span>
               </div>
+              <button
+                onClick={() => setShowTtsSuggestPopup(false)}
+                style={{
+                  background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f133',
+                  borderRadius: 8, padding: '2px 8px',
+                  color: '#64748b', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                }}
+              >✕</button>
             </div>
 
             {/* Body */}
-            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
-              Aap bahut topics manually tap kar rahe hain.<br />
-              <span style={{ color: '#e2e8f0' }}>TTS Auto Reading</span> try karna chahoge?
-            </div>
-
-            {/* Feature comparison — equal positive framing */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-              {[
-                { label: 'Manual Reading', icon: '📖', points: ['Apni speed', 'Full control', '+2 per topic (10s)'], color: '#34d399' },
-                { label: 'TTS Auto Reading', icon: '🎙️', points: ['Hands-free', 'Auto highlight', '+2 per topic (auto)'], color: '#38bdf8' },
-              ].map(({ label, icon, points, color }) => (
-                <div
-                  key={label}
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${color}22`,
-                    borderRadius: 12,
-                    padding: '10px 10px 8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>{icon}</span>
-                    <span style={{ color, fontSize: 10, fontWeight: 800 }}>{label}</span>
-                  </div>
-                  {points.map(p => (
-                    <div key={p} style={{ color: '#64748b', fontSize: 9.5, lineHeight: 1.6 }}>
-                      ✓ {p}
-                    </div>
-                  ))}
-                </div>
-              ))}
+            <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.5, marginBottom: 10 }}>
+              Aap topics me manually navigate kar rahe hain.{' '}
+              <span style={{ color: '#e2e8f0', fontWeight: 700 }}>Auto TTS Reading</span> switch karo — hands-free padhai aur automatic progress tracking milegi.
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => {
                   setShowTtsSuggestPopup(false);
-                  // Start TTS from current position (or from beginning)
                   const startIdx = activeIdx !== null ? activeIdx : 0;
+                  ttsIsAutoRef.current = true;
                   startFromIndex(startIdx);
                 }}
                 style={{
-                  flex: 2, padding: '11px 0', borderRadius: 12,
+                  flex: 2, padding: '8px 0', borderRadius: 10,
                   background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)',
-                  color: '#fff', fontWeight: 900, fontSize: 12, border: 'none',
+                  color: '#fff', fontWeight: 900, fontSize: 11, border: 'none',
                   cursor: 'pointer',
                 }}
               >
-                🎙️ TTS Start Karo
+                🎙️ TTS Reading Shuru Karo
               </button>
               <button
                 onClick={() => setShowTtsSuggestPopup(false)}
                 style={{
-                  flex: 1, padding: '11px 0', borderRadius: 12,
+                  flex: 1, padding: '8px 0', borderRadius: 10,
                   background: 'rgba(255,255,255,0.06)',
-                  color: '#64748b', fontWeight: 700, fontSize: 12,
+                  color: '#64748b', fontWeight: 700, fontSize: 11,
                   border: '1px solid #ffffff15', cursor: 'pointer',
                 }}
               >
@@ -1800,6 +1744,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
           // Whole topic is a button so taps anywhere on the line start/stop TTS.
           const starred = isStarred ? isStarred(topic.text) : false;
           const starCount = getStarCount ? getStarCount(topic.text) : 0;
+          const marked2 = isMarked2 ? isMarked2(topic.text) : false;
           return (
             <div
               key={`tp-${idx}`}
@@ -1807,9 +1752,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               className={`group relative w-full rounded-lg transition-colors ${
                 isActive
                   ? 'bg-yellow-50 ring-2 ring-yellow-300'
-                  : starred
-                    ? 'bg-amber-50'
-                    : 'hover:bg-slate-50'
+                  : (marked2 && starred)
+                    ? 'bg-purple-50 ring-1 ring-purple-300'
+                    : marked2
+                      ? 'bg-orange-50 ring-1 ring-orange-200'
+                      : starred
+                        ? 'bg-amber-50'
+                        : 'hover:bg-slate-50'
               }`}
             >
               <button
@@ -1820,20 +1769,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     stopAll();
                   } else {
                     // Manual tap → Touch Protection (10 sec stay → +2)
+                    // Auto TTS rewards are disabled for manual-tap sessions.
+                    ttsIsAutoRef.current = false;
                     if (scoreSessionRef.current && !topic.isHeading && readingScoreConfig) {
                       scoreSessionRef.current.onManualTopicEnter(idx);
                       trackManualTap();
-                      // Show explanation popup first time only
-                      if (!touchProtectionPopupShownRef.current) {
-                        try {
-                          if (!localStorage.getItem(TP_SEEN_KEY)) {
-                            setShowTouchProtectionPopup(true);
-                            touchProtectionPopupShownRef.current = true;
-                            localStorage.setItem(TP_SEEN_KEY, '1');
-                            setTimeout(() => setShowTouchProtectionPopup(false), 2000);
-                          }
-                        } catch {}
-                      }
                     }
                     startFromIndex(idx);
                   }
@@ -1872,7 +1812,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   on already-starred lines still indicates "saved to Important
                   Notes". To un-star later, tap the line to start TTS again,
                   then tap the star. ~28px hit area for easy tapping. */}
-              {onStarToggle && isActive && (
+              {/* Regular star button — hidden when admin is in Mark 2 mode */}
+              {onStarToggle && isActive && !(isAdmin && useImportantMark2) && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1891,6 +1832,28 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   title={starred ? 'Tap to un-star' : 'Tap to add to Important Notes'}
                 >
                   <Star size={15} className={starred ? 'fill-amber-500' : ''} />
+                </button>
+              )}
+              {/* Important Mark 2 button — only visible to admins when Mark 2 mode is ON */}
+              {isAdmin && useImportantMark2 && onMark2Toggle && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    try { if (navigator.vibrate) navigator.vibrate(40); } catch {}
+                    onMark2Toggle(topic.text);
+                  }}
+                  onPointerDown={(e) => { e.stopPropagation(); }}
+                  style={{ width: '28px', height: '28px', padding: 0 }}
+                  className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full inline-flex items-center justify-center transition-all shadow-sm border-2 z-10 ${
+                    marked2
+                      ? 'text-orange-600 bg-orange-100 border-orange-400 hover:bg-orange-200'
+                      : 'text-orange-400 bg-white border-orange-200 hover:bg-orange-50'
+                  }`}
+                  aria-label={marked2 ? 'Remove Important Mark 2' : 'Important Mark 2'}
+                  title={marked2 ? 'Tap to remove Important Mark 2' : 'Tap to mark as Important 2 (changes background)'}
+                >
+                  <Flame size={13} className={marked2 ? 'fill-orange-500' : ''} />
                 </button>
               )}
             </div>
