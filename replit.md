@@ -1,36 +1,47 @@
-# [Project name]
+# IIC — The Future of Learning
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An educational platform for students in India (CBSE, BSEB, etc.) providing study notes, PDF resources, MCQ practice, daily challenges, and a credit/subscription system.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `PORT=5000 pnpm --filter @workspace/iic-app run dev` — run the frontend (port 5000, mapped to port 80)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm install` — install all workspace packages (required after clone)
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- pnpm workspaces, Node.js 20, TypeScript 5.9
+- Frontend: React 19, Vite, Tailwind CSS, Shadcn/UI, Framer Motion
+- Backend/DB: Firebase (Realtime Database + Firestore + Auth + Analytics)
+- PWA: vite-plugin-pwa with offline support
+- Routing: wouter
+- API server: Express 5 + Drizzle ORM (minimal, health-check only)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/iic-app/src/` — React frontend source
+- `artifacts/iic-app/src/firebase.ts` — Firebase config and all DB/auth helpers
+- `artifacts/iic-app/src/components/` — UI components (StudentDashboard, AdminDashboard, Auth, etc.)
+- `artifacts/api-server/` — Express API server (minimal, extends later)
+- `lib/db/` — Drizzle schema (PostgreSQL, for future server-side use)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Firebase is the primary data store (RTDB + Firestore). The Express api-server is a future extension point, not currently used by the frontend.
+- Firebase config (apiKey etc.) is hardcoded in `firebase.ts` — this is correct for client-side Firebase; these are not secret keys.
+- Auth uses Firebase Auth (email/password + Google). This is intentional; replacing with Replit Auth would require a full backend rewrite.
+- PWA with offline support via localforage caching of content.
+- Monorepo with pnpm workspaces; all frontend deps live in `artifacts/iic-app/`.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Student onboarding: board/class selection (CBSE, BSEB, etc.)
+- Study notes and PDF viewer per subject/chapter
+- MCQ practice with scoring
+- Daily challenges and competitions
+- Credit system and subscription tiers
+- Admin dashboard for content management
 
 ## User preferences
 
@@ -38,8 +49,11 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Run `pnpm install` from the workspace root before starting any workflow.
+- The "permission-denied" Firestore errors in the browser console are Firebase security rules — they don't break the app and are managed in the Firebase console.
+- The `.migration-backup/` directory contains the pre-migration snapshot; it can be safely ignored.
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Firebase project: `project-1959318394445181665`
+- Main workflow: `IIC App` (runs `PORT=5000 pnpm --filter @workspace/iic-app run dev`)

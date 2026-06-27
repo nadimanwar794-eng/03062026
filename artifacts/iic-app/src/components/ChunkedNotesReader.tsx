@@ -1,7 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame } from 'lucide-react';
+import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil } from 'lucide-react';
+import { AdminWhiteBoard } from './AdminWhiteBoard';
 import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayPrefs';
+import { saveSuggestion, auth, findDuplicateSuggestionByPoint, incrementSuggestionReportCount, updateSuggestionLeaderboard } from '../firebase';
 import { speakText, stopSpeech } from '../utils/textToSpeech';
 import { splitIntoTopics, NotesTopic as Topic } from '../utils/notesSplitter';
 import { READING_FONTS, TOP_10_READING_FONTS, ensureReadingFontLoaded, getReadingFontById, ReadingFont } from '../utils/notesFonts';
@@ -9,6 +11,7 @@ import { ReadingStylePopover } from './ReadingStylePopover';
 import { ReadingScoreSession, ReadingScoreState, ReadingScoreConfig } from '../utils/readingScoreEngine';
 import { ReadingScoreHUD } from './ReadingScoreHUD';
 import { getLevelInfo, LEVEL_INFO } from '../utils/levelSystem';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 const FONT_SIZES = [13, 15, 17, 20, 24, 28, 32, 36, 40] as const;
 const FONT_SIZE_KEY = 'nst_reading_font_size';
@@ -175,6 +178,8 @@ interface Props {
   triggerControlsRef?: React.MutableRefObject<(() => void) | null>;
   /** When true, hides the 3-dot button inside the slim sticky bar so the parent's top-bar button is the sole trigger. */
   hideInline3dot?: boolean;
+  /** When true, hides the Fix/Correction button from the controls panel (e.g. in school mode). */
+  hideFix?: boolean;
   /** When provided, shows a ← back button in the slim READ MODE bar so the user can exit read mode. */
   onBack?: () => void;
   /** When provided, shows a Save Offline button in the slim READ MODE bar. */
@@ -191,10 +196,16 @@ interface Props {
   isMarked2?: (text: string) => boolean;
   /** Called when admin taps the Important Mark 2 button on a topic. */
   onMark2Toggle?: (text: string) => void;
+  /** Returns true if admin has globally marked this topic as important (shown to all students). */
+  isAdminImportant?: (text: string) => boolean;
+  /** Source metadata — passed through to correction submissions so admin knows which lesson/page/mode */
+  sourceMeta?: { lessonTitle?: string; pageNo?: string; subject?: string; classLevel?: string; };
+  /** Called when admin taps the Edit button in the slim bar — opens content editor for this note. Admin/SubAdmin only. */
+  onAdminEdit?: () => void;
 }
 
 
-export const ChunkedNotesReader: React.FC<Props> = ({ content, className, language = 'hi-IN', topBarLabel, autoStart, onComplete, onReadingStart, hideTopBar, initialIndex, onPositionChange, noteKey, isStarred, onStarToggle, searchQuery, getStarCount, textColorOverride, preferChunkMode, onDesktopModeChange, hideDesktopToggle, suppressStickyControls, htmlContent, isUltraUser, ultraHtmlRemaining, userCredits = 0, htmlUnlockCost = 5, onSpendCredits, onHtmlOpen, onUpgradeClick, isBasicUser = false, basicHtmlRemaining = 0, onHtmlViewChange, onMoreOptions, triggerControlsRef, hideInline3dot, onBack, onSaveOffline, isSavedOffline, readingScoreConfig, isAdmin, useImportantMark2, isMarked2, onMark2Toggle }) => {
+export const ChunkedNotesReader: React.FC<Props> = ({ content, className, language = 'hi-IN', topBarLabel, autoStart, onComplete, onReadingStart, hideTopBar, initialIndex, onPositionChange, noteKey, isStarred, onStarToggle, searchQuery, getStarCount, textColorOverride, preferChunkMode, onDesktopModeChange, hideDesktopToggle, suppressStickyControls, htmlContent, isUltraUser, ultraHtmlRemaining, userCredits = 0, htmlUnlockCost = 5, onSpendCredits, onHtmlOpen, onUpgradeClick, isBasicUser = false, basicHtmlRemaining = 0, onHtmlViewChange, onMoreOptions, triggerControlsRef, hideInline3dot, hideFix, onBack, onSaveOffline, isSavedOffline, readingScoreConfig, isAdmin, useImportantMark2, isMarked2, onMark2Toggle, isAdminImportant, sourceMeta, onAdminEdit }) => {
   const topics = useMemo(() => splitIntoTopics(content), [content]);
 
   // ── Strips [span_N](start_span) / [span_N](end_span) TTS markers ──
@@ -204,12 +215,21 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   // ── Lightweight markdown → HTML for mixed-content notes ──
   // Converts headings / bold / italic / bullets / numbered lists in lines
   // that are NOT already HTML tags. Full <!DOCTYPE> docs skip this entirely.
-  const inlineMd = (s: string) =>
-    s
+  const inlineMd = (s: string): string => {
+    // Protect math expressions ($...$  $$...$$  \(...\)  \[...\]) from markdown processing
+    const saved: string[] = [];
+    let r = s.replace(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$/g, m => {
+      saved.push(m);
+      return `\x00M${saved.length - 1}\x00`;
+    });
+    r = r
       .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/(?<![*])\*(?![*\s])([^*\n]+?)(?<!\s)\*(?![*])/g, '<em>$1</em>')
       .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    // Restore math expressions
+    return r.replace(/\x00M(\d+)\x00/g, (_, i) => saved[+i]);
+  };
 
   const markdownToHtml = (text: string): string => {
     const lines = text.split('\n');
@@ -311,6 +331,12 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     if (/^\d+[.)]\s+\S/m.test(first800)) return true;   // 1. ordered list
     if (/^\|.+\|/m.test(first800)) return true;          // | table |
     if (/\*\*[^*\n]+\*\*/.test(first800)) return true;  // **bold**
+    // LaTeX math blocks — force HTML path so multi-line equations are
+    // captured before splitIntoTopics() breaks them across separate chunks.
+    const first3k = t.slice(0, 3000);
+    if (/\$\$[\s\S]{1,1000}?\$\$/.test(first3k)) return true;   // $$...$$
+    if (/\\\[[\s\S]{1,500}?\\\]/.test(first3k)) return true;     // \[...\]
+    if (/\\\([\s\S]{1,200}?\\\)/.test(first3k)) return true;     // \(...\)
     return false;
   }, [content, htmlContent]);
 
@@ -361,8 +387,12 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     }
     // Strip TTS span markers
     result = stripSpanMarkers(result);
+    // Render math FIRST — multi-line $$...$$ / \[...\] blocks must be captured
+    // before markdownToHtml splits them into separate <p> lines.
+    result = renderMathInHtml(result);
     // Mixed markdown+HTML notes AND pure markdown: convert to HTML.
     // Full HTML docs already have proper HTML — skip conversion for them.
+    // KaTeX-rendered spans start with '<' so markdownToHtml will preserve them.
     if (!isFullHtmlDoc) {
       result = markdownToHtml(result);
     }
@@ -433,6 +463,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     if (/<[a-zA-Z]/.test(result)) result = result.replace(/^[^<]*/s, '');
     // Strip TTS span markers
     result = stripSpanMarkers(result);
+    // Render math FIRST — captures multi-line $$...$$ before markdownToHtml
+    // splits lines into separate <p> tags.
+    result = renderMathInHtml(result);
     // Pure markdown / mixed markdown+HTML: convert to HTML (skip for full HTML docs)
     if (!isFullHtmlDoc && !/<[a-zA-Z]/.test(result.trim().slice(0, 100))) {
       result = markdownToHtml(result);
@@ -461,6 +494,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       });
       result = tmp.innerHTML;
     } catch { /* ignore DOM errors */ }
+    // Render LaTeX math equations ($$...$$ and $...$)
+    result = renderMathInHtml(result);
     return result.trim();
   }, [htmlContent]);
 
@@ -524,6 +559,17 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   // 📖 Book icon tap → reading score info
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const openScoreInfo = () => setShowScoreInfo(true);
+  // 💡 Suggestion panel (inline per-point mode)
+  const [showSuggestionPanel, setShowSuggestionPanel] = useState(false);
+  const [inlineCorrectionIdx, setInlineCorrectionIdx] = useState<number | null>(null);
+  const [inlineCorrectionText, setInlineCorrectionText] = useState('');
+  const [inlineCorrectionSubmitting, setInlineCorrectionSubmitting] = useState(false);
+  const [inlineCorrectionDone, setInlineCorrectionDone] = useState(false);
+  const [inlineCorrectionError, setInlineCorrectionError] = useState(false);
+  // Track which point indices have already been submitted this session (prevents duplicate sends)
+  const [submittedPointIndices, setSubmittedPointIndices] = useState<Set<number>>(new Set());
+  // Reset submitted set when the note identity changes (component reused across different notes)
+  useEffect(() => { setSubmittedPointIndices(new Set()); }, [noteKey]);
 
   // Smart TTS suggestion — detect rapid manual tapping
   const TTS_SUGGEST_KEY = 'iic_tts_suggest_seen';
@@ -638,6 +684,15 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const [isDesktopMode, setIsDesktopModeLocal] = useState<boolean>(isDesktopModeOn);
   const [rotateToast, setRotateToast] = useState<string | null>(null);
   const [showControls, setShowControls] = useState(false);
+  const [showAdminBoard, setShowAdminBoard] = useState(false);
+  const [showOnlyImportant, setShowOnlyImportant] = useState(false);
+  // Stable ref so playFrom (memoised) can read the latest value without being re-created.
+  const showOnlyImportantRef = useRef(false);
+  useEffect(() => { showOnlyImportantRef.current = showOnlyImportant; }, [showOnlyImportant]);
+  // Helper: is a given topic "important" (starred / mark2 / admin-important)?
+  const isTopicImportant = useCallback((text: string) =>
+    (isStarred && isStarred(text)) || (isMarked2 && isMarked2(text)) || (isAdminImportant && isAdminImportant(text)),
+    [isStarred, isMarked2, isAdminImportant]);
   const lastScrollY = useRef(0);
   const [toolbarHidden, setToolbarHidden] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -670,6 +725,12 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     return () => scrollEl.removeEventListener('scroll', onScroll);
   }, []);
+
+  // When focus mode activates (hideTopBar=true), close the controls panel immediately
+  // so neither the sticky nav row nor the bottom overlay appear in focus mode
+  useEffect(() => {
+    if (hideTopBar) setShowControls(false);
+  }, [hideTopBar]);
 
   // Auto-collapse MORE panel when user scrolls down
   useEffect(() => {
@@ -772,7 +833,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => obs.disconnect();
   }, []);
-  // When theme flips, restore that theme's saved colour (or its default).
+  // Theme flip — load the stored colour for the new theme (or its default)
   useEffect(() => { setTextColor(getStoredColor(themeMode)); }, [themeMode]);
   const pickColor = (hex: string) => {
     setTextColor(hex);
@@ -848,6 +909,15 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       if (onCompleteRef.current) onCompleteRef.current();
       return;
     }
+    // When important-only filter is on, skip topics that aren't important
+    // (headings and non-important body lines) — advance to the next one silently.
+    if (showOnlyImportantRef.current) {
+      const t = activeTopicList[idx];
+      if (t.isHeading || !isTopicImportant(t.text)) {
+        playFrom(idx + 1);
+        return;
+      }
+    }
     setActiveIdx(idx);
     // TTS highlight → +1 score per topic read aloud
     // Only fires in AUTO mode (Read All / Smart Reading popup). Manual topic taps
@@ -868,7 +938,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         if (isReadingRef.current) playFrom(idx + 1);
       }
     );
-  }, [activeTopicList, language]);
+  }, [activeTopicList, language, isTopicImportant]);
 
   // Stable ref to the latest onReadingStart so we can call it from startFromIndex
   // without making the callback identity unstable.
@@ -1108,7 +1178,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             style-strip, table-wrap). processedHtmlContent = same pipeline on content prop.
             Both paths strip <style>/<script> and handle full-HTML docs safely. */}
         <div
-          className="chnr-html px-1"
+          className="chnr-html notes-html-content px-1"
           dangerouslySetInnerHTML={{ __html: processedExternalHtml || processedHtmlContent }}
           style={{ fontSize: '13.5px', lineHeight: '1.55', color: '#1e293b' }}
         />
@@ -1117,6 +1187,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   }
 
   return (
+    <>
     <div className={className || ''}>
       {/* Rotate toast — full-width top banner, same position as app top banners */}
       {rotateToast && (
@@ -1137,29 +1208,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
           the READ ALL bar, which broke readability. We also bump z-index so
           this bar always sits above scrolled content.
           When hideTopBar=true, only the READ ALL button is shown (compact sticky bar). */}
-      {hideTopBar && !suppressStickyControls && (
-        <div className="sticky top-0 z-20 mb-2">
-          <button
-            onClick={() => {
-              if (isReading) {
-                try { if (navigator.vibrate) navigator.vibrate(30); } catch {}
-                stopAll();
-              } else {
-                try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
-                ttsIsAutoRef.current = true;
-                startFromIndex(initialIndex ?? 0);
-              }
-            }}
-            className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-black uppercase tracking-wider shadow-md active:scale-95 transition ${
-              isReading
-                ? 'bg-red-600 text-white'
-                : 'bg-indigo-600 text-white'
-            }`}
-          >
-            {isReading ? <><Square size={13} /> Stop</> : initialIndex ? <><Volume2 size={13} /> Continue</> : <><Volume2 size={13} /> Read All</>}
-          </button>
-        </div>
-      )}
       {!hideTopBar && (
         <div ref={toolbarRef} className="sticky top-0 z-20 bg-white mb-3" style={{ width: '100vw', marginLeft: 'calc(-1 * (100vw - 100%) / 2)', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
           {/* ── Slim bar — back + counter + icons ── */}
@@ -1240,6 +1288,17 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <span style={{ fontSize: 14, lineHeight: 1 }}>🛡️</span>
               </button>
             )}
+            {/* Admin Edit button — only for admin/subadmin when onAdminEdit provided */}
+            {isAdmin && onAdminEdit && (
+              <button
+                type="button"
+                onClick={onAdminEdit}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-300 text-orange-600 active:scale-90 transition shrink-0"
+                title="Edit / Delete Notes (Admin)"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
             {/* Grid icon — parent more options */}
             {onMoreOptions && !hideInline3dot && (
               <button
@@ -1251,7 +1310,18 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <LayoutGrid size={14} />
               </button>
             )}
-            {/* 3-dot — opens full controls panel */}
+            {/* Admin board button — only for admins */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowAdminBoard(v => !v)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 active:scale-90 transition shrink-0"
+                title="Admin WhiteBoard"
+              >
+                <img src="/splash-logo.png" alt="WB" className="w-4 h-4 object-contain" />
+              </button>
+            )}
+            {/* 3-dot icon — opens full controls panel */}
             <button
               type="button"
               onClick={() => setShowControls(s => !s)}
@@ -1261,6 +1331,17 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               <MoreVertical size={14} />
             </button>
           </div>
+
+          {/* ✏️ Correction Mode active indicator strip */}
+          {showSuggestionPanel && (
+            <div style={{ borderTop: '2px solid #f59e0b', background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12 }}>✏️</span>
+                <span style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Correction Mode — Kisi bhi point ke samne ✏️ tap karo</span>
+              </div>
+              <button type="button" onClick={() => { setShowSuggestionPanel(false); setInlineCorrectionIdx(null); setInlineCorrectionText(''); setInlineCorrectionDone(false); setInlineCorrectionError(false); }} style={{ background: 'rgba(146,64,14,0.1)', border: 'none', borderRadius: 6, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#92400e', fontSize: 11, fontWeight: 900 }}>✕</button>
+            </div>
+          )}
 
           {/* ── Reading Score banner — inline inside toolbar (row 1 or 2 depending on order) ── */}
           {showScoreInfo && scoreState && (
@@ -1414,11 +1495,19 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               {/* Offline Save */}
               {onSaveOffline && (
                 <button type="button" onClick={() => { onSaveOffline(); setShowControls(false); }}
-                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isSavedOffline ? '#f0fdf4' : 'transparent', cursor: 'pointer', border: 'none' }}>
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: isSavedOffline ? '#f0fdf4' : 'transparent', cursor: 'pointer', border: 'none', borderLeft: '1px solid #e2e8f0' }}>
                   <WifiOff size={12} style={{ color: isSavedOffline ? '#16a34a' : '#64748b' }} />
                   <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: isSavedOffline ? '#16a34a' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>
                     {isSavedOffline ? 'Saved' : 'Save'}
                   </span>
+                </button>
+              )}
+              {/* 💡 Suggestion/Correction — hidden in school mode */}
+              {!hideFix && (
+                <button type="button" onClick={() => { setShowSuggestionPanel(s => !s); setShowControls(false); }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: showSuggestionPanel ? '#fef3c7' : 'transparent', cursor: 'pointer', border: 'none', borderLeft: '1px solid #e2e8f0' }}>
+                  <Lightbulb size={12} style={{ color: showSuggestionPanel ? '#d97706' : '#64748b' }} />
+                  <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: showSuggestionPanel ? '#d97706' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Fix</span>
                 </button>
               )}
             </div>
@@ -1452,10 +1541,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       <div className="fixed inset-0 z-[310]" onClick={() => setShowColorMenu(false)} />
                       <div className="absolute left-0 top-full mt-1 z-[320] bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 animate-in fade-in slide-in-from-top-2 duration-150">
                         <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
-                          Text Color · {themeMode === 'blue' ? 'Blue' : themeMode === 'dark' ? 'Dark' : 'Light'} mode
+                          Text Color
                         </p>
                         <div className="grid grid-cols-6 gap-2">
-                          {READING_PALETTE[themeMode].map((sw, i) => {
+                          {READING_PALETTE['light'].map((sw, i) => {
                             const isSelected = sw.hex.toLowerCase() === textColor.toLowerCase();
                             const isRecommended = i === 0;
                             return (
@@ -1491,6 +1580,16 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <span style={{ fontSize: 11, fontWeight: 900, color: '#334155', lineHeight: 1 }}>{SPEED_LABELS[speedIdx]}</span>
                 <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Speed</span>
               </button>
+
+              {/* Important Filter */}
+              {(isStarred || isAdminImportant || isMarked2) ? (
+                <button type="button"
+                  onClick={() => { setShowOnlyImportant(s => !s); setShowControls(false); }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 4px', background: showOnlyImportant ? '#fef3c7' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                  <Star size={12} style={{ color: showOnlyImportant ? '#d97706' : '#64748b', fill: showOnlyImportant ? '#d97706' : 'none' }} />
+                  <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: showOnlyImportant ? '#d97706' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Imp</span>
+                </button>
+              ) : <div style={{ flex: 1, borderRight: '1px solid #e2e8f0' }} />}
 
               {/* Ultra View */}
               {hasHtmlToShow ? (
@@ -1564,6 +1663,75 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       )}
 
 
+      {/* ── Controls overlay for school mode (hideTopBar=true) ── */}
+      {hideTopBar && showControls && (
+        <>
+          <div className="fixed inset-0 z-[490]" onClick={() => setShowControls(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[500] animate-in slide-in-from-bottom-2 duration-200" style={{ boxShadow: '0 -4px 24px rgba(0,0,0,0.12)' }}>
+            {/* Row 1 */}
+            <div style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%)', display: 'flex', alignItems: 'stretch', borderTop: '2px solid #e2e8f0' }}>
+              <button type="button"
+                onClick={() => { if (isReading) { try { if (navigator.vibrate) navigator.vibrate(30); } catch {} stopAll(); } else { try { if (navigator.vibrate) navigator.vibrate(50); } catch {} ttsIsAutoRef.current = true; startFromIndex(initialIndex ?? 0); } }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: isReading ? '#fef2f2' : '#eef2ff', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                {isReading ? <Square size={14} style={{ color: '#ef4444' }} /> : <Volume2 size={14} style={{ color: '#6366f1' }} />}
+                <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: isReading ? '#ef4444' : '#6366f1', lineHeight: 1 }}>{isReading ? 'Stop' : (initialIndex ? 'Resume' : 'Read')}</span>
+              </button>
+              <button type="button" onClick={() => changeFontSize(-1)} disabled={fontIdx === 0}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 0 ? 0.3 : 1 }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A−</span>
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
+              </button>
+              <button type="button" onClick={() => changeFontSize(1)} disabled={fontIdx === 3}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0', opacity: fontIdx === 3 ? 0.3 : 1 }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: '#334155', lineHeight: 1 }}>A+</span>
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Size</span>
+              </button>
+              {onSaveOffline && (
+                <button type="button" onClick={() => { onSaveOffline(); setShowControls(false); }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: isSavedOffline ? '#f0fdf4' : 'transparent', cursor: 'pointer', border: 'none' }}>
+                  <WifiOff size={14} style={{ color: isSavedOffline ? '#16a34a' : '#64748b' }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: isSavedOffline ? '#16a34a' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>{isSavedOffline ? 'Saved' : 'Save'}</span>
+                </button>
+              )}
+            </div>
+            {/* Row 2 */}
+            <div style={{ borderTop: '1px solid #e2e8f0', background: 'linear-gradient(180deg, #e8edf3 0%, #f1f5f9 100%)', display: 'flex', alignItems: 'stretch', boxShadow: 'inset 0 -2px 0 #d1d9e0' }}>
+              <button type="button"
+                onClick={() => { setShowFontFamilyMenu(true); setShowControls(false); TOP_10_READING_FONTS.forEach(f => ensureReadingFontLoaded(f.gfontParam)); }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: activeFont ? '#eef2ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <Type size={14} style={{ color: activeFont ? '#6366f1' : '#64748b' }} />
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: activeFont ? '#6366f1' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Style</span>
+              </button>
+              <button type="button" onClick={cycleSpeed}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: 12, fontWeight: 900, color: '#334155', lineHeight: 1 }}>{SPEED_LABELS[speedIdx]}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Speed</span>
+              </button>
+              <button type="button"
+                onClick={() => { setInlineSearch(s => !s); setInlineQuery(''); setShowControls(false); }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: inlineSearch ? '#eff6ff' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                <Search size={14} style={{ color: inlineSearch ? '#3b82f6' : '#64748b' }} />
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: inlineSearch ? '#3b82f6' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Search</span>
+              </button>
+              {/* Important Filter — school mode */}
+              {(isStarred || isAdminImportant || isMarked2) && (
+                <button type="button"
+                  onClick={() => { setShowOnlyImportant(s => !s); setShowControls(false); }}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: showOnlyImportant ? '#fef3c7' : 'transparent', cursor: 'pointer', border: 'none', borderRight: '1px solid #e2e8f0' }}>
+                  <Star size={14} style={{ color: showOnlyImportant ? '#d97706' : '#64748b', fill: showOnlyImportant ? '#d97706' : 'none' }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: showOnlyImportant ? '#d97706' : '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Imp</span>
+                </button>
+              )}
+              <button type="button" onClick={() => setShowControls(false)}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '10px 4px', background: 'transparent', cursor: 'pointer', border: 'none' }}>
+                <X size={14} style={{ color: '#64748b' }} />
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em', lineHeight: 1 }}>Close</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Inline search panel */}
       {inlineSearch && (
         <div className="sticky top-[52px] z-10 bg-white border-b border-slate-100 px-0 pb-2 mb-2 animate-in fade-in slide-in-from-top-1 duration-150">
@@ -1588,7 +1756,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
             const q = inlineQuery.trim().toLowerCase();
             const hits = activeTopicList
               .map((t, idx) => ({ t, idx }))
-              .filter(({ t }) => !t.isHeading && (t.text || '').toLowerCase().includes(q))
+              .filter(({ t }) => !t.isHeading && (t.text || '').toLowerCase().includes(q) &&
+                (!showOnlyImportant || isTopicImportant(t.text)))
               .slice(0, 10);
             if (hits.length === 0) return (
               <p className="text-center text-xs text-slate-400 py-2">Koi result nahi mila</p>
@@ -1719,10 +1888,66 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         );
       })()}
 
+
+      {/* ⭐ Important Filter active banner */}
+      {showOnlyImportant && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'linear-gradient(90deg, #fef3c7, #fffbeb)',
+            border: '1px solid #fcd34d',
+            borderRadius: 10, padding: '7px 12px', marginBottom: 8,
+          }}
+        >
+          <Star size={13} style={{ color: '#d97706', fill: '#d97706', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 900, color: '#92400e', flex: 1 }}>
+            Sirf important points dikh rahe hain
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowOnlyImportant(false)}
+            style={{ fontSize: 10, fontWeight: 900, color: '#92400e', background: 'rgba(146,64,14,0.1)', border: 'none', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
+          >
+            Sabhi dikhao
+          </button>
+        </div>
+      )}
+
+      {/* Empty state when filter is on but no important points exist */}
+      {showOnlyImportant && (() => {
+        const hasAny = activeTopicList.some(t => !t.isHeading && (
+          (isStarred && isStarred(t.text)) ||
+          (isMarked2 && isMarked2(t.text)) ||
+          (isAdminImportant && isAdminImportant(t.text))
+        ));
+        if (hasAny) return null;
+        return (
+          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⭐</div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>Koi important point nahi mila</p>
+            <p style={{ fontSize: 11, color: '#b45309' }}>Pehle kisi topic ko star karo ya admin se mark karwao</p>
+            <button
+              type="button"
+              onClick={() => setShowOnlyImportant(false)}
+              style={{ marginTop: 12, fontSize: 11, fontWeight: 900, color: '#fff', background: '#d97706', border: 'none', borderRadius: 8, padding: '6px 16px', cursor: 'pointer' }}
+            >
+              Sabhi points dikhao
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Topic list — tap any line to start TTS from that line */}
       <div className="space-y-1.5">
         {activeTopicList.map((topic, idx) => {
           const isActive = isReading && activeIdx === idx;
+
+          // ── Important filter ── when active, skip headings and non-important topics
+          if (showOnlyImportant) {
+            if (topic.isHeading) return null;
+            if (!isTopicImportant(topic.text)) return null;
+          }
+
           // Headings are non-readable so keep them as static blocks.
           if (topic.isHeading) {
             return (
@@ -1734,9 +1959,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <p
                   className="font-black text-indigo-800 uppercase tracking-wide"
                   style={{ fontSize: `${Math.min(fontSize + 2, 20)}px`, fontFamily: activeFont?.family }}
-                >
-                  {topic.text}
-                </p>
+                  dangerouslySetInnerHTML={{ __html: renderMathInHtml(inlineMd(topic.text)) }}
+                />
               </div>
             );
           }
@@ -1745,6 +1969,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
           const starred = isStarred ? isStarred(topic.text) : false;
           const starCount = getStarCount ? getStarCount(topic.text) : 0;
           const marked2 = isMarked2 ? isMarked2(topic.text) : false;
+          const adminImportant = isAdminImportant ? isAdminImportant(topic.text) : false;
           return (
             <div
               key={`tp-${idx}`}
@@ -1756,11 +1981,28 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     ? 'bg-purple-50 ring-1 ring-purple-300'
                     : marked2
                       ? 'bg-orange-50 ring-1 ring-orange-200'
-                      : starred
-                        ? 'bg-amber-50'
-                        : 'hover:bg-slate-50'
+                      : adminImportant
+                        ? 'bg-amber-50 ring-1 ring-amber-300'
+                        : starred
+                          ? 'bg-amber-50'
+                          : 'hover:bg-slate-50'
               }`}
             >
+              {/* Admin-important permanent badge — always visible to all users */}
+              {adminImportant && !isActive && (
+                <span
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4/5 rounded-r bg-amber-400 pointer-events-none"
+                  aria-hidden="true"
+                />
+              )}
+              {adminImportant && (
+                <span
+                  className="absolute right-1 top-1 text-[9px] font-black text-amber-500 bg-amber-50 border border-amber-300 rounded px-1 py-0 leading-4 pointer-events-none select-none z-10"
+                  title="Admin ne important mark kiya hai"
+                >
+                  ★ IMP
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -1792,7 +2034,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   }}
                 >
                   <span className={`font-bold mr-1.5 ${starred ? 'text-amber-400' : 'text-indigo-400'}`}>•</span>
-                  {topic.text}
+                  <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(inlineMd(topic.text)) }} />
                 </p>
                 {/* Save count badge intentionally hidden here — yeh ab sirf
                     "Important / Starred Notes" ke Global tab page par dikhega taa ki
@@ -1856,10 +2098,164 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   <Flame size={13} className={marked2 ? 'fill-orange-500' : ''} />
                 </button>
               )}
+              {/* ✏️ Inline correction button — visible next to each point in correction mode */}
+              {showSuggestionPanel && !isActive && !(isAdmin && useImportantMark2) && (
+                <button
+                  type="button"
+                  onPointerDown={(e) => { e.stopPropagation(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    try { if (navigator.vibrate) navigator.vibrate(30); } catch {}
+                    if (inlineCorrectionIdx === idx) {
+                      setInlineCorrectionIdx(null);
+                      setInlineCorrectionText('');
+                      setInlineCorrectionDone(false);
+                      setInlineCorrectionError(false);
+                    } else {
+                      setInlineCorrectionIdx(idx);
+                      setInlineCorrectionText('');
+                      // If already submitted this session, show done state immediately
+                      setInlineCorrectionDone(submittedPointIndices.has(idx));
+                      setInlineCorrectionError(false);
+                    }
+                  }}
+                  style={{ width: '26px', height: '26px', padding: 0 }}
+                  className={`absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center transition-all z-10 ${
+                    inlineCorrectionIdx === idx
+                      ? 'opacity-100 scale-110'
+                      : 'opacity-50 hover:opacity-100'
+                  }`}
+                  title={submittedPointIndices.has(idx) ? 'Report bhej diya ✅' : 'Is point mein galti report karo'}
+                >
+                  <span style={{ fontSize: 12, lineHeight: 1 }}>{submittedPointIndices.has(idx) ? '✅' : '✏️'}</span>
+                </button>
+              )}
+              {/* ✏️ Inline correction box — opens below the point when pencil is tapped */}
+              {showSuggestionPanel && inlineCorrectionIdx === idx && (
+                <div
+                  style={{
+                    margin: '0 8px 6px 8px',
+                    borderRadius: 10,
+                    border: '1.5px solid #fcd34d',
+                    background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                    padding: '8px 10px',
+                    animation: 'tp-banner-in 0.15s cubic-bezier(0.34,1.56,0.64,1)',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {inlineCorrectionDone ? (
+                    <div style={{ textAlign: 'center', padding: '6px 0' }}>
+                      <div style={{ fontSize: 22, marginBottom: 4 }}>✅</div>
+                      <p style={{ fontSize: 11, fontWeight: 900, color: '#15803d', marginBottom: 2 }}>Report bhej diya!</p>
+                      <p style={{ fontSize: 10, color: '#78350f' }}>Admin review karega aur galti theek karega.</p>
+                      <button
+                        type="button"
+                        onClick={() => { setInlineCorrectionIdx(null); setInlineCorrectionText(''); setInlineCorrectionDone(false); setInlineCorrectionError(false); }}
+                        style={{ marginTop: 8, fontSize: 10, fontWeight: 900, color: '#92400e', background: 'rgba(146,64,14,0.1)', border: 'none', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}
+                      >✕ Band karo</button>
+                    </div>
+                  ) : inlineCorrectionError ? (
+                    <div style={{ textAlign: 'center', padding: '6px 0' }}>
+                      <div style={{ fontSize: 22, marginBottom: 4 }}>❌</div>
+                      <p style={{ fontSize: 11, fontWeight: 900, color: '#dc2626', marginBottom: 2 }}>Submit nahi hua!</p>
+                      <p style={{ fontSize: 10, color: '#78350f' }}>Internet check karo ya dobara try karo.</p>
+                      <button
+                        type="button"
+                        onClick={() => setInlineCorrectionError(false)}
+                        style={{ marginTop: 8, fontSize: 10, fontWeight: 900, color: '#92400e', background: 'rgba(146,64,14,0.1)', border: 'none', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}
+                      >↩ Wapas jao</button>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 9, fontWeight: 900, color: '#d97706', marginBottom: 5 }}>
+                        Point {idx + 1} — <span style={{ fontWeight: 700, color: '#78350f' }}>{topic.text.substring(0, 55)}{topic.text.length > 55 ? '…' : ''}</span>
+                      </p>
+                      <textarea
+                        autoFocus
+                        value={inlineCorrectionText}
+                        onChange={e => setInlineCorrectionText(e.target.value)}
+                        placeholder="Yahan galti likho… (kya hona chahiye tha?)"
+                        rows={2}
+                        style={{ width: '100%', fontSize: 11, padding: '5px 7px', borderRadius: 6, border: '1px solid #fde68a', background: '#fffbeb', color: '#78350f', resize: 'none', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: 6 }}
+                      />
+                      <button
+                        type="button"
+                        disabled={inlineCorrectionSubmitting || !inlineCorrectionText.trim() || submittedPointIndices.has(idx)}
+                        onClick={async () => {
+                          // Guard: prevent duplicate submission for this point in this session
+                          if (submittedPointIndices.has(idx)) {
+                            setInlineCorrectionDone(true);
+                            return;
+                          }
+                          setInlineCorrectionSubmitting(true);
+                          setInlineCorrectionError(false);
+                          try {
+                            const firebaseUser = auth.currentUser;
+                            // Duplicate check — if same point already reported by anyone, increment count
+                            const chapterKeyForCheck = noteKey || '';
+                            if (chapterKeyForCheck) {
+                              const duplicate = await findDuplicateSuggestionByPoint(chapterKeyForCheck, idx);
+                              if (duplicate) {
+                                await incrementSuggestionReportCount(duplicate.id);
+                                // Count this as a report even on duplicate (user found the same issue)
+                                const dupUid = firebaseUser?.uid || readingScoreConfig?.userId || 'anonymous';
+                                const dupName = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || 'Student';
+                                updateSuggestionLeaderboard(dupUid, dupName, 'reported').catch(() => {});
+                                setSubmittedPointIndices(prev => new Set(prev).add(idx));
+                                setInlineCorrectionDone(true);
+                                return;
+                              }
+                            }
+                            const reporterUid = firebaseUser?.uid || readingScoreConfig?.userId || 'anonymous';
+                            const reporterName = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || 'Student';
+                            await saveSuggestion({
+                              id: `corr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                              text: `Point ${idx + 1}: "${topic.text.substring(0, 80)}" | Galti: ${inlineCorrectionText}`,
+                              uid: reporterUid,
+                              userName: reporterName,
+                              createdAt: new Date().toISOString(),
+                              mode: 'reading',
+                              lessonTitle: sourceMeta?.lessonTitle,
+                              pageNo: sourceMeta?.pageNo,
+                              subject: sourceMeta?.subject,
+                              classLevel: sourceMeta?.classLevel,
+                              chapterKey: chapterKeyForCheck || noteKey,
+                              pointsData: [{ index: idx, originalText: topic.text }],
+                              reportCount: 1,
+                            });
+                            // Update permanent leaderboard record
+                            updateSuggestionLeaderboard(reporterUid, reporterName, 'reported').catch(() => {});
+                            setSubmittedPointIndices(prev => new Set(prev).add(idx));
+                            setInlineCorrectionDone(true);
+                          } catch (e) {
+                            console.error('Correction submit error:', e);
+                            setInlineCorrectionError(true);
+                          } finally {
+                            setInlineCorrectionSubmitting(false);
+                          }
+                        }}
+                        style={{
+                          width: '100%', padding: '6px', borderRadius: 7, border: 'none', cursor: inlineCorrectionText.trim() ? 'pointer' : 'not-allowed',
+                          background: inlineCorrectionText.trim() ? '#d97706' : '#fde68a',
+                          color: inlineCorrectionText.trim() ? '#fff' : '#b45309',
+                          fontSize: 11, fontWeight: 900, opacity: inlineCorrectionSubmitting ? 0.7 : 1, transition: 'all 0.15s',
+                        }}
+                      >
+                        {inlineCorrectionSubmitting ? 'Bhej raha hai…' : '📤 Report Bhejo'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
     </div>
+    {/* Admin WhiteBoard overlay */}
+    {isAdmin && showAdminBoard && (
+      <AdminWhiteBoard onClose={() => setShowAdminBoard(false)} />
+    )}
+    </>
   );
 };

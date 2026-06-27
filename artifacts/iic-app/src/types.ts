@@ -1,7 +1,7 @@
 
 export type ClassLevel = '6' | '7' | '8' | '9' | '10' | '11' | '12' | 'COMPETITION';
 
-export type Board = 'CBSE' | 'BSEB' | 'COMPETITION';
+export type Board = 'BSEB' | 'NCERT_EN' | 'NCERT_HI' | 'COMPETITION';
 
 export type Stream = 'Science' | 'Commerce' | 'Arts';
 
@@ -366,6 +366,7 @@ export interface BannerSettings {
     bgColor?: string;
     textColor?: string;
     clickUrl?: string;
+    liveVideoUrl?: string;
 }
 
 export interface BannerItem {
@@ -497,7 +498,7 @@ export interface HomeworkItem {
   date: string;
   title: string;
   /** Board filter: when set, only students in this board see this item. Unset = shown to all. */
-  board?: 'CBSE' | 'BSEB';
+  board?: 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
   notes?: string;
   mcqText?: string;
   parsedMcqs?: MCQItem[];
@@ -567,7 +568,7 @@ export interface LucentNoteEntry {
    */
   classLevel?: '6' | '7' | '8' | '9' | '10' | '11' | '12' | 'COMPETITION';
   /** Board filter: when set, only students in this board see this lesson. Unset = shown to all boards. */
-  board?: 'CBSE' | 'BSEB';
+  board?: 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
   lessonTitle: string;
   pages: LucentPageNote[];
   createdAt?: string;
@@ -710,6 +711,7 @@ export interface SystemSettings {
   }; // Admin-saved badge position (% from edge) for portrait & landscape
   playerBadgeLabel?: string;    // Text shown on the IIC×NSTA badge button (default: "IIC×NSTA")
   playerFsButtonLabel?: string; // Text shown on the landscape "go-portrait" button (default: "Portrait")
+  hideYtLogoBlocker?: boolean;  // Admin toggle: black blocker over YouTube logo/channel area
   appLogo?: string; // NEW: Base64 Logo Image
   syllabusType?: 'SCHOOL' | 'COMPETITIVE' | 'DUAL'; // Updated: DUAL support
   footerText?: string; // NEW: Customized footer text

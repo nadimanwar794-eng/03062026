@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { User, ViewState, SystemSettings, Subject, Chapter, MCQItem, RecoveryRequest, ActivityLogEntry, LeaderboardEntry, RecycleBinItem, Stream, Board, ClassLevel, GiftCode, SubscriptionPlan, CreditPackage, SpinReward, SpinGameType, HtmlModule, PremiumNoteSlot, ContentInfoConfig, ContentInfoItem, SubscriptionHistoryEntry, UniversalAnalysisLog, ContentType, LessonContent, DeepDiveEntry, AdditionalNoteEntry, TeacherStorePlan, TeacherCode, HomeworkItem, LucentNoteEntry, LucentPageNote, AppNotification, BroadcastRedeemCode, LoginBonusRandomGiftOption } from '../types';
-import { List, GraduationCap, LayoutDashboard, Users, Search, Trash2, Save, X, Eye, EyeOff, Shield, Megaphone, CheckCircle, ListChecks, Database, FileText, Monitor, Sparkles, Banknote, BrainCircuit, AlertOctagon, ArrowLeft, ArrowRight, Key, Bell, ShieldCheck, Lock, Globe, Layers, Zap, PenTool, RefreshCw, RotateCcw, Plus, LogOut, Download, Upload, CreditCard, Ticket, Video, Image as ImageIcon, Type, Link, FileJson, Activity, AlertTriangle, Gift, Book, Mail, Edit3, MessageSquare, ShoppingBag, Cloud, Rocket, Code2, Layers as LayersIcon, Wifi, WifiOff, Copy, Crown, Gamepad2, Calendar, BookOpen, Image, HelpCircle, Youtube, Play, Star, Trophy, Palette, Settings, Headphones, Layout, Bot, LayoutDashboard as DashboardIcon, Loader2, Gauge, LayoutGrid, ArrowUpCircle, KeyRound, Award, Send, GitCompare } from 'lucide-react';
+import { List, GraduationCap, LayoutDashboard, Users, Search, Trash2, Save, X, Eye, EyeOff, Shield, Megaphone, CheckCircle, ListChecks, Database, FileText, Monitor, Sparkles, Banknote, BrainCircuit, AlertOctagon, ArrowLeft, ArrowRight, Key, Bell, ShieldCheck, Lock, Globe, Layers, Zap, PenTool, RefreshCw, RotateCcw, Plus, LogOut, Download, Upload, CreditCard, Ticket, Video, Image as ImageIcon, Type, Link, FileJson, Activity, AlertTriangle, Gift, Book, Mail, Edit3, MessageSquare, ShoppingBag, Cloud, Rocket, Code2, Layers as LayersIcon, Wifi, WifiOff, Copy, Crown, Gamepad2, Calendar, BookOpen, Image, HelpCircle, Youtube, Play, Star, Trophy, Palette, Settings, Headphones, Layout, Bot, LayoutDashboard as DashboardIcon, Loader2, Gauge, LayoutGrid, ArrowUpCircle, KeyRound, Award, Send, GitCompare, Lightbulb, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { getSubjectsList, DEFAULT_SUBJECTS, DEFAULT_APP_FEATURES, ALL_APP_FEATURES, STUDENT_APP_FEATURES, DEFAULT_CONTENT_INFO_CONFIG, ADMIN_PERMISSIONS, APP_VERSION, STATIC_SYLLABUS, LEVEL_UNLOCKABLE_FEATURES } from '../constants';
 import { fetchChapters, fetchLessonContent } from '../services/groq';
 import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson, subscribeSuggestions, adminReplySuggestion, deleteSuggestion, reactToSuggestion, resolvesuggestion, applyNoteCorrection, applyMcqCorrection, applyMcqFullEdit } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -108,7 +108,6 @@ type AdminTab =
   | 'CONFIG_GAME'
   | 'CONFIG_PAYMENT'
   | 'CONFIG_EXTERNAL_APPS'
-  | 'CONFIG_APP_STORE'
   | 'PRICING_MGMT'
   | 'SUBSCRIPTION_PLANS_EDITOR'
   | 'CONFIG_REWARDS'
@@ -123,7 +122,6 @@ type AdminTab =
   | 'WHATSAPP_CONNECT'
   | 'POWER_MANAGER'
   | 'PLAN_MATRIX'
-  | 'DEPLOY'
   | 'EVENT_MANAGER' // NEW
   | 'NSTA_CONTROL' // NEW - Replaces APP_SOUL
   | 'HOMEWORK_MANAGER' // NEW
@@ -524,7 +522,24 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [supportThreads, setSupportThreads] = useState<any[]>([]);
   const [chatTargetUser, setChatTargetUser] = useState<any>(null);
   const [demandFilter, setDemandFilter] = useState<'ALL'|'PENDING'|'DONE'>('ALL');
-  const [chatAdminTab, setChatAdminTab] = useState<'GLOBAL'|'SUPPORT'>('GLOBAL');
+  const [chatAdminTab, setChatAdminTab] = useState<'GLOBAL'|'SUPPORT'|'SUGGESTIONS'>('GLOBAL');
+  const [adminSuggestions, setAdminSuggestions] = useState<any[]>([]);
+  const [adminSuggReplyId, setAdminSuggReplyId] = useState<string|null>(null);
+  const [adminSuggReplyText, setAdminSuggReplyText] = useState('');
+  const [adminSuggReplySaving, setAdminSuggReplySaving] = useState(false);
+  // Apply-to-notes state
+  const [applyEditId, setApplyEditId] = useState<string|null>(null);
+  const [applyEditCorrections, setApplyEditCorrections] = useState<{originalText: string; correctedText: string}[]>([]);
+  const [applyEditSaving, setApplyEditSaving] = useState(false);
+  const [applyEditSuccess, setApplyEditSuccess] = useState<string|null>(null);
+  const [applyEditManualChapterKey, setApplyEditManualChapterKey] = useState('');
+  const [mcqFixId, setMcqFixId] = useState<string|null>(null);
+  const [mcqFixAnswer, setMcqFixAnswer] = useState<number>(-1);
+  const [mcqFixSaving, setMcqFixSaving] = useState(false);
+  const [mcqFixSuccess, setMcqFixSuccess] = useState<string|null>(null);
+  const [mcqEditMode, setMcqEditMode] = useState(false);
+  const [mcqEditQuestion, setMcqEditQuestion] = useState('');
+  const [mcqEditOptions, setMcqEditOptions] = useState<string[]>([]);
   const [chatDmMessages, setChatDmMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
@@ -565,9 +580,12 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   // --- HOMEWORK STATE ---
   const [homeworkTab, setHomeworkTab] = useState<'ADD' | 'HISTORY' | 'COMP_MCQ'>('ADD');
   const [bookNotesTab, setBookNotesTab] = useState<'ADD' | 'HISTORY'>('ADD');
+  const [bnBookFilter, setBnBookFilter] = useState<string>('ALL');
+  const [bnEditingId, setBnEditingId] = useState<string | null>(null);
   const [newBookNote, setNewBookNote] = useState({ date: new Date().toISOString().split('T')[0], title: '', notes: '', chunkNotes: '', htmlNotes: '', lightCSS: '', darkCSS: '', mcqText: '', audioUrl: '', videoUrl: '', pdfUrl: '', targetSubject: 'sarSangrah', pageNo: '', topicName: '', classTarget: 'ALL' as 'COMPETITION' | 'ALL' | '6' | '7' | '8' | '9' | '10' | '11' | '12' });
+  const [editingPt, setEditingPt] = React.useState<{srcId: string; ptIdx: number; text: string} | null>(null);
   // Mode for custom book entries: 'single' = one-page per entry (like Speedy), 'multi' = Lucent-style multi-page
-  const [newBookNoteMode, setNewBookNoteMode] = useState<'single' | 'multi'>('single');
+  const [newBookNoteMode, setNewBookNoteMode] = useState<'single' | 'multi' | 'mcq'>('single');
   // Type selector for new custom book being created in Settings
   const [newCustomBookType, setNewCustomBookType] = useState<'single' | 'multi'>('single');
   const [newBookNoteMcqs, setNewBookNoteMcqs] = useState<Array<{ id: string; question: string; options: string[]; correctAnswer: number }>>([]);
@@ -640,7 +658,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
     { id: '11', label: '📚 Class 11' },
     { id: '12', label: '📚 Class 12' },
   ];
-  const [newLucent, setNewLucent] = useState<{ subject: string; bookName: string; classLevel: 'COMPETITION' | '6' | '7' | '8' | '9' | '10' | '11' | '12'; board: '' | 'CBSE' | 'BSEB'; lessonTitle: string; pages: LucentPageNote[]; mcqOnly: boolean }>({
+  const [newLucent, setNewLucent] = useState<{ subject: string; bookName: string; classLevel: 'COMPETITION' | '6' | '7' | '8' | '9' | '10' | '11' | '12'; board: '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB'; lessonTitle: string; pages: LucentPageNote[]; mcqOnly: boolean }>({
     subject: 'biology',
     bookName: '',
     classLevel: 'COMPETITION',
@@ -652,6 +670,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   // Per-page bulk MCQ paste: keyed by page id -> textarea content. When non-undefined the paste UI is open.
   const [lucentPageBulk, setLucentPageBulk] = useState<Record<string, string>>({});
   const [cn612EditingId, setCn612EditingId] = useState<string | null>(null);
+  const [cn612FilterClass, setCn612FilterClass] = useState<string>('ALL');
+  const [cn612FilterBook, setCn612FilterBook] = useState<string>('ALL');
+  const [cn612FilterSubject, setCn612FilterSubject] = useState<string>('ALL');
 
   // Homework History UI: subject filter + per-entry expanded state. Collapsed entries
   // render only a small header so the page stays snappy when there are many entries.
@@ -779,7 +800,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       isChatEnabled: true, isGameEnabled: true, allowSignup: true, showGoogleLogin: true, loginMessage: '',
       gameCost: 0, spinLimitUltra: 10, spinLimitBasic: 5, spinLimitFree: 2,
       allowedClasses: ['6', '7', '8', '9', '10', '11', '12'],
-      allowedBoards: ['CBSE', 'BSEB'], allowedStreams: ['Science', 'Commerce', 'Arts'],
+      allowedBoards: ['NCERT_EN', 'NCERT_HI', 'BSEB'], allowedStreams: ['Science', 'Commerce', 'Arts'],
       hiddenSubjects: [], storageCapacity: '100 GB',
       isPaymentEnabled: true, upiId: '', upiName: '', qrCodeUrl: '', paymentInstructions: '',
       syllabusType: 'DUAL',
@@ -916,6 +937,57 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       }
   }, [settings]);
 
+  // ── Admin edit deep-link: read nst_admin_edit_pending set by student-side pencil icon ──
+  const _pendingAdminEdit = useRef<any>(null);
+  const _adminEditApplied = useRef(false);
+
+  // Step 1: capture the key from localStorage on mount (before any re-render wipes it)
+  useEffect(() => {
+      try {
+          const raw = localStorage.getItem('nst_admin_edit_pending');
+          if (raw) {
+              _pendingAdminEdit.current = JSON.parse(raw);
+              localStorage.removeItem('nst_admin_edit_pending');
+          }
+      } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Step 2: apply the pending navigation once localSettings data is available
+  useEffect(() => {
+      if (_adminEditApplied.current) return;
+      const pending = _pendingAdminEdit.current;
+      if (!pending) return;
+
+      if (pending.lucentId) {
+          const lucentList = localSettings.lucentNotes;
+          if (!lucentList) return; // wait for firebase data
+          _adminEditApplied.current = true;
+          const entry = (lucentList as any[]).find((n: any) => n.id === pending.lucentId);
+          setActiveTab('BOOK_NOTES_MANAGER');
+          setCn612EditingId(pending.lucentId);
+          if (entry) {
+              setNewLucent({
+                  subject: entry.subject,
+                  bookName: entry.bookName || '',
+                  classLevel: entry.classLevel,
+                  board: (entry as any).board || '',
+                  lessonTitle: entry.lessonTitle,
+                  pages: (entry.pages || []).map((p: any) => ({ ...p })),
+                  mcqOnly: entry.mcqOnly || false,
+              });
+              setNewBookNote((prev: any) => ({ ...prev, targetSubject: 'lucent' }));
+              setBookNotesTab('ADD');
+          }
+      } else if (pending.hwId) {
+          _adminEditApplied.current = true;
+          setActiveTab('HOMEWORK_MANAGER');
+          setHomeworkTab('HISTORY');
+          setExpandedHomework({ [pending.hwId]: true });
+      }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localSettings.lucentNotes, localSettings.homework]);
+
   // Sync teacher codes with localSettings
   useEffect(() => {
       if (localSettings.teacherCodes) {
@@ -938,13 +1010,14 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [newPkgDummyPrice, setNewPkgDummyPrice] = useState('');
 
   // --- GLOBAL BOARD CONTEXT (STRICT ISOLATION) ---
-  const [adminBoardContext, setAdminBoardContext] = useState<Board>('CBSE');
+  const [adminBoardContext, setAdminBoardContext] = useState<Board>('NCERT_EN');
 
   // PERSISTENT BOARD SELECTION
   useEffect(() => {
       if (currentUser?.id) {
           const storedBoard = localStorage.getItem(`nst_admin_board_pref_${currentUser.id}`);
-          if (storedBoard && (storedBoard === 'CBSE' || storedBoard === 'BSEB')) {
+          const validBoards: Board[] = ['NCERT_EN', 'NCERT_HI', 'BSEB', 'COMPETITION'];
+          if (storedBoard && validBoards.includes(storedBoard as Board)) {
               setAdminBoardContext(storedBoard as Board);
           }
       }
@@ -958,13 +1031,14 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   };
 
   // --- CONTENT SELECTION STATE ---
-  const [selBoard, setSelBoard] = useState<Board>('CBSE');
+  const [selBoard, setSelBoard] = useState<Board>('NCERT_EN');
   
-  // Sync selBoard with Context
+  // Sync selBoard + newLucent.board with Context so new lessons are auto-tagged with the correct board
   useEffect(() => {
     setSelBoard(adminBoardContext);
     setSelSubject(null); 
     setSelChapters([]);
+    setNewLucent(prev => ({ ...prev, board: adminBoardContext === 'COMPETITION' ? prev.board : (adminBoardContext as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB') }));
   }, [adminBoardContext]);
 
   const [selClass, setSelClass] = useState<ClassLevel>('10');
@@ -1099,7 +1173,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
   // MOVE CHAPTER STATE
   const [movingChapter, setMovingChapter] = useState<{ chapter: Chapter, index: number } | null>(null);
-  const [moveTargetBoard, setMoveTargetBoard] = useState<Board>('CBSE');
+  const [moveTargetBoard, setMoveTargetBoard] = useState<Board>('NCERT_EN');
   const [moveTargetClass, setMoveTargetClass] = useState<ClassLevel>('10');
   const [moveTargetStream, setMoveTargetStream] = useState<Stream>('Science');
   const [moveTargetSubject, setMoveTargetSubject] = useState<Subject | null>(null);
@@ -1499,7 +1573,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       }
       setIsAiGenerating(true);
       try {
-          const lang = selBoard === 'BSEB' ? 'Hindi' : 'English';
+          const lang = (selBoard === 'BSEB' || selBoard === 'NCERT_HI') ? 'Hindi' : 'English';
           const content = await fetchLessonContent(
               selBoard,
               selClass,
@@ -1589,7 +1663,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
   // NEW: State for Content Unlock codes
   const [newCodeContentType, setNewCodeContentType] = useState<'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO'>('VIDEO');
-  const [newCodeContentBoard, setNewCodeContentBoard] = useState<Board>('CBSE');
+  const [newCodeContentBoard, setNewCodeContentBoard] = useState<Board>('NCERT_EN');
   const [newCodeContentClass, setNewCodeContentClass] = useState<ClassLevel>('10');
   const [newCodeContentSubject, setNewCodeContentSubject] = useState<string>('');
   const [newCodeContentChapter, setNewCodeContentChapter] = useState<string>('');
@@ -1758,6 +1832,11 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           setSupportThreads(threads);
       });
 
+      // SUBSCRIBE TO SUGGESTIONS
+      const unsubSugg = subscribeSuggestions((items) => {
+          setAdminSuggestions(items);
+      });
+
       return () => {
           clearInterval(interval);
           unsubUsers();
@@ -1765,6 +1844,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           if (unsubDemands) unsubDemands();
           if (unsubGlobal) unsubGlobal();
           if (unsubSupport) unsubSupport();
+          if (unsubSugg) unsubSugg();
       };
   }, []);
 
@@ -2707,7 +2787,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       setSelSubject(s);
       setIsLoadingChapters(true);
       try {
-          const lang = selBoard === 'BSEB' ? 'Hindi' : 'English';
+          const lang = (selBoard === 'BSEB' || selBoard === 'NCERT_HI') ? 'Hindi' : 'English';
           const ch = await fetchChapters(selBoard, selClass, selStream, s, lang);
           setSelChapters(ch);
           
@@ -2877,6 +2957,30 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           console.error("Syllabus Save Error", e);
           alert("⚠️ Syllabus Saved Locally ONLY. Cloud sync failed.");
       }
+  };
+
+  const applyPtEdit = (srcId: string, ptIdx: number, newText: string) => {
+    const replaceLine = (raw: string) => {
+      const lines = raw.split('\n');
+      let pi = 0;
+      return lines.map((line: string) => {
+        const stripped = line.replace(/^[\*\-•\d+\.\s]*\s*/,'').trim();
+        if (stripped.length > 0) {
+          if (pi === ptIdx) { pi++; const m = line.match(/^([\*\-•]\s*)/); return (m?m[1]:'') + newText; }
+          pi++;
+        }
+        return line;
+      }).join('\n');
+    };
+    if (srcId === 'bookNote') {
+      setNewBookNote((prev: any) => ({...prev, chunkNotes: replaceLine(prev.chunkNotes)}));
+    } else {
+      setNewLucent((prev: any) => {
+        const pages = prev.pages.map((pg: any) => pg.id === srcId ? {...pg, chunkNotes: replaceLine(pg.chunkNotes || '')} : pg);
+        return {...prev, pages};
+      });
+    }
+    setEditingPt(null);
   };
 
   const deleteChapter = (idx: number) => {
@@ -3586,8 +3690,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       // 1. BOARD INDICATOR (Controlled via Header)
       const renderBoards = () => (
           <div className="flex items-center justify-between mb-4">
-             <div className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest border-2 flex items-center gap-2 ${selBoard === 'CBSE' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
-                {selBoard === 'CBSE' ? <Book size={14}/> : <Globe size={14}/>}
+             <div className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest border-2 flex items-center gap-2 ${selBoard === 'NCERT_EN' ? 'bg-blue-50 text-blue-600 border-blue-200' : selBoard === 'NCERT_HI' ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`}>
+                {selBoard === 'NCERT_EN' ? <Book size={14}/> : <Globe size={14}/>}
                 CURRENT BOARD: {selBoard}
              </div>
              
@@ -3741,7 +3845,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   <div className="flex items-center gap-2">
                       {/* STRICT BOARD SWITCHER */}
                       <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-                          <button onClick={() => handleBoardChange('CBSE')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${adminBoardContext === 'CBSE' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-600'}`}>CBSE</button>
+                          <button onClick={() => handleBoardChange('NCERT_EN')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${adminBoardContext === 'NCERT_EN' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-600'}`}>NCERT EN</button>
+                          <button onClick={() => handleBoardChange('NCERT_HI')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${adminBoardContext === 'NCERT_HI' ? 'bg-white shadow text-purple-600' : 'text-slate-500 hover:text-slate-600'}`}>NCERT HI</button>
                           <button onClick={() => handleBoardChange('BSEB')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${adminBoardContext === 'BSEB' ? 'bg-white shadow text-orange-600' : 'text-slate-500 hover:text-slate-600'}`}>BSEB</button>
                       </div>
 
@@ -3816,6 +3921,13 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       >
                           {isSettingsSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                           {isSettingsSaving ? 'Saving...' : 'Save Settings'}
+                      </button>
+
+                      <button
+                          onClick={() => onNavigate('SCHOOL_ECOSYSTEM' as any)}
+                          className="flex-1 md:flex-none bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-widest font-black shadow-lg hover:bg-emerald-700 flex items-center justify-center gap-2 transition-colors"
+                      >
+                          🏫 School System
                       </button>
                   </div>
               </div>
@@ -5848,454 +5960,112 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   <h3 className="text-xl font-black text-slate-800">General Settings</h3>
               </div>
 
-              {/* CLASS VISIBILITY PANEL — hide/unhide individual classes 6-12 */}
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">🎓</span>
-                          Class Visibility (6 — 12)
-                      </h4>
-                      <div className="flex gap-2">
-                          <button
-                              onClick={() => setLocalSettings({ ...localSettings, hiddenClasses: [] })}
-                              className="text-[10px] font-black px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                          >
-                              Show All
-                          </button>
-                          <button
-                              onClick={() => setLocalSettings({ ...localSettings, hiddenClasses: ['6','7','8','9','10','11','12'] })}
-                              className="text-[10px] font-black px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200"
-                          >
-                              Hide All
-                          </button>
-                      </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mb-3">
-                      Toggle individual classes on the home page. Hidden classes vanish from the student class picker but their data is preserved.
-                  </p>
-                  <div className="grid grid-cols-7 gap-2">
-                      {(['6','7','8','9','10','11','12'] as const).map((c) => {
-                          const isHidden = (localSettings.hiddenClasses || []).includes(c);
-                          return (
-                              <button
-                                  key={c}
-                                  onClick={() => {
-                                      const list = localSettings.hiddenClasses || [];
-                                      const next = isHidden ? list.filter(x => x !== c) : [...list, c];
-                                      setLocalSettings({ ...localSettings, hiddenClasses: next });
-                                  }}
-                                  className={`relative aspect-square rounded-2xl border-2 font-black text-base transition-all flex flex-col items-center justify-center ${
-                                      isHidden
-                                          ? 'bg-rose-50 border-rose-300 text-rose-400 opacity-70'
-                                          : 'bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-300 text-indigo-700 hover:shadow-md'
-                                  }`}
-                                  title={isHidden ? `Class ${c} is hidden — tap to show` : `Class ${c} is visible — tap to hide`}
-                              >
-                                  <span>{c}</span>
-                                  <span className={`text-[8px] font-bold mt-0.5 uppercase tracking-wider ${isHidden ? 'text-rose-500' : 'text-emerald-600'}`}>
-                                      {isHidden ? 'Hidden' : 'Visible'}
-                                  </span>
-                                  <span className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-black ${
-                                      isHidden ? 'bg-rose-500' : 'bg-emerald-500'
-                                  }`}>
-                                      {isHidden ? '✕' : '✓'}
-                                  </span>
-                              </button>
-                          );
-                      })}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 italic">
-                      Tip: same control also lives under Content tab → Visibility Mode. Both update the same setting.
-                  </p>
+              {/* HOME SCREEN NOTICE BAR */}
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                  <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                      <span className="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center text-sm">📢</span>
+                      Home Screen Notice Bar
+                  </h4>
+                  <p className="text-xs text-slate-500 mb-3">Black scrolling bar at the top of student Home tab. Empty karo to hide karo.</p>
+                  <input
+                      type="text"
+                      value={localSettings.noticeText || ''}
+                      onChange={e => setLocalSettings({ ...localSettings, noticeText: e.target.value })}
+                      className="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-500"
+                      placeholder="e.g. 📚 New batch starting Monday! Register now."
+                  />
               </div>
 
-              {/* NEW BANNER CONFIG SECTION */}
-              <div className="mt-8 pt-8 border-t border-slate-100">
+              {/* BANNER CONFIG */}
+              <div className="mt-6 pt-6 border-t border-slate-100">
                   <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                      <Megaphone size={20} className="text-red-500"/> App Banners
+                      <span className="w-7 h-7 rounded-lg bg-red-100 text-red-600 flex items-center justify-center text-sm">📣</span>
+                      Banners (Top &amp; Bottom)
                   </h4>
-                  <p className="text-xs text-slate-600 mb-4">Manage the top and bottom scrolling messages.</p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
                       {/* TOP BANNER */}
                       <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                          <div className="flex justify-between items-center mb-4">
+                          <div className="flex justify-between items-center mb-3">
                               <label className="font-bold text-red-800 text-sm uppercase">Top Banner</label>
                               <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-bold text-red-600">{localSettings.bannerConfig?.top?.enabled ? 'VISIBLE' : 'HIDDEN'}</span>
                                   <input
                                       type="checkbox"
                                       checked={localSettings.bannerConfig?.top?.enabled ?? true}
-                                      onChange={(e) => setLocalSettings({
-                                          ...localSettings,
-                                          bannerConfig: {
-                                              ...(localSettings.bannerConfig || {
-                                                  top: { text: '', enabled: true, autoHideSeconds: 0, bgColor: '#dc2626', textColor: '#ffffff' },
-                                                  bottom: { text: '', enabled: true, autoHideSeconds: 0, bgColor: '#2563eb', textColor: '#ffffff' }
-                                              }),
-                                              top: { ...(localSettings.bannerConfig?.top || { text: '', enabled: true, autoHideSeconds: 0, bgColor: '#dc2626', textColor: '#ffffff' }), enabled: e.target.checked }
-                                          }
-                                      })}
+                                      onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), top: { ...(localSettings.bannerConfig?.top || {} as any), enabled: e.target.checked } } })}
                                       className="w-5 h-5 accent-red-600"
                                   />
                               </div>
                           </div>
-
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                               <div>
                                   <label className="text-[10px] font-bold text-slate-600 uppercase">Message Text</label>
-                                  <input
-                                      type="text"
-                                      value={localSettings.bannerConfig?.top?.text || ''}
-                                      onChange={(e) => setLocalSettings({
-                                          ...localSettings,
-                                          bannerConfig: {
-                                              ...(localSettings.bannerConfig || { top: { text: '', enabled: true, autoHideSeconds: 0 }, bottom: { text: '', enabled: true, autoHideSeconds: 0 } } as any),
-                                              top: { ...(localSettings.bannerConfig?.top || {} as any), text: e.target.value }
-                                          }
-                                      })}
-                                      className="w-full p-2 rounded-lg border border-red-200 text-sm font-bold text-slate-700"
-                                  />
+                                  <input type="text" value={localSettings.bannerConfig?.top?.text || ''} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), top: { ...(localSettings.bannerConfig?.top || {} as any), text: e.target.value } } })} className="w-full p-2 rounded-lg border border-red-200 text-sm text-slate-700" placeholder="Top banner message..." />
                               </div>
-
                               <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                      <label className="text-[10px] font-bold text-slate-600 uppercase">Auto-Hide (Secs)</label>
-                                      <input
-                                          type="number"
-                                          value={localSettings.bannerConfig?.top?.autoHideSeconds || 0}
-                                          onChange={(e) => setLocalSettings({
-                                              ...localSettings,
-                                              bannerConfig: {
-                                                  ...(localSettings.bannerConfig || {} as any),
-                                                  top: { ...(localSettings.bannerConfig?.top || {} as any), autoHideSeconds: Number(e.target.value) }
-                                              }
-                                          })}
-                                          className="w-full p-2 rounded-lg border border-red-200 text-sm"
-                                          placeholder="0 = Always"
-                                      />
+                                      <label className="text-[10px] font-bold text-slate-600 uppercase">Auto-Hide (secs)</label>
+                                      <input type="number" value={localSettings.bannerConfig?.top?.autoHideSeconds ?? 0} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), top: { ...(localSettings.bannerConfig?.top || {} as any), autoHideSeconds: parseInt(e.target.value) } } })} className="w-full p-2 rounded-lg border border-red-200 text-sm" min={0} />
                                   </div>
                                   <div>
                                       <label className="text-[10px] font-bold text-slate-600 uppercase">Background</label>
-                                      <div className="flex gap-1">
-                                          <input
-                                              type="color"
-                                              value={localSettings.bannerConfig?.top?.bgColor || '#dc2626'}
-                                              onChange={(e) => setLocalSettings({
-                                                  ...localSettings,
-                                                  bannerConfig: {
-                                                      ...(localSettings.bannerConfig || {} as any),
-                                                      top: { ...(localSettings.bannerConfig?.top || {} as any), bgColor: e.target.value }
-                                                  }
-                                              })}
-                                              className="h-9 w-full rounded cursor-pointer"
-                                          />
-                                      </div>
+                                      <input type="color" value={localSettings.bannerConfig?.top?.bgColor || '#dc2626'} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), top: { ...(localSettings.bannerConfig?.top || {} as any), bgColor: e.target.value } } })} className="w-full h-9 rounded cursor-pointer" />
                                   </div>
                               </div>
                               <div>
                                   <label className="text-[10px] font-bold text-slate-600 uppercase">Click URL (External Link)</label>
-                                  <input
-                                      type="url"
-                                      value={localSettings.bannerConfig?.top?.clickUrl || ''}
-                                      onChange={(e) => setLocalSettings({
-                                          ...localSettings,
-                                          bannerConfig: {
-                                              ...(localSettings.bannerConfig || {} as any),
-                                              top: { ...(localSettings.bannerConfig?.top || {} as any), clickUrl: e.target.value }
-                                          }
-                                      })}
-                                      className="w-full p-2 rounded-lg border border-red-200 text-sm text-slate-700"
-                                      placeholder="https://... (tap karne par khulega)"
-                                  />
+                                  <input type="url" value={localSettings.bannerConfig?.top?.clickUrl || ''} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), top: { ...(localSettings.bannerConfig?.top || {} as any), clickUrl: e.target.value } } })} className="w-full p-2 rounded-lg border border-red-200 text-sm text-slate-700" placeholder="https://..." />
                               </div>
-                              <p className="text-[10px] text-red-400">* Set Auto-Hide to 0 to keep visible always. Click URL set karne par banner tap karke external link khuega.</p>
+                              <div>
+                                  <label className="text-[10px] font-bold text-red-700 uppercase flex items-center gap-1">🔴 YouTube Live URL (App Player)</label>
+                                  <input type="url" value={localSettings.bannerConfig?.top?.liveVideoUrl || ''} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), top: { ...(localSettings.bannerConfig?.top || {} as any), liveVideoUrl: e.target.value } } })} className="w-full p-2 rounded-lg border border-red-300 text-sm text-slate-700" placeholder="https://youtube.com/live/..." />
+                                  <p className="text-[9px] text-red-400 mt-0.5">Set karne par banner tap karne se app ke video player mein live class khulegi.</p>
+                              </div>
                           </div>
                       </div>
 
                       {/* BOTTOM BANNER */}
                       <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                          <div className="flex justify-between items-center mb-4">
+                          <div className="flex justify-between items-center mb-3">
                               <label className="font-bold text-blue-800 text-sm uppercase">Bottom Banner</label>
                               <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-bold text-blue-600">{localSettings.bannerConfig?.bottom?.enabled ? 'VISIBLE' : 'HIDDEN'}</span>
                                   <input
                                       type="checkbox"
                                       checked={localSettings.bannerConfig?.bottom?.enabled ?? true}
-                                      onChange={(e) => setLocalSettings({
-                                          ...localSettings,
-                                          bannerConfig: {
-                                              ...(localSettings.bannerConfig || {
-                                                  top: { text: '', enabled: true, autoHideSeconds: 0 },
-                                                  bottom: { text: '', enabled: true, autoHideSeconds: 0 }
-                                              } as any),
-                                              bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), enabled: e.target.checked }
-                                          }
-                                      })}
+                                      onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), enabled: e.target.checked } } })}
                                       className="w-5 h-5 accent-blue-600"
                                   />
                               </div>
                           </div>
-
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                               <div>
                                   <label className="text-[10px] font-bold text-slate-600 uppercase">Message Text</label>
-                                  <input
-                                      type="text"
-                                      value={localSettings.bannerConfig?.bottom?.text || ''}
-                                      onChange={(e) => setLocalSettings({
-                                          ...localSettings,
-                                          bannerConfig: {
-                                              ...(localSettings.bannerConfig || {} as any),
-                                              bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), text: e.target.value }
-                                          }
-                                      })}
-                                      className="w-full p-2 rounded-lg border border-blue-200 text-sm font-bold text-slate-700"
-                                  />
+                                  <input type="text" value={localSettings.bannerConfig?.bottom?.text || ''} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), text: e.target.value } } })} className="w-full p-2 rounded-lg border border-blue-200 text-sm text-slate-700" placeholder="Bottom banner message..." />
                               </div>
-
                               <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                      <label className="text-[10px] font-bold text-slate-600 uppercase">Auto-Hide (Secs)</label>
-                                      <input
-                                          type="number"
-                                          value={localSettings.bannerConfig?.bottom?.autoHideSeconds || 0}
-                                          onChange={(e) => setLocalSettings({
-                                              ...localSettings,
-                                              bannerConfig: {
-                                                  ...(localSettings.bannerConfig || {} as any),
-                                                  bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), autoHideSeconds: Number(e.target.value) }
-                                              }
-                                          })}
-                                          className="w-full p-2 rounded-lg border border-blue-200 text-sm"
-                                          placeholder="0 = Always"
-                                      />
+                                      <label className="text-[10px] font-bold text-slate-600 uppercase">Auto-Hide (secs)</label>
+                                      <input type="number" value={localSettings.bannerConfig?.bottom?.autoHideSeconds ?? 0} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), autoHideSeconds: parseInt(e.target.value) } } })} className="w-full p-2 rounded-lg border border-blue-200 text-sm" min={0} />
                                   </div>
                                   <div>
                                       <label className="text-[10px] font-bold text-slate-600 uppercase">Background</label>
-                                      <div className="flex gap-1">
-                                          <input
-                                              type="color"
-                                              value={localSettings.bannerConfig?.bottom?.bgColor || '#2563eb'}
-                                              onChange={(e) => setLocalSettings({
-                                                  ...localSettings,
-                                                  bannerConfig: {
-                                                      ...(localSettings.bannerConfig || {} as any),
-                                                      bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), bgColor: e.target.value }
-                                                  }
-                                              })}
-                                              className="h-9 w-full rounded cursor-pointer"
-                                          />
-                                      </div>
+                                      <input type="color" value={localSettings.bannerConfig?.bottom?.bgColor || '#2563eb'} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), bgColor: e.target.value } } })} className="w-full h-9 rounded cursor-pointer" />
                                   </div>
                               </div>
                               <div>
                                   <label className="text-[10px] font-bold text-slate-600 uppercase">Click URL (External Link)</label>
-                                  <input
-                                      type="url"
-                                      value={localSettings.bannerConfig?.bottom?.clickUrl || ''}
-                                      onChange={(e) => setLocalSettings({
-                                          ...localSettings,
-                                          bannerConfig: {
-                                              ...(localSettings.bannerConfig || {} as any),
-                                              bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), clickUrl: e.target.value }
-                                          }
-                                      })}
-                                      className="w-full p-2 rounded-lg border border-blue-200 text-sm text-slate-700"
-                                      placeholder="https://... (tap karne par khulega)"
-                                  />
+                                  <input type="url" value={localSettings.bannerConfig?.bottom?.clickUrl || ''} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), clickUrl: e.target.value } } })} className="w-full p-2 rounded-lg border border-blue-200 text-sm text-slate-700" placeholder="https://..." />
                               </div>
-                              <p className="text-[10px] text-blue-400">* Set Auto-Hide to 0 to keep visible always. Click URL set karne par banner tap karke external link khuega.</p>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-
-              {/* PLAN-BASED BANNERS */}
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                  <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-                      <Megaphone size={20} className="text-violet-500"/> Plan-Based Banners
-                  </h4>
-                  <p className="text-xs text-slate-500 mb-4">Free / Basic / Ultra users ko alag alag top banner dikhao. Yeh global top banner ke upar show hoga.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* FREE */}
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <div className="flex justify-between items-center mb-3">
-                              <label className="font-bold text-slate-700 text-sm uppercase flex items-center gap-1">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-600">FREE</span>
-                              </label>
-                              <input type="checkbox"
-                                  checked={localSettings.planBanners?.free?.enabled ?? false}
-                                  onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), free: { ...(localSettings.planBanners?.free || { text: '', bgColor: '#64748b', textColor: '#ffffff' }), enabled: e.target.checked } } })}
-                                  className="w-5 h-5 accent-slate-600"
-                              />
-                          </div>
-                          <div className="space-y-2">
-                              <input type="text" placeholder="Message for Free users..." value={localSettings.planBanners?.free?.text || ''}
-                                  onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), free: { ...(localSettings.planBanners?.free || { enabled: false, bgColor: '#64748b', textColor: '#ffffff' }), text: e.target.value } } })}
-                                  className="w-full p-2 rounded-lg border border-slate-200 text-sm text-slate-700" />
-                              <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Background</label>
-                                      <input type="color" value={localSettings.planBanners?.free?.bgColor || '#64748b'}
-                                          onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), free: { ...(localSettings.planBanners?.free || { enabled: false, text: '', textColor: '#ffffff' }), bgColor: e.target.value } } })}
-                                          className="h-8 w-full rounded cursor-pointer" />
-                                  </div>
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Text Color</label>
-                                      <input type="color" value={localSettings.planBanners?.free?.textColor || '#ffffff'}
-                                          onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), free: { ...(localSettings.planBanners?.free || { enabled: false, text: '', bgColor: '#64748b' }), textColor: e.target.value } } })}
-                                          className="h-8 w-full rounded cursor-pointer" />
-                                  </div>
+                              <div>
+                                  <label className="text-[10px] font-bold text-red-700 uppercase flex items-center gap-1">🔴 YouTube Live URL (App Player)</label>
+                                  <input type="url" value={localSettings.bannerConfig?.bottom?.liveVideoUrl || ''} onChange={e => setLocalSettings({ ...localSettings, bannerConfig: { ...(localSettings.bannerConfig || {} as any), bottom: { ...(localSettings.bannerConfig?.bottom || {} as any), liveVideoUrl: e.target.value } } })} className="w-full p-2 rounded-lg border border-red-300 text-sm text-slate-700" placeholder="https://youtube.com/live/..." />
+                                  <p className="text-[9px] text-red-400 mt-0.5">Set karne par banner tap karne se app ke video player mein live class khulegi.</p>
                               </div>
                           </div>
-                      </div>
-
-                      {/* BASIC */}
-                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                          <div className="flex justify-between items-center mb-3">
-                              <label className="font-bold text-blue-700 text-sm uppercase flex items-center gap-1">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-200 text-blue-700">BASIC</span>
-                              </label>
-                              <input type="checkbox"
-                                  checked={localSettings.planBanners?.basic?.enabled ?? false}
-                                  onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), basic: { ...(localSettings.planBanners?.basic || { text: '', bgColor: '#2563eb', textColor: '#ffffff' }), enabled: e.target.checked } } })}
-                                  className="w-5 h-5 accent-blue-600"
-                              />
-                          </div>
-                          <div className="space-y-2">
-                              <input type="text" placeholder="Message for Basic users..." value={localSettings.planBanners?.basic?.text || ''}
-                                  onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), basic: { ...(localSettings.planBanners?.basic || { enabled: false, bgColor: '#2563eb', textColor: '#ffffff' }), text: e.target.value } } })}
-                                  className="w-full p-2 rounded-lg border border-blue-200 text-sm text-slate-700" />
-                              <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Background</label>
-                                      <input type="color" value={localSettings.planBanners?.basic?.bgColor || '#2563eb'}
-                                          onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), basic: { ...(localSettings.planBanners?.basic || { enabled: false, text: '', textColor: '#ffffff' }), bgColor: e.target.value } } })}
-                                          className="h-8 w-full rounded cursor-pointer" />
-                                  </div>
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Text Color</label>
-                                      <input type="color" value={localSettings.planBanners?.basic?.textColor || '#ffffff'}
-                                          onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), basic: { ...(localSettings.planBanners?.basic || { enabled: false, text: '', bgColor: '#2563eb' }), textColor: e.target.value } } })}
-                                          className="h-8 w-full rounded cursor-pointer" />
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-
-                      {/* ULTRA */}
-                      <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
-                          <div className="flex justify-between items-center mb-3">
-                              <label className="font-bold text-amber-700 text-sm uppercase flex items-center gap-1">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-700">ULTRA</span>
-                              </label>
-                              <input type="checkbox"
-                                  checked={localSettings.planBanners?.ultra?.enabled ?? false}
-                                  onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), ultra: { ...(localSettings.planBanners?.ultra || { text: '', bgColor: '#d97706', textColor: '#ffffff' }), enabled: e.target.checked } } })}
-                                  className="w-5 h-5 accent-amber-600"
-                              />
-                          </div>
-                          <div className="space-y-2">
-                              <input type="text" placeholder="Message for Ultra users..." value={localSettings.planBanners?.ultra?.text || ''}
-                                  onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), ultra: { ...(localSettings.planBanners?.ultra || { enabled: false, bgColor: '#d97706', textColor: '#ffffff' }), text: e.target.value } } })}
-                                  className="w-full p-2 rounded-lg border border-amber-200 text-sm text-slate-700" />
-                              <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Background</label>
-                                      <input type="color" value={localSettings.planBanners?.ultra?.bgColor || '#d97706'}
-                                          onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), ultra: { ...(localSettings.planBanners?.ultra || { enabled: false, text: '', textColor: '#ffffff' }), bgColor: e.target.value } } })}
-                                          className="h-8 w-full rounded cursor-pointer" />
-                                  </div>
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Text Color</label>
-                                      <input type="color" value={localSettings.planBanners?.ultra?.textColor || '#ffffff'}
-                                          onChange={(e) => setLocalSettings({ ...localSettings, planBanners: { ...(localSettings.planBanners || {}), ultra: { ...(localSettings.planBanners?.ultra || { enabled: false, text: '', bgColor: '#d97706' }), textColor: e.target.value } } })}
-                                          className="h-8 w-full rounded cursor-pointer" />
-                                  </div>
-                              </div>
-                          </div>
+                          <p className="text-[10px] text-blue-400 mt-2">* Auto-Hide 0 = hamesha dikhega. Click URL set karne par banner tap karke link khulega.</p>
                       </div>
                   </div>
-              </div>
-
-              {/* CONTENT TYPES BOX CHART */}
-              <div className="mt-6 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5">
-                  <h4 className="font-black text-indigo-900 text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <LayoutGrid size={16} /> App Content Types — Box Chart
-                  </h4>
-                  <p className="text-[11px] text-indigo-700 mb-4">Yeh app neeche diye gaye sabhi types ka content student ko dikh sakta hai:</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                          { label: 'Notes (HTML)', icon: '📄', desc: 'Rich text notes with headings, bullets' },
-                          { label: 'PDF Viewer', icon: '📑', desc: 'Google Drive PDF embed viewer' },
-                          { label: 'MCQ Practice', icon: '✅', desc: 'Multiple-choice quiz with scoring' },
-                          { label: 'Audio / TTS', icon: '🎧', desc: 'Audio playlist + Text-to-Speech' },
-                          { label: 'Video', icon: '🎬', desc: 'YouTube / Drive embedded videos' },
-                          { label: 'Flashcards', icon: '🃏', desc: 'Flashcard-style MCQ review' },
-                          { label: 'Lucent / Sar Sangrah', icon: '📚', desc: 'Page-wise book notes + MCQ' },
-                          { label: 'Homework', icon: '📝', desc: 'Daily homework with notes & MCQs' },
-                          { label: 'Revision Hub', icon: '🔄', desc: 'Auto-spaced revision sessions' },
-                          { label: 'Live Banner', icon: '📢', desc: 'Scrolling top/bottom announcements' },
-                          { label: 'AI Assistant', icon: '🤖', desc: 'AI-powered Q&A and help' },
-                          { label: 'Weekly Test', icon: '🏆', desc: 'Timed weekly assessment tests' },
-                      ].map((type, i) => (
-                          <div key={i} className="bg-white border border-indigo-100 rounded-xl p-3 flex flex-col gap-1 shadow-sm">
-                              <div className="text-xl">{type.icon}</div>
-                              <div className="text-[11px] font-black text-indigo-800">{type.label}</div>
-                              <div className="text-[10px] text-slate-500">{type.desc}</div>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-
-              {/* LOGIN PAGE STYLE */}
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                  <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center text-sm">🎬</span>
-                      Login Page Style
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mb-4">
-                      Choose between the default white login card or a fullscreen video background. Video plays automatically and cannot be paused by users.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                      {[
-                          { value: 'default', label: 'Default Login', icon: '📋', desc: 'White card, clean UI' },
-                          { value: 'video',   label: 'Video Background', icon: '🎬', desc: 'Fullscreen loop, glassmorphism card' },
-                      ].map(opt => {
-                          const active = (localSettings.loginPageStyle ?? 'default') === opt.value;
-                          return (
-                              <button
-                                  key={opt.value}
-                                  type="button"
-                                  onClick={() => setLocalSettings({ ...localSettings, loginPageStyle: opt.value as 'default' | 'video' })}
-                                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${
-                                      active
-                                          ? 'bg-violet-50 border-violet-400 text-violet-700 shadow-md'
-                                          : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
-                                  }`}
-                              >
-                                  <span className="text-2xl">{opt.icon}</span>
-                                  <span className="font-black text-xs">{opt.label}</span>
-                                  <span className="text-[10px] font-medium text-slate-400">{opt.desc}</span>
-                                  {active && <span className="text-[9px] font-black text-violet-500 uppercase tracking-wider">✓ Active</span>}
-                              </button>
-                          );
-                      })}
-                  </div>
-                  {(localSettings.loginPageStyle ?? 'default') === 'video' && (
-                      <div className="mt-4">
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Login Video URL <span className="text-slate-400 font-normal">(Firebase Storage, Google Drive direct link, ya koi bhi MP4 URL)</span></label>
-                          <input
-                              type="url"
-                              value={localSettings.loginVideoUrl ?? ''}
-                              onChange={e => setLocalSettings({ ...localSettings, loginVideoUrl: e.target.value })}
-                              placeholder="https://... (MP4 link paste karein)"
-                              className="w-full p-3 border border-violet-200 rounded-xl text-sm outline-none focus:border-violet-500 bg-violet-50/40"
-                          />
-                          <p className="text-[10px] text-slate-400 mt-1">⚠️ Google Drive link direct play nahi hoti. Firebase Storage ya kisi aur hosting ki direct MP4 link use karein. Agar koi URL nahi diya toh default built-in video chalega.</p>
-                      </div>
-                  )}
               </div>
 
               <button onClick={() => handleSaveSettings()} className="w-full mt-6 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 flex items-center justify-center gap-2">
@@ -6522,50 +6292,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           <div><label className="text-xs font-bold uppercase text-slate-600">App Name (Long)</label><input type="text" value={localSettings.appName} onChange={e => setLocalSettings({...localSettings, appName: e.target.value})} className="w-full p-3 border rounded-xl" placeholder="IIC" /></div>
                           <div><label className="text-xs font-bold uppercase text-slate-600">App Logo (Image URL)</label><input type="text" value={localSettings.appLogo || ''} onChange={e => setLocalSettings({...localSettings, appLogo: e.target.value})} className="w-full p-3 border rounded-xl" placeholder="https://example.com/logo.png" /></div>
 
-                          {/* IIC × NSTA Badge Position Editor */}
-                          <BadgePosEditor
-                            portrait={localSettings.iicNstaBadgePos?.portrait ?? { bottom: 5, right: 2 }}
-                            landscape={localSettings.iicNstaBadgePos?.landscape ?? { bottom: 5, right: 2 }}
-                            onChange={(p, l) => setLocalSettings({ ...localSettings, iicNstaBadgePos: { portrait: p, landscape: l } })}
-                          />
-
-                          {/* Video Player Button Labels */}
-                          <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl p-4">
-                              <h5 className="text-xs font-black uppercase text-indigo-700 mb-3 flex items-center gap-2">
-                                  <span>🎬</span> Video Player — Button Labels
-                              </h5>
-                              <p className="text-[10px] text-indigo-600 mb-3">
-                                  Portrait mode mein badge button aur Landscape mode mein "go-portrait" button ka text change karein. Button ka size same rahega, text auto-fit hoga.
-                              </p>
-                              <div className="grid grid-cols-1 gap-3">
-                                  <div>
-                                      <label className="text-xs font-bold uppercase text-slate-600">
-                                          📱 Portrait Badge Button (default: IIC×NSTA)
-                                      </label>
-                                      <input
-                                          type="text"
-                                          value={localSettings.playerBadgeLabel ?? ''}
-                                          onChange={e => setLocalSettings({ ...localSettings, playerBadgeLabel: e.target.value })}
-                                          className="w-full p-3 border rounded-xl mt-1"
-                                          placeholder="IIC×NSTA"
-                                          maxLength={30}
-                                      />
-                                  </div>
-                                  <div>
-                                      <label className="text-xs font-bold uppercase text-slate-600">
-                                          🔄 Landscape "Go Portrait" Button (default: Portrait)
-                                      </label>
-                                      <input
-                                          type="text"
-                                          value={localSettings.playerFsButtonLabel ?? ''}
-                                          onChange={e => setLocalSettings({ ...localSettings, playerFsButtonLabel: e.target.value })}
-                                          className="w-full p-3 border rounded-xl mt-1"
-                                          placeholder="Portrait"
-                                          maxLength={30}
-                                      />
-                                  </div>
-                              </div>
-                          </div>
                           <div className="grid grid-cols-2 gap-3">
                               <div><label className="text-xs font-bold uppercase text-slate-600">App Short Name</label><input type="text" value={localSettings.appShortName || 'IIC'} onChange={e => setLocalSettings({...localSettings, appShortName: e.target.value})} className="w-full p-3 border rounded-xl" placeholder="IIC" /></div>
                               <div><label className="text-xs font-bold uppercase text-slate-600">AI Assistant Name</label><input type="text" value={localSettings.aiName || 'IIC AI'} onChange={e => setLocalSettings({...localSettings, aiName: e.target.value})} className="w-full p-3 border rounded-xl" placeholder="IIC AI" /></div>
@@ -6918,595 +6644,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               <p className="text-[10px] text-cyan-700 mt-2 leading-snug">
                                   💡 Tip: PNG transparent background ke saath best dikhta hai. Max 1 MB. Changes "Save Settings" press karne ke baad apply honge.
                               </p>
-                          </div>
-
-                      {/* Loading Screen Video URL */}
-                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800 mb-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Video className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                          <span className="font-bold text-purple-700 dark:text-purple-300 text-sm">Loading Screen Video</span>
-                          {localSettings.loadingScreenVideoUrl && (
-                            <span className="ml-auto text-[10px] font-black bg-purple-600 text-white px-2 py-0.5 rounded-full">VIDEO ON</span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-purple-600 dark:text-purple-400 mb-3 leading-snug">
-                          Jab students app kholen, pehle ye video dikhega (loading screen ki jagah). Video khatam hone ya Skip dabane pe app open hoga. YouTube ya Google Drive URL daalein.
-                        </p>
-                        <input
-                          type="url"
-                          value={localSettings.loadingScreenVideoUrl || ''}
-                          onChange={e => setLocalSettings({ ...localSettings, loadingScreenVideoUrl: e.target.value.trim() })}
-                          placeholder="https://www.youtube.com/watch?v=... ya Google Drive link"
-                          className="w-full p-3 border-2 border-purple-200 dark:border-purple-700 rounded-xl text-sm bg-white dark:bg-gray-800 focus:border-purple-500 focus:outline-none"
-                        />
-                        {localSettings.loadingScreenVideoUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setLocalSettings({ ...localSettings, loadingScreenVideoUrl: '' })}
-                            className="mt-2 text-[11px] font-black text-red-500 hover:text-red-700 underline"
-                          >
-                            ✕ Remove video (default loading screen wapas)
-                          </button>
-                        )}
-                        <p className="text-[10px] text-purple-500 mt-2">💡 Save Settings dabana na bhulen. Sirf ek baar dikhega per session.</p>
-                      </div>
-
-                      {/* AI Model Control */}
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
-                        <div className="flex items-center gap-2 mb-4 text-blue-700 dark:text-blue-400 font-bold">
-                          <Bot className="w-5 h-5" />
-                          <span>AI Control Tower</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Active AI Model (1-Click Change)</label>
-                            <select 
-                              value={localSettings.aiModel} 
-                              onChange={(e) => {
-                                const newSettings = { ...localSettings, aiModel: e.target.value };
-                                setLocalSettings(newSettings);
-                                saveSystemSettings(newSettings);
-                              }}
-                              className="w-full p-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              {MODELS.map(m => (
-                                <option key={m} value={m}>{m}</option>
-                              ))}
-                            </select>
-                            <p className="mt-1 text-xs text-slate-600">App will immediately start using this model for all AI requests.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* FEATURE TOGGLES (User Request) */}
-                      <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 mb-4">
-                          <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2"><Settings size={18}/> Feature Toggles (Active/Inactive)</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100">
-                                  <div>
-                                      <p className="font-bold text-slate-700 text-xs">Morning Test / Insight Banner</p>
-                                      <p className="text-[10px] text-slate-600">Show daily insight banner on Explore page.</p>
-                                  </div>
-                                  <input
-                                      type="checkbox"
-                                      checked={localSettings.showMorningInsight !== false}
-                                      onChange={() => setLocalSettings({
-                                          ...localSettings,
-                                          showMorningInsight: localSettings.showMorningInsight === false ? true : false
-                                      })}
-                                      className="w-5 h-5 accent-indigo-600 cursor-pointer"
-                                  />
-                              </div>
-                              <div className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100">
-                                  <div>
-                                      <p className="font-bold text-slate-700 text-xs">AI Chat / Ask Doubts</p>
-                                      <p className="text-[10px] text-slate-600">Enable 'Ask your doubts' feature globally.</p>
-                                  </div>
-                                  <input
-                                      type="checkbox"
-                                      checked={localSettings.isAiEnabled !== false}
-                                      onChange={() => setLocalSettings({
-                                          ...localSettings,
-                                          isAiEnabled: localSettings.isAiEnabled === false ? true : false
-                                      })}
-                                      className="w-5 h-5 accent-indigo-600 cursor-pointer"
-                                  />
-                              </div>
-                              <div className="bg-white p-3 rounded-lg flex items-center justify-between border border-indigo-100">
-                                  <div>
-                                      <p className="font-bold text-slate-700 text-xs">Student Logout Button</p>
-                                      <p className="text-[10px] text-slate-600">Allow students to log out of the app.</p>
-                                  </div>
-                                  <input
-                                      type="checkbox"
-                                      checked={localSettings.isLogoutEnabled !== false}
-                                      onChange={() => setLocalSettings({
-                                          ...localSettings,
-                                          isLogoutEnabled: localSettings.isLogoutEnabled === false ? true : false
-                                      })}
-                                      className="w-5 h-5 accent-indigo-600 cursor-pointer"
-                                  />
-                              </div>
-                          </div>
-                      </div>
-
-                      {/* VERSION CONTROL */}
-                          {/* FOOTER CUSTOMIZATION */}
-                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
-                              <label className="text-xs font-bold uppercase text-slate-800 mb-3 block underline decoration-blue-500 decoration-2 underline-offset-4">Footer Customization</label>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                      <div className="flex flex-col">
-                                          <span className="text-sm font-bold text-slate-700">Display Footer</span>
-                                          <span className="text-[10px] text-slate-500">Show/Hide the "Developed by" line</span>
-                                      </div>
-                                      <button 
-                                          onClick={() => setLocalSettings({...localSettings, showFooter: localSettings.showFooter === false ? true : false})}
-                                          className={`w-12 h-6 rounded-full transition-colors relative ${localSettings.showFooter !== false ? 'bg-blue-600' : 'bg-slate-300'}`}
-                                      >
-                                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${localSettings.showFooter !== false ? 'left-7' : 'left-1'}`} />
-                                      </button>
-                                  </div>
-                                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                                      <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">Custom Name / Text</label>
-                                      <input 
-                                          type="text" 
-                                          value={localSettings.footerText || ''} 
-                                          onChange={e => setLocalSettings({...localSettings, footerText: e.target.value})}
-                                          className="w-full p-2 border rounded-lg text-sm font-bold"
-                                          placeholder="App Footer Text"
-                                      />
-                                  </div>
-                                  <div className="md:col-span-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                                      <label className="text-[10px] font-bold text-slate-600 uppercase block mb-2">Text Color</label>
-                                      <div className="flex gap-3">
-                                          <input 
-                                              type="color" 
-                                              value={localSettings.footerColor || '#94a3b8'} 
-                                              onChange={e => setLocalSettings({...localSettings, footerColor: e.target.value})}
-                                              className="h-10 w-14 rounded-lg border-2 border-slate-100 p-1 cursor-pointer"
-                                          />
-                                          <input 
-                                              type="text" 
-                                              value={localSettings.footerColor || ''} 
-                                              onChange={e => setLocalSettings({...localSettings, footerColor: e.target.value})}
-                                              className="flex-1 p-2 border rounded-lg text-sm font-mono bg-slate-50"
-                                              placeholder="#94a3b8"
-                                          />
-                                          <button 
-                                              onClick={() => setLocalSettings({...localSettings, footerColor: '#94a3b8'})}
-                                              className="px-3 py-2 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg hover:bg-slate-200"
-                                          >
-                                              Reset
-                                          </button>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-
-                          <div><label className="text-xs font-bold uppercase text-slate-600">Login Screen Message</label><input type="text" value={localSettings.loginMessage} onChange={e => setLocalSettings({...localSettings, loginMessage: e.target.value})} className="w-full p-3 border rounded-xl" /></div>
-                          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                              <div>
-                                  <h4 className="font-bold text-slate-700">Google Login</h4>
-                                  <p className="text-xs text-slate-600">Show/Hide Google Auth on login screen</p>
-                              </div>
-                              <button 
-                                  onClick={async () => {
-                                      const newSettings = {...localSettings, showGoogleLogin: !localSettings.showGoogleLogin};
-                                      setLocalSettings(newSettings);
-                                      try {
-                                          await saveSystemSettings(newSettings);
-                                      } catch (e) {
-                                          console.error("Failed to save Google Login setting", e);
-                                      }
-                                  }}
-                                  className={`px-4 py-2 rounded-lg font-bold transition-all ${localSettings.showGoogleLogin ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                              >
-                                  {localSettings.showGoogleLogin ? 'ENABLED' : 'DISABLED'}
-                              </button>
-                          </div>
-                          
-                          <div>
-                              <label className="text-xs font-bold uppercase text-slate-600">Home Screen Notice</label>
-                              <textarea 
-                                  value={localSettings.noticeText || ''} 
-                                  onChange={e => setLocalSettings({...localSettings, noticeText: e.target.value})} 
-                                  className="w-full p-3 border rounded-xl h-24"
-                                  placeholder="Write a notice for students..." 
-                              />
-                          </div>
-
-                          {/* Community MCQ Permission */}
-                          <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-200">
-                              <div>
-                                  <p className="text-sm font-bold text-indigo-800">Student MCQ Permission</p>
-                                  <p className="text-[11px] text-indigo-600">Allow students to send MCQs in community chat</p>
-                              </div>
-                              <button
-                                  onClick={() => setLocalSettings({...localSettings, allowStudentCommunityMcq: !localSettings.allowStudentCommunityMcq})}
-                                  className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${localSettings.allowStudentCommunityMcq ? 'bg-indigo-500' : 'bg-slate-300'}`}
-                              >
-                                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${localSettings.allowStudentCommunityMcq ? 'left-7' : 'left-1'}`} />
-                              </button>
-                          </div>
-
-                          {/* Hide Global Chat Tab */}
-                          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-200">
-                              <div>
-                                  <p className="text-sm font-bold text-blue-800">Global Chat Tab Hide</p>
-                                  <p className="text-[11px] text-blue-600">Community chat mein Global tab students ko dikhai na de</p>
-                              </div>
-                              <button
-                                  onClick={() => setLocalSettings({...localSettings, hideGlobalChat: !localSettings.hideGlobalChat})}
-                                  className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${localSettings.hideGlobalChat ? 'bg-blue-500' : 'bg-slate-300'}`}
-                              >
-                                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${localSettings.hideGlobalChat ? 'left-7' : 'left-1'}`} />
-                              </button>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                  <label className="text-xs font-bold uppercase text-slate-600">Support Chat Cost</label>
-                                  <input type="number" value={localSettings.chatCost} onChange={e => setLocalSettings({...localSettings, chatCost: Number(e.target.value)})} className="w-full p-3 border rounded-xl" />
-                              </div>
-                              <div>
-                          <label className="text-xs font-bold text-slate-600 uppercase">Developed By Text</label>
-                          <input type="text" value={localSettings.developedBy || ''} onChange={(e) => setLocalSettings({...localSettings, developedBy: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="App Developer Text" />
-                      </div>
-                      <div>
-                                  <label className="text-xs font-bold uppercase text-slate-600">Cooldown (Hours)</label>
-                                  <input type="number" value={localSettings.chatCooldownHours || 0} onChange={e => setLocalSettings({...localSettings, chatCooldownHours: Number(e.target.value)})} className="w-full p-3 border rounded-xl" />
-                              </div>
-                          </div>
-
-                          {/* NEW: Extra Settings */}
-                          {/* FOOTER CUSTOMIZATION */}
-                          <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 mt-4">
-                              <label className="text-xs font-bold uppercase text-indigo-800 mb-3 block">Footer Customization</label>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-indigo-100">
-                                      <span className="text-sm font-medium">Show Footer</span>
-                                      <button 
-                                          onClick={() => setLocalSettings({...localSettings, showFooter: localSettings.showFooter === false ? true : false})}
-                                          className={`w-12 h-6 rounded-full transition-colors relative ${localSettings.showFooter !== false ? 'bg-green-500' : 'bg-slate-300'}`}
-                                      >
-                                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${localSettings.showFooter !== false ? 'left-7' : 'left-1'}`} />
-                                      </button>
-                                  </div>
-                                  <div>
-                                      <label className="text-[10px] font-bold text-slate-600 uppercase">Footer Text</label>
-                                      <input 
-                                          type="text" 
-                                          value={localSettings.footerText || ''} 
-                                          onChange={e => setLocalSettings({...localSettings, footerText: e.target.value})}
-                                          className="w-full p-2 border rounded-lg text-sm"
-                                          placeholder="App Footer Text"
-                                      />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                      <label className="text-[10px] font-bold text-slate-600 uppercase">Footer Color (Hex)</label>
-                                      <div className="flex gap-2">
-                                          <input 
-                                              type="color" 
-                                              value={localSettings.footerColor || '#94a3b8'} 
-                                              onChange={e => setLocalSettings({...localSettings, footerColor: e.target.value})}
-                                              className="h-9 w-12 rounded border p-1"
-                                          />
-                                          <input 
-                                              type="text" 
-                                              value={localSettings.footerColor || ''} 
-                                              onChange={e => setLocalSettings({...localSettings, footerColor: e.target.value})}
-                                              className="flex-1 p-2 border rounded-lg text-sm font-mono"
-                                              placeholder="#94a3b8"
-                                          />
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3 mt-3">
-                              <div>
-                                  <label className="text-xs font-bold uppercase text-slate-600">Name Change Cost</label>
-                                  <input type="number" value={localSettings.nameChangeCost ?? 10} onChange={e => setLocalSettings({...localSettings, nameChangeCost: Number(e.target.value)})} className="w-full p-3 border rounded-xl" />
-                              </div>
-                              <div>
-                                  <label className="text-xs font-bold uppercase text-slate-600">Chat Edit Time (Mins)</label>
-                                  <input type="number" value={localSettings.chatEditTimeLimit ?? 15} onChange={e => setLocalSettings({...localSettings, chatEditTimeLimit: Number(e.target.value)})} className="w-full p-3 border rounded-xl" />
-                              </div>
-                          </div>
-
-                          {/* SYLLABUS TYPE SELECTOR */}
-                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mt-4">
-                              <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Syllabus Mode</label>
-                              <div className="flex gap-4">
-                                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                      <input 
-                                          type="radio" 
-                                          name="syllabusType" 
-                                          checked={localSettings.syllabusType === 'SCHOOL'} 
-                                          onChange={() => setLocalSettings({...localSettings, syllabusType: 'SCHOOL'})}
-                                      /> School
-                                  </label>
-                                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                      <input 
-                                          type="radio" 
-                                          name="syllabusType" 
-                                          checked={localSettings.syllabusType === 'COMPETITIVE'} 
-                                          onChange={() => setLocalSettings({...localSettings, syllabusType: 'COMPETITIVE'})}
-                                      /> Competition
-                                  </label>
-                                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                      <input 
-                                          type="radio" 
-                                          name="syllabusType" 
-                                          checked={localSettings.syllabusType === 'DUAL'} 
-                                          onChange={() => setLocalSettings({...localSettings, syllabusType: 'DUAL'})}
-                                      /> Dual Mode (Both)
-                                  </label>
-                              </div>
-                          </div>
-
-                          <div className="pt-4 border-t border-slate-200 mt-4 relative h-16">
-                              <button 
-                                  onMouseDown={handleMouseDown}
-                                  onClick={() => {
-                                      if (isDragging) return;
-                                      if (confirm("Force Refresh ALL Students?\nThis will reload their app to apply latest updates.")) {
-                                          setLocalSettings({...localSettings, forceRefreshTimestamp: Date.now().toString()});
-                                      }
-                                  }}
-                                  style={{
-                                    transform: `translate(${buttonPos.x}px, ${buttonPos.y}px)`,
-                                    cursor: isDragging ? 'grabbing' : 'grab',
-                                    zIndex: 50,
-                                    position: buttonPos.x !== 0 || buttonPos.y !== 0 ? 'fixed' : 'relative',
-                                    left: buttonPos.x !== 0 || buttonPos.y !== 0 ? 'auto' : '0',
-                                    top: buttonPos.x !== 0 || buttonPos.y !== 0 ? 'auto' : '0',
-                                  }}
-                                  className={`w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg touch-none select-none ${isDragging ? 'opacity-80' : ''}`}
-                              >
-                                  ⚠️ Force Update All Apps
-                              </button>
-                          </div>
-
-                          {/* REVISION HUB V2 + UNIVERSAL VIDEO + PROFILE PLACEMENT */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-                              <div className="flex items-center justify-between bg-purple-50 p-4 rounded-xl border border-purple-100">
-                                  <div>
-                                      <p className="font-bold text-purple-900 flex items-center gap-2"><BrainCircuit size={16}/> Revision Hub (New)</p>
-                                      <p className="text-xs text-purple-700">Show new Revision Hub button in nav (after Homework). Auto-finds notes for weak topics.</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-purple-400 uppercase">{localSettings.revisionHubV2Enabled !== false ? 'Visible' : 'Hidden'}</span>
-                                      <input
-                                          type="checkbox"
-                                          checked={localSettings.revisionHubV2Enabled !== false}
-                                          onChange={() => toggleSetting('revisionHubV2Enabled')}
-                                          className="w-5 h-5 accent-purple-600"
-                                      />
-                                  </div>
-                              </div>
-
-                              <div className="flex items-center justify-between bg-amber-50 p-4 rounded-xl border border-amber-100">
-                                  <div>
-                                      <p className="font-bold text-amber-900 flex items-center gap-2">⭐ Important Notes (GK)</p>
-                                      <p className="text-xs text-amber-700">Jab hide hoga tab nav mein Video aa jayega uski jagah pe.</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-amber-500 uppercase">{localSettings.starredPageHidden ? 'Hidden' : 'Visible'}</span>
-                                      <input
-                                          type="checkbox"
-                                          checked={!localSettings.starredPageHidden}
-                                          onChange={() => toggleSetting('starredPageHidden')}
-                                          className="w-5 h-5 accent-amber-600"
-                                      />
-                                  </div>
-                              </div>
-
-                              <div className="flex items-center justify-between bg-rose-50 p-4 rounded-xl border border-rose-100">
-                                  <div>
-                                      <p className="font-bold text-rose-900 flex items-center gap-2">📺 Universal Video in Top Bar</p>
-                                      <p className="text-xs text-rose-700">Move Universal Video from bottom Video tab into the top header. Tab mein Profile aa jayega.</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-rose-400 uppercase">{localSettings.universalVideoInTopBar ? 'Top Bar' : 'Bottom Tab'}</span>
-                                      <input
-                                          type="checkbox"
-                                          checked={!!localSettings.universalVideoInTopBar}
-                                          onChange={() => toggleSetting('universalVideoInTopBar')}
-                                          className="w-5 h-5 accent-rose-600"
-                                      />
-                                  </div>
-                              </div>
-
-                              {/* TOP BAR AUTO-SCROLL */}
-                              <div className="bg-teal-50 p-4 rounded-xl border border-teal-100 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                      <div>
-                                          <p className="font-bold text-teal-900 flex items-center gap-2">🔄 Top Bar Auto-Scroll</p>
-                                          <p className="text-xs text-teal-700">Button strip ko automatically left-right scroll karega. Students ko swipe nahi karna padega.</p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                          <span className="text-[10px] font-bold text-teal-500 uppercase">{localSettings.topBarAutoScroll ? 'On' : 'Off'}</span>
-                                          <input
-                                              type="checkbox"
-                                              checked={!!localSettings.topBarAutoScroll}
-                                              onChange={() => setLocalSettings({ ...localSettings, topBarAutoScroll: !localSettings.topBarAutoScroll })}
-                                              className="w-5 h-5 accent-teal-600"
-                                          />
-                                      </div>
-                                  </div>
-                                  {localSettings.topBarAutoScroll && (
-                                      <div className="flex items-center gap-3">
-                                          <label className="text-xs font-bold text-teal-800 shrink-0">Scroll interval:</label>
-                                          <input
-                                              type="range"
-                                              min={1}
-                                              max={10}
-                                              step={0.5}
-                                              value={localSettings.topBarAutoScrollInterval ?? 3}
-                                              onChange={e => setLocalSettings({ ...localSettings, topBarAutoScrollInterval: Number(e.target.value) })}
-                                              className="flex-1 accent-teal-600"
-                                          />
-                                          <span className="text-xs font-black text-teal-700 shrink-0 w-12 text-right">{localSettings.topBarAutoScrollInterval ?? 3}s</span>
-                                      </div>
-                                  )}
-                              </div>
-
-                              <div className="flex items-center justify-between bg-amber-50 p-4 rounded-xl border border-amber-100">
-                                  <div>
-                                      <p className="font-bold text-amber-900 flex items-center gap-2">👤 Force Profile in Menu</p>
-                                      <p className="text-xs text-amber-700">Always keep Profile inside the menu drawer (not in bottom nav). Off = Profile follows Revision Hub setting.</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-amber-500 uppercase">{localSettings.profileInMenuForced ? 'Forced' : 'Auto'}</span>
-                                      <input
-                                          type="checkbox"
-                                          checked={!!localSettings.profileInMenuForced}
-                                          onChange={() => toggleSetting('profileInMenuForced')}
-                                          className="w-5 h-5 accent-amber-600"
-                                      />
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* COMPETITION MODE + HOME RESUME FILTER */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-                              <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                  <div>
-                                      <p className="font-bold text-blue-900 flex items-center gap-2"><Trophy size={16}/> Competition Mode</p>
-                                      <p className="text-xs text-blue-700">Show Competitive Exam section</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-blue-400 uppercase">{localSettings.isCompetitionModeEnabled !== false ? 'Active' : 'Off'}</span>
-                                      <input
-                                          type="checkbox"
-                                          checked={localSettings.isCompetitionModeEnabled !== false}
-                                          onChange={() => toggleSetting('isCompetitionModeEnabled')}
-                                          className="w-5 h-5 accent-blue-600"
-                                      />
-                                  </div>
-                              </div>
-
-                              {/* HOME RESUME FILTER CHIPS TOGGLE */}
-                              <div className="flex items-center justify-between bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                                  <div>
-                                      <p className="font-bold text-indigo-900 flex items-center gap-2">📑 Continue Reading Filter Chips</p>
-                                      <p className="text-xs text-indigo-700">Show subject filter row (All / Class Notes / Sar Sangrah / Speedy / MCQ) above Home "Continue Reading" card</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-indigo-500 uppercase">{localSettings.showHomeResumeFilter !== false ? 'Visible' : 'Hidden'}</span>
-                                      <input
-                                          type="checkbox"
-                                          checked={localSettings.showHomeResumeFilter !== false}
-                                          onChange={() => toggleSetting('showHomeResumeFilter')}
-                                          className="w-5 h-5 accent-indigo-600"
-                                      />
-                                  </div>
-                              </div>
-
-                          </div>
-
-                          {/* ============================================ */}
-                          {/* HOME PAGE BUTTONS / SECTIONS — granular show/hide */}
-                          {/* Driven by HOME_SECTION_REGISTRY from utils/homeSections.ts */}
-                          {/* Visibility persists in localSettings.dashboardLayout[id].visible */}
-                          {/* ============================================ */}
-                          <div className="my-6">
-                              <div className="flex items-center justify-between gap-3 mb-3">
-                                  <div>
-                                      <h3 className="font-black text-slate-800 text-base flex items-center gap-2">🏠 Home Page Buttons / Sections</h3>
-                                      <p className="text-xs text-slate-500">Decide which buttons and cards appear on the student Home tab. Each row is a separate toggle.</p>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                      <button
-                                          onClick={() => {
-                                              const layout = { ...(localSettings.dashboardLayout || {}) };
-                                              HOME_SECTION_REGISTRY.forEach(s => {
-                                                  layout[s.id] = { id: s.id, visible: true, label: s.label };
-                                              });
-                                              const updated = { ...localSettings, dashboardLayout: layout };
-                                              setLocalSettings(updated);
-                                              if (onUpdateSettings) onUpdateSettings(updated);
-                                              localStorage.setItem('nst_system_settings', JSON.stringify(updated));
-                                              logActivity('HOME_SECTIONS_BULK', 'Show All Home Sections');
-                                              handleSaveSettings(updated);
-                                          }}
-                                          className="text-[10px] font-black px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all"
-                                      >
-                                          Show All
-                                      </button>
-                                      <button
-                                          onClick={() => {
-                                              const layout = { ...(localSettings.dashboardLayout || {}) };
-                                              HOME_SECTION_REGISTRY.forEach(s => {
-                                                  layout[s.id] = { id: s.id, visible: false, label: s.label };
-                                              });
-                                              const updated = { ...localSettings, dashboardLayout: layout };
-                                              setLocalSettings(updated);
-                                              if (onUpdateSettings) onUpdateSettings(updated);
-                                              localStorage.setItem('nst_system_settings', JSON.stringify(updated));
-                                              logActivity('HOME_SECTIONS_BULK', 'Hide All Home Sections');
-                                              handleSaveSettings(updated);
-                                          }}
-                                          className="text-[10px] font-black px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 active:scale-95 transition-all"
-                                      >
-                                          Hide All
-                                      </button>
-                                  </div>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  {HOME_SECTION_REGISTRY.map(sec => {
-                                      const visible = localSettings.dashboardLayout?.[sec.id]?.visible !== false;
-                                      // Static color map — Tailwind's JIT cannot resolve template-literal class names.
-                                      const COLOR_MAP: Record<string, { tile: string; title: string; desc: string; chip: string; accent: string }> = {
-                                          slate:   { tile: 'bg-slate-50 border-slate-200',     title: 'text-slate-900',   desc: 'text-slate-600',   chip: 'text-slate-600',   accent: 'accent-slate-600' },
-                                          blue:    { tile: 'bg-blue-50 border-blue-100',       title: 'text-blue-900',    desc: 'text-blue-700',    chip: 'text-blue-600',    accent: 'accent-blue-600' },
-                                          indigo:  { tile: 'bg-indigo-50 border-indigo-100',   title: 'text-indigo-900',  desc: 'text-indigo-700',  chip: 'text-indigo-600',  accent: 'accent-indigo-600' },
-                                          emerald: { tile: 'bg-emerald-50 border-emerald-100', title: 'text-emerald-900', desc: 'text-emerald-700', chip: 'text-emerald-600', accent: 'accent-emerald-600' },
-                                          amber:   { tile: 'bg-amber-50 border-amber-100',     title: 'text-amber-900',   desc: 'text-amber-700',   chip: 'text-amber-600',   accent: 'accent-amber-600' },
-                                          rose:    { tile: 'bg-rose-50 border-rose-100',       title: 'text-rose-900',    desc: 'text-rose-700',    chip: 'text-rose-600',    accent: 'accent-rose-600' },
-                                          violet:  { tile: 'bg-violet-50 border-violet-100',   title: 'text-violet-900',  desc: 'text-violet-700',  chip: 'text-violet-600',  accent: 'accent-violet-600' },
-                                          cyan:    { tile: 'bg-cyan-50 border-cyan-100',       title: 'text-cyan-900',    desc: 'text-cyan-700',    chip: 'text-cyan-600',    accent: 'accent-cyan-600' },
-                                      };
-                                      const cm = COLOR_MAP[sec.color] || COLOR_MAP.slate;
-                                      return (
-                                          <div
-                                              key={sec.id}
-                                              className={`flex items-center justify-between p-3.5 rounded-xl border ${cm.tile}`}
-                                          >
-                                              <div className="min-w-0 pr-2">
-                                                  <p className={`font-bold flex items-center gap-2 text-sm ${cm.title}`}>
-                                                      <span className="text-base">{sec.emoji}</span>
-                                                      <span className="truncate">{sec.label}</span>
-                                                  </p>
-                                                  <p className={`text-[11px] mt-0.5 leading-snug ${cm.desc}`}>{sec.description}</p>
-                                              </div>
-                                              <div className="flex items-center gap-1.5 shrink-0">
-                                                  <span className={`text-[9px] font-black uppercase ${visible ? cm.chip : 'text-slate-400'}`}>
-                                                      {visible ? 'Visible' : 'Hidden'}
-                                                  </span>
-                                                  <input
-                                                      type="checkbox"
-                                                      checked={visible}
-                                                      onChange={() => {
-                                                          const layout = { ...(localSettings.dashboardLayout || {}) };
-                                                          const cur = layout[sec.id]?.visible !== false;
-                                                          layout[sec.id] = { id: sec.id, visible: !cur, label: sec.label };
-                                                          const updated = { ...localSettings, dashboardLayout: layout };
-                                                          setLocalSettings(updated);
-                                                          if (onUpdateSettings) onUpdateSettings(updated);
-                                                          localStorage.setItem('nst_system_settings', JSON.stringify(updated));
-                                                          logActivity('HOME_SECTION_TOGGLED', `${sec.id} → ${!cur ? 'visible' : 'hidden'}`);
-                                                          handleSaveSettings(updated);
-                                                      }}
-                                                      className={`w-5 h-5 ${cm.accent}`}
-                                                  />
-                                              </div>
-                                          </div>
-                                      );
-                                  })}
-                              </div>
                           </div>
                       </>
                   )}
@@ -8647,202 +7784,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           </div>
                       </div>
                   )}
-                  {activeTab === 'CONFIG_APP_STORE' && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><ShoppingBag size={18} /> App Store Page</h4>
-                          <p className="text-xs text-slate-600 mb-4">Add download links (Play Store, Google Drive, MediaFire, etc.). Students will see these in the Apps tab.</p>
-
-                          {/* HIDE TOGGLE */}
-                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4 flex items-center justify-between gap-3">
-                              <div className="flex-1">
-                                  <p className="font-bold text-slate-800 text-sm">Hide App Store Page</p>
-                                  <p className="text-[11px] text-slate-500">When enabled, the Apps tab is removed from the student bottom navigation.</p>
-                              </div>
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                  <input
-                                      type="checkbox"
-                                      className="sr-only peer"
-                                      checked={!!localSettings.appStorePageHidden}
-                                      onChange={e => setLocalSettings({ ...localSettings, appStorePageHidden: e.target.checked })}
-                                  />
-                                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-red-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
-                              </label>
-                          </div>
-
-                          {/* APP LIST */}
-                          <div className="space-y-3 mb-4">
-                              {(localSettings.downloadApps || []).map((app, idx) => (
-                                  <div key={app.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-2">
-                                      <div className="flex justify-between items-start gap-2">
-                                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                                              {app.iconUrl ? (
-                                                  <img src={app.iconUrl} alt="" className="w-9 h-9 rounded-lg object-cover bg-slate-100 border border-slate-200" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                                              ) : (
-                                                  <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center"><ShoppingBag size={16} className="text-slate-400" /></div>
-                                              )}
-                                              <span className="font-bold text-sm text-slate-800 truncate">{app.name || 'Untitled App'}</span>
-                                          </div>
-                                          <button
-                                              onClick={() => {
-                                                  const updated = (localSettings.downloadApps || []).filter((_, i) => i !== idx);
-                                                  setLocalSettings({ ...localSettings, downloadApps: updated });
-                                              }}
-                                              className="text-red-400 hover:text-red-600 p-1"
-                                              aria-label="Delete app"
-                                          ><Trash2 size={16} /></button>
-                                      </div>
-
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                          <div>
-                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">App Name</label>
-                                              <input
-                                                  type="text"
-                                                  value={app.name || ''}
-                                                  onChange={e => {
-                                                      const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, name: e.target.value } : a);
-                                                      setLocalSettings({ ...localSettings, downloadApps: updated });
-                                                  }}
-                                                  className="w-full p-2 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                                  placeholder="e.g. WhatsApp"
-                                              />
-                                          </div>
-                                          <div>
-                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Store</label>
-                                              <select
-                                                  value={app.store || 'OTHER'}
-                                                  onChange={e => {
-                                                      const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, store: e.target.value as any } : a);
-                                                      setLocalSettings({ ...localSettings, downloadApps: updated });
-                                                  }}
-                                                  className="w-full p-2 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
-                                              >
-                                                  <option value="PLAY_STORE">Play Store</option>
-                                                  <option value="APP_STORE">App Store (iOS)</option>
-                                                  <option value="GOOGLE_DRIVE">Google Drive</option>
-                                                  <option value="MEDIAFIRE">MediaFire</option>
-                                                  <option value="OTHER">Other / Direct Link</option>
-                                              </select>
-                                          </div>
-                                      </div>
-
-                                      <div>
-                                          <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Download URL</label>
-                                          <input
-                                              type="url"
-                                              value={app.downloadUrl || ''}
-                                              onChange={e => {
-                                                  const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, downloadUrl: e.target.value } : a);
-                                                  setLocalSettings({ ...localSettings, downloadApps: updated });
-                                              }}
-                                              className="w-full p-2 border border-slate-200 rounded-lg text-sm font-mono text-blue-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                              placeholder="https://www.mediafire.com/file/..."
-                                          />
-                                      </div>
-
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                          <div>
-                                              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Icon URL (optional)</label>
-                                              <input
-                                                  type="url"
-                                                  value={app.iconUrl || ''}
-                                                  onChange={e => {
-                                                      const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, iconUrl: e.target.value } : a);
-                                                      setLocalSettings({ ...localSettings, downloadApps: updated });
-                                                  }}
-                                                  className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                                  placeholder="https://.../icon.png"
-                                              />
-                                          </div>
-                                          <div className="grid grid-cols-2 gap-2">
-                                              <div>
-                                                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Version</label>
-                                                  <input
-                                                      type="text"
-                                                      value={app.version || ''}
-                                                      onChange={e => {
-                                                          const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, version: e.target.value } : a);
-                                                          setLocalSettings({ ...localSettings, downloadApps: updated });
-                                                      }}
-                                                      className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                                      placeholder="1.0.0"
-                                                  />
-                                              </div>
-                                              <div>
-                                                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Size</label>
-                                                  <input
-                                                      type="text"
-                                                      value={app.size || ''}
-                                                      onChange={e => {
-                                                          const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, size: e.target.value } : a);
-                                                          setLocalSettings({ ...localSettings, downloadApps: updated });
-                                                      }}
-                                                      className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                                      placeholder="25 MB"
-                                                  />
-                                              </div>
-                                          </div>
-                                      </div>
-
-                                      <div>
-                                          <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Description (optional)</label>
-                                          <textarea
-                                              value={app.description || ''}
-                                              onChange={e => {
-                                                  const updated = (localSettings.downloadApps || []).map((a, i) => i === idx ? { ...a, description: e.target.value } : a);
-                                                  setLocalSettings({ ...localSettings, downloadApps: updated });
-                                              }}
-                                              className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
-                                              rows={2}
-                                              placeholder="Short description shown to students"
-                                          />
-                                      </div>
-                                  </div>
-                              ))}
-
-                              {(localSettings.downloadApps || []).length === 0 && (
-                                  <div className="bg-white p-6 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
-                                      No apps added yet. Click below to add your first one.
-                                  </div>
-                              )}
-                          </div>
-
-                          <button
-                              onClick={() => {
-                                  const newApp = {
-                                      id: `dapp-${Date.now()}`,
-                                      name: 'New App',
-                                      downloadUrl: '',
-                                      store: 'OTHER' as const,
-                                      description: '',
-                                  };
-                                  setLocalSettings({ ...localSettings, downloadApps: [...(localSettings.downloadApps || []), newApp] });
-                              }}
-                              className="w-full py-2.5 bg-purple-100 text-purple-700 font-bold rounded-xl border border-dashed border-purple-300 hover:bg-purple-200 flex items-center justify-center gap-2"
-                          >
-                              <Plus size={16} /> Add App
-                          </button>
-
-                          <div className="mt-6">
-                              <button
-                                  onClick={handleSaveSettings}
-                                  disabled={isSettingsSaving}
-                                  className={`w-full py-4 text-white font-black rounded-xl text-lg shadow-xl shadow-purple-500/20 flex items-center justify-center gap-3 transition-all hover:-translate-y-1 active:scale-95 ${isSettingsSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500'}`}
-                              >
-                                  {isSettingsSaving ? (
-                                      <>
-                                          <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                          Saving...
-                                      </>
-                                  ) : (
-                                      <>
-                                          <Save size={24} />
-                                          Save App Store
-                                      </>
-                                  )}
-                              </button>
-                          </div>
-                      </div>
-                  )}
                   {activeTab === 'CONFIG_REWARDS' && (
                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                            <h4 className="font-bold text-slate-800 flex items-center gap-2"><Gift size={18} /> Engagement Rewards (Padhai karo aur rewards jito)</h4>
@@ -9670,15 +8611,15 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   <div>
                                       <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">📋 Board Filter (kaun dekhe?)</label>
                                       <div className="flex gap-2">
-                                          {([['', '🌐 Dono Board (CBSE + BSEB)'], ['CBSE', '📘 Sirf CBSE'], ['BSEB', '📗 Sirf BSEB']] as const).map(([val, lbl]) => (
+                                          {([['', '🌐 Sab Boards'], ['NCERT_EN', '📘 NCERT English'], ['NCERT_HI', '📗 NCERT Hindi'], ['BSEB', '🟠 BSEB']] as const).map(([val, lbl]) => (
                                               <button key={val} type="button"
                                                   onClick={() => setNewLucent({...newLucent, board: val})}
-                                                  className={`flex-1 py-2 px-2 rounded-lg border-2 text-[11px] font-black transition-all ${newLucent.board === val ? (val === '' ? 'bg-slate-700 border-slate-700 text-white' : val === 'CBSE' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-green-600 border-green-600 text-white') : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}
+                                                  className={`flex-1 py-2 px-2 rounded-lg border-2 text-[11px] font-black transition-all ${newLucent.board === val ? (val === '' ? 'bg-slate-700 border-slate-700 text-white' : val === 'NCERT_EN' ? 'bg-blue-600 border-blue-600 text-white' : val === 'NCERT_HI' ? 'bg-purple-600 border-purple-600 text-white' : 'bg-green-600 border-green-600 text-white') : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}
                                               >{lbl}</button>
                                           ))}
                                       </div>
                                       <p className="text-[9px] text-slate-400 font-bold mt-1">
-                                          ⚠️ CBSE mode ke students ko sirf CBSE lessons dikhenge, BSEB students ko sirf BSEB. "Dono" choose karne par sab ko dikhai dega.
+                                          ⚠️ Board select karne par sirf us board ke students ko dikhai dega. "Sab Boards" choose karne par sab ko dikhai dega.
                                       </p>
                                   </div>
                                   <div>
@@ -10984,6 +9925,29 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                               )}
                                                               {!pageExpanded ? null : (
                                                               <div className="px-3 pb-3 pt-1 space-y-2 border-t border-slate-200">
+                                                              {/* Page-wise copy bar */}
+                                                              <div className="flex items-center gap-2 flex-wrap pt-1">
+                                                                  <button type="button" onClick={() => {
+                                                                      const text = pg.chunkNotes?.trim() || pg.content?.trim() || (pg.htmlNotes || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                                                      if (!text) return setAlertConfig({ isOpen: true, message: '⚠️ Is page mein notes nahi hain.' });
+                                                                      navigator.clipboard.writeText([`📄 Page ${pg.pageNo || (pgIdx + 1)} — ${entry.lessonTitle}`, pg.topicName ? `Topic: ${pg.topicName}` : '', '', text].filter(l => l !== undefined).join('\n'));
+                                                                      setAlertConfig({ isOpen: true, message: `✅ Page ${pg.pageNo || pgIdx + 1} Notes copied!` });
+                                                                  }} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-1 rounded-lg transition-colors"><Copy size={10}/> Copy Notes</button>
+                                                                  {(pg.mcqs || []).length > 0 && (
+                                                                      <button type="button" onClick={() => {
+                                                                          const pgMcqs = pg.mcqs || [];
+                                                                          const lines: string[] = [`📄 Page ${pg.pageNo || pgIdx + 1} MCQs (${pgMcqs.length})`, ''];
+                                                                          pgMcqs.forEach((mcq: any, mi: number) => {
+                                                                              lines.push(`Q${mi + 1}. ${mcq.question}`);
+                                                                              (mcq.options || []).forEach((opt: string, oi: number) => lines.push(`  ${String.fromCharCode(65 + oi)}) ${opt}`));
+                                                                              lines.push(`  Answer: ${String.fromCharCode(65 + (mcq.correctAnswer ?? 0))}) ${(mcq.options || [])[mcq.correctAnswer ?? 0] || ''}`);
+                                                                              lines.push('');
+                                                                          });
+                                                                          navigator.clipboard.writeText(lines.join('\n'));
+                                                                          setAlertConfig({ isOpen: true, message: `✅ Page ${pg.pageNo || pgIdx + 1}: ${pgMcqs.length} MCQs copied!` });
+                                                                      }} className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"><Copy size={10}/> Copy MCQ ({(pg.mcqs || []).length})</button>
+                                                                  )}
+                                                              </div>
                                                               {/* Page No + Date ek row me, Note Content apne pooray width par
                                                                   alag row me — pehle 3-col grid me Note Content squeeze ho jata tha
                                                                   (mobile par "P a ge ke" jaisa vertical dikhta tha). */}
@@ -12532,236 +11496,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       {/* --- AI NOTES MANAGER TAB --- */}
 
 
-      {/* --- DEPLOYMENT / APP UPDATE TAB (Restored without junk) --- */}
-      {activeTab === 'DEPLOY' && (
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right">
-              <div className="flex items-center gap-4 mb-6">
-                  <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
-                  <h3 className="text-xl font-black text-slate-800">App Update Configuration</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* APP UPDATE CONFIGURATION */}
-                  <div className="bg-green-50 p-6 rounded-3xl border border-green-100 space-y-4">
-                      <div>
-                          <div className="w-12 h-12 bg-green-600 text-white rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-green-200">
-                              <RefreshCw size={24} />
-                          </div>
-                          <h4 className="text-xl font-black text-green-900 mb-2">Configure App Update</h4>
-                          <p className="text-xs text-green-700 mb-4">Manage Force Updates and version notifications.</p>
-                      </div>
-
-                      <div className="space-y-3">
-                          <div>
-                              <label className="text-[10px] font-bold text-green-700 uppercase">Version Code</label>
-                              <input
-                                  type="text"
-                                  value={localSettings.latestVersion || ''}
-                                  onChange={e => setLocalSettings({...localSettings, latestVersion: e.target.value})}
-                                  placeholder="e.g. 1.2.5"
-                                  className="w-full p-2 rounded-lg border border-green-200 text-sm font-bold"
-                              />
-                          </div>
-                          <div>
-                              <label className="text-[10px] font-bold text-green-700 uppercase">Official App Share Link</label>
-                              <input
-                                  type="text"
-                                  value={localSettings.officialAppUrl || ''}
-                                  onChange={e => setLocalSettings({...localSettings, officialAppUrl: e.target.value})}
-                                  placeholder="https://play.google.com/..."
-                                  className="w-full p-2 rounded-lg border border-green-200 text-sm"
-                              />
-                              <p className="text-[9px] text-green-600 mt-1">Used when sharing Marksheets via WhatsApp.</p>
-                          </div>
-                          <div>
-                              <label className="text-[10px] font-bold text-green-700 uppercase">Update Link (Play Store)</label>
-                              <input
-                                  type="text"
-                                  value={localSettings.updateUrl || ''}
-                                  onChange={e => setLocalSettings({...localSettings, updateUrl: e.target.value})}
-                                  placeholder="https://..."
-                                  className="w-full p-2 rounded-lg border border-green-200 text-sm"
-                              />
-                          </div>
-                          <div>
-                              <label className="text-[10px] font-bold text-green-700 uppercase">Launch Date</label>
-                              <input
-                                  type="datetime-local"
-                                  value={localSettings.launchDate || ''}
-                                  onChange={e => setLocalSettings({...localSettings, launchDate: e.target.value})}
-                                  className="w-full p-2 rounded-lg border border-green-200 text-sm"
-                              />
-                          </div>
-                          {/* GRACE PERIOD CONFIG */}
-                          <div className="bg-white p-3 rounded-xl border border-green-200">
-                              <label className="text-[10px] font-bold text-green-700 uppercase mb-2 block">Grace Period (Lock App After)</label>
-                              <div className="grid grid-cols-4 gap-2">
-                                  <div>
-                                      <input
-                                          type="number"
-                                          value={localSettings.updateGracePeriod?.days || 0}
-                                          onChange={e => {
-                                              const val = Math.max(0, parseInt(e.target.value) || 0);
-                                              const newGrace = {
-                                                  ...(localSettings.updateGracePeriod || { days: 0, hours: 0, minutes: 0, seconds: 0 }),
-                                                  days: val
-                                              };
-                                              setLocalSettings({...localSettings, updateGracePeriod: newGrace});
-                                          }}
-                                          className="w-full p-2 rounded-lg border border-green-100 text-sm text-center font-bold"
-                                          min="0"
-                                          placeholder="D"
-                                      />
-                                      <p className="text-[9px] text-green-600 text-center mt-1 uppercase">days</p>
-                                  </div>
-                                  <div>
-                                      <input
-                                          type="number"
-                                          value={localSettings.updateGracePeriod?.hours || 0}
-                                          onChange={e => {
-                                              const val = Math.max(0, parseInt(e.target.value) || 0);
-                                              const newGrace = {
-                                                  ...(localSettings.updateGracePeriod || { days: 0, hours: 0, minutes: 0, seconds: 0 }),
-                                                  hours: val
-                                              };
-                                              setLocalSettings({...localSettings, updateGracePeriod: newGrace});
-                                          }}
-                                          className="w-full p-2 rounded-lg border border-green-100 text-sm text-center font-bold"
-                                          min="0"
-                                          placeholder="H"
-                                      />
-                                      <p className="text-[9px] text-green-600 text-center mt-1 uppercase">hours</p>
-                                  </div>
-                                  <div>
-                                      <input
-                                          type="number"
-                                          value={localSettings.updateGracePeriod?.minutes || 0}
-                                          onChange={e => {
-                                              const val = Math.max(0, parseInt(e.target.value) || 0);
-                                              const newGrace = {
-                                                  ...(localSettings.updateGracePeriod || { days: 0, hours: 0, minutes: 0, seconds: 0 }),
-                                                  minutes: val
-                                              };
-                                              setLocalSettings({...localSettings, updateGracePeriod: newGrace});
-                                          }}
-                                          className="w-full p-2 rounded-lg border border-green-100 text-sm text-center font-bold"
-                                          min="0"
-                                          placeholder="M"
-                                      />
-                                      <p className="text-[9px] text-green-600 text-center mt-1 uppercase">minutes</p>
-                                  </div>
-                                  <div>
-                                      <input
-                                          type="number"
-                                          value={localSettings.updateGracePeriod?.seconds || 0}
-                                          onChange={e => {
-                                              const val = Math.max(0, parseInt(e.target.value) || 0);
-                                              const newGrace = {
-                                                  ...(localSettings.updateGracePeriod || { days: 0, hours: 0, minutes: 0, seconds: 0 }),
-                                                  seconds: val
-                                              };
-                                              setLocalSettings({...localSettings, updateGracePeriod: newGrace});
-                                          }}
-                                          className="w-full p-2 rounded-lg border border-green-100 text-sm text-center font-bold"
-                                          min="0"
-                                          placeholder="S"
-                                      />
-                                      <p className="text-[9px] text-green-600 text-center mt-1 uppercase">seconds</p>
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* POPUP RECURRENCE */}
-                          <div className="bg-white p-3 rounded-xl border border-green-200">
-                              <label className="text-[10px] font-bold text-green-700 uppercase mb-2 block">Popup Frequency (Show Every)</label>
-                              <div className="flex gap-2">
-                                  <input
-                                      type="number"
-                                      value={localSettings.updatePopupFrequency?.value || 0}
-                                      onChange={e => {
-                                          const val = Math.max(0, parseInt(e.target.value) || 0);
-                                          const newFreq = {
-                                              unit: 'hours',
-                                              ...(localSettings.updatePopupFrequency || {}),
-                                              value: val
-                                          };
-                                          // @ts-ignore
-                                          setLocalSettings({...localSettings, updatePopupFrequency: newFreq});
-                                      }}
-                                      className="flex-1 p-2 rounded-lg border border-green-100 text-sm font-bold"
-                                      min="0"
-                                      placeholder="Value"
-                                  />
-                                  <select
-                                      value={localSettings.updatePopupFrequency?.unit || 'hours'}
-                                      onChange={e => {
-                                          const newFreq = {
-                                              value: 0,
-                                              ...(localSettings.updatePopupFrequency || {}),
-                                              unit: e.target.value
-                                          };
-                                          // @ts-ignore
-                                          setLocalSettings({...localSettings, updatePopupFrequency: newFreq});
-                                      }}
-                                      className="flex-1 p-2 rounded-lg border border-green-100 text-sm font-bold bg-white"
-                                  >
-                                      {['seconds', 'minutes', 'hours', 'days', 'months', 'years'].map(u => (
-                                          <option key={u} value={u}>{u.toUpperCase()}</option>
-                                      ))}
-                                  </select>
-                              </div>
-                          </div>
-
-                          <div>
-                              <label className="text-[10px] font-bold text-green-700 uppercase">Auto-Close Duration (Sec)</label>
-                              <input
-                                  type="number"
-                                  value={localSettings.updatePopupDurationSeconds || 0}
-                                  onChange={e => setLocalSettings({...localSettings, updatePopupDurationSeconds: parseInt(e.target.value)})}
-                                  className="w-full p-2 rounded-lg border border-green-200 text-sm"
-                                  min="0"
-                              />
-                              <p className="text-[9px] text-green-600 mt-1">0 = Stays until closed.</p>
-                          </div>
-                          <label className="flex items-center gap-2 cursor-pointer mt-4 p-2 bg-white rounded-lg border border-green-100">
-                              <input
-                                  type="checkbox"
-                                  checked={localSettings.forceUpdate}
-                                  onChange={e => setLocalSettings({...localSettings, forceUpdate: e.target.checked})}
-                                  className="w-5 h-5 accent-green-600"
-                              />
-                              <span className="text-sm font-bold text-slate-700">Require Force Update</span>
-                          </label>
-                      </div>
-                  </div>
-
-                  <div className="space-y-6">
-                      <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                          <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><Monitor size={18} /> Update Mechanics</h4>
-                          <ul className="text-xs text-slate-600 space-y-3">
-                              <li className="flex items-start gap-2">
-                                  <CheckCircle size={14} className="text-green-500 mt-0.5 shrink-0" />
-                                  <span><b>Version Match:</b> If a user's app version doesn't match the one set here, they see an update notice.</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                  <CheckCircle size={14} className="text-green-500 mt-0.5 shrink-0" />
-                                  <span><b>Grace Period:</b> The countdown begins exactly on the 'Launch Date'.</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                  <CheckCircle size={14} className="text-green-500 mt-0.5 shrink-0" />
-                                  <span><b>Force Update:</b> If checked OR if grace period expires, the app is locked until updated.</span>
-                              </li>
-                          </ul>
-                      </div>
-
-                      <button onClick={() => handleSaveSettings()} className="w-full px-6 py-4 bg-green-600 text-white font-bold rounded-2xl shadow-xl hover:bg-green-700 flex items-center justify-center gap-2 text-lg">
-                          <Save size={24} /> Deploy Update
-                      </button>
-                  </div>
-              </div>
-          </div>
-      )}
-
       {/* 5. UTILITY TABS */}
       {activeTab === 'DEMAND' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-bottom-4">
@@ -12809,8 +11543,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   )}
                   {demands
                       .filter(d => demandFilter === 'ALL' || (demandFilter === 'PENDING' ? (!d.status || d.status === 'PENDING') : d.status === demandFilter))
+                      .sort((a, b) => (b.reportCount || 1) - (a.reportCount || 1))
                       .map((d, i) => {
                           const isPending = !d.status || d.status === 'PENDING';
+                          const isUrgent = (d.reportCount || 1) >= 5 && isPending;
                           const statusColors: Record<string, string> = {
                               PENDING: 'bg-amber-100 text-amber-700 border-amber-300',
                               IN_PROGRESS: 'bg-blue-100 text-blue-700 border-blue-300',
@@ -12819,11 +11555,18 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           };
                           const sc = statusColors[d.status || 'PENDING'] || statusColors.PENDING;
                           return (
-                              <div key={d.id || i} className={`p-4 border-2 rounded-2xl transition-all ${isPending ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100 bg-slate-50'}`}>
+                              <div key={d.id || i} className={`p-4 border-2 rounded-2xl transition-all ${isUrgent ? 'border-red-400 bg-red-50/60 shadow-md shadow-red-100' : isPending ? 'border-amber-200 bg-amber-50/50' : 'border-slate-100 bg-slate-50'}`}>
+                                  {/* Urgent banner */}
+                                  {isUrgent && (
+                                      <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1 bg-red-100 border border-red-300 rounded-xl w-fit">
+                                          <span className="text-sm">🔥</span>
+                                          <span className="text-[11px] font-black text-red-700 uppercase tracking-wide">High Priority — {d.reportCount} users ne report kiya</span>
+                                      </div>
+                                  )}
                                   {/* Top row: user + time + status */}
                                   <div className="flex items-start justify-between gap-2 mb-3">
                                       <div className="flex items-center gap-2">
-                                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-sm font-black text-indigo-700 shrink-0">
+                                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${isUrgent ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'}`}>
                                               {(d.userName || d.userId || '?').charAt(0).toUpperCase()}
                                           </div>
                                           <div>
@@ -12833,6 +11576,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       </div>
                                       <div className="flex flex-col items-end gap-1">
                                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${sc}`}>{d.status || 'PENDING'}</span>
+                                          {(d.reportCount || 1) > 1 && !isUrgent && (
+                                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300">🔥 {d.reportCount} reports</span>
+                                          )}
                                           <span className="text-[9px] text-slate-400">{d.timestamp ? new Date(d.timestamp).toLocaleDateString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—'}</span>
                                       </div>
                                   </div>
@@ -13062,11 +11808,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       <h3 className="text-xl font-black text-slate-800">📚 Book Notes Manager</h3>
                   </div>
 
-                  {/* ═══════════════════════════════════════════════════════
-                       COMPRE BOOK NOTES — stored in Firestore compre_notes
-                       Shown in Compare page → "Book Notes" tab (read-only)
-                  ═══════════════════════════════════════════════════════ */}
-                  <div className="bg-indigo-50 border border-indigo-300 rounded-2xl p-5 space-y-4">
+                  <div className="hidden">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                           <div>
                               <h4 className="font-black text-indigo-900 flex items-center gap-2"><GitCompare size={18}/> Compre Book Notes</h4>
@@ -13349,33 +12091,62 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   </div>
 
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                           <h4 className="font-bold text-amber-900 flex items-center gap-2"><BookOpen size={18} /> Book-wise Notes</h4>
-                          <div className="flex bg-amber-100 rounded-lg p-1">
-                              <button onClick={() => setBookNotesTab('ADD')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${bookNotesTab === 'ADD' ? 'bg-white text-amber-800 shadow' : 'text-amber-600 hover:bg-amber-200/50'}`}>Add New</button>
-                              <button onClick={() => setBookNotesTab('HISTORY')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${bookNotesTab === 'HISTORY' ? 'bg-white text-amber-800 shadow' : 'text-amber-600 hover:bg-amber-200/50'}`}>History ({bnItems.length})</button>
+                          <div className="flex items-center gap-2">
+                              {bnEditingId && (
+                                  <button
+                                      onClick={() => {
+                                          setBnEditingId(null);
+                                          setNewBookNote({ date: new Date().toISOString().split('T')[0], title: '', notes: '', chunkNotes: '', htmlNotes: '', lightCSS: '', darkCSS: '', mcqText: '', audioUrl: '', videoUrl: '', pdfUrl: '', targetSubject: 'sarSangrah', pageNo: '', topicName: '', classTarget: 'ALL' });
+                                          setNewBookNoteMcqs([]);
+                                      }}
+                                      className="flex items-center gap-1 bg-amber-100 text-amber-700 border border-amber-300 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-200"
+                                  >✕ Cancel Edit</button>
+                              )}
+                              <div className="flex bg-amber-100 rounded-lg p-1">
+                                  <button onClick={() => setBookNotesTab('ADD')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${bookNotesTab === 'ADD' ? 'bg-white text-amber-800 shadow' : 'text-amber-600 hover:bg-amber-200/50'}`}>{bnEditingId ? '✏️ Edit' : 'Add New'}</button>
+                                  <button onClick={() => setBookNotesTab('HISTORY')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${bookNotesTab === 'HISTORY' ? 'bg-white text-amber-800 shadow' : 'text-amber-600 hover:bg-amber-200/50'}`}>History ({bnItems.length})</button>
+                              </div>
                           </div>
                       </div>
 
                       {/* ── ADD TAB ── */}
                       {bookNotesTab === 'ADD' && (
                           <div className="bg-white p-5 rounded-xl border border-amber-200 shadow-sm animate-in fade-in space-y-4">
-                              <p className="text-xs text-amber-800 font-bold">Kaunsi book mein notes add karne hain:</p>
+                              {bnEditingId && (
+                                  <div className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold text-amber-800 flex items-center gap-2">
+                                      <span className="text-base">✏️</span> Edit Mode — changes save karne par purani entry replace ho jayegi
+                                  </div>
+                              )}
+                              {!bnEditingId && !cn612EditingId ? (
+                                  <>
+                                  <p className="text-xs text-amber-800 font-bold">Kaunsi book mein notes add karne hain:</p>
 
-                              {/* Book selector */}
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                  {BOOK_TYPES.map(bt => {
-                                      const isActive = newBookNote.targetSubject === bt.id;
-                                      return (
-                                          <button key={bt.id} type="button"
-                                              onClick={() => { setNewBookNote({ ...newBookNote, targetSubject: bt.id, title: '', notes: '', mcqText: '', pageNo: '' }); setNewBookNoteMode('single'); }}
-                                              className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all font-bold text-sm shadow-sm ${isActive ? bt.active + ' shadow-md scale-[1.02]' : bt.idle}`}>
-                                              <span className="text-sm font-black leading-tight">{bt.label}</span>
-                                              <span className={`text-[10px] font-medium leading-tight ${isActive ? 'opacity-80' : 'opacity-60'}`}>{bt.sub}</span>
-                                          </button>
-                                      );
-                                  })}
-                              </div>
+                                  {/* Book selector */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                      {BOOK_TYPES.map(bt => {
+                                          const isActive = newBookNote.targetSubject === bt.id;
+                                          return (
+                                              <button key={bt.id} type="button"
+                                                  onClick={() => { setNewBookNote({ ...newBookNote, targetSubject: bt.id, title: '', notes: '', mcqText: '', pageNo: '' }); setNewBookNoteMode('single'); }}
+                                                  className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all font-bold text-sm shadow-sm ${isActive ? bt.active + ' shadow-md scale-[1.02]' : bt.idle}`}>
+                                                  <span className="text-sm font-black leading-tight">{bt.label}</span>
+                                                  <span className={`text-[10px] font-medium leading-tight ${isActive ? 'opacity-80' : 'opacity-60'}`}>{bt.sub}</span>
+                                              </button>
+                                          );
+                                      })}
+                                  </div>
+                                  </>
+                              ) : (
+                                  <div className="flex items-center gap-2 bg-amber-100 border border-amber-300 rounded-xl px-3 py-2">
+                                      <span className="text-amber-700 text-lg">📚</span>
+                                      <div>
+                                          <p className="text-xs font-black text-amber-800">{BOOK_TYPES.find(b => b.id === newBookNote.targetSubject)?.label || newBookNote.targetSubject}</p>
+                                          <p className="text-[10px] text-amber-600">Edit mode — book change nahi hogi</p>
+                                      </div>
+                                  </div>
+                              )}
 
                               {/* ── CUSTOM BOOK MODE SELECTOR ── */}
                               {isCustomBook && (
@@ -13401,21 +12172,43 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       ) : (
                                           /* Older book without stored type — show manual selector */
                                           <>
-                                              <label className="text-[10px] font-black text-teal-700 uppercase block mb-2">📦 Notes Format</label>
+                                              <label className="text-[10px] font-black text-teal-700 uppercase block mb-2">📦 Book ka Type chunein — ek baar select karo, app yaad rakhega</label>
                                               <div className="flex gap-2">
-                                                  <button type="button" onClick={() => setNewBookNoteMode('single')}
-                                                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-3 rounded-xl border-2 text-xs font-black transition-all ${newBookNoteMode === 'single' ? 'bg-teal-600 text-white border-teal-600 shadow-md' : 'bg-white text-teal-700 border-teal-200 hover:border-teal-400'}`}>
-                                                      <span className="text-lg">📄</span>
-                                                      <span>Single Page</span>
-                                                      <span className={`text-[9px] font-medium ${newBookNoteMode === 'single' ? 'opacity-80' : 'opacity-60'}`}>Sar Sangrah jaisa (ek entry = ek page)</span>
-                                                  </button>
-                                                  <button type="button" onClick={() => setNewBookNoteMode('multi')}
-                                                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-3 rounded-xl border-2 text-xs font-black transition-all ${newBookNoteMode === 'multi' ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400'}`}>
-                                                      <span className="text-lg">📚</span>
-                                                      <span>Multi Page</span>
-                                                      <span className={`text-[9px] font-medium ${newBookNoteMode === 'multi' ? 'opacity-80' : 'opacity-60'}`}>Class 6-12 jaisa (chapters + multiple pages)</span>
-                                                  </button>
+                                                  {(['single', 'multi', 'mcq'] as const).map(mode => {
+                                                      const cfg = {
+                                                          single: { icon: '📄', label: 'Single Page', sub: 'Sar Sangrah jaisa', color: 'teal' },
+                                                          multi:  { icon: '📚', label: 'Multi Page',   sub: 'Class 6-12 jaisa', color: 'indigo' },
+                                                          mcq:    { icon: '📝', label: 'MCQ Only',     sub: 'Sirf Title + MCQ', color: 'emerald' },
+                                                      }[mode];
+                                                      const isActive = newBookNoteMode === mode;
+                                                      const colorMap: Record<string, string> = {
+                                                          teal:    isActive ? 'bg-teal-600 text-white border-teal-600 shadow-md'    : 'bg-white text-teal-700 border-teal-200 hover:border-teal-400',
+                                                          indigo:  isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400',
+                                                          emerald: isActive ? 'bg-emerald-600 text-white border-emerald-600 shadow-md': 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400',
+                                                      };
+                                                      return (
+                                                          <button key={mode} type="button" onClick={() => {
+                                                              setNewBookNoteMode(mode);
+                                                              // Permanently save the type to the book so it's never asked again
+                                                              if (mode !== 'mcq') {
+                                                                  const bookId = newBookNote.targetSubject;
+                                                                  const updatedBooks = (localSettings.customBooks || []).map((b: any) =>
+                                                                      b.id === bookId ? { ...b, type: mode } : b
+                                                                  );
+                                                                  const newSettings = { ...localSettings, customBooks: updatedBooks };
+                                                                  setLocalSettings(newSettings);
+                                                                  handleSaveSettings(newSettings);
+                                                              }
+                                                          }}
+                                                              className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-3 rounded-xl border-2 text-xs font-black transition-all ${colorMap[cfg.color]}`}>
+                                                              <span className="text-lg">{cfg.icon}</span>
+                                                              <span>{cfg.label}</span>
+                                                              <span className={`text-[9px] font-medium ${isActive ? 'opacity-80' : 'opacity-60'}`}>{cfg.sub}</span>
+                                                          </button>
+                                                      );
+                                                  })}
                                               </div>
+                                              <p className="text-[9px] text-teal-600 mt-1.5 font-medium">💡 Ek baar select karo — next time se seedha notes form khulega.</p>
                                           </>
                                       )}
                                   </div>
@@ -13483,6 +12276,27 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                           <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
                                                               <label className="text-[9px] font-black text-amber-700 uppercase block mb-1">📖 Read Mode Notes</label>
                                                               <textarea value={pg.chunkNotes || ''} onChange={e => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx], chunkNotes: e.target.value}; setNewLucent({...newLucent, pages: u}); }} className="w-full p-2 border border-amber-200 rounded text-sm outline-none min-h-[80px] resize-y focus:border-amber-500 bg-white leading-relaxed" placeholder="Plain text notes — TTS reader ke liye." />
+                                                              {(pg.chunkNotes || '').trim() && (() => {
+                                                                  const pts = (pg.chunkNotes || '').split('\n').map((l: string) => l.replace(/^[\*\-•\d+\.]\s*/,'').trim()).filter((l: string) => l.length > 0);
+                                                                  return pts.length > 0 ? (
+                                                                      <div className="mt-1 bg-amber-100/70 rounded p-1.5 border border-amber-200/60 max-h-24 overflow-y-auto">
+                                                                          <p className="text-[8px] font-black text-amber-700 uppercase mb-0.5">📊 {pts.length} Points:</p>
+                                                                          {pts.map((pt: string, pi: number) => {
+                                                                              const isEditing = editingPt?.srcId === pg.id && editingPt?.ptIdx === pi;
+                                                                              return (
+                                                                                  <div key={pi} className="flex items-start gap-1">
+                                                                                      <button type="button" onClick={() => setEditingPt({srcId: pg.id, ptIdx: pi, text: pt})} className="text-[8px] font-black text-amber-600 shrink-0 w-4 text-right tabular-nums hover:underline cursor-pointer">{pi+1}.</button>
+                                                                                      {isEditing ? (
+                                                                                          <input autoFocus value={editingPt!.text} onChange={e => setEditingPt({...editingPt!, text: e.target.value})} onBlur={() => applyPtEdit(pg.id, pi, editingPt!.text)} onKeyDown={e => { if(e.key==='Enter') applyPtEdit(pg.id, pi, editingPt!.text); if(e.key==='Escape') setEditingPt(null); }} className="text-[8px] text-amber-900 flex-1 border border-amber-400 rounded px-1 bg-white outline-none min-w-0" />
+                                                                                      ) : (
+                                                                                          <p className="text-[8px] text-amber-800 leading-tight truncate flex-1 cursor-pointer hover:text-amber-900" onClick={() => setEditingPt({srcId: pg.id, ptIdx: pi, text: pt})}>{pt}</p>
+                                                                                      )}
+                                                                                  </div>
+                                                                              );
+                                                                          })}
+                                                                      </div>
+                                                                  ) : null;
+                                                              })()}
                                                           </div>
                                                           <div className="bg-teal-50 border border-teal-200 rounded-lg p-2">
                                                               <label className="text-[9px] font-black text-teal-700 uppercase block mb-1">🎨 Write Mode Notes (HTML)</label>
@@ -13512,6 +12326,12 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               {/* ── LUCENT FORM ── */}
                               {newBookNote.targetSubject === 'lucent' && (
                                   <div className="space-y-4 border-t border-amber-100 pt-4">
+                                      {cn612EditingId && (
+                                          <div className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold text-amber-800 flex items-center justify-between gap-2">
+                                              <span className="flex items-center gap-2"><span>✏️</span> Edit Mode — changes save karne par purani Lucent entry replace ho jayegi</span>
+                                              <button onClick={() => { setCn612EditingId(null); setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: 'COMPETITION', board: '', lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] }); }} className="text-amber-700 hover:text-amber-900 font-black text-[10px] border border-amber-300 px-2 py-0.5 rounded whitespace-nowrap">✕ Cancel Edit</button>
+                                          </div>
+                                      )}
                                       <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800">
                                           <strong>Lucent Mode:</strong> Subject category → book name → page-wise notes (Read + Write mode) + MCQ. Competition ya Class 6-12 — jahan bhi assign karo, same reader milta hai.
                                       </div>
@@ -13695,23 +12515,32 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                           <label className="text-[9px] font-black text-amber-700 uppercase block mb-1">📖 Read Mode Notes (Chunk / TTS Reader)</label>
                                                           <textarea value={pg.chunkNotes || ''} onChange={e => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],chunkNotes:e.target.value}; setNewLucent({...newLucent,pages:u}); }} className="w-full p-2 border border-amber-200 rounded-lg text-sm outline-none min-h-[100px] resize-y focus:border-amber-500 bg-white leading-relaxed" placeholder="Plain text notes — TTS reader mein topic-by-topic padhega." />
                                                           <p className="text-[9px] text-amber-700 mt-0.5">💡 TTS Reader ke liye plain text.</p>
+                                                          {(pg.chunkNotes || '').trim() && (() => {
+                                                              const pts = (pg.chunkNotes || '').split('\n').map((l: string) => l.replace(/^[\*\-•\d+\.]\s*/,'').trim()).filter((l: string) => l.length > 0);
+                                                              return pts.length > 0 ? (
+                                                                  <div className="mt-1 bg-amber-100/70 rounded p-1.5 border border-amber-200/60 max-h-24 overflow-y-auto">
+                                                                      <p className="text-[8px] font-black text-amber-700 uppercase mb-0.5">📊 {pts.length} Points — Reading order:</p>
+                                                                      {pts.map((pt: string, pi: number) => {
+                                                                          const isEditing = editingPt?.srcId === pg.id && editingPt?.ptIdx === pi;
+                                                                          return (
+                                                                              <div key={pi} className="flex items-start gap-1">
+                                                                                  <button type="button" onClick={() => setEditingPt({srcId: pg.id, ptIdx: pi, text: pt})} className="text-[8px] font-black text-amber-600 shrink-0 w-4 text-right tabular-nums hover:underline cursor-pointer">{pi+1}.</button>
+                                                                                  {isEditing ? (
+                                                                                      <input autoFocus value={editingPt!.text} onChange={e => setEditingPt({...editingPt!, text: e.target.value})} onBlur={() => applyPtEdit(pg.id, pi, editingPt!.text)} onKeyDown={e => { if(e.key==='Enter') applyPtEdit(pg.id, pi, editingPt!.text); if(e.key==='Escape') setEditingPt(null); }} className="text-[8px] text-amber-900 flex-1 border border-amber-400 rounded px-1 bg-white outline-none min-w-0" />
+                                                                                  ) : (
+                                                                                      <p className="text-[8px] text-amber-800 leading-tight truncate flex-1 cursor-pointer hover:text-amber-900" onClick={() => setEditingPt({srcId: pg.id, ptIdx: pi, text: pt})}>{pt}</p>
+                                                                                  )}
+                                                                              </div>
+                                                                          );
+                                                                      })}
+                                                                  </div>
+                                                              ) : null;
+                                                          })()}
                                                         </div>
                                                         <div className="bg-teal-50 border border-teal-200 rounded-lg p-2">
                                                           <label className="text-[9px] font-black text-teal-700 uppercase block mb-1">🎨 Write Mode Notes (Smart HTML / Styled View)</label>
                                                           <textarea value={pg.htmlNotes || ''} onChange={e => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],htmlNotes:e.target.value}; setNewLucent({...newLucent,pages:u}); }} className="w-full p-2 border border-teal-200 rounded-lg text-sm outline-none min-h-[130px] resize-y focus:border-teal-500 bg-white leading-relaxed font-mono" placeholder="<h2>Topic</h2><p>HTML formatted notes...</p>" />
                                                           <p className="text-[9px] text-teal-700 mt-0.5">🎨 HTML + CSS supported.</p>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                          <div className="bg-sky-50 border border-sky-200 rounded-lg p-2">
-                                                            <label className="text-[9px] font-black text-sky-700 uppercase block mb-1">☀️ White Mode CSS</label>
-                                                            <textarea value={(pg as any).lightCSS || ''} onChange={e => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],lightCSS:e.target.value} as any; setNewLucent({...newLucent,pages:u}); }} className="w-full p-2 border border-sky-200 rounded text-xs outline-none min-h-[70px] resize-y focus:border-sky-500 bg-white font-mono" placeholder="h2 { color: #1e40af; }" />
-                                                            <p className="text-[8px] text-sky-600 mt-0.5">Sirf Light mode mein apply hoga</p>
-                                                          </div>
-                                                          <div className="bg-slate-800 border border-slate-600 rounded-lg p-2">
-                                                            <label className="text-[9px] font-black text-slate-200 uppercase block mb-1">🌙 Dark Mode CSS</label>
-                                                            <textarea value={(pg as any).darkCSS || ''} onChange={e => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],darkCSS:e.target.value} as any; setNewLucent({...newLucent,pages:u}); }} className="w-full p-2 border border-slate-600 rounded text-xs outline-none min-h-[70px] resize-y focus:border-blue-400 bg-slate-900 text-slate-100 font-mono" placeholder="h2 { color: #93c5fd; }" />
-                                                            <p className="text-[8px] text-slate-400 mt-0.5">Dark + Blue mode mein apply hoga</p>
-                                                          </div>
                                                         </div>
                                                         <details className="text-[9px]">
                                                           <summary className="text-slate-400 cursor-pointer hover:text-slate-600">Legacy content field</summary>
@@ -13758,26 +12587,27 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           if (!newLucent.lessonTitle.trim()) return alert('Lesson name nahi diya.');
                                           const validPages = newLucent.pages.filter(p => p.pageNo.trim() && (p.chunkNotes?.trim() || p.htmlNotes?.trim() || p.content?.trim() || (p.mcqs && p.mcqs.length > 0)));
                                           if (validPages.length === 0) return alert('Kam se kam ek page ke notes ya MCQ add karein.');
-                                          const entry: LucentNoteEntry = { id: Date.now().toString(), subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
-                                          const updated = [...(localSettings.lucentNotes || []), entry];
-
-                                          // Create notification
-                                          const newNotif = {
-                                              id: `lucent-${Date.now()}`,
-                                              title: `📚 New Lucent Entry: ${newLucent.lessonTitle.trim()}`,
-                                              body: `Naya Lucent lesson add ho gaya hai. Abhi padho!`,
-                                              type: 'CONTENT',
-                                              createdAt: new Date().toISOString(),
-                                              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                                          };
-                                          const currentNotifs = localSettings.notifications || [];
-                                          const updatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
-
                                           const target2 = LUCENT_CLASS_TARGETS.find(t => t.id === newLucent.classLevel)?.label || newLucent.classLevel;
+                                          let bnLucentUpdated: LucentNoteEntry[];
+                                          let bnSaveMsg: string;
+                                          let bnUpdatedNotifs: any[] | undefined;
+                                          if (cn612EditingId) {
+                                              const updatedEntry: LucentNoteEntry = { id: cn612EditingId, subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
+                                              bnLucentUpdated = (localSettings.lucentNotes || []).map((n: LucentNoteEntry) => n.id === cn612EditingId ? updatedEntry : n);
+                                              bnSaveMsg = `✅ Lesson Updated!`;
+                                              setCn612EditingId(null);
+                                          } else {
+                                              const newEntry: LucentNoteEntry = { id: Date.now().toString(), subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
+                                              bnLucentUpdated = [...(localSettings.lucentNotes || []), newEntry];
+                                              const newNotif = { id: `lucent-${Date.now()}`, title: `📚 New Lucent Entry: ${newLucent.lessonTitle.trim()}`, body: `Naya Lucent lesson add ho gaya hai. Abhi padho!`, type: 'CONTENT', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() };
+                                              const currentNotifs = localSettings.notifications || [];
+                                              bnUpdatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
+                                              bnSaveMsg = `✅ Lesson saved → ${target2}!`;
+                                          }
                                           setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
-                                          saveLucentEntryDirectly(updated, `✅ Lesson saved → ${target2}!`, updatedNotifs);
-                                      }} disabled={isSavingLucent} className="w-full mt-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-60">
-                                          <Save size={18} /> {isSavingLucent ? 'Saving…' : 'Save Lucent Lesson'}
+                                          saveLucentEntryDirectly(bnLucentUpdated, bnSaveMsg, bnUpdatedNotifs);
+                                      }} disabled={isSavingLucent} className={`w-full mt-2 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 ${cn612EditingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                                          <Save size={18} /> {isSavingLucent ? 'Saving…' : cn612EditingId ? '✏️ Update Lucent Lesson' : 'Save Lucent Lesson'}
                                       </button>
                                   </div>
                               )}
@@ -13785,6 +12615,114 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               {/* ── PAGE-WISE BOOK FORM (Sar Sangrah / Speedy / Custom) ── */}
                               {isPageWise && (
                                   <div className="space-y-4 border-t border-amber-100 pt-4">
+                                      {/* ── MODE TOGGLE: Notes vs MCQ Only ── */}
+                                      <div>
+                                          <label className="text-[10px] font-black text-amber-700 uppercase block mb-2">📦 Entry Type</label>
+                                          <div className="flex gap-2">
+                                              <button type="button" onClick={() => setNewBookNoteMode('single')}
+                                                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-3 rounded-xl border-2 text-xs font-black transition-all ${newBookNoteMode !== 'mcq' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-white text-amber-700 border-amber-200 hover:border-amber-400'}`}>
+                                                  <span className="text-lg">📄</span>
+                                                  <span>Notes + MCQ</span>
+                                                  <span className={`text-[9px] font-medium ${newBookNoteMode !== 'mcq' ? 'opacity-80' : 'opacity-60'}`}>Page notes + optional MCQ</span>
+                                              </button>
+                                              <button type="button" onClick={() => setNewBookNoteMode('mcq')}
+                                                  className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-3 rounded-xl border-2 text-xs font-black transition-all ${newBookNoteMode === 'mcq' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400'}`}>
+                                                  <span className="text-lg">📝</span>
+                                                  <span>MCQ Only</span>
+                                                  <span className={`text-[9px] font-medium ${newBookNoteMode === 'mcq' ? 'opacity-80' : 'opacity-60'}`}>Sirf Title + MCQ</span>
+                                              </button>
+                                          </div>
+                                      </div>
+
+                                      {/* ── MCQ-ONLY FORM ── */}
+                                      {newBookNoteMode === 'mcq' && (
+                                          <div className="space-y-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                                              <div className="bg-emerald-100 border border-emerald-300 rounded-lg px-3 py-2 text-xs text-emerald-800 font-bold">
+                                                  📝 MCQ Only Mode — sirf Title aur MCQ questions dalein, notes zaroori nahi.
+                                              </div>
+                                              <div>
+                                                  <label className="text-[10px] font-black text-emerald-700 uppercase block mb-1">📌 Title *</label>
+                                                  <input type="text" value={newBookNote.title} onChange={e => setNewBookNote({...newBookNote, title: e.target.value})} className="w-full p-2 border border-emerald-300 rounded-lg text-sm outline-none focus:border-emerald-500 bg-white" placeholder="e.g. Chapter 5 MCQ, Biology Set 1…" />
+                                              </div>
+                                              <div className="bg-white border border-emerald-200 rounded-xl p-3 space-y-2">
+                                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                      <label className="text-[10px] font-bold text-emerald-700 uppercase flex items-center gap-1">📝 MCQs ({newBookNoteMcqs.length})</label>
+                                                      <div className="flex gap-1">
+                                                          <button type="button" onClick={() => setNewBookNoteBulk(prev => prev === undefined ? '' : undefined)} className="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-amber-600">📋 Bulk Paste</button>
+                                                          <button type="button" onClick={() => setNewBookNoteMcqs(prev => [...prev, { id: `mcq_${Date.now()}_${Math.random()}`, question: '', options: ['', '', '', ''], correctAnswer: 0 }])} className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-emerald-700 flex items-center gap-1"><Plus size={10}/> Add MCQ</button>
+                                                      </div>
+                                                  </div>
+                                                  {newBookNoteBulk !== undefined && (
+                                                      <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-1.5">
+                                                          <textarea value={newBookNoteBulk} onChange={e => setNewBookNoteBulk(e.target.value)} placeholder={"**प्रश्न:** ... ?\nA) ...\nB) ...\nC) ...\nD) ...\n**सही उत्तर:** B) ..."} className="w-full p-1.5 border border-amber-300 rounded text-[11px] font-mono outline-none h-32 focus:border-amber-500" />
+                                                          <div className="flex gap-1">
+                                                              <button type="button" onClick={() => {
+                                                                  const raw = (newBookNoteBulk || '').trim();
+                                                                  if (!raw) return alert('Text khaali hai.');
+                                                                  const parsed = parseMCQText(normalizeMcqPaste(raw));
+                                                                  if (!parsed.questions?.length) return alert('Parse fail. Format check karein.');
+                                                                  const added = parsed.questions.map(q => ({ id: `mcq_${Date.now()}_${Math.random()}`, question: (q.question || '').replace(/<br\/?>/g, '\n').trim(), options: (q.options || ['', '', '', '']).slice(0, 4), correctAnswer: q.correctAnswer ?? 0 }));
+                                                                  setNewBookNoteMcqs(prev => [...prev, ...added]);
+                                                                  setNewBookNoteBulk(undefined);
+                                                                  setAlertConfig({ isOpen: true, message: `✅ ${added.length} MCQ add ho gaye!` });
+                                                              }} className="flex-1 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-700">Parse & Add All</button>
+                                                              <button type="button" onClick={() => setNewBookNoteBulk(undefined)} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300">Cancel</button>
+                                                          </div>
+                                                      </div>
+                                                  )}
+                                                  {newBookNoteMcqs.map((mcq, mIdx) => (
+                                                      <div key={mcq.id} className="bg-emerald-50 border border-emerald-100 rounded p-2 space-y-1.5 relative">
+                                                          <button type="button" onClick={() => setNewBookNoteMcqs(prev => prev.filter((_, i) => i !== mIdx))} className="absolute top-1 right-1 p-0.5 text-red-400 hover:text-red-600 rounded"><Trash2 size={11}/></button>
+                                                          <input type="text" value={mcq.question} onChange={e => setNewBookNoteMcqs(prev => { const cp=[...prev]; cp[mIdx]={...cp[mIdx],question:e.target.value}; return cp; })} className="w-full p-1.5 pr-6 border border-slate-200 rounded text-xs outline-none focus:border-emerald-500 bg-white" placeholder={`Q${mIdx+1}: Question?`} />
+                                                          <div className="grid grid-cols-2 gap-1">
+                                                              {(mcq.options || ['', '', '', '']).map((opt, oi) => (
+                                                                  <div key={oi} className="flex items-center gap-1">
+                                                                      <input type="radio" name={`bn-mcqonly-${mcq.id}-${mIdx}`} checked={(mcq.correctAnswer ?? 0) === oi} onChange={() => setNewBookNoteMcqs(prev => { const cp=[...prev]; cp[mIdx]={...cp[mIdx],correctAnswer:oi}; return cp; })} className="shrink-0" />
+                                                                      <input type="text" value={opt} onChange={e => setNewBookNoteMcqs(prev => { const cp=[...prev]; const opts=[...(cp[mIdx].options||['','','',''])]; opts[oi]=e.target.value; cp[mIdx]={...cp[mIdx],options:opts}; return cp; })} className="w-full p-1 border border-slate-200 rounded text-[11px] outline-none focus:border-emerald-500 bg-white" placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
+                                                                  </div>
+                                                              ))}
+                                                          </div>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                              <button onClick={() => {
+                                                  const titleVal = newBookNote.title.trim();
+                                                  if (!titleVal) return alert('Title zaroori hai.');
+                                                  const structuredMcqs = newBookNoteMcqs
+                                                      .filter(m => m.question.trim() && m.options.some(o => o.trim()))
+                                                      .map(m => ({ question: m.question.trim(), options: m.options, correctAnswer: m.correctAnswer, topic: 'General' }));
+                                                  if (!structuredMcqs.length) return alert('Kam se kam ek MCQ add karein.');
+                                                  const hwItem: any = {
+                                                      id: Date.now().toString(),
+                                                      date: newBookNote.date,
+                                                      title: titleVal,
+                                                      notes: '',
+                                                      chunkNotes: undefined,
+                                                      htmlNotes: undefined,
+                                                      mcqText: '',
+                                                      parsedMcqs: structuredMcqs,
+                                                      audioUrl: '',
+                                                      videoUrl: '',
+                                                      targetSubject: newBookNote.targetSubject,
+                                                      pageNo: '',
+                                                      isMcqOnly: true,
+                                                  };
+                                                  const updated = [...(localSettings.homework || []), hwItem];
+                                                  const newSettings = { ...localSettings, homework: updated };
+                                                  setLocalSettings(newSettings);
+                                                  handleSaveSettings(newSettings);
+                                                  setNewBookNote({ date: new Date().toISOString().split('T')[0], title: '', notes: '', chunkNotes: '', htmlNotes: '', lightCSS: '', darkCSS: '', mcqText: '', audioUrl: '', videoUrl: '', pdfUrl: '', targetSubject: newBookNote.targetSubject, pageNo: '', topicName: '', classTarget: newBookNote.classTarget });
+                                                  setNewBookNoteMcqs([]);
+                                                  setNewBookNoteBulk(undefined);
+                                                  setAlertConfig({ isOpen: true, message: `✅ "${titleVal}" MCQ Saved! (${structuredMcqs.length} questions)` });
+                                              }} className="w-full bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-emerald-700 flex items-center justify-center gap-2">
+                                                  <Save size={18} /> Save MCQ Entry
+                                              </button>
+                                          </div>
+                                      )}
+
+                                      {/* ── NOTES FORM (shown only when NOT mcq-only mode) ── */}
+                                      {newBookNoteMode !== 'mcq' && <>
                                       <div>
                                           <label className="text-[10px] font-black text-amber-700 uppercase block mb-1">📄 Page Number *</label>
                                           <input type="text" inputMode="numeric" value={newBookNote.pageNo} onChange={e => setNewBookNote({...newBookNote, pageNo: e.target.value})} className="w-full p-2 border border-amber-300 rounded-lg text-sm outline-none focus:border-amber-500 bg-white" placeholder="e.g. 45, 101-103" />
@@ -13794,23 +12732,32 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               <label className="text-[9px] font-black text-amber-700 uppercase block mb-1">📖 Read Mode Notes (Chunk / TTS Reader)</label>
                                               <textarea value={newBookNote.chunkNotes} onChange={e => setNewBookNote({...newBookNote, chunkNotes: e.target.value})} className="w-full p-2 border border-amber-200 rounded-lg text-sm outline-none min-h-[100px] resize-y focus:border-amber-500 bg-white leading-relaxed" placeholder="Plain text — student TTS reader mein sunegaa. Har bullet ya nayi line alag chunk banta hai." />
                                               <p className="text-[9px] text-amber-700 mt-0.5">💡 TTS Reader ke liye plain text.</p>
+                                              {newBookNote.chunkNotes.trim() && (() => {
+                                                  const pts = newBookNote.chunkNotes.split('\n').map((l: string) => l.replace(/^[\*\-•\d+\.]\s*/,'').trim()).filter((l: string) => l.length > 0);
+                                                  return pts.length > 0 ? (
+                                                      <div className="mt-1 bg-amber-100/70 rounded p-1.5 border border-amber-200/60 max-h-28 overflow-y-auto">
+                                                          <p className="text-[8px] font-black text-amber-700 uppercase mb-0.5">📊 {pts.length} Points — Reading order:</p>
+                                                          {pts.map((pt: string, pi: number) => {
+                                                              const isEditing = editingPt?.srcId === 'bookNote' && editingPt?.ptIdx === pi;
+                                                              return (
+                                                                  <div key={pi} className="flex items-start gap-1">
+                                                                      <button type="button" onClick={() => setEditingPt({srcId: 'bookNote', ptIdx: pi, text: pt})} className="text-[8px] font-black text-amber-600 shrink-0 w-4 text-right tabular-nums hover:underline cursor-pointer">{pi+1}.</button>
+                                                                      {isEditing ? (
+                                                                          <input autoFocus value={editingPt!.text} onChange={e => setEditingPt({...editingPt!, text: e.target.value})} onBlur={() => applyPtEdit('bookNote', pi, editingPt!.text)} onKeyDown={e => { if(e.key==='Enter') applyPtEdit('bookNote', pi, editingPt!.text); if(e.key==='Escape') setEditingPt(null); }} className="text-[8px] text-amber-900 flex-1 border border-amber-400 rounded px-1 bg-white outline-none min-w-0" />
+                                                                      ) : (
+                                                                          <p className="text-[8px] text-amber-800 leading-tight truncate flex-1 cursor-pointer hover:text-amber-900" onClick={() => setEditingPt({srcId: 'bookNote', ptIdx: pi, text: pt})}>{pt}</p>
+                                                                      )}
+                                                                  </div>
+                                                              );
+                                                          })}
+                                                      </div>
+                                                  ) : null;
+                                              })()}
                                           </div>
                                           <div className="bg-teal-50 border border-teal-200 rounded-lg p-2">
                                               <label className="text-[9px] font-black text-teal-700 uppercase block mb-1">🎨 Write Mode Notes (Smart HTML / Styled View)</label>
                                               <textarea value={newBookNote.htmlNotes} onChange={e => setNewBookNote({...newBookNote, htmlNotes: e.target.value})} className="w-full p-2 border border-teal-200 rounded-lg text-sm outline-none min-h-[130px] resize-y focus:border-teal-500 bg-white leading-relaxed font-mono" placeholder="<h2>Topic</h2><p>HTML formatted notes — colors, bold, tables, lists supported.</p>" />
                                               <p className="text-[9px] text-teal-700 mt-0.5">🎨 HTML + CSS supported — headings, colors, bold, tables sab likh sakte hain.</p>
-                                          </div>
-                                          <div className="grid grid-cols-2 gap-2">
-                                            <div className="bg-sky-50 border border-sky-200 rounded-lg p-2">
-                                              <label className="text-[9px] font-black text-sky-700 uppercase block mb-1">☀️ White Mode CSS</label>
-                                              <textarea value={newBookNote.lightCSS} onChange={e => setNewBookNote({...newBookNote, lightCSS: e.target.value})} className="w-full p-2 border border-sky-200 rounded text-xs outline-none min-h-[70px] resize-y focus:border-sky-500 bg-white font-mono" placeholder="h2 { color: #1e40af; }&#10;table { border: 1px solid #ccc; }" />
-                                              <p className="text-[8px] text-sky-600 mt-0.5">Sirf Light mode mein apply hoga</p>
-                                            </div>
-                                            <div className="bg-slate-800 border border-slate-600 rounded-lg p-2">
-                                              <label className="text-[9px] font-black text-slate-200 uppercase block mb-1">🌙 Dark Mode CSS</label>
-                                              <textarea value={newBookNote.darkCSS} onChange={e => setNewBookNote({...newBookNote, darkCSS: e.target.value})} className="w-full p-2 border border-slate-600 rounded text-xs outline-none min-h-[70px] resize-y focus:border-blue-400 bg-slate-900 text-slate-100 font-mono" placeholder="h2 { color: #93c5fd; }&#10;table { border: 1px solid #374151; }" />
-                                              <p className="text-[8px] text-slate-400 mt-0.5">Dark + Blue mode mein apply hoga</p>
-                                            </div>
                                           </div>
                                           <details className="text-[9px]">
                                               <summary className="text-slate-400 cursor-pointer hover:text-slate-600">Legacy notes field (purana data ke liye)</summary>
@@ -14023,8 +12970,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           const structuredMcqs = newBookNoteMcqs
                                               .filter(m => m.question.trim() && m.options.some(o => o.trim()))
                                               .map(m => ({ question: m.question.trim(), options: m.options, correctAnswer: m.correctAnswer, topic: 'General' }));
-                                          const hwItem: any = {
-                                              id: Date.now().toString(),
+                                          const baseItem: any = {
                                               date: newBookNote.date,
                                               title: `Page ${pg}`,
                                               notes: newBookNote.notes,
@@ -14039,17 +12985,31 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               targetSubject: newBookNote.targetSubject,
                                               pageNo: pg,
                                           };
-                                          const updated = [...(localSettings.homework || []), hwItem];
+                                          let updated: any[];
+                                          let msg: string;
+                                          if (bnEditingId) {
+                                              // Edit mode — replace existing entry, keep original id
+                                              updated = (localSettings.homework || []).map((h: any) =>
+                                                  h.id === bnEditingId ? { ...h, ...baseItem } : h
+                                              );
+                                              msg = `✅ Page ${pg} Note Updated!`;
+                                              setBnEditingId(null);
+                                          } else {
+                                              // Add mode — append new entry
+                                              updated = [...(localSettings.homework || []), { ...baseItem, id: Date.now().toString() }];
+                                              msg = `✅ Page ${pg} Note Saved!`;
+                                          }
                                           const newSettings = { ...localSettings, homework: updated };
                                           setLocalSettings(newSettings);
                                           handleSaveSettings(newSettings);
                                           setNewBookNote({ date: new Date().toISOString().split('T')[0], title: '', notes: '', chunkNotes: '', htmlNotes: '', lightCSS: '', darkCSS: '', mcqText: '', audioUrl: '', videoUrl: '', pdfUrl: '', targetSubject: newBookNote.targetSubject, pageNo: '', topicName: '', classTarget: newBookNote.classTarget });
                                           setNewBookNoteMcqs([]);
                                           setNewBookNoteBulk(undefined);
-                                          setAlertConfig({ isOpen: true, message: `✅ Page ${pg} Note Saved!` });
-                                      }} className="w-full bg-amber-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-amber-700 flex items-center justify-center gap-2">
-                                          <Save size={18} /> Save Book Note
+                                          setAlertConfig({ isOpen: true, message: msg });
+                                      }} className={`w-full text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 ${bnEditingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-amber-600 hover:bg-amber-700'}`}>
+                                          <Save size={18} /> {bnEditingId ? '✏️ Update Book Note' : 'Save Book Note'}
                                       </button>
+                                      </>}
                                   </div>
                               )}
 
@@ -14063,8 +13023,36 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       {/* ── HISTORY TAB ── */}
                       {bookNotesTab === 'HISTORY' && (
                           <div className="animate-in fade-in space-y-3">
-                              <div className="flex justify-between items-center mb-3">
-                                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Saved Book Notes ({bnItems.length})</p>
+                              {/* Book-wise Filter */}
+                              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                                  <div className="flex gap-2 items-end flex-wrap">
+                                      <div className="flex-1 min-w-[140px]">
+                                          <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">📚 Book Filter</label>
+                                          <select
+                                              value={bnBookFilter}
+                                              onChange={e => setBnBookFilter(e.target.value)}
+                                              className="w-full p-1.5 border border-amber-300 rounded-lg text-xs outline-none focus:border-amber-500 bg-white font-bold"
+                                          >
+                                              <option value="ALL">All Books ({bnItems.length})</option>
+                                              {BOOK_TYPES.filter(bt => bnItems.some(hw => hw.targetSubject === bt.id)).map(bt => (
+                                                  <option key={bt.id} value={bt.id}>
+                                                      {bt.label} ({bnItems.filter(hw => hw.targetSubject === bt.id).length})
+                                                  </option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                      {bnBookFilter !== 'ALL' && (
+                                          <button
+                                              onClick={() => setBnBookFilter('ALL')}
+                                              className="px-2 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 shrink-0"
+                                          >✕ Clear</button>
+                                      )}
+                                  </div>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+                                      Saved Book Notes ({bnBookFilter === 'ALL' ? bnItems.length : bnItems.filter(hw => hw.targetSubject === bnBookFilter).length}{bnBookFilter !== 'ALL' ? ` of ${bnItems.length} total` : ''})
+                                  </p>
                                   <button onClick={() => { handleSaveSettings(localSettings); setAlertConfig({isOpen:true,message:'✅ Edits Saved!'}); }} className="bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-xs shadow hover:bg-amber-700 flex items-center gap-2"><Save size={14}/> Save Edits</button>
                               </div>
 
@@ -14076,15 +13064,76 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           const origIdx = (localSettings.lucentNotes || []).length - 1 - ri;
                                           const subjLabel = LUCENT_SUBJECT_OPTIONS.find(o => o.id === entry.subject)?.name || entry.subject;
                                           return (
-                                              <div key={entry.id} className="bg-white rounded-lg border border-indigo-100 px-3 py-2 flex items-center gap-3 shadow-sm">
-                                                  <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-600 text-white">{subjLabel}</span>
-                                                  <span className="flex-1 min-w-0 truncate text-sm font-bold text-slate-800">{entry.lessonTitle || '(untitled)'}</span>
-                                                  <span className="shrink-0 text-[10px] text-indigo-600 font-bold">{entry.pages.length} pg</span>
-                                                  <button onClick={() => {
-                                                      if (!confirm(`⚠️ DELETE\n\n"${entry.lessonTitle}"\n\nHamesha ke liye delete hoga.\n\nSure?`)) return;
-                                                      const updated = (localSettings.lucentNotes || []).filter((_, i) => i !== origIdx);
-                                                      permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note', entry.id, 'lucent');
-                                                  }} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={13}/></button>
+                                              <div key={entry.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${cn612EditingId === entry.id ? 'border-amber-400 ring-2 ring-amber-200' : 'border-indigo-200'}`}>
+                                                  {/* Header row */}
+                                                  <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap">
+                                                      <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-600 text-white">{subjLabel}</span>
+                                                      {cn612EditingId === entry.id && <span className="text-[10px] bg-amber-500 text-white font-black px-2 py-0.5 rounded-full">✏️ Editing</span>}
+                                                      <span className="flex-1 min-w-0 text-sm font-bold text-slate-800 truncate">{entry.lessonTitle || '(untitled)'}</span>
+                                                      <span className="shrink-0 text-[10px] text-indigo-600 font-bold">
+                                                          {entry.pages.length} pg{entry.pages.reduce((s: number, p: any) => s + ((p.mcqs || []).length), 0) > 0 ? ` · ${entry.pages.reduce((s: number, p: any) => s + ((p.mcqs || []).length), 0)} MCQ` : ''}
+                                                      </span>
+                                                      <button onClick={() => {
+                                                          setNewLucent({ subject: entry.subject, bookName: entry.bookName || '', classLevel: entry.classLevel, board: (entry as any).board || '', lessonTitle: entry.lessonTitle, pages: entry.pages.map((p: any) => ({ ...p })), mcqOnly: entry.mcqOnly || false });
+                                                          setNewBookNote((prev: any) => ({ ...prev, targetSubject: 'lucent' }));
+                                                          setCn612EditingId(entry.id);
+                                                          setBookNotesTab('ADD');
+                                                      }} className="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors" title="Edit lesson"><Edit3 size={13}/></button>
+                                                      <button onClick={() => {
+                                                          if (!confirm(`⚠️ DELETE\n\n"${entry.lessonTitle}"\n\nHamesha ke liye delete hoga.\n\nSure?`)) return;
+                                                          const updated = (localSettings.lucentNotes || []).filter((_, i) => i !== origIdx);
+                                                          permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note', entry.id, 'lucent');
+                                                      }} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={13}/></button>
+                                                      <button onClick={() => setExpandedLucent(prev => ({ ...prev, [entry.id]: !prev[entry.id] }))} className="p-1 text-slate-400 hover:text-slate-600 rounded text-xs">{expandedLucent[entry.id] ? '▲' : '▼'}</button>
+                                                  </div>
+                                                  {/* Page-wise copy buttons */}
+                                                  <div className="px-3 pb-2 flex items-center gap-1 flex-wrap">
+                                                      {entry.pages.map((pg: any, pgIdx: number) => {
+                                                          const pgMcqs = pg.mcqs || [];
+                                                          return (
+                                                              <div key={pg.id || pgIdx} className="flex items-center gap-0.5 bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5">
+                                                                  <span className="text-[9px] text-indigo-600 font-black">p.{pg.pageNo || pgIdx + 1}</span>
+                                                                  <button onClick={() => {
+                                                                      const text = pg.chunkNotes?.trim() || pg.content?.trim() || (pg.htmlNotes || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                                                      if (!text) return setAlertConfig({ isOpen: true, message: '⚠️ Is page mein notes nahi hain.' });
+                                                                      navigator.clipboard.writeText([`📘 ${entry.lessonTitle} — Page ${pg.pageNo || pgIdx + 1}`, pg.topicName ? `Topic: ${pg.topicName}` : '', '', text].filter(Boolean).join('\n'));
+                                                                      setAlertConfig({ isOpen: true, message: `✅ Page ${pg.pageNo || pgIdx + 1} Notes copied!` });
+                                                                  }} className="p-0.5 text-blue-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors" title="Copy Notes"><Copy size={10}/></button>
+                                                                  {pgMcqs.length > 0 && <button onClick={() => {
+                                                                      const lines: string[] = [`📘 ${entry.lessonTitle} — Page ${pg.pageNo || pgIdx + 1} MCQs (${pgMcqs.length})`, ''];
+                                                                      pgMcqs.forEach((mcq: any, mi: number) => {
+                                                                          lines.push(`Q${mi + 1}. ${mcq.question}`);
+                                                                          (mcq.options || []).forEach((opt: string, oi: number) => lines.push(`  ${String.fromCharCode(65 + oi)}) ${opt}`));
+                                                                          lines.push(`  Answer: ${String.fromCharCode(65 + (mcq.correctAnswer ?? 0))}) ${(mcq.options || [])[mcq.correctAnswer ?? 0] || ''}`);
+                                                                          lines.push('');
+                                                                      });
+                                                                      navigator.clipboard.writeText(lines.join('\n'));
+                                                                      setAlertConfig({ isOpen: true, message: `✅ Page ${pg.pageNo || pgIdx + 1}: ${pgMcqs.length} MCQs copied!` });
+                                                                  }} className="p-0.5 text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors" title="Copy MCQ"><Copy size={10}/></button>}
+                                                              </div>
+                                                          );
+                                                      })}
+                                                  </div>
+                                                  {/* Expanded: page-wise notes preview */}
+                                                  {expandedLucent[entry.id] && (
+                                                      <div className="px-3 pb-3 border-t border-indigo-100 space-y-2 pt-2 bg-indigo-50/40">
+                                                          <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">📄 Page-wise Notes Preview</p>
+                                                          {entry.pages.map((pg: any, pgIdx: number) => {
+                                                              const previewText = pg.chunkNotes?.trim() || pg.content?.trim() || (pg.htmlNotes || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                                              const pgMcqCount = (pg.mcqs || []).length;
+                                                              return (
+                                                                  <div key={pg.id || pgIdx} className="bg-white rounded-lg border border-indigo-100 p-2">
+                                                                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                                                          <span className="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded">📄 p.{pg.pageNo || pgIdx + 1}</span>
+                                                                          {pg.topicName && <span className="text-[9px] text-violet-700 font-bold bg-violet-50 px-1.5 py-0.5 rounded-full">🏷️ {pg.topicName}</span>}
+                                                                          {pgMcqCount > 0 && <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-full">📝 {pgMcqCount} MCQ</span>}
+                                                                      </div>
+                                                                      {previewText ? <p className="text-[10px] text-slate-600 leading-relaxed line-clamp-3">{previewText}</p> : <p className="text-[9px] text-slate-400 italic">Notes abhi nahi hain</p>}
+                                                                  </div>
+                                                              );
+                                                          })}
+                                                      </div>
+                                                  )}
                                               </div>
                                           );
                                       })}
@@ -14093,7 +13142,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
                               {bnItems.length === 0 && (localSettings.lucentNotes || []).length === 0 && <p className="text-xs text-slate-400 text-center py-8">Abhi koi book notes nahi hain.</p>}
                               {bnItems.length === 0 && (localSettings.lucentNotes || []).length > 0 && <p className="text-xs text-slate-400 text-center py-4">Sar Sangrah / Speedy / Custom book notes abhi nahi hain.</p>}
-                              {bnItems.map((hw, idx) => {
+                              {bnItems.length > 0 && bnBookFilter !== 'ALL' && bnItems.filter(hw => hw.targetSubject === bnBookFilter).length === 0 && (
+                                  <p className="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-slate-100">Is book mein koi notes nahi hain.</p>
+                              )}
+                              {(bnBookFilter === 'ALL' ? bnItems : bnItems.filter(hw => hw.targetSubject === bnBookFilter)).map((hw, idx) => {
                                   const bookMeta = BOOK_TYPES.find(b => b.id === hw.targetSubject);
                                   const mcqs: MCQItem[] = hw.parsedMcqs || [];
                                   const handleCopyAll = () => {
@@ -14136,15 +13188,20 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           targetSubject: hw.targetSubject || 'sarSangrah',
                                           pageNo: (hw as any).pageNo || '',
                                           topicName: '',
+                                          lightCSS: (hw as any).lightCSS || '',
+                                          darkCSS: (hw as any).darkCSS || '',
+                                          classTarget: (hw as any).classTarget || 'ALL',
                                       });
                                       setNewBookNoteMcqs(mcqs.map(m => ({ id: m.id || `mcq_${Date.now()}_${Math.random()}`, question: m.question || '', options: m.options || ['', '', '', ''], correctAnswer: m.correctAnswer ?? 0 })));
+                                      setBnEditingId(hw.id || null);
                                       setBookNotesTab('ADD');
-                                      setAlertConfig({ isOpen: true, message: '✏️ Item edit ke liye load ho gaya. Changes karke Save karein.' });
+                                      document.querySelector('.bg-amber-50.border-amber-200.rounded-2xl')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                   };
                                   return (
-                                      <div key={hw.id || idx} className="bg-white rounded-xl border border-amber-100 p-4 shadow-sm space-y-2">
+                                      <div key={hw.id || idx} className={`bg-white rounded-xl border p-4 shadow-sm space-y-2 ${bnEditingId === hw.id ? 'border-amber-400 ring-2 ring-amber-200' : 'border-amber-100'}`}>
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-2 flex-wrap">
+                                                  {bnEditingId === hw.id && <span className="text-[10px] bg-amber-500 text-white font-black px-2 py-0.5 rounded-full">✏️ Editing</span>}
                                                   {bookMeta && <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${bookMeta.active.split(' ').slice(0, 2).join(' ')}`}>{bookMeta.label}</span>}
                                                   {(hw as any).pageNo && <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Pg {(hw as any).pageNo}</span>}
                                                   {(hw as any).topicName && <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">🏷️ {(hw as any).topicName}</span>}
@@ -14168,8 +13225,26 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               return preview ? <p className="text-xs text-slate-500 line-clamp-2">{preview}</p> : null;
                                           })()}
                                           <div className="flex items-center gap-2 flex-wrap">
-                                              {mcqs.length > 0 && <p className="text-[10px] text-emerald-600 font-bold">{mcqs.length} MCQs</p>}
-                                              <button onClick={handleCopyAll} className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-1"><Copy size={9}/> Copy All {mcqs.length > 0 ? `(Notes + ${mcqs.length} MCQs)` : '(Notes)'}</button>
+                                              {mcqs.length > 0 && <span className="text-[10px] text-emerald-600 font-bold">{mcqs.length} MCQs</span>}
+                                              <button onClick={() => {
+                                                  const text = (hw as any).chunkNotes?.trim() || hw.notes?.trim() || ((hw as any).htmlNotes || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                                  if (!text) return setAlertConfig({ isOpen: true, message: '⚠️ Is page mein notes nahi hain.' });
+                                                  navigator.clipboard.writeText([`📄 Page ${(hw as any).pageNo || ''} — ${hw.date || ''}`, '', text].join('\n'));
+                                                  setAlertConfig({ isOpen: true, message: '✅ Notes copied!' });
+                                              }} className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-1"><Copy size={9}/> Copy Notes</button>
+                                              {mcqs.length > 0 && (
+                                                  <button onClick={() => {
+                                                      const lines: string[] = [`📄 Page ${(hw as any).pageNo || ''} MCQs (${mcqs.length})`, ''];
+                                                      mcqs.forEach((mcq, mi) => {
+                                                          lines.push(`Q${mi + 1}. ${mcq.question}`);
+                                                          (mcq.options || []).forEach((opt, oi) => lines.push(`  ${String.fromCharCode(65 + oi)}) ${opt}`));
+                                                          lines.push(`  Answer: ${String.fromCharCode(65 + (mcq.correctAnswer ?? 0))}) ${(mcq.options || [])[mcq.correctAnswer ?? 0] || ''}`);
+                                                          lines.push('');
+                                                      });
+                                                      navigator.clipboard.writeText(lines.join('\n'));
+                                                      setAlertConfig({ isOpen: true, message: `✅ ${mcqs.length} MCQs copied!` });
+                                                  }} className="text-[10px] text-emerald-600 font-bold hover:underline flex items-center gap-1"><Copy size={9}/> Copy MCQ ({mcqs.length})</button>
+                                              )}
                                           </div>
                                       </div>
                                   );
@@ -14213,7 +13288,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           <button
                               onClick={() => {
                                   setCn612EditingId(null);
-                                  setNewLucent({ subject: cn612Subject, bookName: '', classLevel: cn612Level, lessonTitle: '', pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
+                                  setNewLucent({ subject: cn612Subject, bookName: '', classLevel: cn612Level, board: '', lessonTitle: '', pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                               }}
                               className="flex items-center gap-1 bg-amber-100 text-amber-700 border border-amber-300 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-200"
                           >✕ Cancel Edit</button>
@@ -14256,6 +13331,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   {cn612SubjectOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                               </select>
                           </div>
+                      </div>
+
+                      {/* Board Selector */}
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">🏫 Board</label>
+                          <div className="flex gap-2">
+                              {([['', '🌐 Sab Boards'], ['NCERT_EN', '📘 NCERT English'], ['NCERT_HI', '📗 NCERT Hindi'], ['BSEB', '🟠 BSEB']] as const).map(([val, lbl]) => (
+                                  <button key={val} type="button"
+                                      onClick={() => setNewLucent({...newLucent, board: val})}
+                                      className={`flex-1 py-2 px-2 rounded-lg border-2 text-[11px] font-black transition-all ${newLucent.board === val ? (val === '' ? 'bg-slate-700 border-slate-700 text-white' : val === 'NCERT_EN' ? 'bg-blue-600 border-blue-600 text-white' : val === 'NCERT_HI' ? 'bg-purple-600 border-purple-600 text-white' : 'bg-green-600 border-green-600 text-white') : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}
+                                  >{lbl}</button>
+                              ))}
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-bold mt-1">
+                              ⚠️ Board select karne par sirf us board ke students ko dikhai dega. "Sab Boards" choose karne par sab ko dikhai dega. Content ek board se doosre board mein move karne ke liye yahan se board badlo.
+                          </p>
                       </div>
 
                       {/* Book Name */}
@@ -14402,6 +13493,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       subject: cn612Subject,
                                       bookName: newLucent.bookName.trim() || undefined,
                                       classLevel: effectiveClass,
+                                      board: newLucent.board || undefined,
                                       lessonTitle: titleTrimmed,
                                       pages: validPages,
                                       updatedAt: new Date().toISOString(),
@@ -14418,6 +13510,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       subject: cn612Subject,
                                       bookName: newLucent.bookName.trim() || undefined,
                                       classLevel: effectiveClass,
+                                      board: newLucent.board || undefined,
                                       lessonTitle: titleTrimmed,
                                       pages: validPages,
                                       createdAt: new Date().toISOString(),
@@ -14426,7 +13519,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   msg = `✅ Class Notes saved → ${classLabel} — ${titleTrimmed}!`;
                               }
 
-                              setNewLucent({ subject: cn612Subject, bookName: '', classLevel: effectiveClass, lessonTitle: '', pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
+                              setNewLucent({ subject: cn612Subject, bookName: '', classLevel: effectiveClass, board: newLucent.board || '', lessonTitle: '', pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                               saveLucentEntryDirectly(updated, msg);
                           }}
                           disabled={isSavingLucent}
@@ -14437,13 +13530,55 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
                       {/* History of recently added class notes */}
                       {(() => {
-                          const classNotesList = (localSettings.lucentNotes || []).filter((n: LucentNoteEntry) => n.classLevel !== 'COMPETITION').sort((a: LucentNoteEntry, b: LucentNoteEntry) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 15);
-                          if (classNotesList.length === 0) return null;
+                          const allClassNotes = (localSettings.lucentNotes || []).filter((n: LucentNoteEntry) => n.classLevel !== 'COMPETITION').sort((a: LucentNoteEntry, b: LucentNoteEntry) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+                          if (allClassNotes.length === 0) return null;
+                          const uniqueClasses = Array.from(new Set(allClassNotes.map((n: LucentNoteEntry) => n.classLevel))).sort() as string[];
+                          const uniqueBooks = Array.from(new Set(allClassNotes.map((n: LucentNoteEntry) => n.bookName).filter(Boolean))).sort() as string[];
+                          const uniqueSubjects = Array.from(new Set(allClassNotes.filter((n: LucentNoteEntry) => cn612FilterClass === 'ALL' || n.classLevel === cn612FilterClass).map((n: LucentNoteEntry) => n.subject).filter(Boolean))).sort() as string[];
+                          const classNotesList = allClassNotes
+                              .filter((n: LucentNoteEntry) => cn612FilterClass === 'ALL' || n.classLevel === cn612FilterClass)
+                              .filter((n: LucentNoteEntry) => cn612FilterSubject === 'ALL' || n.subject === cn612FilterSubject)
+                              .filter((n: LucentNoteEntry) => cn612FilterBook === 'ALL' || n.bookName === cn612FilterBook);
                           return (
                               <div className="mt-2">
-                                  <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Recently Added Class Notes ({classNotesList.length})</p>
+                                  {/* Filter Row */}
+                                  <div className="flex gap-2 mb-3 flex-wrap items-end">
+                                      <div className="flex-1 min-w-[100px]">
+                                          <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Class</label>
+                                          <select value={cn612FilterClass} onChange={e => { setCn612FilterClass(e.target.value); setCn612FilterSubject('ALL'); }} className="w-full p-1.5 border border-green-200 rounded-lg text-xs outline-none focus:border-green-500 bg-white font-bold">
+                                              <option value="ALL">All Classes</option>
+                                              {uniqueClasses.map((cl: string) => <option key={cl} value={cl}>{CLASS_ONLY_TARGETS.find(t => t.id === cl)?.label || `Class ${cl}`}</option>)}
+                                          </select>
+                                      </div>
+                                      {uniqueSubjects.length > 0 && (
+                                          <div className="flex-1 min-w-[100px]">
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Subject</label>
+                                              <select value={cn612FilterSubject} onChange={e => setCn612FilterSubject(e.target.value)} className="w-full p-1.5 border border-green-200 rounded-lg text-xs outline-none focus:border-green-500 bg-white font-bold">
+                                                  <option value="ALL">All Subjects</option>
+                                                  {uniqueSubjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                                              </select>
+                                          </div>
+                                      )}
+                                      {uniqueBooks.length > 0 && (
+                                          <div className="flex-1 min-w-[100px]">
+                                              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">📚 Book</label>
+                                              <select value={cn612FilterBook} onChange={e => setCn612FilterBook(e.target.value)} className="w-full p-1.5 border border-green-200 rounded-lg text-xs outline-none focus:border-green-500 bg-white">
+                                                  <option value="ALL">All Books</option>
+                                                  {uniqueBooks.map((bk: string) => <option key={bk} value={bk}>{bk}</option>)}
+                                              </select>
+                                          </div>
+                                      )}
+                                      {(cn612FilterClass !== 'ALL' || cn612FilterSubject !== 'ALL' || cn612FilterBook !== 'ALL') && (
+                                          <button onClick={() => { setCn612FilterClass('ALL'); setCn612FilterSubject('ALL'); setCn612FilterBook('ALL'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 shrink-0">✕ Clear</button>
+                                      )}
+                                  </div>
+                                  <p className="text-[10px] font-black text-slate-500 uppercase mb-2">
+                                      Class Notes History ({classNotesList.length}{allClassNotes.length !== classNotesList.length ? ` of ${allClassNotes.length} total` : ''})
+                                  </p>
                                   <div className="space-y-2 max-h-[350px] overflow-y-auto">
-                                      {classNotesList.map((entry: LucentNoteEntry) => (
+                                      {classNotesList.length === 0 ? (
+                                          <p className="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-slate-100">Koi notes nahi mili is filter se.</p>
+                                      ) : classNotesList.map((entry: LucentNoteEntry) => (
                                           <div key={entry.id} className={`border rounded-xl p-3 flex items-start justify-between gap-2 ${cn612EditingId === entry.id ? 'bg-amber-50 border-amber-300' : 'bg-green-50 border-green-100'}`}>
                                               <div className="flex-1 min-w-0">
                                                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -14451,7 +13586,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                       {cn612EditingId === entry.id && <span className="text-[9px] font-black bg-amber-400 text-white px-1.5 py-0.5 rounded-full shrink-0">✏️ Editing</span>}
                                                   </div>
                                                   <p className="text-[10px] text-slate-500 mt-0.5">
-                                                      {LUCENT_CLASS_TARGETS.find(t => t.id === entry.classLevel)?.label || entry.classLevel} • {entry.subject} {entry.bookName ? `• ${entry.bookName}` : ''} • {entry.pages?.length || 0} page(s)
+                                                      {LUCENT_CLASS_TARGETS.find(t => t.id === entry.classLevel)?.label || entry.classLevel} • {entry.subject} {entry.bookName ? `• ${entry.bookName}` : ''} • {entry.pages?.length || 0} page(s){(entry as any).board ? ` • ${(entry as any).board === 'NCERT_EN' ? '📘 NCERT EN' : (entry as any).board === 'NCERT_HI' ? '📗 NCERT HI' : '🟠 BSEB'}` : ''}
                                                   </p>
                                                   <p className="text-[9px] text-slate-400">{(entry as any).updatedAt ? `Updated: ${new Date((entry as any).updatedAt).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}` : entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : ''}</p>
                                               </div>
@@ -14464,6 +13599,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                               subject: entry.subject,
                                                               bookName: entry.bookName || '',
                                                               classLevel: (entry.classLevel && entry.classLevel !== 'COMPETITION' ? entry.classLevel : '6') as any,
+                                                              board: (entry as any).board || '',
                                                               lessonTitle: entry.lessonTitle,
                                                               pages: entry.pages || [],
                                                           });
@@ -14590,7 +13726,16 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       </button>
                       <button onClick={() => { setChatAdminTab('SUPPORT'); setChatInput(''); }}
                           className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${chatAdminTab === 'SUPPORT' ? 'bg-white shadow text-green-600' : 'text-slate-500'}`}>
-                          <Shield size={12}/> Private DMs ({supportThreads.length})
+                          <Shield size={12}/> DMs ({supportThreads.length})
+                      </button>
+                      <button onClick={() => setChatAdminTab('SUGGESTIONS')}
+                          className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 relative ${chatAdminTab === 'SUGGESTIONS' ? 'bg-white shadow text-amber-600' : 'text-slate-500'}`}>
+                          <Lightbulb size={12}/> Sugg. ({adminSuggestions.length})
+                          {adminSuggestions.filter(s => !s.adminReply).length > 0 && (
+                              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[8px] text-white font-black flex items-center justify-center">
+                                  {adminSuggestions.filter(s => !s.adminReply).length}
+                              </span>
+                          )}
                       </button>
                   </div>
 
@@ -14730,6 +13875,361 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       </div>
                                   </div>
                               </>
+                          )}
+                      </div>
+                  )}
+
+                  {/* ── SUGGESTIONS TAB ── */}
+                  {chatAdminTab === 'SUGGESTIONS' && (
+                      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                          {adminSuggestions.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 pt-16">
+                                  <Lightbulb size={36} className="opacity-30"/>
+                                  <p className="text-xs font-bold">Abhi tak koi suggestion nahi aaya</p>
+                              </div>
+                          ) : (
+                              adminSuggestions.map((s) => {
+                                  const hasReply = !!s.adminReply;
+                                  const timeAgo = (iso: string) => {
+                                      const ms = Date.now() - new Date(iso).getTime();
+                                      const m = Math.floor(ms/60000); const h = Math.floor(ms/3600000); const d = Math.floor(ms/86400000);
+                                      return d > 0 ? `${d}d pehle` : h > 0 ? `${h}h pehle` : m > 0 ? `${m}m pehle` : 'abhi';
+                                  };
+                                  return (
+                                      <div key={s.id} className={`rounded-2xl border p-3 space-y-2 ${hasReply ? 'border-amber-200 bg-amber-50' : 'border-slate-100 bg-white'}`}>
+                                          {/* Header */}
+                                          <div className="flex items-start justify-between">
+                                              <div>
+                                                  <p className="text-sm font-black text-slate-800">{s.userName}</p>
+                                                  <div className="flex items-center gap-2">
+                                                      {s.userBoard && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.userBoard}</span>}
+                                                      <span className="text-[9px] text-slate-400">{timeAgo(s.createdAt)}</span>
+                                                      {hasReply
+                                                          ? <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">✅ Replied</span>
+                                                          : <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳ Pending</span>
+                                                      }
+                                                  </div>
+                                              </div>
+                                              <div className="flex items-center gap-1.5">
+                                                  <button
+                                                      onClick={async () => { await reactToSuggestion(s.id, 'admin', 'like'); }}
+                                                      className="flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[10px] font-black transition-all hover:bg-emerald-100 active:scale-90"
+                                                      title="Mark / Upvote"
+                                                  >
+                                                      <ThumbsUp size={10} className="text-emerald-500"/> <span className="text-emerald-600">{s.likes || 0}</span>
+                                                  </button>
+                                                  {s.status !== 'resolved' && (
+                                                      <button
+                                                          onClick={async () => { if (!confirm('Mark as Resolved?')) return; await resolvesuggestion(s.id); }}
+                                                          className="px-1.5 py-1 rounded-lg text-[9px] font-black text-purple-500 hover:bg-purple-50 transition-all active:scale-90"
+                                                          title="Mark Resolved"
+                                                      >✅</button>
+                                                  )}
+                                                  <button onClick={async () => { if (!confirm('Delete?')) return; await deleteSuggestion(s.id); }} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={12}/></button>
+                                              </div>
+                                          </div>
+                                          {/* Suggestion text */}
+                                          <p className="text-[12px] text-slate-700 leading-relaxed bg-white rounded-xl px-3 py-2 border border-slate-100">{s.text}</p>
+                                          {/* Chapter / lesson metadata */}
+                                          {(s.chapterKey || s.lessonTitle || s.subject) && (
+                                              <div className="flex flex-wrap gap-1.5 px-1">
+                                                  {s.chapterKey && (
+                                                      <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 max-w-full">
+                                                          <span className="text-[8px] font-black text-emerald-600 uppercase shrink-0">🔑 Key:</span>
+                                                          <span className="text-[9px] font-mono text-emerald-800 truncate">{s.chapterKey}</span>
+                                                      </div>
+                                                  )}
+                                                  {s.lessonTitle && (
+                                                      <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 max-w-full">
+                                                          <span className="text-[8px] font-black text-blue-600 uppercase shrink-0">📚</span>
+                                                          <span className="text-[9px] text-blue-800 truncate">{s.lessonTitle}</span>
+                                                      </div>
+                                                  )}
+                                                  {s.subject && (
+                                                      <span className="text-[8px] font-black px-1.5 py-1 rounded-lg bg-violet-50 border border-violet-200 text-violet-700 capitalize">{s.subject}{s.classLevel && s.classLevel !== 'COMPETITION' ? ` · Cl ${s.classLevel}` : ''}</span>
+                                                  )}
+                                                  {s.pageNo && (
+                                                      <span className="text-[8px] font-black px-1.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-600">Pg {s.pageNo}</span>
+                                                  )}
+                                              </div>
+                                          )}
+                                          {/* Admin reply */}
+                                          {hasReply && adminSuggReplyId !== s.id && (
+                                              <div className="bg-amber-100 border border-amber-200 rounded-xl px-3 py-2">
+                                                  <p className="text-[9px] font-black text-amber-700 uppercase mb-0.5">⚡ Tera Reply:</p>
+                                                  <p className="text-[11px] text-amber-800">{s.adminReply}</p>
+                                              </div>
+                                          )}
+                                          {/* Reply form */}
+                                          {adminSuggReplyId === s.id ? (
+                                              <div className="space-y-1.5">
+                                                  <textarea
+                                                      value={adminSuggReplyText}
+                                                      onChange={e => setAdminSuggReplyText(e.target.value)}
+                                                      placeholder="Reply likho..."
+                                                      className="w-full p-2 border border-amber-300 rounded-xl text-[11px] outline-none min-h-[60px] resize-none focus:border-amber-500 bg-white"
+                                                      rows={3}
+                                                  />
+                                                  <div className="flex gap-2">
+                                                      <button onClick={() => { setAdminSuggReplyId(null); setAdminSuggReplyText(''); }} className="flex-1 py-1.5 text-[10px] font-black text-slate-500 rounded-xl border border-slate-200 bg-white">Cancel</button>
+                                                      <button
+                                                          onClick={async () => {
+                                                              if (!adminSuggReplyText.trim()) return;
+                                                              setAdminSuggReplySaving(true);
+                                                              await adminReplySuggestion(s.id, adminSuggReplyText.trim());
+                                                              setAdminSuggReplySaving(false);
+                                                              setAdminSuggReplyId(null);
+                                                              setAdminSuggReplyText('');
+                                                          }}
+                                                          disabled={!adminSuggReplyText.trim() || adminSuggReplySaving}
+                                                          className="flex-1 py-1.5 text-[10px] font-black text-white rounded-xl bg-amber-500 hover:bg-amber-600 transition-all disabled:opacity-40 flex items-center justify-center gap-1"
+                                                      >
+                                                          {adminSuggReplySaving ? <RefreshCw size={10} className="animate-spin"/> : <Send size={10}/>}
+                                                          {adminSuggReplySaving ? 'Saving…' : 'Save Reply'}
+                                                      </button>
+                                                  </div>
+                                              </div>
+                                          ) : (
+                                              <button
+                                                  onClick={() => { setAdminSuggReplyId(s.id); setAdminSuggReplyText(s.adminReply || ''); }}
+                                                  className="w-full py-1.5 text-[10px] font-black text-amber-700 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 flex items-center justify-center gap-1.5 transition-all"
+                                              >
+                                                  <MessageSquare size={11}/> {hasReply ? 'Edit Reply' : 'Reply karo'}
+                                              </button>
+                                          )}
+                                          {/* ── MCQ Answer Fix panel (for MCQ-mode suggestions with chapterKey) ── */}
+                                          {s.mode === 'mcq' && s.chapterKey ? (
+                                              <>
+                                                  {mcqFixSuccess === s.id && (
+                                                      <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+                                                          <CheckCircle size={12} className="text-blue-600 shrink-0"/>
+                                                          <p className="text-[10px] font-black text-blue-700">MCQ update ho gaya! ✅</p>
+                                                      </div>
+                                                  )}
+                                                  {mcqFixId !== s.id ? (
+                                                      <button
+                                                          onClick={() => {
+                                                              setMcqFixId(s.id);
+                                                              setMcqFixAnswer(s.mcqCurrentAnswer ?? -1);
+                                                              setMcqFixSuccess(null);
+                                                              setMcqEditMode(false);
+                                                              setMcqEditQuestion(s.mcqQuestion || '');
+                                                              setMcqEditOptions(s.mcqOptions ? [...s.mcqOptions] : []);
+                                                          }}
+                                                          className="w-full py-1.5 text-[10px] font-black text-blue-700 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 flex items-center justify-center gap-1.5 transition-all"
+                                                      >
+                                                          <Edit3 size={11}/> MCQ Answer Fix Karo
+                                                      </button>
+                                                  ) : (
+                                                      <div className="space-y-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                                                          {/* Toggle between answer-only and full edit mode */}
+                                                          <div className="flex items-center justify-between mb-1">
+                                                              <p className="text-[9px] font-black text-blue-700 uppercase">🎯 MCQ Fix Karo:</p>
+                                                              <button
+                                                                  onClick={() => setMcqEditMode(m => !m)}
+                                                                  className={`text-[8px] font-black px-2 py-0.5 rounded-lg border transition-all ${mcqEditMode ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50'}`}
+                                                              >
+                                                                  {mcqEditMode ? '✏️ Text Edit ON' : '✏️ Question/Options Edit'}
+                                                              </button>
+                                                          </div>
+
+                                                          {/* Full text edit mode — question + options */}
+                                                          {mcqEditMode && (
+                                                              <div className="space-y-1.5 bg-white rounded-lg p-2 border border-purple-200">
+                                                                  <p className="text-[8px] font-black text-purple-700 uppercase">Question Text:</p>
+                                                                  <textarea
+                                                                      value={mcqEditQuestion}
+                                                                      onChange={e => setMcqEditQuestion(e.target.value)}
+                                                                      rows={2}
+                                                                      className="w-full p-1.5 border border-purple-200 rounded-lg text-[10px] outline-none resize-none bg-purple-50 placeholder:text-slate-400"
+                                                                      placeholder="Question text edit karo..."
+                                                                  />
+                                                                  <p className="text-[8px] font-black text-purple-700 uppercase mt-1">Options:</p>
+                                                                  {mcqEditOptions.map((opt, oi) => (
+                                                                      <div key={oi} className="flex items-center gap-1">
+                                                                          <span className="text-[9px] font-black text-slate-500 w-4 shrink-0">{String.fromCharCode(65 + oi)}.</span>
+                                                                          <input
+                                                                              value={opt}
+                                                                              onChange={e => {
+                                                                                  const updated = [...mcqEditOptions];
+                                                                                  updated[oi] = e.target.value;
+                                                                                  setMcqEditOptions(updated);
+                                                                              }}
+                                                                              className="flex-1 p-1 border border-purple-200 rounded-lg text-[10px] outline-none bg-purple-50"
+                                                                              placeholder={`Option ${String.fromCharCode(65 + oi)} edit karo...`}
+                                                                          />
+                                                                      </div>
+                                                                  ))}
+                                                              </div>
+                                                          )}
+
+                                                          {/* Answer selection */}
+                                                          <p className="text-[9px] font-black text-blue-600 uppercase">Sahi Answer Select Karo:</p>
+                                                          <div className="space-y-1">
+                                                              {(mcqEditMode ? mcqEditOptions : (s.mcqOptions || [])).map((opt: string, oi: number) => (
+                                                                  <button
+                                                                      key={oi}
+                                                                      onClick={() => setMcqFixAnswer(oi)}
+                                                                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                                          mcqFixAnswer === oi
+                                                                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                                                              : s.mcqCurrentAnswer === oi
+                                                                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                                                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-blue-50'
+                                                                      }`}
+                                                                  >
+                                                                      <span className="font-black">{String.fromCharCode(65 + oi)}.</span> {opt}
+                                                                      {s.mcqCurrentAnswer === oi && mcqFixAnswer !== oi && (
+                                                                          <span className="ml-1 text-[8px] text-red-500">(abhi galat)</span>
+                                                                      )}
+                                                                      {mcqFixAnswer === oi && (
+                                                                          <span className="ml-1 text-[8px] text-blue-200">✓ selected</span>
+                                                                      )}
+                                                                  </button>
+                                                              ))}
+                                                          </div>
+                                                          {(s.mcqOptions || []).length === 0 && !mcqEditMode && (
+                                                              <p className="text-[9px] text-slate-400 text-center py-1">Options available nahi hain — purani suggestion hai</p>
+                                                          )}
+                                                          <div className="flex gap-2 pt-1">
+                                                              <button
+                                                                  onClick={() => { setMcqFixId(null); setMcqFixAnswer(-1); setMcqEditMode(false); }}
+                                                                  className="flex-1 py-1.5 text-[10px] font-black text-slate-500 rounded-xl border border-slate-200 bg-white"
+                                                              >
+                                                                  Cancel
+                                                              </button>
+                                                              <button
+                                                                  onClick={async () => {
+                                                                      if (mcqFixAnswer < 0) return;
+                                                                      setMcqFixSaving(true);
+                                                                      try {
+                                                                          if (mcqEditMode) {
+                                                                              await applyMcqFullEdit(s.chapterKey, s.mcqId || '', mcqFixAnswer, mcqEditQuestion, mcqEditOptions, s.mcqQuestion);
+                                                                          } else {
+                                                                              await applyMcqCorrection(s.chapterKey, s.mcqId || '', mcqFixAnswer, s.mcqQuestion);
+                                                                          }
+                                                                          setMcqFixSuccess(s.id);
+                                                                          setMcqFixId(null);
+                                                                          setMcqFixAnswer(-1);
+                                                                          setMcqEditMode(false);
+                                                                      } catch (err) {
+                                                                          console.error('applyMcqCorrection error:', err);
+                                                                          alert('Error: MCQ update nahi hua. Console dekho.');
+                                                                      } finally {
+                                                                          setMcqFixSaving(false);
+                                                                      }
+                                                                  }}
+                                                                  disabled={mcqFixAnswer < 0 || mcqFixSaving}
+                                                                  className="flex-1 py-1.5 text-[10px] font-black text-white rounded-xl bg-blue-600 hover:bg-blue-700 transition-all disabled:opacity-40 flex items-center justify-center gap-1"
+                                                              >
+                                                                  {mcqFixSaving ? <RefreshCw size={10} className="animate-spin"/> : <CheckCircle size={10}/>}
+                                                                  {mcqFixSaving ? 'Update ho raha hai…' : 'MCQ Update Karo'}
+                                                              </button>
+                                                          </div>
+                                                      </div>
+                                                  )}
+                                              </>
+                                          ) : (
+                                              <>
+                                                  {/* ── Apply-to-Notes editor (non-MCQ suggestions) ── */}
+                                                  {applyEditId !== s.id && (
+                                                      <button
+                                                          onClick={() => {
+                                                              const pts = Array.isArray(s.pointsData) && s.pointsData.length > 0
+                                                                  ? s.pointsData.map((p: any) => ({ originalText: p.originalText || '', correctedText: p.originalText || '' }))
+                                                                  : [{ originalText: s.text, correctedText: s.text }];
+                                                              setApplyEditCorrections(pts);
+                                                              setApplyEditManualChapterKey(s.chapterKey || '');
+                                                              setApplyEditId(s.id);
+                                                              setApplyEditSuccess(null);
+                                                          }}
+                                                          className="w-full py-1.5 text-[10px] font-black text-emerald-700 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center gap-1.5 transition-all"
+                                                      >
+                                                          <Edit3 size={11}/> Note mein Sahi Karo
+                                                      </button>
+                                                  )}
+                                                  {applyEditSuccess === s.id && (
+                                                      <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                                                          <CheckCircle size={12} className="text-emerald-600 shrink-0"/>
+                                                          <p className="text-[10px] font-black text-emerald-700">Note update ho gaya! ✅</p>
+                                                      </div>
+                                                  )}
+                                              </>
+                                          )}
+                                          {applyEditId === s.id && (
+                                              <div className="space-y-2 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                                                  <p className="text-[9px] font-black text-emerald-700 uppercase mb-1">✏️ Note mein sahi karo — har point edit karo:</p>
+                                                  {/* Chapter Key — auto-filled from suggestion, editable by admin */}
+                                                  <div className="space-y-0.5">
+                                                      <p className="text-[8px] font-black text-slate-500 uppercase">Chapter Key:</p>
+                                                      <input
+                                                          value={applyEditManualChapterKey}
+                                                          onChange={e => setApplyEditManualChapterKey(e.target.value)}
+                                                          placeholder="Chapter key daalo (e.g. nst_content_class10_science_ch3)"
+                                                          className="w-full p-1.5 border rounded-lg text-[10px] font-mono outline-none bg-white placeholder:text-slate-400"
+                                                          style={{ borderColor: applyEditManualChapterKey ? '#6ee7b7' : '#86efac', color: applyEditManualChapterKey ? '#047857' : '#374151' }}
+                                                      />
+                                                  </div>
+                                                  {applyEditCorrections.map((corr, ci) => (
+                                                      <div key={ci} className="space-y-1">
+                                                          <p className="text-[8px] font-black text-slate-500 uppercase">Point {ci + 1} — Original:</p>
+                                                          <p className="text-[10px] text-slate-600 bg-white rounded-lg px-2 py-1 border border-slate-100 leading-relaxed">{corr.originalText}</p>
+                                                          <p className="text-[8px] font-black text-emerald-600 uppercase">Sahi version:</p>
+                                                          <textarea
+                                                              value={corr.correctedText}
+                                                              onChange={e => {
+                                                                  const updated = [...applyEditCorrections];
+                                                                  updated[ci] = { ...updated[ci], correctedText: e.target.value };
+                                                                  setApplyEditCorrections(updated);
+                                                              }}
+                                                              rows={2}
+                                                              className="w-full p-2 border border-emerald-300 rounded-xl text-[11px] outline-none resize-none focus:border-emerald-500 bg-white"
+                                                              placeholder="Sahi text yahan likho..."
+                                                          />
+                                                      </div>
+                                                  ))}
+                                                  <div className="flex gap-2 pt-1">
+                                                      <button
+                                                          onClick={() => { setApplyEditId(null); setApplyEditCorrections([]); setApplyEditManualChapterKey(''); }}
+                                                          className="flex-1 py-1.5 text-[10px] font-black text-slate-500 rounded-xl border border-slate-200 bg-white"
+                                                      >Cancel</button>
+                                                      <button
+                                                          onClick={async () => {
+                                                              const resolvedKey = applyEditManualChapterKey.trim();
+                                                              if (!resolvedKey) { alert('Chapter key daalo pehle.'); return; }
+                                                              const valid = applyEditCorrections.filter(c => c.originalText.trim() && c.correctedText.trim());
+                                                              if (!valid.length) return;
+                                                              setApplyEditSaving(true);
+                                                              try {
+                                                                  const replaced = await applyNoteCorrection(resolvedKey, valid);
+                                                                  if (replaced === 0) {
+                                                                      alert('Note mein matching line nahi mili — original text match nahi hua. Suggestion open rahega.');
+                                                                  } else {
+                                                                      await resolvesuggestion(s.id);
+                                                                      setApplyEditId(null);
+                                                                      setApplyEditCorrections([]);
+                                                                      setApplyEditManualChapterKey('');
+                                                                      setApplyEditSuccess(s.id);
+                                                                  }
+                                                              } catch (err) {
+                                                                  console.error('applyNoteCorrection error:', err);
+                                                                  alert('Error: Note update nahi hua. Console dekho.');
+                                                              } finally {
+                                                                  setApplyEditSaving(false);
+                                                              }
+                                                          }}
+                                                          disabled={applyEditSaving || applyEditCorrections.every(c => !c.correctedText.trim()) || !applyEditManualChapterKey.trim()}
+                                                          className="flex-1 py-1.5 text-[10px] font-black text-white rounded-xl bg-emerald-600 hover:bg-emerald-700 transition-all disabled:opacity-40 flex items-center justify-center gap-1"
+                                                      >
+                                                          {applyEditSaving ? <RefreshCw size={10} className="animate-spin"/> : <CheckCircle size={10}/>}
+                                                          {applyEditSaving ? 'Update ho raha hai…' : 'Note Update Karo'}
+                                                      </button>
+                                                  </div>
+                                              </div>
+                                          )}
+                                      </div>
+                                  );
+                              })
                           )}
                       </div>
                   )}
@@ -17844,7 +17344,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap mb-1">
                                           <span className="font-black text-slate-800 text-sm truncate">{entry.chapterTitle || entry.chapterId || 'Unknown'}</span>
-                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${entry.board === 'CBSE' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{entry.board || ''}</span>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${entry.board === 'NCERT_EN' ? 'bg-blue-100 text-blue-700' : entry.board === 'NCERT_HI' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>{entry.board || ''}</span>
                                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Class {entry.classLevel}{entry.stream ? ` (${entry.stream})` : ''}</span>
                                       </div>
                                       <p className="text-xs text-slate-500 mb-2">{entry.subject || '—'} {entry.mode ? `• ${entry.mode} Mode` : ''}</p>
@@ -18026,38 +17526,100 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   <div className="bg-indigo-50 p-4 rounded-2xl mb-6 border border-indigo-100">
                       <p className="text-sm text-indigo-900 font-medium">You are moving:</p>
                       <p className="text-lg font-black text-indigo-700">{movingChapter.chapter.title}</p>
-                      <p className="text-xs text-indigo-500 mt-1">From: {selClass} - {selSubject?.name}</p>
+                      <p className="text-xs text-indigo-500 mt-1">From: {selBoard} → {selClass} - {selSubject?.name}</p>
+                  </div>
+
+                  {/* Mode Toggle: School vs Competition */}
+                  <div className="flex gap-2 mb-5">
+                      <button
+                          type="button"
+                          onClick={() => { setMoveTargetClass('10'); const list = getSubjectsList(moveTargetBoard, '10', moveTargetStream); setMoveTargetSubject(list[0] || null); }}
+                          className={`flex-1 py-2.5 rounded-xl text-[12px] font-black transition-all border-2 ${moveTargetClass !== 'COMPETITION' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}
+                      >🏫 School Mode</button>
+                      <button
+                          type="button"
+                          onClick={() => { setMoveTargetClass('COMPETITION' as any); const comp = LUCENT_SUBJECT_OPTIONS_BASE[0]; setMoveTargetSubject({ id: comp.id, name: comp.name } as any); }}
+                          className={`flex-1 py-2.5 rounded-xl text-[12px] font-black transition-all border-2 ${moveTargetClass === 'COMPETITION' ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}
+                      >🏆 Competition Mode</button>
                   </div>
 
                   <div className="space-y-4 mb-6">
+                      {/* Board — shown for both modes */}
                       <div>
-                          <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Class</label>
-                          <select value={moveTargetClass} onChange={e => setMoveTargetClass(e.target.value as ClassLevel)} className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50">
-                              {['6','7','8','9','10','11','12','COMPETITION'].map(c => <option key={c} value={c}>Class {c}</option>)}
-                          </select>
+                          <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
+                              {moveTargetClass === 'COMPETITION' ? '🗂️ Board (Competition ke andar)' : '🗂️ Target Board'}
+                          </label>
+                          <div className="flex gap-2">
+                              {([['NCERT_EN', '📘 NCERT EN'], ['NCERT_HI', '📗 NCERT HI'], ['BSEB', '🟠 BSEB']] as const).map(([val, lbl]) => (
+                                  <button key={val} type="button"
+                                      onClick={() => {
+                                          setMoveTargetBoard(val);
+                                          if (moveTargetClass !== 'COMPETITION') {
+                                              const list = getSubjectsList(val, moveTargetClass, moveTargetStream);
+                                              setMoveTargetSubject(list[0] || null);
+                                          }
+                                      }}
+                                      className={`flex-1 py-2 px-2 rounded-lg border-2 text-[11px] font-black transition-all ${moveTargetBoard === val ? (val === 'NCERT_EN' ? 'bg-blue-600 border-blue-600 text-white' : val === 'NCERT_HI' ? 'bg-purple-600 border-purple-600 text-white' : 'bg-orange-500 border-orange-500 text-white') : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}
+                                  >{lbl}</button>
+                              ))}
+                          </div>
                       </div>
 
-                      {['11', '12'].includes(moveTargetClass) && (
-                          <div>
-                              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Stream</label>
-                              <select value={moveTargetStream || 'Science'} onChange={e => setMoveTargetStream(e.target.value as Stream)} className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50">
-                                  {['Science', 'Commerce', 'Arts'].map(s => <option key={s} value={s}>{s}</option>)}
-                              </select>
+                      {/* School-only: Class + Stream selectors */}
+                      {moveTargetClass !== 'COMPETITION' && (
+                          <>
+                              <div>
+                                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Class</label>
+                                  <select value={moveTargetClass} onChange={e => { const cl = e.target.value as ClassLevel; setMoveTargetClass(cl); const list = getSubjectsList(moveTargetBoard, cl, moveTargetStream); setMoveTargetSubject(list[0] || null); }} className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50">
+                                      {['6','7','8','9','10','11','12'].map(c => <option key={c} value={c}>Class {c}</option>)}
+                                  </select>
+                              </div>
+                              {['11', '12'].includes(moveTargetClass) && (
+                                  <div>
+                                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Stream</label>
+                                      <select value={moveTargetStream || 'Science'} onChange={e => setMoveTargetStream(e.target.value as Stream)} className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50">
+                                          {['Science', 'Commerce', 'Arts'].map(s => <option key={s} value={s}>{s}</option>)}
+                                      </select>
+                                  </div>
+                              )}
+                          </>
+                      )}
+
+                      {/* Competition-only: info pill */}
+                      {moveTargetClass === 'COMPETITION' && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[10px] text-amber-800 font-bold">
+                              🏆 Ye chapter Competition mode mein move hoga — jo board upar select hai usi board ke competition students ko dikhega.
                           </div>
                       )}
 
+                      {/* Subject — competition uses LUCENT_SUBJECT_OPTIONS_BASE, school uses getSubjectsList */}
                       <div>
                           <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Subject</label>
-                          <select value={moveTargetSubject?.name || ''} onChange={e => {
-                              const list = getSubjectsList(moveTargetBoard, moveTargetClass, moveTargetStream);
-                              const sub = list.find(s => s.name === e.target.value) || list[0];
-                              setMoveTargetSubject(sub);
-                          }} className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50">
-                              <option value="">-- Select Subject --</option>
-                              {getSubjectsList(moveTargetBoard, moveTargetClass, moveTargetStream).map(s => (
-                                  <option key={s.name} value={s.name}>{s.name}</option>
-                              ))}
-                          </select>
+                          {moveTargetClass === 'COMPETITION' ? (
+                              <select
+                                  value={moveTargetSubject?.name || ''}
+                                  onChange={e => {
+                                      const comp = LUCENT_SUBJECT_OPTIONS_BASE.find(s => s.name === e.target.value) || LUCENT_SUBJECT_OPTIONS_BASE[0];
+                                      setMoveTargetSubject({ id: comp.id, name: comp.name } as any);
+                                  }}
+                                  className="w-full p-3 border border-amber-200 rounded-xl text-sm font-bold text-slate-700 bg-amber-50"
+                              >
+                                  {LUCENT_SUBJECT_OPTIONS_BASE.map(s => (
+                                      <option key={s.id} value={s.name}>{s.name}</option>
+                                  ))}
+                              </select>
+                          ) : (
+                              <select value={moveTargetSubject?.name || ''} onChange={e => {
+                                  const list = getSubjectsList(moveTargetBoard, moveTargetClass, moveTargetStream);
+                                  const sub = list.find(s => s.name === e.target.value) || list[0];
+                                  setMoveTargetSubject(sub);
+                              }} className="w-full p-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-slate-50">
+                                  <option value="">-- Select Subject --</option>
+                                  {getSubjectsList(moveTargetBoard, moveTargetClass, moveTargetStream).map(s => (
+                                      <option key={s.name} value={s.name}>{s.name}</option>
+                                  ))}
+                              </select>
+                          )}
                       </div>
                   </div>
 

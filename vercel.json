@@ -1,7 +1,3 @@
 {
-  "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/iic-app run build",
-  "outputDirectory": "artifacts/iic-app/dist/public",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" }
-  ]
+  "outputDirectory": "artifacts/iic-app/dist/public"
 }

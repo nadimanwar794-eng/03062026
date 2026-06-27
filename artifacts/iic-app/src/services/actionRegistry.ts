@@ -179,7 +179,7 @@ const sendInboxMessage = async (userId: string, text: string) => {
 };
 
 // SUPER PILOT UPGRADE: Autonomous Question Generation
-const createWeeklyTest = async (name: string, subject: string, questionCount: number, classLevel: ClassLevel = '10', board: Board = 'CBSE') => {
+const createWeeklyTest = async (name: string, subject: string, questionCount: number, classLevel: ClassLevel = '10', board: Board = 'NCERT_EN') => {
     const settings = await getSettings();
     if (!settings) throw new Error("Settings not found");
     

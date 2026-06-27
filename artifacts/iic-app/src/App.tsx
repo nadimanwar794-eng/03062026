@@ -25,6 +25,8 @@ const LessonView = lazy(() => import('./components/LessonView').then(m => ({ def
 import { Auth } from './components/Auth';
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 import { StudentDashboard } from './components/StudentDashboard';
+const SchoolEcosystem = lazy(() => import('./components/school/SchoolEcosystem').then(m => ({ default: m.SchoolEcosystem })));
+import { getSchoolUserProfile } from './school-firebase';
 import { AudioStudio } from './components/AudioStudio';
 import { PremiumModal } from './components/PremiumModal';
 import { LoadingOverlay } from './components/LoadingOverlay';
@@ -1453,12 +1455,33 @@ const App: React.FC = () => {
     }
   }, [state.user?.id, state.view, state.settings]);
 
-    const handleLogin = (user: User) => {
+    // --- SCHOOL ECOSYSTEM: super-admin email list (configure here) ---
+  const SCHOOL_SUPER_ADMIN_EMAILS: string[] = [
+    'superadmin@iic.app',
+    'nsta.superadmin@gmail.com',
+  ];
+
+  const handleLogin = async (user: User) => {
     if (!state.originalAdmin) {
         localStorage.setItem('nst_current_user', JSON.stringify(user));
     }
     saveUserToLive(user);
     localStorage.setItem('nst_has_seen_welcome', 'true');
+
+    // Check if this user is a School Ecosystem user
+    const isSuperAdmin = SCHOOL_SUPER_ADMIN_EMAILS.includes((user.email || '').toLowerCase());
+    if (isSuperAdmin) {
+      setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
+      return;
+    }
+
+    try {
+      const schoolProfile = await getSchoolUserProfile(user.id);
+      if (schoolProfile) {
+        setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
+        return;
+      }
+    } catch (_) { /* not a school user, continue normal flow */ }
 
     // Check if onboarding is needed
     if ((user.role === 'STUDENT' || user.role === 'TEACHER') && !user.profileCompleted) {
@@ -2741,6 +2764,11 @@ const App: React.FC = () => {
             }}
             onClick={() => {
                 try { if (navigator.vibrate) navigator.vibrate(25); } catch {}
+                const liveUrl = state.settings.bannerConfig?.top?.liveVideoUrl;
+                if (liveUrl) {
+                    setState(prev => ({ ...prev, lessonContent: { id: 'banner-live-top', title: state.settings.bannerConfig!.top.text || 'Live Class', subtitle: '🔴 Live', content: liveUrl, type: 'VIDEO_LECTURE', dateCreated: new Date().toISOString(), subjectName: 'Live' }, view: 'LESSON' }));
+                    return;
+                }
                 const url = state.settings.bannerConfig?.top?.clickUrl;
                 if (url) setInAppBrowserUrl(url);
             }}
@@ -2819,6 +2847,21 @@ const App: React.FC = () => {
                     </Suspense>
                   </ErrorBoundary>
                 )}
+
+                {(state.view as any) === 'SCHOOL_ECOSYSTEM' && state.user && (
+                  <ErrorBoundary fallbackLabel="School Ecosystem" resetKey="school">
+                    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
+                      <SchoolEcosystem
+                        uid={state.user.id}
+                        email={state.user.email || ''}
+                        displayName={state.user.name || ''}
+                        isSuperAdmin={SCHOOL_SUPER_ADMIN_EMAILS.includes((state.user.email || '').toLowerCase()) || state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN'}
+                        onBack={() => setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD' as any }))}
+                        onOpenPlatformContent={() => setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD' as any }))}
+                      />
+                    </Suspense>
+                  </ErrorBoundary>
+                )}
                 
                 {/* ACTIVE WEEKLY TEST OVERRIDE */}
                 {activeWeeklyTest ? (
@@ -2868,6 +2911,7 @@ const App: React.FC = () => {
                                       setToastMessage("Your data is already synced and up to date!");
                                   }
                               }}
+                              onOpenSchool={() => setState(prev => ({...prev, view: 'SCHOOL_ECOSYSTEM' as any}))}
                           />
                         </ErrorBoundary>
                     )
@@ -2940,6 +2984,18 @@ const App: React.FC = () => {
                               onImmersiveChange={setIsLessonImmersive}
                               onNext={_handleNext}
                               nextTitle={_nextChapter?.title}
+                              onAdminBoard={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => setState(prev => ({...prev, view: 'ADMIN'})) : undefined}
+                              onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
+                                try {
+                                  const ch = state.selectedChapter;
+                                  const sub = state.selectedSubject;
+                                  const cls = state.selectedClass;
+                                  if (ch && sub && cls) {
+                                    localStorage.setItem('nst_admin_edit_pending', JSON.stringify({ chapterId: ch.id, chapterTitle: ch.title, subjectName: sub.name, classLevel: cls, board: state.selectedBoard }));
+                                  }
+                                } catch {}
+                                setState(prev => ({...prev, view: 'ADMIN'}));
+                              } : undefined}
                           />
                         );
                       })()}
@@ -2978,6 +3034,11 @@ const App: React.FC = () => {
             }}
             onClick={() => {
                 try { if (navigator.vibrate) navigator.vibrate(25); } catch {}
+                const liveUrl = state.settings.bannerConfig?.bottom?.liveVideoUrl;
+                if (liveUrl) {
+                    setState(prev => ({ ...prev, lessonContent: { id: 'banner-live-bottom', title: state.settings.bannerConfig!.bottom.text || 'Live Class', subtitle: '🔴 Live', content: liveUrl, type: 'VIDEO_LECTURE', dateCreated: new Date().toISOString(), subjectName: 'Live' }, view: 'LESSON' }));
+                    return;
+                }
                 const url = state.settings.bannerConfig?.bottom?.clickUrl;
                 if (url) setInAppBrowserUrl(url);
             }}

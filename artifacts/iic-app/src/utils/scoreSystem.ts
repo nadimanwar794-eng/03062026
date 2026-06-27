@@ -73,8 +73,8 @@ export const getRemainingDailyScore = (
   Math.max(0, getDailyScoreLimit(subscriptionLevel, isPremium, scoreLimitBoostPercent, scoreLimitBoostExpiry) - getDailyScoreEarned(userId));
 
 /** Get active score boost % for a user (returns 0 if expired or not set) */
-export const getActiveBoost = (user: { scoreBoostPercent?: number; scoreBoostExpiry?: string }): number => {
-  if (!user.scoreBoostPercent || !user.scoreBoostExpiry) return 0;
+export const getActiveBoost = (user: { scoreBoostPercent?: number; scoreBoostExpiry?: string } | null | undefined): number => {
+  if (!user || !user.scoreBoostPercent || !user.scoreBoostExpiry) return 0;
   if (new Date(user.scoreBoostExpiry).getTime() <= Date.now()) return 0;
   return user.scoreBoostPercent;
 };
@@ -91,7 +91,7 @@ export const getEventBoostPercent = (settings: any): number => {
 
 /** Get combined boost: user's personal boost (redeem code) + active Score Boost Event */
 export const getCombinedBoost = (
-  user: { scoreBoostPercent?: number; scoreBoostExpiry?: string },
+  user: { scoreBoostPercent?: number; scoreBoostExpiry?: string } | null | undefined,
   settings?: any,
 ): number => getActiveBoost(user) + getEventBoostPercent(settings);
 

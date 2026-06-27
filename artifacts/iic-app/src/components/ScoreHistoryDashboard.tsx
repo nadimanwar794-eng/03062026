@@ -137,10 +137,10 @@ export const ScoreHistoryDashboard: React.FC<Props> = ({ user, onBack }) => {
   [dayMap]);
 
   const chartDays = useMemo(() => {
-    // Show every day that has data + today (even if 0 pts), oldest → newest
-    // This prevents past days from "falling off" the chart at midnight
-    const todayStr = getLocalDate();
-    const datesSet = new Set([...sortedDays, todayStr]);
+    // Always show last 14 days (even if 0 pts) + any extra days with data
+    const datesSet = new Set<string>();
+    for (let i = 13; i >= 0; i--) datesSet.add(getLocalDate(-i));
+    sortedDays.forEach(d => datesSet.add(d));
     return [...datesSet]
       .sort((a, b) => a.localeCompare(b))
       .map(date => ({ date, pts: dayMap[date]?.total ?? 0 }));

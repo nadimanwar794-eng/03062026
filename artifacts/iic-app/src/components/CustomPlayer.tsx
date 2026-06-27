@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Youtube, ArrowLeft } from 'lucide-react';
+import { Youtube, ArrowLeft, RotateCcw } from 'lucide-react';
 
 interface BadgePos {
     portrait?:  { bottom: number; right: number };
@@ -25,13 +25,16 @@ interface CustomPlayerProps {
         landscape: { bottom: number; right: number };
         fsButton:  { bottom: number; right: number };
     }) => void;
-    badgeLabel?:    string;
-    fsButtonLabel?: string;
+    badgeLabel?:        string;
+    fsButtonLabel?:     string;
+    forceRotate?:       boolean;
+    videoTitle?:        string;
+    onRotate?:          () => void;
+    hideYtLogoBlocker?: boolean;
 }
 
-const DEFAULT_LANDSCAPE = { bottom: 5.6, right: 5.0 };
+const DEFAULT_BADGE = { bottom: 5.6, right: 5.0 };
 
-// Auto-scale font size so button stays same size
 const autoFontSize = (text: string, base = 11, min = 7, max = 13): number => {
     const len = text.length;
     if (len <= 6)  return Math.min(max, base + 2);
@@ -42,21 +45,20 @@ const autoFontSize = (text: string, base = 11, min = 7, max = 13): number => {
 
 export const CustomPlayer: React.FC<CustomPlayerProps> = ({
     videoUrl, brandingLogo, onBrandingClick, onBack, onNext, nextTitle,
-    badgePos, isAdmin, onBadgePosChange, badgeLabel, fsButtonLabel: _fsButtonLabel,
+    badgePos, isAdmin, onBadgePosChange, badgeLabel,
+    forceRotate, videoTitle, onRotate, hideYtLogoBlocker,
 }) => {
     const containerRef  = useRef<HTMLDivElement>(null);
     const hideTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
     const topBarTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const [isFullscreen,  setIsFullscreen]  = useState(false);
-    const [rotated,       setRotated]       = useState(false);
+    const [rotated,       setRotated]       = useState(forceRotate ?? false);
     const [isLandscape,   setIsLandscape]   = useState(() => window.innerWidth > window.innerHeight);
-    const [ctrlVisible,   setCtrlVisible]   = useState(false);
     const [topBarVisible, setTopBarVisible] = useState(false);
 
-    // ── Badge position (landscape only now) ─────────────────────────────────
-    const [badgeBottom, setBadgeBottom] = useState(badgePos?.landscape?.bottom ?? DEFAULT_LANDSCAPE.bottom);
-    const [badgeRight,  setBadgeRight]  = useState(badgePos?.landscape?.right  ?? DEFAULT_LANDSCAPE.right);
+    // Badge drag state (admin only)
+    const [badgeBottom, setBadgeBottom] = useState(badgePos?.landscape?.bottom ?? DEFAULT_BADGE.bottom);
+    const [badgeRight,  setBadgeRight]  = useState(badgePos?.landscape?.right  ?? DEFAULT_BADGE.right);
     const [editMode,    setEditMode]    = useState(false);
     const [saveMsg,     setSaveMsg]     = useState('');
 
@@ -64,27 +66,30 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
     const isDragging = useRef(false);
     const posLoaded  = useRef(false);
 
-    // Load from Firebase only once
+    // Sync forceRotate
+    useEffect(() => {
+        if (forceRotate !== undefined) setRotated(forceRotate);
+    }, [forceRotate]);
+
+    // Load badge position once
     useEffect(() => {
         if (badgePos && !posLoaded.current) {
             posLoaded.current = true;
-            setBadgeBottom(badgePos.landscape?.bottom ?? DEFAULT_LANDSCAPE.bottom);
-            setBadgeRight(badgePos.landscape?.right   ?? DEFAULT_LANDSCAPE.right);
+            setBadgeBottom(badgePos.landscape?.bottom ?? DEFAULT_BADGE.bottom);
+            setBadgeRight(badgePos.landscape?.right   ?? DEFAULT_BADGE.right);
         }
     }, [badgePos]);
 
-    // Badge drag handler
+    // Badge drag listeners
     useEffect(() => {
         if (!editMode) return;
         const onMove = (e: PointerEvent) => {
             if (!isDragging.current || !dragRef.current || !containerRef.current) return;
-            const rect  = containerRef.current.getBoundingClientRect();
-            const dx    = e.clientX - dragRef.current.startX;
-            const dy    = e.clientY - dragRef.current.startY;
-            const initB = dragRef.current.initBottom;
-            const initR = dragRef.current.initRight;
-            setBadgeBottom(prev => Math.max(0, Math.min(90, initB - (dy / rect.height) * 100)));
-            setBadgeRight(prev  => Math.max(0, Math.min(90, initR - (dx / rect.width)  * 100)));
+            const rect = containerRef.current.getBoundingClientRect();
+            const dx   = e.clientX - dragRef.current.startX;
+            const dy   = e.clientY - dragRef.current.startY;
+            setBadgeBottom(() => Math.max(0, Math.min(90, dragRef.current!.initBottom - (dy / rect.height) * 100)));
+            setBadgeRight(()  => Math.max(0, Math.min(90, dragRef.current!.initRight  - (dx / rect.width)  * 100)));
         };
         const onUp = () => { isDragging.current = false; dragRef.current = null; };
         window.addEventListener('pointermove', onMove);
@@ -95,24 +100,53 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
         };
     }, [editMode]);
 
-    // Show top bar briefly then auto-hide
+    // Orientation listener
+    useEffect(() => {
+        const check = () => setIsLandscape(window.innerWidth > window.innerHeight);
+        window.addEventListener('resize', check);
+        window.addEventListener('orientationchange', check);
+        const so: any = (screen as any).orientation;
+        so?.addEventListener?.('change', check);
+        return () => {
+            window.removeEventListener('resize', check);
+            window.removeEventListener('orientationchange', check);
+            so?.removeEventListener?.('change', check);
+        };
+    }, []);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            setRotated(false);
+            try { (screen as any).orientation?.unlock?.(); } catch (_) {}
+            try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+            if (hideTimer.current)   clearTimeout(hideTimer.current);
+            if (topBarTimer.current) clearTimeout(topBarTimer.current);
+        };
+    }, []);
+
     const showTopBar = useCallback(() => {
         setTopBarVisible(true);
         if (topBarTimer.current) clearTimeout(topBarTimer.current);
-        topBarTimer.current = setTimeout(() => setTopBarVisible(false), 4000);
+        topBarTimer.current = setTimeout(() => setTopBarVisible(false), 3000);
     }, []);
 
-    // ── Source detection ────────────────────────────────────────────────────
+    const blockMenu = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
+
+    // ── Source detection ─────────────────────────────────────────────────────
     let videoId = '';
     let isDrive = false;
     let isNotebookLM = false;
     try {
-        if (videoUrl.includes('youtu.be/'))         videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
-        else if (videoUrl.includes('v='))            videoId = videoUrl.split('v=')[1].split('&')[0];
-        else if (videoUrl.includes('embed/'))        videoId = videoUrl.split('embed/')[1].split('?')[0];
-        if (videoId?.includes('?'))                  videoId = videoId.split('?')[0];
-        if (videoUrl.includes('drive.google.com'))   isDrive = true;
-        else if (videoUrl.includes('notebooklm'))    isNotebookLM = true;
+        if (videoUrl.includes('youtu.be/'))       videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+        else if (videoUrl.includes('v='))          videoId = videoUrl.split('v=')[1].split('&')[0];
+        else if (videoUrl.includes('embed/'))      videoId = videoUrl.split('embed/')[1].split('?')[0];
+        if (videoId?.includes('?'))                videoId = videoId.split('?')[0];
+        if (videoUrl.includes('drive.google.com')) isDrive = true;
+        else if (videoUrl.includes('notebooklm')) isNotebookLM = true;
     } catch (_) {}
 
     const isYouTube = !!videoId && !isDrive && !isNotebookLM;
@@ -129,106 +163,27 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
         ? videoUrl
         : `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&enablejsapi=1&showinfo=0&disablekb=0&fs=0`;
 
-    const blockMenu = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    useEffect(() => {
-        const onChange = () => {
-            const inFs = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
-            setIsFullscreen(inFs);
-        };
-        document.addEventListener('fullscreenchange', onChange);
-        document.addEventListener('webkitfullscreenchange', onChange);
-        return () => {
-            document.removeEventListener('fullscreenchange', onChange);
-            document.removeEventListener('webkitfullscreenchange', onChange);
-        };
-    }, []);
-
-    // ── Cleanup on unmount: unlock orientation and exit fullscreen ───────────
-    useEffect(() => {
-        return () => {
-            setRotated(false);
-            try { (screen as any).orientation?.unlock?.(); } catch (_) {}
-            try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
-        };
-    }, []);
-
-    // showControls declared BEFORE useEffects that depend on it (avoids TDZ)
-    const showControls = useCallback(() => {
-        setCtrlVisible(true);
-        if (hideTimer.current) clearTimeout(hideTimer.current);
-        hideTimer.current = setTimeout(() => setCtrlVisible(false), 3000);
-    }, []);
-
-    const goFullscreen = useCallback(async () => {
-        setRotated(false);
-        const el = containerRef.current;
-        if (!el) return;
-        await new Promise(r => setTimeout(r, 80));
-        try {
-            if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' } as any);
-            else if ((el as any).webkitRequestFullscreen) await (el as any).webkitRequestFullscreen();
-        } catch (_) {}
-    }, []);
-
-    const exitFs = useCallback(async () => {
-        try { (screen as any).orientation?.unlock?.(); } catch (_) {}
-        try {
-            if (document.fullscreenElement || (document as any).webkitFullscreenElement)
-                await document.exitFullscreen();
-        } catch (_) {}
-    }, []);
-
-    // Listen to real orientation changes
-    useEffect(() => {
-        const check = () => setIsLandscape(window.innerWidth > window.innerHeight);
-        window.addEventListener('resize', check);
-        window.addEventListener('orientationchange', check);
-        const so: any = (screen as any).orientation;
-        so?.addEventListener?.('change', check);
-        return () => {
-            window.removeEventListener('resize', check);
-            window.removeEventListener('orientationchange', check);
-            so?.removeEventListener?.('change', check);
-        };
-    }, []);
-
-    // Detect taps inside cross-origin YouTube iframe via window blur
-    useEffect(() => {
-        const onBlur = () => { showControls(); };
-        window.addEventListener('blur', onBlur);
-        return () => window.removeEventListener('blur', onBlur);
-    }, [showControls]);
-
-    useEffect(() => () => {
-        if (hideTimer.current)   clearTimeout(hideTimer.current);
-        if (topBarTimer.current) clearTimeout(topBarTimer.current);
-    }, []);
-
     if (!videoId && !isDrive && !isNotebookLM) {
         return (
-            <div className="w-full h-full bg-black flex items-center justify-center">
-                <div className="text-center space-y-3">
-                    <Youtube size={40} className="text-white/30 mx-auto" />
-                    <p className="text-white/50 text-sm">Invalid video URL</p>
+            <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <Youtube size={40} color="rgba(255,255,255,0.3)" />
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8 }}>Invalid video URL</p>
                 </div>
             </div>
         );
     }
 
-    // Always landscape (fixed overlay)
+    // ── Container style ──────────────────────────────────────────────────────
+    // Rotated: fixed fullscreen overlay (CSS 90° rotate trick)
+    // Landscape / Portrait: fill the parent absolutely so the iframe expands to 100%×100%
     const outerStyle: React.CSSProperties = rotated
-        ? { position: 'fixed', inset: 0, zIndex: 9999, background: '#000' }
-        : {
-            position: 'relative', width: '100%', height: '100%', minHeight: 0,
-            background: '#000',
-            WebkitUserSelect: 'none', userSelect: 'none',
-            WebkitTouchCallout: 'none',
-          };
+        ? { position: 'fixed', inset: 0, zIndex: 9999, background: '#000',
+            WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }
+        : { position: 'absolute', inset: 0, background: '#000', overflow: 'hidden',
+            WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' };
 
+    // iframe wrap: rotated = landscape-in-portrait trick; otherwise fill container
     const iframeWrapStyle: React.CSSProperties = rotated
         ? {
             position: 'absolute', top: '50%', left: '50%',
@@ -246,110 +201,61 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
         ...extra,
     });
 
-    const badgeText = badgeLabel?.trim() || 'IIC×NSTA';
+    const badgeText     = badgeLabel?.trim() || 'IIC×NSTA';
     const badgeFontSize = autoFontSize(badgeText, 11, 7, 13);
 
     return (
         <div
             ref={containerRef}
             style={outerStyle}
-            onPointerDown={showControls}
-            onTouchStart={showControls}
             onContextMenu={blockMenu}
         >
+            {/* ── iframe ── */}
             <div style={iframeWrapStyle}>
                 <iframe
                     src={embedUrl}
-                    style={{
-                        position: 'absolute', top: 0, left: 0,
-                        width: '100%', height: '100%',
-                        border: 'none', display: 'block',
-                        pointerEvents: 'auto',
-                    }}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', display: 'block' }}
                     allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                     allowFullScreen
                     title="Video"
                     sandbox="allow-scripts allow-same-origin allow-presentation"
                 />
 
-                {/* ── YouTube protections ── */}
+                {/* ── YouTube blockers ── */}
                 {isYouTube && (<>
-                    {/* Top — black bar covers title/channel/settings
-                        Portrait: always on
-                        Landscape: follows YouTube's own control bar (ctrlVisible) */}
-                    {!isLandscape && !rotated && (
-                    <div
-                        style={blocker({
-                            top: 0, left: 0, right: 0,
-                            height: 130,
-                            background: '#000',
-                        })}
-                        onPointerDown={e => e.stopPropagation()}
-                        onTouchStart={e => e.stopPropagation()}
-                        onClick={e => e.stopPropagation()}
-                        onContextMenu={e => e.preventDefault()}
-                    />
-                    )}
-                    {/* Bottom — covers only YouTube logo + link icon row in portrait */}
-                    {!isLandscape && !rotated && (
-                    <div
-                        style={blocker({
-                            bottom: 0, left: 0, right: 0,
-                            height: 70,
-                            background: '#000',
-                        })}
-                        onPointerDown={e => e.stopPropagation()}
-                        onTouchStart={e => e.stopPropagation()}
-                        onClick={e => e.stopPropagation()}
-                        onContextMenu={e => e.preventDefault()}
-                    />
-                    )}
-                    {/* Landscape top-left — transparent blocker ONLY over channel avatar+name, NOT settings/CC */}
-                    {isLandscape && !rotated && (
-                    <div
-                        style={blocker({
-                            top: 0, left: 0,
-                            width: 220,
-                            height: 64,
-                            background: 'transparent',
-                        })}
-                        onPointerDown={e => e.stopPropagation()}
-                        onTouchStart={e => e.stopPropagation()}
-                        onClick={e => e.stopPropagation()}
-                        onContextMenu={e => e.preventDefault()}
-                    />
+                    {/* Portrait: black bars hide YouTube top/bottom UI */}
+                    {!isLandscape && !rotated && (<>
+                        <div style={blocker({ top: 0, left: 0, right: 0, height: 130, background: '#000' })}
+                            onPointerDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                            onClick={e => e.stopPropagation()} onContextMenu={e => e.preventDefault()} />
+                        <div style={blocker({ bottom: 0, left: 0, right: 0, height: 70, background: '#000' })}
+                            onPointerDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                            onClick={e => e.stopPropagation()} onContextMenu={e => e.preventDefault()} />
+                    </>)}
+
+                    {/* Landscape/rotated: pointer blocker over channel avatar+name (transparent unless logo hidden) */}
+                    {(isLandscape || rotated) && (
+                        <div style={blocker({ top: 0, left: 0, width: 220, height: 64, background: hideYtLogoBlocker ? '#000' : 'transparent' })}
+                            onPointerDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                            onClick={e => e.stopPropagation()} onContextMenu={e => e.preventDefault()} />
                     )}
                 </>)}
 
-                {/* ── Drive / NotebookLM protections ── */}
+                {/* ── Drive / NotebookLM blockers ── */}
                 {(isDrive || isNotebookLM) && (<>
-                    {/* Top bar — covers "Open in Drive", app picker, download icon */}
-                    <div
-                        style={blocker({ top: 0, left: 0, right: 0, height: 52 })}
-                        onPointerDown={e => e.stopPropagation()}
-                        onTouchStart={e => e.stopPropagation()}
-                        onClick={e => e.stopPropagation()}
-                    />
-                    {/* Bottom-right — covers download, more-options (⋮), pop-out */}
-                    <div
-                        style={blocker({ bottom: 0, right: 0, width: '55%', height: 52 })}
-                        onPointerDown={e => e.stopPropagation()}
-                        onTouchStart={e => e.stopPropagation()}
-                        onClick={e => e.stopPropagation()}
-                    />
-                    {/* Bottom-left edge — covers any extra Drive branding/link */}
-                    <div
-                        style={blocker({ bottom: 0, left: 0, width: 56, height: 52 })}
-                        onPointerDown={e => e.stopPropagation()}
-                        onTouchStart={e => e.stopPropagation()}
-                        onClick={e => e.stopPropagation()}
-                    />
+                    <div style={blocker({ top: 0, left: 0, right: 0, height: 52 })}
+                        onPointerDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()} />
+                    <div style={blocker({ bottom: 0, right: 0, width: '55%', height: 52 })}
+                        onPointerDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()} />
+                    <div style={blocker({ bottom: 0, left: 0, width: 56, height: 52 })}
+                        onPointerDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()} />
                 </>)}
-
             </div>
 
-
-            {/* ── IIC × NSTA badge — on outer container so touch coords are never rotated ── */}
+            {/* ── IIC×NSTA Badge ── */}
             {isYouTube && (
                 <div
                     onPointerDown={e => {
@@ -362,16 +268,9 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
                             e.stopPropagation();
                         }
                     }}
-                    onTouchStart={e => { e.stopPropagation(); }}
-                    onTouchEnd={e => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        if (!editMode) showTopBar();
-                    }}
-                    onClick={e => {
-                        e.stopPropagation();
-                        if (!editMode) showTopBar();
-                    }}
+                    onTouchStart={e => e.stopPropagation()}
+                    onTouchEnd={e => { e.stopPropagation(); e.preventDefault(); if (!editMode) showTopBar(); }}
+                    onClick={e => { e.stopPropagation(); if (!editMode) showTopBar(); }}
                     onContextMenu={e => e.preventDefault()}
                     style={{
                         position: 'absolute',
@@ -399,21 +298,18 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
                 </div>
             )}
 
-            {/* ── TOP BAR OVERLAY — appears when badge is tapped ── */}
+            {/* ── Top bar overlay (shown on badge tap) ── */}
             {isYouTube && (
                 <div style={{
-                    position: 'absolute',
-                    top: 0, left: 0, right: 0,
-                    zIndex: 55,
-                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
+                    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 55,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0) 100%)',
                     padding: '10px 14px 28px',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     pointerEvents: topBarVisible ? 'all' : 'none',
                     opacity: topBarVisible ? 1 : 0,
                     transition: 'opacity 0.3s ease',
                 }}>
-                    {/* Left: Back button + IIC branding */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
                         {(onBack || onBrandingClick) && (
                             <button
                                 onPointerDown={e => e.stopPropagation()}
@@ -423,50 +319,66 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
                                     background: 'rgba(255,255,255,0.15)',
                                     border: '1px solid rgba(255,255,255,0.3)',
                                     color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer', backdropFilter: 'blur(4px)',
-                                    flexShrink: 0,
+                                    cursor: 'pointer', backdropFilter: 'blur(4px)', flexShrink: 0,
                                 }}
-                                title="Back"
                             >
                                 <ArrowLeft size={18} />
                             </button>
                         )}
-                        {brandingLogo && (
-                            <img src={brandingLogo} alt="" style={{ height: 22, width: 'auto', objectFit: 'contain', opacity: 0.9 }} />
-                        )}
-                        <span style={{ fontSize: 13, fontWeight: 900, color: '#e2e8f0', fontFamily: 'sans-serif', letterSpacing: '0.05em' }}>
-                            {badgeText}
-                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            {videoTitle && (
+                                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
+                                    {videoTitle}
+                                </div>
+                            )}
+                            {brandingLogo && (
+                                <img src={brandingLogo} alt="" style={{ height: 18, width: 'auto', objectFit: 'contain', opacity: 0.85, display: 'block', marginTop: videoTitle ? 2 : 0 }} />
+                            )}
+                            {!videoTitle && !brandingLogo && (
+                                <span style={{ fontSize: 13, fontWeight: 900, color: '#e2e8f0', fontFamily: 'sans-serif', letterSpacing: '0.05em' }}>
+                                    {badgeText}
+                                </span>
+                            )}
+                        </div>
                     </div>
-
+                    {onRotate && !isAdmin && (
+                        <button
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); onRotate(); }}
+                            style={{
+                                width: 36, height: 36, borderRadius: 10,
+                                background: 'rgba(255,255,255,0.15)',
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', backdropFilter: 'blur(4px)', flexShrink: 0, marginLeft: 8,
+                            }}
+                        >
+                            <RotateCcw size={18} />
+                        </button>
+                    )}
                 </div>
             )}
 
-            {/* ── Branding logo (portrait mode only) ── */}
+            {/* ── Branding logo (non-rotated only) ── */}
             {brandingLogo && !rotated && (
                 <img src={brandingLogo} alt=""
-                    style={{
-                        position: 'absolute', top: 8, left: 8, zIndex: 30,
-                        height: 20, width: 'auto', objectFit: 'contain',
-                        opacity: 0.6, pointerEvents: 'none',
-                    }}
+                    style={{ position: 'absolute', top: 8, left: 8, zIndex: 30, height: 20, width: 'auto', objectFit: 'contain', opacity: 0.6, pointerEvents: 'none' }}
                 />
             )}
 
-            {/* ── ADMIN: Edit panel ── */}
+            {/* ── ADMIN: Edit badge panel ── */}
             {isAdmin && isYouTube && (
                 <div style={{
                     position: 'absolute', top: 8, right: 8, zIndex: 70,
-                    display: 'flex', flexDirection: 'column', gap: 5,
-                    alignItems: 'flex-end', pointerEvents: 'all',
+                    display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end',
+                    pointerEvents: 'all',
                 }}>
                     <button
                         onPointerDown={e => e.stopPropagation()}
                         onClick={e => {
                             e.stopPropagation();
                             if (editMode) {
-                                const msg = `🔄 Badge → bottom:${badgeBottom.toFixed(1)}%, right:${badgeRight.toFixed(1)}%`;
-                                setSaveMsg(msg);
+                                setSaveMsg(`bottom:${badgeBottom.toFixed(1)}%, right:${badgeRight.toFixed(1)}%`);
                                 setEditMode(false);
                                 onBadgePosChange?.({
                                     portrait:  { bottom: badgeBottom, right: badgeRight },
@@ -485,8 +397,7 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
                             borderRadius: 8, color: '#fff',
                             padding: '6px 12px', fontSize: 12, fontWeight: 800,
                             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-                            backdropFilter: 'blur(6px)',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                            backdropFilter: 'blur(6px)', boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
                             whiteSpace: 'nowrap',
                         }}
                     >
@@ -495,11 +406,9 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
 
                     {editMode && (
                         <div style={{
-                            background: 'rgba(0,0,0,0.85)',
-                            border: '1px solid rgba(99,102,241,0.5)',
-                            borderRadius: 8, padding: '7px 10px', fontSize: 11,
-                            fontWeight: 700, color: '#e2e8f0',
-                            backdropFilter: 'blur(6px)', lineHeight: 1.8,
+                            background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(99,102,241,0.5)',
+                            borderRadius: 8, padding: '7px 10px', fontSize: 11, fontWeight: 700,
+                            color: '#e2e8f0', backdropFilter: 'blur(6px)', lineHeight: 1.8,
                             pointerEvents: 'none', minWidth: 170,
                         }}>
                             <div style={{ color: '#94a3b8', fontSize: 10, marginBottom: 2 }}>🔄 Badge — drag karein</div>
@@ -512,17 +421,32 @@ export const CustomPlayer: React.FC<CustomPlayerProps> = ({
                         <div style={{
                             background: '#0f172a', border: '1px solid #22c55e',
                             color: '#a5f3fc', borderRadius: 8, padding: '7px 10px',
-                            fontSize: 11, fontWeight: 700, maxWidth: 220,
-                            lineHeight: 1.7, whiteSpace: 'pre-wrap',
-                            boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
+                            fontSize: 11, fontWeight: 700, lineHeight: 1.7,
+                            whiteSpace: 'pre-wrap', boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
                         }}>
                             ✅ Saved!{'\n'}
                             <span style={{ color: '#fde68a', fontFamily: 'monospace', fontSize: 10 }}>{saveMsg}</span>
                         </div>
                     )}
+
+                    {onRotate && (
+                        <button
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); onRotate(); }}
+                            style={{
+                                background: 'rgba(0,0,0,0.65)', border: '1.5px solid rgba(255,255,255,0.25)',
+                                borderRadius: 8, color: '#fff',
+                                padding: '6px 12px', fontSize: 12, fontWeight: 800,
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                                backdropFilter: 'blur(6px)', boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            <RotateCcw size={13} /> 🔄 Rotate
+                        </button>
+                    )}
                 </div>
             )}
-
         </div>
     );
 };

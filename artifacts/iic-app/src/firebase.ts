@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, collection, updateDoc, deleteDoc, onSnapshot, getDocs, query, where, limitToLast, orderBy, increment } from "firebase/firestore";
-import { getDatabase, ref, set, get, onValue, update, remove, query as rtdbQuery, limitToLast as rtdbLimitToLast, orderByChild as rtdbOrderByChild } from "firebase/database";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, collection, updateDoc, deleteDoc, onSnapshot, getDocs, query, where, limitToLast, orderBy, increment, arrayUnion, limit } from "firebase/firestore";
+import { getDatabase, ref, set, get, onValue, update, remove, query as rtdbQuery, limitToLast as rtdbLimitToLast, orderByChild as rtdbOrderByChild, runTransaction } from "firebase/database";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { storage } from "./utils/storage";
 
@@ -505,12 +505,11 @@ export const checkRecoveryStatus = async (): Promise<{
 // These are the ONLY functions allowed to delete from homework_entries or
 // lucent_entries. _savePerItemCollection NEVER deletes — it only writes/updates.
 export const deleteHomeworkEntry = async (id: string): Promise<void> => {
-  // Save to trash before deleting
+  // Save to trash — both local storage AND Firebase RTDB/Firestore (so recoverable from any device)
   try {
     const snap = await getDoc(doc(db, 'homework_entries', id));
     const data = snap.exists() ? snap.data() : { id };
-    await storage.setItem(`nst_trash_homework_entries_${id}_${Date.now()}`, {
-      trashKey: `nst_trash_homework_entries_${id}_${Date.now()}`,
+    const trashPayload = {
       collectionName: 'homework_entries',
       rtdbBasePath: 'homework_entries',
       id,
@@ -518,8 +517,17 @@ export const deleteHomeworkEntry = async (id: string): Promise<void> => {
       name: (data as any)?.title || id,
       deletedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-  } catch {}
+    };
+    // Local cache trash (device-specific)
+    await storage.setItem(`nst_trash_homework_entries_${id}_${Date.now()}`, trashPayload).catch(() => {});
+    // Firebase trash — survives device change & cache clear, recoverable from Firebase console
+    await Promise.allSettled([
+      set(ref(rtdb, `trash/homework_entries/${id}`), trashPayload),
+      setDoc(doc(db, 'trash_homework_entries', id), trashPayload),
+    ]);
+  } catch (e) {
+    console.warn('[deleteHomeworkEntry] Trash backup failed (non-fatal):', e);
+  }
   await Promise.allSettled([
     deleteDoc(doc(db, 'homework_entries', id)),
     remove(ref(rtdb, `homework_entries/${id}`)),
@@ -539,12 +547,11 @@ export const deleteHomeworkEntry = async (id: string): Promise<void> => {
 };
 
 export const deleteLucentEntry = async (id: string): Promise<void> => {
-  // Save to trash before deleting
+  // Save to trash — both local storage AND Firebase RTDB/Firestore (so recoverable from any device)
   try {
     const snap = await getDoc(doc(db, 'lucent_entries', id));
     const data = snap.exists() ? snap.data() : { id };
-    await storage.setItem(`nst_trash_lucent_entries_${id}_${Date.now()}`, {
-      trashKey: `nst_trash_lucent_entries_${id}_${Date.now()}`,
+    const trashPayload = {
       collectionName: 'lucent_entries',
       rtdbBasePath: 'lucent_entries',
       id,
@@ -552,8 +559,17 @@ export const deleteLucentEntry = async (id: string): Promise<void> => {
       name: (data as any)?.lessonTitle || id,
       deletedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-  } catch {}
+    };
+    // Local cache trash (device-specific)
+    await storage.setItem(`nst_trash_lucent_entries_${id}_${Date.now()}`, trashPayload).catch(() => {});
+    // Firebase trash — survives device change & cache clear, recoverable from Firebase console
+    await Promise.allSettled([
+      set(ref(rtdb, `trash/lucent_entries/${id}`), trashPayload),
+      setDoc(doc(db, 'trash_lucent_entries', id), trashPayload),
+    ]);
+  } catch (e) {
+    console.warn('[deleteLucentEntry] Trash backup failed (non-fatal):', e);
+  }
   await Promise.allSettled([
     deleteDoc(doc(db, 'lucent_entries', id)),
     remove(ref(rtdb, `lucent_entries/${id}`)),
@@ -570,6 +586,28 @@ export const deleteLucentEntry = async (id: string): Promise<void> => {
     ]);
   } catch {}
   console.log(`[IIC] deleteLucentEntry: ${id} deleted from Firebase`);
+};
+
+export const saveLucentEntryDirect = async (entry: any): Promise<void> => {
+  const id = entry.id as string;
+  const payload = sanitizeForFirestore(entry);
+  await Promise.allSettled([
+    setDoc(doc(db, 'lucent_entries', id), payload),
+    set(ref(rtdb, `lucent_entries/${id}`), payload),
+    set(ref(rtdb, `__backup__/lucent_entries/${id}`), payload),
+  ]);
+  console.log(`[IIC] saveLucentEntryDirect: ${id} saved`);
+};
+
+export const saveHomeworkEntryDirect = async (entry: any): Promise<void> => {
+  const id = entry.id as string;
+  const payload = sanitizeForFirestore(entry);
+  await Promise.allSettled([
+    setDoc(doc(db, 'homework_entries', id), payload),
+    set(ref(rtdb, `homework_entries/${id}`), payload),
+    set(ref(rtdb, `__backup__/homework_entries/${id}`), payload),
+  ]);
+  console.log(`[IIC] saveHomeworkEntryDirect: ${id} saved`);
 };
 
 export const resetAllContent = async () => {
@@ -715,6 +753,25 @@ export const saveUserToLive = async (user: any) => {
         pendingRewards, redeemedCodes, unlockedContent, timedUnlocks, dailyRoutine,
         ...coreProfile
     } = sanitizedUser;
+
+    // ── ROLE PROTECTION ────────────────────────────────────────────────────────
+    // Never downgrade a privileged role (ADMIN / SUB_ADMIN) to a lower one via
+    // a regular save. If the stored role is privileged and the incoming role is
+    // not, silently preserve the stored role. This prevents accidental demotion
+    // caused by fallback login flows or incomplete user objects.
+    const PRIVILEGED_ROLES = ['ADMIN', 'SUB_ADMIN'];
+    if (coreProfile.role && !PRIVILEGED_ROLES.includes(coreProfile.role)) {
+      try {
+        const existingRoleSnap = await get(ref(rtdb, `users/${user.id}/role`));
+        if (existingRoleSnap.exists() && PRIVILEGED_ROLES.includes(existingRoleSnap.val())) {
+          console.warn(`[saveUserToLive] Role protection: preserving '${existingRoleSnap.val()}' for user ${user.id} — incoming role '${coreProfile.role}' ignored.`);
+          coreProfile.role = existingRoleSnap.val();
+        }
+      } catch (roleCheckErr) {
+        console.warn('[saveUserToLive] Role protection check failed (non-fatal):', roleCheckErr);
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
 
     const promises = [];
 
@@ -1411,7 +1468,7 @@ export const bulkSaveLinks = async (updates: Record<string, any>) => {
     // Using plain setDoc (no merge) here would REPLACE the entire document and
     // silently wipe all chapter content whenever localStorage is stale/empty.
     Object.entries(sanitizedUpdates).forEach(([key, data]) => {
-         promises.push(setDoc(doc(db, "content_data", key), data, { merge: true }));
+         promises.push(setDoc(doc(db, "content_data", key), data as any, { merge: true }));
     });
 
     const results = await Promise.allSettled(promises);
@@ -2012,6 +2069,59 @@ export const updateDemandStatus = async (demandId: string, status: string) => {
     } catch (e) { console.error("Error updating demand status:", e); }
 };
 
+// Check how many demands a user has submitted today
+export const getUserTodayDemandCount = async (userId: string): Promise<number> => {
+    try {
+        const snapshot = await get(ref(rtdb, "demand_requests"));
+        if (!snapshot.exists()) return 0;
+        const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+        let count = 0;
+        snapshot.forEach((child) => {
+            const d = child.val();
+            if (d.userId === userId && d.timestamp && d.timestamp.startsWith(todayStr)) {
+                count++;
+            }
+        });
+        return count;
+    } catch (e) { console.error("Error counting demands:", e); return 0; }
+};
+
+// Find an existing PENDING demand with same subject+chapter (case-insensitive)
+export const findDuplicateDemand = async (subjectName: string, chapterName: string): Promise<any | null> => {
+    try {
+        const snapshot = await get(ref(rtdb, "demand_requests"));
+        if (!snapshot.exists()) return null;
+        const subjectLower = subjectName.trim().toLowerCase();
+        const chapterLower = chapterName.trim().toLowerCase();
+        let match: any = null;
+        snapshot.forEach((child) => {
+            const d = child.val();
+            if (
+                (!d.status || d.status === 'PENDING') &&
+                d.subjectName?.trim().toLowerCase() === subjectLower &&
+                d.chapterName?.trim().toLowerCase() === chapterLower
+            ) {
+                match = d;
+            }
+        });
+        return match;
+    } catch (e) { console.error("Error finding duplicate demand:", e); return null; }
+};
+
+// Increment the report count on an existing duplicate demand
+export const incrementDemandReportCount = async (demandId: string): Promise<void> => {
+    try {
+        await update(ref(rtdb, `demand_requests/${demandId}`), {
+            reportCount: increment(1),
+            lastReportedAt: new Date().toISOString(),
+        });
+        await setDoc(doc(db, "demand_requests", demandId), {
+            reportCount: increment(1),
+            lastReportedAt: new Date().toISOString(),
+        }, { merge: true });
+    } catch (e) { console.error("Error incrementing demand count:", e); }
+};
+
 export const subscribeToDemands = (callback: (requests: any[]) => void) => {
     const q = rtdbQuery(ref(rtdb, "demand_requests"), rtdbLimitToLast(200));
     return onValue(q, (snapshot) => {
@@ -2448,6 +2558,611 @@ export const subscribeAdminMark2Topics = (
 // Stored globally in Firestore so all users are affected in real-time.
 // Collection: admin_settings / Document: important_mark / Field: userMarkLocked
 
+// ── 12. Global Suggestions & Corrections ──────────────────────────────────
+
+export const saveSuggestion = async (s: { id: string; text: string; uid: string; userName: string; userBoard?: string; createdAt: string; lessonTitle?: string; pageNo?: string; mode?: 'reading' | 'writing' | 'mcq'; subject?: string; classLevel?: string; chapterKey?: string; pointsData?: { index: number; originalText: string }[]; mcqId?: string; mcqQuestion?: string; mcqOptions?: string[]; mcqCurrentAnswer?: number; }): Promise<void> => {
+    try {
+        const payload: Record<string, unknown> = { ...s, likes: 0, dislikes: 0, likedBy: {}, dislikedBy: {}, status: 'open', adminReply: '', adminReplyAt: '' };
+        Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+        await set(ref(rtdb, `suggestions/${s.id}`), payload);
+    } catch (e) {
+        console.error('[Suggestions] saveSuggestion error:', e);
+        throw e;
+    }
+};
+
+// Apply admin-approved corrections directly to the note content in chapter data.
+// corrections: array of { originalText, correctedText } — each original line in the
+// notes string is found and replaced with correctedText.
+// Returns the total number of lines that were actually replaced.
+export const applyNoteCorrection = async (
+    chapterKey: string,
+    corrections: { originalText: string; correctedText: string }[]
+): Promise<number> => {
+    // Guard: reject empty/invalid key
+    if (!chapterKey || typeof chapterKey !== 'string' || chapterKey.trim() === '') {
+        throw new Error('[applyNoteCorrection] chapterKey is empty or invalid');
+    }
+    // Guard: reject empty corrections list
+    const validCorrections = corrections.filter(c => c.originalText.trim() && c.correctedText.trim());
+    if (validCorrections.length === 0) {
+        throw new Error('[applyNoteCorrection] No valid corrections provided');
+    }
+
+    // Normalize a raw note line for comparison:
+    // strips leading bullets (-, •, *, ·), numbered markers (1. / 1) / (1)), and whitespace.
+    // Mirrors the cleaning splitIntoTopics does before displaying topic text:
+    //   1. Strip markdown bold markers (**...**)
+    //   2. Strip one leading bullet / numbered prefix
+    //   3. Collapse whitespace
+    const normalizeLine = (s: string): string =>
+        s.replace(/\*\*([^*]+)\*\*/g, '$1')                       // strip **bold**
+         .replace(/^\s*(\d+[.)]\s*|\(\d+\)\s*|[-•*·]\s*)/, '')   // strip leading bullet/number
+         .trim()
+         .replace(/\s+/g, ' ');
+
+    let totalReplaced = 0;
+
+    // Helper: replace matching lines in a multi-line notes string; returns [newString, replacedCount]
+    const applyToString = (raw: string): [string, number] => {
+        let replaced = 0;
+
+        // ── Pass 1: line-by-line exact match (preserves leading prefix) ──────
+        const lines = raw.split('\n');
+        const updatedLines = lines.map(line => {
+            for (const { originalText, correctedText } of validCorrections) {
+                const orig = normalizeLine(originalText);
+                const lineNorm = normalizeLine(line);
+                if (lineNorm === orig && orig.length > 0) {
+                    // Preserve any leading prefix (bullets, numbers, whitespace)
+                    const prefix = line.match(/^(\s*(?:\*\*)?(?:\d+[.)]\s*|\(\d+\)\s*|[-•*·]\s*)(?:\*\*)?)/)?.[1] ?? '';
+                    replaced++;
+                    return prefix + correctedText.trim();
+                }
+            }
+            return line;
+        });
+
+        if (replaced > 0) return [updatedLines.join('\n'), replaced];
+
+        // ── Pass 2: fuzzy substring search (handles multi-line joins, bold etc.) ──
+        // Normalize the full raw string to a flat single-space version for searching,
+        // then locate and replace each correction as a substring.
+        let result = raw;
+        for (const { originalText, correctedText } of validCorrections) {
+            const origNorm = normalizeLine(originalText);
+            if (!origNorm) continue;
+            // Build a regex that matches the normalized text with flexible whitespace
+            // between words (handles stored newlines between words).
+            const escaped = origNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const flexPattern = new RegExp(escaped.replace(/\s+/g, '[\\s\\S]{0,10}'), 'u');
+            const match = flexPattern.exec(result.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\s+/g, ' '));
+            if (match) {
+                // Find the actual span in the original (un-normalized) result
+                // by doing a simpler indexOf on a word-collapsed version.
+                const flatResult = result.replace(/\s+/g, ' ');
+                const flatOrig = origNorm;
+                const idx = flatResult.indexOf(flatOrig);
+                if (idx !== -1) {
+                    result = flatResult.slice(0, idx) + correctedText.trim() + flatResult.slice(idx + flatOrig.length);
+                    replaced++;
+                }
+            }
+        }
+        return [result, replaced];
+    };
+
+    // ── Lucent entry path: key = "lucent_{entryId}_p{pageIndex}"
+    //    e.g. "lucent_1781671903663_p0"  →  entryId="1781671903663", pageIndex=0
+    //    e.g. "lucent_lucent-1781671903663_p2" → entryId="lucent-1781671903663", pageIndex=2
+    //    The suffix is always "_p" followed by digits at the END.
+    const lucentMatch = chapterKey.match(/^lucent_(.+)_p(\d+)$/);
+    if (lucentMatch) {
+        const entryId = lucentMatch[1];         // raw entry.id as stored in Firebase
+        const pageIndex = parseInt(lucentMatch[2], 10);  // index into entry.pages[]
+
+        // Fetch entry from RTDB first, fall back to Firestore
+        let entryData: any = null;
+        try {
+            const snap = await get(ref(rtdb, `lucent_entries/${entryId}`));
+            if (snap.exists()) entryData = snap.val();
+        } catch (e) {
+            console.warn('[applyNoteCorrection] RTDB fetch failed for lucent entry:', e);
+        }
+        if (!entryData) {
+            try {
+                const snap = await getDoc(doc(db, 'lucent_entries', entryId));
+                if (snap.exists()) entryData = snap.data();
+            } catch (e) {
+                console.warn('[applyNoteCorrection] Firestore fetch failed for lucent entry:', e);
+            }
+        }
+        if (!entryData) throw new Error(`[applyNoteCorrection] Lucent entry not found: ${entryId}`);
+
+        const pages: any[] = Array.isArray(entryData.pages) ? entryData.pages : [];
+        if (pageIndex < 0 || pageIndex >= pages.length) {
+            throw new Error(`[applyNoteCorrection] Page index ${pageIndex} out of range (entry has ${pages.length} pages)`);
+        }
+
+        // Apply corrections to all text fields of the target page
+        const page = { ...pages[pageIndex] };
+        for (const field of ['content', 'chunkNotes', 'htmlNotes'] as const) {
+            if (typeof page[field] === 'string') {
+                const [newVal, cnt] = applyToString(page[field]);
+                page[field] = newVal;
+                totalReplaced += cnt;
+            }
+        }
+
+        if (totalReplaced === 0) return 0;
+
+        const updatedPages = [...pages];
+        updatedPages[pageIndex] = page;
+        const updatedEntry = { ...entryData, pages: updatedPages };
+
+        await Promise.allSettled([
+            set(ref(rtdb, `lucent_entries/${entryId}`), updatedEntry),
+            setDoc(doc(db, 'lucent_entries', entryId), updatedEntry),
+        ]);
+        return totalReplaced;
+    }
+
+    // ── Homework/Competition entry path: key = "hw_{entryId}" ─────────────────
+    //    e.g. "hw_abc123" → fetch from homework_entries/abc123
+    if (chapterKey.startsWith('hw_')) {
+        const entryId = chapterKey.slice(3); // strip "hw_"
+        if (!entryId) throw new Error('[applyNoteCorrection] hw_ key has no entryId');
+
+        let entryData: any = null;
+        try {
+            const snap = await get(ref(rtdb, `homework_entries/${entryId}`));
+            if (snap.exists()) entryData = snap.val();
+        } catch (e) {
+            console.warn('[applyNoteCorrection] RTDB fetch failed for hw entry:', e);
+        }
+        if (!entryData) {
+            try {
+                const snap = await getDoc(doc(db, 'homework_entries', entryId));
+                if (snap.exists()) entryData = snap.data();
+            } catch (e) {
+                console.warn('[applyNoteCorrection] Firestore fetch failed for hw entry:', e);
+            }
+        }
+        if (!entryData) throw new Error(`[applyNoteCorrection] Homework entry not found: ${entryId}`);
+
+        const updated = { ...entryData };
+        for (const field of ['notes', 'chunkNotes', 'htmlNotes'] as const) {
+            if (typeof updated[field] === 'string') {
+                const [newVal, cnt] = applyToString(updated[field]);
+                updated[field] = newVal;
+                totalReplaced += cnt;
+            }
+        }
+
+        if (totalReplaced === 0) return 0;
+
+        await Promise.allSettled([
+            set(ref(rtdb, `homework_entries/${entryId}`), updated),
+            setDoc(doc(db, 'homework_entries', entryId), updated),
+        ]);
+        return totalReplaced;
+    }
+
+    // ── Standard chapter key path ──────────────────────────────────────────────
+    const data = await getChapterData(chapterKey);
+    if (!data) throw new Error(`[applyNoteCorrection] Chapter data not found for key: ${chapterKey}`);
+
+    const updated = { ...data };
+    const noteFields = ['freeNotes', 'premiumNotes', 'chunkNotes', 'teachingStrategyNotes', 'content'] as const;
+    for (const field of noteFields) {
+        if (typeof (updated as any)[field] === 'string') {
+            const [newVal, cnt] = applyToString((updated as any)[field]);
+            (updated as any)[field] = newVal;
+            totalReplaced += cnt;
+        }
+    }
+    // Also handle topicNotes array (array of { notes: string, ... })
+    if (Array.isArray(updated.topicNotes)) {
+        updated.topicNotes = updated.topicNotes.map((tn: any) => {
+            if (tn && typeof tn.notes === 'string') {
+                const [newNotes, cnt] = applyToString(tn.notes);
+                totalReplaced += cnt;
+                return { ...tn, notes: newNotes };
+            }
+            return tn;
+        });
+    }
+
+    if (totalReplaced === 0) {
+        // Don't save if nothing changed — avoid a no-op write
+        return 0;
+    }
+    await saveChapterData(chapterKey, updated);
+    return totalReplaced;
+};
+
+// Apply admin-approved MCQ answer correction directly to Lucent or Homework entry in Firebase.
+// chapterKey: "lucent_ENTRYID_pPAGEINDEX" or "hw_ENTRYID"
+// mcqId: the MCQ's id field (used to find the exact MCQ in the page/entry)
+// newCorrectAnswer: 0-based index of the correct option
+export const applyMcqCorrection = async (
+    chapterKey: string,
+    mcqId: string,
+    newCorrectAnswer: number,
+    mcqQuestion?: string,
+): Promise<boolean> => {
+    if (!chapterKey || typeof chapterKey !== 'string' || chapterKey.trim() === '') {
+        throw new Error('[applyMcqCorrection] chapterKey is empty or invalid');
+    }
+    if (newCorrectAnswer < 0) {
+        throw new Error('[applyMcqCorrection] newCorrectAnswer must be >= 0');
+    }
+
+    // ── Lucent entry ──────────────────────────────────────────────────────────
+    const lucentMatch = chapterKey.match(/^lucent_(.+)_p(\d+)$/);
+    if (lucentMatch) {
+        const entryId = lucentMatch[1];
+        const pageIndex = parseInt(lucentMatch[2], 10);
+
+        let entryData: any = null;
+        try {
+            const snap = await get(ref(rtdb, `lucent_entries/${entryId}`));
+            if (snap.exists()) entryData = snap.val();
+        } catch (e) {
+            console.warn('[applyMcqCorrection] RTDB fetch failed for lucent entry:', e);
+        }
+        if (!entryData) {
+            try {
+                const d = await getDoc(doc(db, 'lucent_entries', entryId));
+                if (d.exists()) entryData = d.data();
+            } catch (e) {
+                console.warn('[applyMcqCorrection] Firestore fetch failed for lucent entry:', e);
+            }
+        }
+        if (!entryData) throw new Error(`[applyMcqCorrection] Lucent entry not found: ${entryId}`);
+
+        const pages: any[] = Array.isArray(entryData.pages) ? [...entryData.pages] : [];
+        if (pageIndex >= pages.length) throw new Error(`[applyMcqCorrection] Page index ${pageIndex} out of bounds`);
+
+        const page = { ...pages[pageIndex] };
+        const mcqs: any[] = Array.isArray(page.mcqs) ? [...page.mcqs] : [];
+        let mcqIdx = mcqId ? mcqs.findIndex((m: any) => String(m.id) === String(mcqId)) : -1;
+        if (mcqIdx === -1 && mcqQuestion) {
+            mcqIdx = mcqs.findIndex((m: any) => (m.question || '').trim() === mcqQuestion.trim());
+        }
+        if (mcqIdx === -1) throw new Error(`[applyMcqCorrection] MCQ not found on page ${pageIndex}`);
+
+        mcqs[mcqIdx] = { ...mcqs[mcqIdx], correctAnswer: newCorrectAnswer };
+        pages[pageIndex] = { ...page, mcqs };
+        const updated = { ...entryData, pages };
+
+        await set(ref(rtdb, `lucent_entries/${entryId}`), updated);
+        try { await setDoc(doc(db, 'lucent_entries', entryId), updated); } catch {}
+        return true;
+    }
+
+    // ── Homework entry ────────────────────────────────────────────────────────
+    const hwMatch = chapterKey.match(/^hw_(.+)$/);
+    if (hwMatch) {
+        const entryId = hwMatch[1];
+
+        let entryData: any = null;
+        try {
+            const snap = await get(ref(rtdb, `homework_entries/${entryId}`));
+            if (snap.exists()) entryData = snap.val();
+        } catch (e) {
+            console.warn('[applyMcqCorrection] RTDB fetch failed for hw entry:', e);
+        }
+        if (!entryData) {
+            try {
+                const d = await getDoc(doc(db, 'homework_entries', entryId));
+                if (d.exists()) entryData = d.data();
+            } catch (e) {
+                console.warn('[applyMcqCorrection] Firestore fetch failed for hw entry:', e);
+            }
+        }
+        if (!entryData) throw new Error(`[applyMcqCorrection] Homework entry not found: ${entryId}`);
+
+        const mcqs: any[] = Array.isArray(entryData.parsedMcqs) ? [...entryData.parsedMcqs] : [];
+        let mcqIdx = mcqId ? mcqs.findIndex((m: any) => String(m.id) === String(mcqId)) : -1;
+        if (mcqIdx === -1 && mcqQuestion) {
+            mcqIdx = mcqs.findIndex((m: any) => (m.question || '').trim() === mcqQuestion.trim());
+        }
+        if (mcqIdx === -1) throw new Error(`[applyMcqCorrection] MCQ not found in hw ${entryId}`);
+
+        mcqs[mcqIdx] = { ...mcqs[mcqIdx], correctAnswer: newCorrectAnswer };
+        const updated = { ...entryData, parsedMcqs: mcqs };
+
+        await set(ref(rtdb, `homework_entries/${entryId}`), updated);
+        try { await setDoc(doc(db, 'homework_entries', entryId), updated); } catch {}
+        return true;
+    }
+
+    throw new Error(`[applyMcqCorrection] Unrecognized chapterKey format: ${chapterKey}`);
+};
+
+export const applyMcqFullEdit = async (
+    chapterKey: string,
+    mcqId: string,
+    newCorrectAnswer: number,
+    newQuestion: string,
+    newOptions: string[],
+    mcqQuestion?: string,
+): Promise<boolean> => {
+    if (!chapterKey || typeof chapterKey !== 'string' || chapterKey.trim() === '') {
+        throw new Error('[applyMcqFullEdit] chapterKey is empty or invalid');
+    }
+
+    const lucentMatch = chapterKey.match(/^lucent_(.+)_p(\d+)$/);
+    if (lucentMatch) {
+        const entryId = lucentMatch[1];
+        const pageIndex = parseInt(lucentMatch[2], 10);
+
+        let entryData: any = null;
+        try {
+            const snap = await get(ref(rtdb, `lucent_entries/${entryId}`));
+            if (snap.exists()) entryData = snap.val();
+        } catch (e) {
+            console.warn('[applyMcqFullEdit] RTDB fetch failed for lucent entry:', e);
+        }
+        if (!entryData) {
+            try {
+                const d = await getDoc(doc(db, 'lucent_entries', entryId));
+                if (d.exists()) entryData = d.data();
+            } catch (e) {
+                console.warn('[applyMcqFullEdit] Firestore fetch failed for lucent entry:', e);
+            }
+        }
+        if (!entryData) throw new Error(`[applyMcqFullEdit] Lucent entry not found: ${entryId}`);
+
+        const pages: any[] = Array.isArray(entryData.pages) ? [...entryData.pages] : [];
+        if (pageIndex >= pages.length) throw new Error(`[applyMcqFullEdit] Page index ${pageIndex} out of bounds`);
+
+        const page = { ...pages[pageIndex] };
+        const mcqs: any[] = Array.isArray(page.mcqs) ? [...page.mcqs] : [];
+        let mcqIdx = mcqId ? mcqs.findIndex((m: any) => String(m.id) === String(mcqId)) : -1;
+        if (mcqIdx === -1 && mcqQuestion) {
+            mcqIdx = mcqs.findIndex((m: any) => (m.question || '').trim() === mcqQuestion.trim());
+        }
+        if (mcqIdx === -1) throw new Error(`[applyMcqFullEdit] MCQ not found on page ${pageIndex}`);
+
+        const updates: any = { correctAnswer: newCorrectAnswer };
+        if (newQuestion.trim()) updates.question = newQuestion.trim();
+        if (newOptions.length > 0 && newOptions.some(o => o.trim())) updates.options = newOptions.map(o => o.trim());
+
+        mcqs[mcqIdx] = { ...mcqs[mcqIdx], ...updates };
+        pages[pageIndex] = { ...page, mcqs };
+        const updated = { ...entryData, pages };
+
+        await set(ref(rtdb, `lucent_entries/${entryId}`), updated);
+        try { await setDoc(doc(db, 'lucent_entries', entryId), updated); } catch {}
+        return true;
+    }
+
+    const hwMatch = chapterKey.match(/^hw_(.+)$/);
+    if (hwMatch) {
+        const entryId = hwMatch[1];
+
+        let entryData: any = null;
+        try {
+            const snap = await get(ref(rtdb, `homework_entries/${entryId}`));
+            if (snap.exists()) entryData = snap.val();
+        } catch (e) {
+            console.warn('[applyMcqFullEdit] RTDB fetch failed for hw entry:', e);
+        }
+        if (!entryData) {
+            try {
+                const d = await getDoc(doc(db, 'homework_entries', entryId));
+                if (d.exists()) entryData = d.data();
+            } catch (e) {
+                console.warn('[applyMcqFullEdit] Firestore fetch failed for hw entry:', e);
+            }
+        }
+        if (!entryData) throw new Error(`[applyMcqFullEdit] Homework entry not found: ${entryId}`);
+
+        const mcqs: any[] = Array.isArray(entryData.parsedMcqs) ? [...entryData.parsedMcqs] : [];
+        let mcqIdx = mcqId ? mcqs.findIndex((m: any) => String(m.id) === String(mcqId)) : -1;
+        if (mcqIdx === -1 && mcqQuestion) {
+            mcqIdx = mcqs.findIndex((m: any) => (m.question || '').trim() === mcqQuestion.trim());
+        }
+        if (mcqIdx === -1) throw new Error(`[applyMcqFullEdit] MCQ not found in hw ${entryId}`);
+
+        const updates: any = { correctAnswer: newCorrectAnswer };
+        if (newQuestion.trim()) updates.question = newQuestion.trim();
+        if (newOptions.length > 0 && newOptions.some(o => o.trim())) updates.options = newOptions.map(o => o.trim());
+
+        mcqs[mcqIdx] = { ...mcqs[mcqIdx], ...updates };
+        const updated = { ...entryData, parsedMcqs: mcqs };
+
+        await set(ref(rtdb, `homework_entries/${entryId}`), updated);
+        try { await setDoc(doc(db, 'homework_entries', entryId), updated); } catch {}
+        return true;
+    }
+
+    throw new Error(`[applyMcqFullEdit] Unrecognized chapterKey format: ${chapterKey}`);
+};
+
+export const subscribeSuggestions = (callback: (items: any[]) => void): (() => void) => {
+    const q = rtdbQuery(ref(rtdb, 'suggestions'), rtdbLimitToLast(100));
+    return onValue(q, (snap) => {
+        if (!snap.exists()) { callback([]); return; }
+        const items: any[] = Object.values(snap.val());
+        items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        callback(items);
+    }, () => callback([]));
+};
+
+export const reactToSuggestion = async (suggestionId: string, uid: string, reaction: 'like' | 'dislike'): Promise<void> => {
+    try {
+        const r = ref(rtdb, `suggestions/${suggestionId}`);
+        const snap = await get(r);
+        if (!snap.exists()) return;
+        const d = snap.val();
+        const likedBy: Record<string, boolean> = { ...(d.likedBy || {}) };
+        const dislikedBy: Record<string, boolean> = { ...(d.dislikedBy || {}) };
+        if (reaction === 'like') {
+            if (likedBy[uid]) { delete likedBy[uid]; } else { likedBy[uid] = true; delete dislikedBy[uid]; }
+        } else {
+            if (dislikedBy[uid]) { delete dislikedBy[uid]; } else { dislikedBy[uid] = true; delete likedBy[uid]; }
+        }
+        await update(r, { likedBy, dislikedBy, likes: Object.keys(likedBy).length, dislikes: Object.keys(dislikedBy).length });
+    } catch (e) { console.error('[Suggestions] reactToSuggestion error:', e); }
+};
+
+/** Atomically claim a reward slot for a suggestion using RTDB transaction.
+ *  Returns the suggestion data if the claim succeeded (not already claimed),
+ *  null if already claimed or not applicable. */
+const claimSuggestionReward = async (
+    suggestionId: string,
+    rewardKey: 'reply' | 'resolve'
+): Promise<{ uid: string; userName: string } | null> => {
+    const r = ref(rtdb, `suggestions/${suggestionId}/rewardedFor/${rewardKey}`);
+    let claimed = false;
+    let ownerUid = '';
+    let ownerName = '';
+    await runTransaction(r, (current) => {
+        if (current === true || current === false && current) return; // already claimed
+        if (current) return; // already set
+        claimed = true;
+        return true; // atomically set to true
+    });
+    if (!claimed) return null;
+    // After claiming the slot, read the owner
+    const snap = await get(ref(rtdb, `suggestions/${suggestionId}`));
+    if (!snap.exists()) return null;
+    const d = snap.val();
+    ownerUid = d.uid || '';
+    ownerName = d.userName || 'Student';
+    if (!ownerUid || ownerUid === 'anonymous') return null;
+    return { uid: ownerUid, userName: ownerName };
+};
+
+export const adminReplySuggestion = async (suggestionId: string, reply: string, tag?: string, status?: 'open' | 'replied' | 'resolved'): Promise<void> => {
+    try {
+        const r = ref(rtdb, `suggestions/${suggestionId}`);
+        const computedStatus = status ?? (reply.trim() ? 'replied' : 'open');
+        await update(r, {
+            adminReply: reply,
+            adminReplyAt: new Date().toISOString(),
+            status: computedStatus,
+            ...(tag !== undefined ? { adminTag: tag } : {}),
+        });
+        // Award 5 coins for reply — atomic claim prevents double-award
+        const replyOwner = await claimSuggestionReward(suggestionId, 'reply');
+        if (replyOwner) {
+            await awardSuggestionCoins(replyOwner.uid, replyOwner.userName, 5, 'admin_replied', suggestionId);
+            await updateSuggestionLeaderboard(replyOwner.uid, replyOwner.userName, 'replied');
+        }
+        // Award 20 coins if marked resolved
+        if (computedStatus === 'resolved') {
+            const resolveOwner = await claimSuggestionReward(suggestionId, 'resolve');
+            if (resolveOwner) {
+                await awardSuggestionCoins(resolveOwner.uid, resolveOwner.userName, 20, 'galti_resolved', suggestionId);
+                await updateSuggestionLeaderboard(resolveOwner.uid, resolveOwner.userName, 'resolved');
+            }
+        }
+    } catch (e) { console.error('[Suggestions] adminReply error:', e); }
+};
+
+export const resolvesuggestion = async (suggestionId: string): Promise<void> => {
+    try {
+        await update(ref(rtdb, `suggestions/${suggestionId}`), { status: 'resolved' });
+        // Award 20 coins — atomic claim prevents double-award
+        const owner = await claimSuggestionReward(suggestionId, 'resolve');
+        if (owner) {
+            await awardSuggestionCoins(owner.uid, owner.userName, 20, 'galti_resolved', suggestionId);
+            await updateSuggestionLeaderboard(owner.uid, owner.userName, 'resolved');
+        }
+    } catch (e) { console.error('[Suggestions] resolve error:', e); }
+};
+
+export const deleteSuggestion = async (suggestionId: string): Promise<void> => {
+    try { await set(ref(rtdb, `suggestions/${suggestionId}`), null); }
+    catch (e) { console.error('[Suggestions] delete error:', e); }
+};
+
+// Find an existing OPEN suggestion for the same note point (same chapterKey + pointIndex).
+// Returns { id, reportCount } if found, null otherwise.
+export const findDuplicateSuggestionByPoint = async (
+    chapterKey: string,
+    pointIndex: number
+): Promise<{ id: string; reportCount: number } | null> => {
+    try {
+        const snap = await get(ref(rtdb, 'suggestions'));
+        if (!snap.exists()) return null;
+        let match: { id: string; reportCount: number } | null = null;
+        snap.forEach((child) => {
+            const d = child.val();
+            if (
+                d.status === 'open' &&
+                d.chapterKey === chapterKey &&
+                Array.isArray(d.pointsData) &&
+                d.pointsData.length > 0 &&
+                d.pointsData[0].index === pointIndex
+            ) {
+                match = { id: child.key as string, reportCount: d.reportCount ?? 1 };
+            }
+        });
+        return match;
+    } catch (e) { console.error('[Suggestions] findDuplicate error:', e); return null; }
+};
+
+// Increment the reportCount on an existing suggestion (duplicate detection).
+export const incrementSuggestionReportCount = async (suggestionId: string): Promise<void> => {
+    try {
+        const r = ref(rtdb, `suggestions/${suggestionId}`);
+        const snap = await get(r);
+        if (!snap.exists()) return;
+        const current = snap.val().reportCount ?? 1;
+        await update(r, { reportCount: current + 1 });
+    } catch (e) { console.error('[Suggestions] incrementReportCount error:', e); }
+};
+
+// Admin utility: find all duplicate suggestion groups (same chapterKey+pointIndex OR same text),
+// keep the oldest entry per group (with merged reportCount), delete the rest.
+// Returns number of duplicates removed.
+export const mergeDuplicateSuggestions = async (): Promise<number> => {
+    try {
+        const snap = await get(ref(rtdb, 'suggestions'));
+        if (!snap.exists()) return 0;
+        const all: Array<{ id: string; val: Record<string, any> }> = [];
+        snap.forEach((child) => { all.push({ id: child.key as string, val: child.val() }); });
+
+        // Group by chapterKey+pointIndex (for inline corrections) OR normalized text (for text-only)
+        const groups = new Map<string, typeof all>();
+        for (const item of all) {
+            const d = item.val;
+            let key: string;
+            if (d.chapterKey && Array.isArray(d.pointsData) && d.pointsData.length > 0) {
+                key = `cp::${d.chapterKey}::${d.pointsData[0].index}`;
+            } else {
+                // Normalize text: lowercase, collapse whitespace, first 80 chars
+                key = `tx::${(d.text || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 80)}`;
+            }
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(item);
+        }
+
+        let removed = 0;
+        for (const group of groups.values()) {
+            if (group.length < 2) continue;
+            // Sort oldest first (by createdAt)
+            group.sort((a, b) => (a.val.createdAt || '').localeCompare(b.val.createdAt || ''));
+            const [keeper, ...dupes] = group;
+            const totalCount = group.reduce((s, i) => s + (i.val.reportCount ?? 1), 0);
+            // Update keeper with merged count
+            await update(ref(rtdb, `suggestions/${keeper.id}`), { reportCount: totalCount });
+            // Delete all duplicates
+            for (const dupe of dupes) {
+                await set(ref(rtdb, `suggestions/${dupe.id}`), null);
+                removed++;
+            }
+        }
+        return removed;
+    } catch (e) { console.error('[Suggestions] mergeDuplicates error:', e); return 0; }
+};
+
+// ── Mark lock ──────────────────────────────────────────────────────────────
 export const saveUserMarkLock = async (locked: boolean): Promise<void> => {
     try {
         await setDoc(doc(db, 'admin_settings', 'important_mark'), { userMarkLocked: locked, updatedAt: new Date().toISOString() }, { merge: true });
@@ -2465,4 +3180,106 @@ export const subscribeUserMarkLock = (
         () => callback(false)
     );
     return unsub;
+};
+
+// ── 13. Suggestion Leaderboard & Coin Rewards ────────────────────────────────
+// Firestore: suggestion_leaderboard/{uid}  — permanent record even after RTDB
+// suggestion is auto-deleted after 7 days.
+// Firestore: user_coins/{uid}              — coin wallet per user.
+
+export interface SuggLeaderboardEntry {
+    uid: string;
+    userName: string;
+    totalReported: number;
+    totalResolved: number;
+    totalReplied: number;
+    totalCoins: number;
+    lastActivity: string;
+}
+
+/** Increment leaderboard counters when user reports / gets reply / gets resolved. */
+export const updateSuggestionLeaderboard = async (
+    uid: string,
+    userName: string,
+    action: 'reported' | 'resolved' | 'replied'
+): Promise<void> => {
+    if (!uid || uid === 'anonymous') return;
+    try {
+        const lbRef = doc(db, 'suggestion_leaderboard', uid);
+        const updateData: Record<string, any> = {
+            uid,
+            userName,
+            lastActivity: new Date().toISOString(),
+        };
+        if (action === 'reported') updateData.totalReported = increment(1);
+        if (action === 'resolved') updateData.totalResolved = increment(1);
+        if (action === 'replied')  updateData.totalReplied  = increment(1);
+        await setDoc(lbRef, updateData, { merge: true });
+    } catch (e) { console.error('[Leaderboard] update error:', e); }
+};
+
+/** Award coins to a user for suggestion activity. Deduplication is handled
+ *  in the calling code via RTDB rewardedFor flags. */
+export const awardSuggestionCoins = async (
+    uid: string,
+    userName: string,
+    amount: number,
+    reason: string,
+    suggestionId: string
+): Promise<void> => {
+    if (!uid || uid === 'anonymous') return;
+    try {
+        const historyEntry = { amount, reason, date: new Date().toISOString(), suggestionId };
+        await setDoc(doc(db, 'user_coins', uid), {
+            uid,
+            userName,
+            coins: increment(amount),
+            history: arrayUnion(historyEntry),
+        }, { merge: true });
+        // Mirror totalCoins into the leaderboard so ranking works
+        await setDoc(doc(db, 'suggestion_leaderboard', uid), {
+            uid,
+            userName,
+            totalCoins: increment(amount),
+            lastActivity: new Date().toISOString(),
+        }, { merge: true });
+    } catch (e) {
+        console.error('[Coins] award error:', e);
+        throw e; // propagate so callers can detect failure
+    }
+};
+
+/** Real-time top-20 leaderboard sorted by totalCoins desc. */
+export const subscribeLeaderboard = (
+    callback: (entries: SuggLeaderboardEntry[]) => void
+): (() => void) => {
+    const q = query(
+        collection(db, 'suggestion_leaderboard'),
+        orderBy('totalCoins', 'desc'),
+        limit(20)
+    );
+    return onSnapshot(q,
+        (snap) => callback(snap.docs.map(d => d.data() as SuggLeaderboardEntry)),
+        () => callback([])
+    );
+};
+
+/** Real-time coin balance + history for a single user. */
+export const subscribeUserCoins = (
+    uid: string,
+    callback: (coins: number, history: Array<{ amount: number; reason: string; date: string; suggestionId: string }>) => void
+): (() => void) => {
+    if (!uid || uid === 'anonymous') { callback(0, []); return () => {}; }
+    return onSnapshot(
+        doc(db, 'user_coins', uid),
+        (snap) => {
+            if (snap.exists()) {
+                const d = snap.data();
+                callback(d.coins ?? 0, (d.history ?? []).slice(-50).reverse());
+            } else {
+                callback(0, []);
+            }
+        },
+        () => callback(0, [])
+    );
 };

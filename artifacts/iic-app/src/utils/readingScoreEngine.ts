@@ -96,7 +96,7 @@ export class ReadingScoreSession {
   private lastScoreEarned = 0;
   private sessionElapsedSec = 0;
   private isWindowClosed = false;
-  private mode: 'reading' | 'writing';
+  private mode: 'reading' | 'writing' | 'video' | 'audio' | 'pdf';
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private onStateChange?: (state: ReadingScoreState) => void;
   private currentProgress = 0;

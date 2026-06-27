@@ -13,7 +13,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Maximize, Minimize, RotateCcw, Moon, Sun,
   ExternalLink, ChevronLeft, ChevronRight, Search, X, BookOpen, Check, MoreVertical,
-  ZoomIn, ZoomOut
+  ZoomIn, ZoomOut, LayoutGrid
 } from 'lucide-react';
 import { tryEarnScore } from '../utils/scoreSystem';
 import { ReadingScoreSession, ReadingScoreState } from '../utils/readingScoreEngine';
@@ -35,6 +35,11 @@ interface Props {
   /** Next chapter navigation */
   onNext?: () => void;
   nextTitle?: string;
+  /** School mode: opens mode-switch sheet */
+  onSchoolModeSwitch?: () => void;
+  /** Admin board navigation */
+  isAdmin?: boolean;
+  onAdminBoard?: () => void;
 }
 
 type NightMode = 'normal' | 'night' | 'sepia';
@@ -67,7 +72,7 @@ const MILESTONE_SCORES = [
 export const PdfViewer: React.FC<Props> = ({
   url, title, onBack, sessionKey,
   userId, userLevel = 1, subscriptionLevel, isPremium, boostPercent = 0, onScoreEarned,
-  onNext, nextTitle,
+  onNext, nextTitle, onSchoolModeSwitch, isAdmin, onAdminBoard,
 }) => {
   const key = sessionKey || btoa(url).replace(/[^a-z0-9]/gi, '').slice(0, 24);
 
@@ -93,7 +98,6 @@ export const PdfViewer: React.FC<Props> = ({
     try { return new Set(JSON.parse(localStorage.getItem(`nst_pdf_ms_${key}`) || '[]')); } catch { return new Set(); }
   });
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -181,21 +185,6 @@ export const PdfViewer: React.FC<Props> = ({
     }
   }, [currentPage, totalPages, userId]);
 
-  // Close more menu on outside click
-  useEffect(() => {
-    if (!showMoreMenu) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
-        setShowMoreMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
-    };
-  }, [showMoreMenu]);
 
   // Fullscreen listener
   useEffect(() => {
@@ -216,6 +205,7 @@ export const PdfViewer: React.FC<Props> = ({
   }, []);
 
   const toggleFullscreen = () => {
+    setShowMoreMenu(false);
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
     } else {
@@ -384,6 +374,17 @@ export const PdfViewer: React.FC<Props> = ({
           <ArrowLeft size={18} />
         </button>
 
+        {/* School mode switch */}
+        {onSchoolModeSwitch && (
+          <button
+            onClick={onSchoolModeSwitch}
+            className="p-2 bg-indigo-500/30 rounded-xl active:bg-indigo-500/50 transition shrink-0"
+            title="Switch Mode"
+          >
+            <LayoutGrid size={16} className="text-indigo-200" />
+          </button>
+        )}
+
         {/* Title */}
         <h2 className="flex-1 font-bold text-sm truncate min-w-0">{title}</h2>
 
@@ -405,44 +406,6 @@ export const PdfViewer: React.FC<Props> = ({
           {nightLabel[nightMode]}
         </button>
 
-        {/* Zoom Out */}
-        <button
-          onClick={zoomOut}
-          disabled={zoomLevel <= 0.5}
-          className="p-2 bg-white/10 rounded-xl active:scale-90 transition shrink-0 disabled:opacity-30"
-          title="Zoom Out"
-        >
-          <ZoomOut size={16} />
-        </button>
-
-        {/* Zoom Level */}
-        <button
-          onClick={zoomReset}
-          className="px-2 py-1 bg-white/10 rounded-lg text-[10px] font-black shrink-0 active:scale-90 transition min-w-[38px] text-center"
-          title="Reset Zoom"
-        >
-          {Math.round(zoomLevel * 100)}%
-        </button>
-
-        {/* Zoom In */}
-        <button
-          onClick={zoomIn}
-          disabled={zoomLevel >= 3.0}
-          className="p-2 bg-white/10 rounded-xl active:scale-90 transition shrink-0 disabled:opacity-30"
-          title="Zoom In"
-        >
-          <ZoomIn size={16} />
-        </button>
-
-        {/* Rotate */}
-        <button
-          onClick={toggleRotate}
-          className={`p-2 rounded-xl active:scale-90 transition shrink-0 ${rotated ? 'bg-indigo-500 text-white' : 'bg-white/10'}`}
-          title={rotated ? 'Switch to Portrait' : 'Switch to Landscape'}
-        >
-          <RotateCcw size={16} />
-        </button>
-
         {/* Fullscreen */}
         <button
           onClick={toggleFullscreen}
@@ -452,31 +415,47 @@ export const PdfViewer: React.FC<Props> = ({
           {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
         </button>
 
-        {/* More menu */}
-        <div ref={moreMenuRef} className="relative shrink-0">
-          <button
-            onClick={() => setShowMoreMenu(m => !m)}
-            className={`p-2 rounded-xl active:scale-90 transition ${showMoreMenu ? 'bg-indigo-500 text-white' : 'bg-white/10'}`}
-            title="More options"
-          >
-            <MoreVertical size={16} />
-          </button>
-          {showMoreMenu && (
-            <div className="absolute right-0 top-full mt-2 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-150">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 px-4 py-3 text-sm text-white font-semibold hover:bg-white/10 active:bg-white/20 transition"
-                onClick={() => setShowMoreMenu(false)}
-              >
-                <ExternalLink size={15} className="text-indigo-400" />
-                Open in Browser
-              </a>
-            </div>
-          )}
-        </div>
+        {/* More menu toggle */}
+        <button
+          onClick={() => setShowMoreMenu(m => !m)}
+          className={`p-2 rounded-xl active:scale-90 transition shrink-0 ${showMoreMenu ? 'bg-indigo-500 text-white' : 'bg-white/10'}`}
+          title="More options"
+        >
+          <MoreVertical size={16} />
+        </button>
       </header>
+
+      {/* Slim controls bar — visible when 3-dot is active, hides on fullscreen */}
+      {showMoreMenu && (
+        <div className="flex-shrink-0 bg-slate-800/98 border-t border-white/10 flex items-stretch z-10 animate-in slide-in-from-top-1 duration-150">
+          <button onClick={zoomOut} disabled={zoomLevel <= 0.5} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 hover:bg-white/10 active:bg-white/20 transition disabled:opacity-30 border-r border-white/10">
+            <ZoomOut size={13} className="text-slate-300" />
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Out</span>
+          </button>
+          <button onClick={zoomReset} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 hover:bg-white/10 active:bg-white/20 transition border-r border-white/10">
+            <span className="text-xs font-black text-white">{Math.round(zoomLevel * 100)}%</span>
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Zoom</span>
+          </button>
+          <button onClick={zoomIn} disabled={zoomLevel >= 3.0} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 hover:bg-white/10 active:bg-white/20 transition disabled:opacity-30 border-r border-white/10">
+            <ZoomIn size={13} className="text-slate-300" />
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">In</span>
+          </button>
+          <button onClick={() => { toggleRotate(); setShowMoreMenu(false); }} className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 hover:bg-white/10 active:bg-white/20 transition border-r border-white/10 ${rotated ? 'text-indigo-300' : 'text-slate-300'}`}>
+            <RotateCcw size={13} />
+            <span className={`text-[9px] font-black uppercase tracking-wider ${rotated ? 'text-indigo-400' : 'text-slate-400'}`}>{rotated ? 'Portrait' : 'Rotate'}</span>
+          </button>
+          {isAdmin && onAdminBoard && (
+            <button onClick={() => { setShowMoreMenu(false); onAdminBoard(); }} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 hover:bg-white/10 active:bg-white/20 transition border-r border-white/10 text-emerald-300">
+              <LayoutGrid size={13} />
+              <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Admin</span>
+            </button>
+          )}
+          <a href={url} target="_blank" rel="noopener noreferrer" onClick={() => setShowMoreMenu(false)} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 hover:bg-white/10 active:bg-white/20 transition text-indigo-300">
+            <ExternalLink size={13} />
+            <span className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Open</span>
+          </a>
+        </div>
+      )}
 
       {/* Progress bar */}
       {totalPages > 0 && (

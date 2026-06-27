@@ -2709,6 +2709,66 @@ model-viewer {
 .notes-html-content .container, .notes-html-content [class*="container"] { max-width: 100% !important; width: auto !important; box-sizing: border-box !important; margin-left: 0 !important; margin-right: 0 !important; }
 .notes-html-content body { max-width: 100% !important; }
 
+/* ── KaTeX formula rendering inside notes ──────────────────────────────────
+   Display-mode formulas (.katex-display) get a styled formula box.
+   Inline formulas (.katex) get subtle visual lift inline.
+   ── */
+:where(.notes-html-content) .katex-display {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1.5px solid #c4b5fd;
+  border-left: 4px solid #7c3aed;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  overflow-x: auto;
+  box-shadow: 0 1px 4px rgba(124,58,237,0.08);
+  text-align: center;
+}
+:where(.notes-html-content) .katex {
+  font-size: 1.05em;
+  color: #3730a3;
+}
+:where(.notes-html-content) .katex-display .katex {
+  font-size: 1.15em;
+}
+/* sup / sub from plain-text math processing */
+:where(.notes-html-content) sup {
+  font-size: 0.72em;
+  vertical-align: super;
+  line-height: 0;
+  color: #6d28d9;
+  font-weight: 700;
+}
+:where(.notes-html-content) sub {
+  font-size: 0.72em;
+  vertical-align: sub;
+  line-height: 0;
+  color: #0369a1;
+  font-weight: 700;
+}
+/* Dark mode KaTeX */
+.dark-mode :where(.notes-html-content) .katex-display {
+  background: linear-gradient(135deg, #1e1245 0%, #150d33 100%) !important;
+  border-color: #4c1d95 !important;
+  border-left-color: #7c3aed !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.4) !important;
+}
+.dark-mode :where(.notes-html-content) .katex {
+  color: #c4b5fd !important;
+}
+.dark-mode :where(.notes-html-content) sup { color: #a78bfa !important; }
+.dark-mode :where(.notes-html-content) sub { color: #7dd3fc !important; }
+.dark-mode-blue :where(.notes-html-content) .katex-display {
+  background: linear-gradient(135deg, #0f1e3d 0%, #0a1628 100%) !important;
+  border-color: #1e40af !important;
+  border-left-color: #3b82f6 !important;
+}
+.dark-mode-blue :where(.notes-html-content) .katex {
+  color: #93c5fd !important;
+}
+.dark-mode-blue :where(.notes-html-content) sup { color: #a5b4fc !important; }
+.dark-mode-blue :where(.notes-html-content) sub { color: #67e8f9 !important; }
+
 /* ═══════════════════════════════════════════════════════════════
    PROFESSIONAL DARK & BLUE MODE — STORE/PROFILE LEVEL POLISH
    Notes headings, top bar, cards, inputs, overall refinement.
@@ -3083,6 +3143,45 @@ model-viewer {
 
 /* Badges */
 .nst-badge-brand { background: var(--nst-color-brand-10) !important; color: var(--nst-color-brand) !important; }
+
+/* ── KaTeX in chunk-mode reader (topic bullets — no notes-html-content wrapper) ──
+   These rules ensure formulas look beautiful in the TTS/chunk reading view         */
+.katex-display {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1.5px solid #c4b5fd;
+  border-left: 4px solid #7c3aed;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  overflow-x: auto;
+  box-shadow: 0 1px 4px rgba(124,58,237,0.08);
+  text-align: center;
+}
+/* Only color KaTeX outside of notes-html-content (inside notes-html-content already scoped above) */
+:not(.notes-html-content) .katex { color: #3730a3; }
+:not(.notes-html-content) .katex-display .katex { font-size: 1.15em; }
+
+/* Prose + KaTeX — prevent Tailwind prose from clobbering KaTeX font sizes */
+.prose .katex { font-size: 1em !important; }
+.prose .katex-display { font-size: 1.1em !important; }
+
+/* Fraction, integral, sigma — ensure they don't clip */
+.katex .vlist-t { overflow: visible; }
+.katex .base { overflow: visible; }
+
+/* Dark mode for chunk-mode KaTeX */
+.dark-mode .katex-display {
+  background: linear-gradient(135deg, #1e1245 0%, #150d33 100%) !important;
+  border-color: #4c1d95 !important;
+  border-left-color: #7c3aed !important;
+}
+.dark-mode :not(.notes-html-content) .katex { color: #c4b5fd !important; }
+.dark-mode-blue .katex-display {
+  background: linear-gradient(135deg, #0f1e3d 0%, #0a1628 100%) !important;
+  border-color: #1e40af !important;
+  border-left-color: #3b82f6 !important;
+}
+.dark-mode-blue :not(.notes-html-content) .katex { color: #93c5fd !important; }
 
 /* ── White Profile Mode ── */
 [data-pw="1"] .text-white { color: #1e293b !important; }

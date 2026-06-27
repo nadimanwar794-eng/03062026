@@ -7,6 +7,8 @@ import { TopBarEffectsLayer } from "../utils/topBarEffects";
 import { getLevelInfo, getNextLevelInfo, getLevelProgress, LEVEL_INFO, ACTIVITY_SCORES, getLevelTopBarEffects, getLevelLimitBonus, getLevelDailyLimits, getLevelDailyLimitsWithOverride, getEffectiveDailyLimit, UNLIMITED, getMaxReadingSeconds } from "../utils/levelSystem";
 import { tryEarnScore, awardMilestone, getDailyScoreEarned, DAILY_SCORE_LIMIT, getDailyScoreLimit, getActiveBoost, getCombinedBoost, logScoreActivity } from "../utils/scoreSystem";
 import { ScoreHistoryDashboard } from "./ScoreHistoryDashboard";
+import { StudentProgressDashboard } from "./StudentProgressDashboard";
+import { SuggestionsPanel } from "./SuggestionsPanel";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
 import { LevelLeaderboard } from "./LevelLeaderboard";
 import {
@@ -32,9 +34,14 @@ import {
   rtdb,
   saveAiInteraction,
   saveDemandRequest,
+  getUserTodayDemandCount,
+  findDuplicateDemand,
+  incrementDemandReportCount,
   saveCompareAnalytic,
   subscribeToContentIndex,
   auth,
+  saveLucentEntryDirect,
+  saveHomeworkEntryDirect,
 } from "../firebase";
 import type { ContentTypeStats, ContentIndexMap } from "../firebase";
 import { doc, onSnapshot, updateDoc, deleteField } from "firebase/firestore";
@@ -167,6 +174,8 @@ import {
   RefreshCw,
   Coins,
   Flame,
+  Lightbulb,
+  Pencil,
 } from "lucide-react";
 import { speakText, stopSpeech, stripHtml } from "../utils/textToSpeech";
 import { getMistakeBankSync, getMistakeBank, addMistakes, removeMistakeByQuestion, MistakeEntry } from "../utils/mistakeBank";
@@ -207,16 +216,17 @@ import { SpeakButton } from "./SpeakButton";
 import { McqSpeakButtons } from "./McqSpeakButtons";
 import { FlashcardMcqView } from "./FlashcardMcqView";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
+import { WriteModeCorrection } from "./WriteModeCorrection";
 import { CompareView } from "./CompareView";
-import { FullBookCompare } from "./FullBookCompare";
 import { McqSearchView } from "./McqSearchView";
 import { TopicDirectoryView } from "./TopicDirectoryView";
-import { recordNoteStar, recordNoteUnstar, subscribeToTopNoteStars, hashTopic, NoteStarEntry } from "../services/noteStars";
+import { recordNoteStar, recordNoteUnstar, subscribeToTopNoteStars, hashTopic, NoteStarEntry, setAdminImportantTopic, subscribeToAdminImportantTopics } from "../services/noteStars";
 import { PerformanceGraph } from "./PerformanceGraph";
 import { StudentSidebar } from "./StudentSidebar";
 import { StudyGoalTimer } from "./StudyGoalTimer";
 import { ExplorePage } from "./ExplorePage";
 import { StudentHistoryModal } from "./StudentHistoryModal";
+import { AdminWhiteBoard } from "./AdminWhiteBoard";
 import { generateDailyRoutine } from "../utils/routineGenerator";
 import { OfflineDownloads } from "./OfflineDownloads";
 import { ThemeCustomizer } from "./ThemeCustomizer";
@@ -227,6 +237,8 @@ import { NotificationPrompt } from "./NotificationPrompt";
 import jsPDF from "jspdf";
 // @ts-ignore
 import html2canvas from "html2canvas";
+import { SchoolHomeCard } from './school/SchoolHomeCard';
+import { getSchool as getSchoolById, getSchoolUserProfile } from '../school-firebase';
 
 /**
  * Lightweight swipe-to-dismiss wrapper for "Continue Reading" cards.
@@ -360,6 +372,7 @@ interface Props {
   onLogout?: () => void;
   onRecoverData?: () => void;
   onUpdateSettings?: (s: SystemSettings) => void;
+  onOpenSchool?: () => void;
 }
 
 const DashboardSectionWrapper = ({
@@ -468,6 +481,27 @@ const buildNoteStyleBlock = (lightCSS?: string, darkCSS?: string): string => {
   return out;
 };
 
+const splitHtmlIntoBlocks = (html: string): string[] => {
+  if (!html.trim()) return [];
+  const blocks = html
+    .split(/(?<=<\/(?:h[1-6]|p|div|section|article|blockquote|pre|ul|ol|li|table|figure)>)\s*/gi)
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  return blocks.length > 0 ? blocks : [html.trim()];
+};
+
+const stripHtmlForPreview = (html: string): string =>
+  html
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(?:p|div|h[1-6]|li)>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 export const StudentDashboard: React.FC<Props> = ({
   user,
   dailyStudySeconds,
@@ -486,6 +520,7 @@ export const StudentDashboard: React.FC<Props> = ({
   onLogout,
   onRecoverData,
   onUpdateSettings,
+  onOpenSchool,
 }) => {
   const analysisLogs = (() => { try { return JSON.parse(localStorage.getItem("nst_universal_analysis_logs") || "[]"); } catch { return []; } })();
   const isGameEnabled = settings?.isGameEnabled !== false;
@@ -609,6 +644,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // (to avoid self-interference while managing settings).
   // Tier-based default colors (officialTierTheme, overrideColor) apply to ALL users including admins.
   const _isAdminUser = (user as any).role === 'ADMIN' || (user as any).role === 'SUB_ADMIN';
+  const [showAdminBoard, setShowAdminBoard] = React.useState(false);
 
   const tierTheme =
     // 1. Admin broadcast — skipped for admin users to prevent self-interference
@@ -958,16 +994,17 @@ export const StudentDashboard: React.FC<Props> = ({
   // Persisted board choice — localStorage (fast, per-device) + Firestore (cross-device sync).
   // Priority: localStorage → user.board (Firestore) → "CBSE"
   const BOARD_CHOICE_KEY = "nst_board_choice_v1";
-  const [activeSessionBoard, _setActiveSessionBoardRaw] = useState<"CBSE" | "BSEB">(() => {
+  const [activeSessionBoard, _setActiveSessionBoardRaw] = useState<"BSEB" | "NCERT_EN" | "NCERT_HI">(() => {
     try {
       const v = localStorage.getItem(BOARD_CHOICE_KEY);
-      if (v === "CBSE" || v === "BSEB") return v;
+      if (v === "BSEB" || v === "NCERT_EN" || v === "NCERT_HI") return v;
     } catch {}
     // Fallback: Firestore user.board (loaded at login, cross-device)
     if ((user as any).board === "BSEB") return "BSEB";
-    return "CBSE";
+    if ((user as any).board === "NCERT_HI") return "NCERT_HI";
+    return "NCERT_EN";
   });
-  const setActiveSessionBoard = (v: "CBSE" | "BSEB") => {
+  const setActiveSessionBoard = (v: "BSEB" | "NCERT_EN" | "NCERT_HI") => {
     _setActiveSessionBoardRaw(v);
     try { localStorage.setItem(BOARD_CHOICE_KEY, v); } catch {}
     // Also save to Firestore so choice persists on new devices
@@ -1755,6 +1792,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [syllabusMode, setSyllabusMode] = useState<"SCHOOL" | "COMPETITION">(
     "SCHOOL",
   );
+  const [userSchool, setUserSchool] = useState<any>(null);
   const [currentAudioTrack, setCurrentAudioTrack] = useState<{
     url: string;
     title: string;
@@ -1771,6 +1809,21 @@ export const StudentDashboard: React.FC<Props> = ({
     });
   }, []);
 
+  useEffect(() => {
+    const schoolId = (user as any).schoolId;
+    if (schoolId) {
+      getSchoolById(schoolId).then(s => { if (s) setUserSchool(s); }).catch(() => {});
+      return;
+    }
+    // Fallback: check school_users collection
+    if (!user.id) return;
+    getSchoolUserProfile(user.id).then(profile => {
+      if (profile?.schoolId) {
+        getSchoolById(profile.schoolId).then(s => { if (s) setUserSchool(s); }).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [user.id, (user as any).schoolId]);
+
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -1781,7 +1834,7 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [profileData, setProfileData] = useState({
     classLevel: activeSessionClass || user.classLevel || "10",
-    board: activeSessionBoard || user.board || "CBSE",
+    board: activeSessionBoard || user.board || "NCERT_EN",
     stream: user.stream || "Science",
     newPassword: "",
     mobile: user.mobile || "",
@@ -1802,7 +1855,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentLessonCompare, setLucentLessonCompare] = useState<LucentNoteEntry | null>(null);
   const [lucentLessonCompareTab, setLucentLessonCompareTab] = useState<'full' | 'topics'>('topics');
   const [lessonCompareFullViewMode, setLessonCompareFullViewMode] = useState<'chunk' | 'html'>('chunk');
-  const [showFullBookCompare, setShowFullBookCompare] = useState(false);
   const [showDemandModal, setShowDemandModal] = useState(false);
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
   const [showExpiryPopup, setShowExpiryPopup] = useState(false);
@@ -1820,6 +1872,7 @@ export const StudentDashboard: React.FC<Props> = ({
     setTimeout(() => setRewardEffect(null), 2400);
   };
   const [showDotsMenu, setShowDotsMenu] = useState(false);
+  const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
   const [showScorePanel, setShowScorePanel] = useState(false);
   const [topBarBtnGlow, setTopBarBtnGlow] = useState(false);
   React.useEffect(() => {
@@ -1885,9 +1938,9 @@ export const StudentDashboard: React.FC<Props> = ({
   useEffect(() => {
     if (showAllNotesCatalog) {
       const classes = ["6", "7", "8", "9", "10", "11", "12", "COMPETITION"];
-      const board = activeSessionBoard || user.board || "CBSE";
+      const board = activeSessionBoard || user.board || "NCERT_EN";
       const stream = user.stream || "Science";
-      const lang = board === "BSEB" ? "Hindi" : "English";
+      const lang = (board === "BSEB" || board === "NCERT_HI") ? "Hindi" : "English";
       const limit = pLimit(5);
 
       const tasks: Promise<void>[] = [];
@@ -1954,6 +2007,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [showScoreHistory, setShowScoreHistory] = useState(false);
   const [showScoreHistoryDirect, setShowScoreHistoryDirect] = useState(false);
+  const [showProgressDashboard, setShowProgressDashboard] = useState(false);
   const [expandedLevelRow, setExpandedLevelRow] = useState<number | null>(null);
   const [selectedLevelDetail, setSelectedLevelDetail] = useState<typeof LEVEL_INFO[0] | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -2281,6 +2335,7 @@ export const StudentDashboard: React.FC<Props> = ({
   };
 
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [todayDemandCount, setTodayDemandCount] = useState<number | null>(null);
   const [requestData, setRequestData] = useState({
     subject: "",
     topic: "",
@@ -2288,6 +2343,12 @@ export const StudentDashboard: React.FC<Props> = ({
     type: "PDF" as 'PDF' | 'VIDEO' | 'MCQ' | 'NOTES' | 'ANY',
     note: "",
   });
+  useEffect(() => {
+    if (showRequestModal && user?.id) {
+      setTodayDemandCount(null);
+      getUserTodayDemandCount(user.id).then(setTodayDemandCount).catch(() => setTodayDemandCount(0));
+    }
+  }, [showRequestModal, user?.id]);
   const [showAiModal, setShowAiModal] = useState(false);
   const [showHomeworkHistory, setShowHomeworkHistory] = useState(false);
   const [appLang, setAppLangState] = useAppLang();
@@ -2349,7 +2410,7 @@ export const StudentDashboard: React.FC<Props> = ({
     const ch = (contentPickerPopup as any).chapter as Chapter;
     setCourseAvailability(null);
     setCoursePdfUrl(null);
-    const board = activeSessionBoard || user?.board || 'CBSE';
+    const board = activeSessionBoard || user?.board || 'NCERT_EN';
     const classLevel = activeSessionClass || user?.classLevel || '10';
     const subjectName = selectedSubject?.name || '';
     const isSenior = classLevel === '11' || classLevel === '12';
@@ -2442,6 +2503,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const lucentScrollContainerRef = useRef<HTMLDivElement>(null);
   const lucentMilestoneSessionRef = useRef<string | null>(null);
   const lucentControlsRef = useRef<(() => void) | null>(null);
+  const hwControlsRef = useRef<(() => void) | null>(null);
   // Back-navigation refs for the homework viewer — populated during render
   const hwFilteredRef = useRef<any[]>([]);
   const hwGoToRef = useRef<((hw: any) => void) | null>(null);
@@ -2452,8 +2514,9 @@ export const StudentDashboard: React.FC<Props> = ({
   const lucentTtsSessionPtsRef = useRef(0);
 
   // Subscribe to real-time content_index stats from Firebase for each class
+  // Uses activeSessionBoard so switching board immediately shows correct indicators
   useEffect(() => {
-    const board = user?.board || 'CBSE';
+    const board = activeSessionBoard || user?.board || 'NCERT_EN';
     const classes = ['6','7','8','9','10','11','12','COMPETITION'];
     const unsubs = classes.map(cls =>
       subscribeToContentIndex(board, cls, (stats, rawIndex) => {
@@ -2463,7 +2526,7 @@ export const StudentDashboard: React.FC<Props> = ({
       })
     );
     return () => unsubs.forEach(u => u());
-  }, [user?.board]);
+  }, [activeSessionBoard, user?.board]);
 
   // Auto-scroll the top bar button strip when admin enables it
   useEffect(() => {
@@ -2691,10 +2754,8 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
   }, []);
   const handleRotate = async () => {
-    rotateFullscreenRef.current = true;
     const result = await rotateScreen();
-    rotateFullscreenRef.current = false;
-    if (result === null) showAlert('Screen auto-rotate is not supported on this device. Please rotate manually.', 'WARNING');
+    if (result === null) showAlert('📱 Phone ko physically rotate karein — landscape ke liye sideways, portrait ke liye seedha.', 'INFO');
   };
   const [lucentHtmlTtsPlaying, setLucentHtmlTtsPlaying] = useState(false);
   const [hwActivePdf, setHwActivePdf] = useState<string | null>(null);
@@ -2814,7 +2875,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'reveal' = direct-answer "show answer" flow; 'interactive' = build-answer quiz flow.
   const [lucentMcqMode, setLucentMcqMode] = useState<Record<string, 'reveal' | 'interactive'>>({});
   // Flashcard launcher (Lucent + Homework MCQs share this single overlay)
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string } | null>(null);
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string } | null>(null);
   const [hwMcqMode, setHwMcqMode] = useState<Record<string, 'interactive' | 'reveal'>>({});
   const [hwMcqCurrentIdx, setHwMcqCurrentIdx] = useState<Record<string, number>>({});
   const [hwShowAnalysis, setHwShowAnalysis] = useState<string | null>(null);
@@ -2831,7 +2892,52 @@ export const StudentDashboard: React.FC<Props> = ({
   // Tracks htmlViewMode inside ChunkedNotesReader (for download sync without unmounting reader)
   const [lucentChunkHtmlMode, setLucentChunkHtmlMode] = useState<'chunk' | 'html'>('chunk');
   const [lucentSaved, setLucentSaved] = useState(false);
+  const [lucentWriteMenuOpen, setLucentWriteMenuOpen] = useState(false);
+  const [hwWriteMenuOpen, setHwWriteMenuOpen] = useState(false);
   const [hwSaved, setHwSaved] = useState(false);
+  const [inlineEditModal, setInlineEditModal] = useState<{
+    type: 'lucent_html' | 'lucent_chunk' | 'hw_html' | 'hw_chunk';
+    entryId: string;
+    pageIndex?: number;
+    title: string;
+    originalEntry: any;
+  } | null>(null);
+  const [inlineEditContent, setInlineEditContent] = useState('');
+  const [inlineEditSaving, setInlineEditSaving] = useState(false);
+  const [inlineEditPoints, setInlineEditPoints] = useState<string[]>([]);
+  const [inlineEditPointIdx, setInlineEditPointIdx] = useState<number | null>(null);
+  const [inlineEditPointDraft, setInlineEditPointDraft] = useState('');
+
+  const handleInlineEditSave = async () => {
+    if (!inlineEditModal) return;
+    setInlineEditSaving(true);
+    try {
+      const { type, pageIndex, originalEntry } = inlineEditModal;
+      const joinedText = inlineEditPoints.join('\n');
+      if (type === 'lucent_html' || type === 'lucent_chunk') {
+        const updatedPages = [...(originalEntry.pages || [])];
+        if (pageIndex !== undefined && updatedPages[pageIndex]) {
+          updatedPages[pageIndex] = {
+            ...updatedPages[pageIndex],
+            ...(type === 'lucent_html' ? { htmlNotes: joinedText } : { chunkNotes: joinedText }),
+          };
+        }
+        await saveLucentEntryDirect({ ...originalEntry, pages: updatedPages });
+      } else {
+        await saveHomeworkEntryDirect({
+          ...originalEntry,
+          ...(type === 'hw_html' ? { htmlNotes: joinedText } : { chunkNotes: joinedText }),
+        });
+      }
+      showAlert('✅ Notes saved! Pull to refresh to see changes.', 'SUCCESS');
+      setInlineEditModal(null);
+    } catch {
+      showAlert('Save failed. Please try again.', 'ERROR');
+    } finally {
+      setInlineEditSaving(false);
+    }
+  };
+
   const [lucentOptionsOpen, setLucentOptionsOpen] = useState(false);
   const [hwOptionsOpen, setHwOptionsOpen] = useState(false);
   const [lucentFabOpen, setLucentFabOpen] = useState(false);
@@ -3179,6 +3285,13 @@ export const StudentDashboard: React.FC<Props> = ({
     const unsub = subscribeToTopNoteStars(200, setGlobalNoteStars);
     return () => { try { unsub(); } catch {} };
   }, []);
+
+  // Admin-globally-marked important topics — real-time subscription for all users.
+  const [adminImportantTopics, setAdminImportantTopics] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const unsub = subscribeToAdminImportantTopics(setAdminImportantTopics);
+    return () => { try { unsub(); } catch {} };
+  }, []);
   // One-time backfill: pehle ek bug ki wajah se kuch starred notes RTDB me
   // register nahi ho paaye the (pehla `set('users/$uid', true)` rule fail kar
   // raha tha aur Global tab khaali dikhta tha). Ab login ke baad ek baar
@@ -3331,8 +3444,8 @@ export const StudentDashboard: React.FC<Props> = ({
       // Keep syllabusMode in sync — competition chapters must not show school UI and vice versa
       setSyllabusMode(entry.classLevel === 'COMPETITION' ? 'COMPETITION' : 'SCHOOL');
     }
-    if (entry.board === 'CBSE' || entry.board === 'BSEB') {
-      setActiveSessionBoard(entry.board);
+    if (entry.board === 'BSEB' || entry.board === 'NCERT_EN' || entry.board === 'NCERT_HI') {
+      setActiveSessionBoard(entry.board as any);
     }
     // Seed PdfView's per-chapter scroll cache from the entry's saved scrollY
     // so the user lands back on the exact paragraph they stopped at — even
@@ -3370,7 +3483,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // navigation pipeline kicks in.
   const openChapterFromNoteHit = async (hit: NoteSearchResult) => {
     try {
-      const board = (hit.board === 'BSEB' ? 'BSEB' : 'CBSE') as 'CBSE' | 'BSEB';
+      const board = (hit.board === 'BSEB' ? 'BSEB' : hit.board === 'NCERT_HI' ? 'NCERT_HI' : 'NCERT_EN') as 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
       const cls = hit.classLevel;
       const stream = (user.stream || 'Science') as any;
       // Resolve subject by name. Try exact (case-insensitive) match first,
@@ -3416,7 +3529,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   const openChapterFromMcqHit = async (hit: import('../utils/mcqSearcher').McqSearchHit) => {
     try {
-      const board = (hit.board === 'BSEB' ? 'BSEB' : 'CBSE') as 'CBSE' | 'BSEB';
+      const board = (hit.board === 'BSEB' ? 'BSEB' : hit.board === 'NCERT_HI' ? 'NCERT_HI' : 'NCERT_EN') as 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
       const cls = hit.classLevel;
       const stream = (user.stream || 'Science') as any;
       const subs = getSubjectsList(cls, stream, board);
@@ -3775,6 +3888,26 @@ export const StudentDashboard: React.FC<Props> = ({
 
   const isNoteTopicStarred = (noteKey: string, topicText: string) =>
     starredNotes.some(n => n.noteKey === noteKey && n.topicText === topicText);
+
+  // Admin-only: toggle global important mark for a topic.
+  // If already marked → remove; if not → add. Shows a toast for feedback.
+  const toggleAdminImportant = (noteKey: string, topicText: string, source?: StarredNoteSource) => {
+    if (!user?.id || !_isAdminUser) return;
+    const hash = hashTopic(topicText);
+    const alreadyMarked = adminImportantTopics.has(hash);
+    setAdminImportantTopic(
+      user.id,
+      topicText,
+      noteKey,
+      !alreadyMarked,
+      source ? { lessonTitle: source.lessonTitle, subject: source.subject, pageNo: source.pageNo as any, pageIndex: source.pageIndex as any } : undefined
+    ).catch(() => {});
+    try { if (navigator.vibrate) navigator.vibrate(alreadyMarked ? 20 : 60); } catch {}
+    showAlert(alreadyMarked ? '❌ Important mark hataya' : '⭐ Sab students ko Important dikhega!', alreadyMarked ? 'INFO' : 'SUCCESS');
+  };
+
+  // Helper: for any ChunkedNotesReader — returns whether topic is admin-globally-important.
+  const isTopicAdminImportant = (topicText: string) => adminImportantTopics.has(hashTopic(topicText));
 
   // === Important-Notes-page helpers ============================================
   // Try to find source metadata for a free-floating topic text — used by the
@@ -5193,18 +5326,18 @@ export const StudentDashboard: React.FC<Props> = ({
     setContentViewStep("CHAPTERS");
     setSelectedChapter(null);
     setLoadingChapters(true);
-    const lang =
-      (activeSessionBoard || user.board) === "BSEB" ? "Hindi" : "English";
+    const _b = activeSessionBoard || user.board;
+    const lang = (_b === "BSEB" || _b === "NCERT_HI") ? "Hindi" : "English";
     const currentClass = (activeSessionClass as any) || user.classLevel || "10";
 
     // For class 6-12: prepend admin-added Lucent-style lessons (multi-page notes)
     // as lucent_admin_* chapters at the top of the chapter list. Same handler
     // at ChapterSelection onSelect already handles clicking these → lucentPageListViewer.
     const _adminLucentNotes = (settings?.lucentNotes || []) as LucentNoteEntry[];
-    const _activeBoard = activeSessionBoard || user.board || 'CBSE';
+    const _activeBoard = activeSessionBoard || user.board || 'NCERT_EN';
     const adminClassLessons = currentClass !== 'COMPETITION'
       ? _adminLucentNotes
-          .filter(n => String(n.classLevel) === String(currentClass) && String(n.subject) === String(subject.id) && (!n.board || n.board === _activeBoard))
+          .filter(n => String(n.classLevel) === String(currentClass) && String(n.subject) === String(subject.id) && (n.board === _activeBoard || (!n.board && _activeBoard === 'NCERT_EN')))
           .sort((a, b) => (a.lessonTitle || '').localeCompare(b.lessonTitle || ''))
       : [];
     const adminChapters: Chapter[] = adminClassLessons.map(n => ({
@@ -5222,7 +5355,7 @@ export const StudentDashboard: React.FC<Props> = ({
     }
 
     fetchChapters(
-      activeSessionBoard || user.board || "CBSE",
+      activeSessionBoard || user.board || "NCERT_EN",
       currentClass,
       user.stream || "Science",
       subject,
@@ -5281,7 +5414,7 @@ export const StudentDashboard: React.FC<Props> = ({
     type: "VIDEO" | "PDF" | "MCQ" | "AUDIO" | "GENERIC",
   ) => {
     // Active board for this render — used to filter board-specific admin content
-    const _curBoard = (activeSessionBoard || user.board || 'CBSE') as 'CBSE' | 'BSEB';
+    const _curBoard = (activeSessionBoard || user.board || 'NCERT_EN') as 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
     const goBack = () => {
       if (document.fullscreenElement) {
           document.exitFullscreen().catch(err => console.log(err));
@@ -5327,7 +5460,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const { classLevel: cv, subject: sv } = class612SubjectView;
       const _allLucent = (settings?.lucentNotes || []) as LucentNoteEntry[];
       const classLessons = _allLucent
-        .filter(n => String(n.classLevel) === String(cv) && String(n.subject).toLowerCase().trim() === String(sv.id).toLowerCase().trim() && (!n.board || n.board === _curBoard))
+        .filter(n => String(n.classLevel) === String(cv) && String(n.subject).toLowerCase().trim() === String(sv.id).toLowerCase().trim() && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
         .sort((a, b) => (a.lessonTitle || '').localeCompare(b.lessonTitle || ''));
 
       return (
@@ -5474,7 +5607,7 @@ export const StudentDashboard: React.FC<Props> = ({
         return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
       };
       const filteredHw = (settings?.homework || [])
-        .filter(hw => hw.targetSubject === homeworkSubjectView && (!hw.board || hw.board === _curBoard))
+        .filter(hw => hw.targetSubject === homeworkSubjectView && (hw.board === _curBoard || (!hw.board && _curBoard === 'NCERT_EN')))
         .sort((a, b) => {
           if (isPageWiseSubject) {
             const pa = _toPage(a), pb = _toPage(b);
@@ -5561,7 +5694,7 @@ export const StudentDashboard: React.FC<Props> = ({
         return m === Infinity ? 99999 : m;
       };
       const subjectLucentLessons = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (!n.board || n.board === _curBoard))
+        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
         .sort((a, b) => _subjLucentMinPg(a) - _subjLucentMinPg(b));
       const showLucentSection = subjectLucentLessons.length > 0
         && hwYear === null && hwMonth === null && hwWeek === null && !hwActiveHwId;
@@ -5774,94 +5907,188 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
             )}
             {/* Sticky header — hidden in read mode so ChunkedNotesReader slim bar acts as the header */}
-            <div className={`text-white px-4 py-3 flex items-center gap-2 shrink-0 ${hwImmersive || isLandscape || (effectiveMode === 'notes' && hwNotesViewMode === 'chunk') ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
-              <button onClick={goBack} className="bg-white/20 hover:bg-white/30 p-2 rounded-full shrink-0 transition-colors">
-                <ChevronRight size={18} className="rotate-180" />
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest truncate flex items-center gap-1.5">
-                  <span className="truncate">{crumb}</span>
-                  {activeHw.date && (
-                    <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">
-                      📅 {new Date(activeHw.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
-                </p>
-                <div className="flex items-center gap-2 min-w-0">
-                  <p className="font-black text-sm leading-tight truncate">{activeHw.title}</p>
-                  {effectiveMode === 'notes' && hwNotesViewMode === 'html' && (
-                    <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-white/30 select-none">WRITE MODE</span>
+            <div className={`text-white shrink-0 ${hwImmersive || (isLandscape && !(effectiveMode === 'notes' && hwNotesViewMode === 'html')) || (effectiveMode === 'notes' && hwNotesViewMode === 'chunk') ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
+              {(effectiveMode === 'notes' && hwNotesViewMode === 'html') ? (
+                /* ── WRITE MODE: 2-row layout ── */
+                <div className="px-3 py-2 flex flex-col gap-1.5">
+                  {/* Row 1: Back + crumb · title + WRITE badge + toggle */}
+                  <div className="flex items-center gap-2">
+                    <button onClick={goBack} className="bg-white/20 hover:bg-white/30 p-2 rounded-full shrink-0 transition-colors">
+                      <ChevronRight size={18} className="rotate-180" />
+                    </button>
+                    <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden">
+                      <span className="shrink-0 text-[10px] font-bold opacity-60 uppercase tracking-widest whitespace-nowrap">{crumb}</span>
+                      {activeHw.date && (
+                        <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">
+                          📅 {new Date(activeHw.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </span>
+                      )}
+                      <span className="font-black text-sm leading-tight truncate">{activeHw.title}</span>
+                    </div>
+                    <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-white/30 select-none whitespace-nowrap">✏️ WRITE</span>
+                    <button
+                      onClick={() => setHwWriteMenuOpen(v => !v)}
+                      className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all active:scale-90 shrink-0 ${hwWriteMenuOpen ? 'bg-white/30 border-white/50' : 'bg-white/15 border-white/25'}`}
+                      title="Toggle Controls"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                  </div>
+                  {/* Row 2: Controls — toggled by button in Row 1 */}
+                  {hwWriteMenuOpen && (
+                    <div className="flex items-center gap-1.5">
+                      {/* Admin WhiteBoard trigger */}
+                      {_isAdminUser && (
+                        <button
+                          onClick={() => setShowAdminBoard(true)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
+                          title="Admin WhiteBoard"
+                        >
+                          <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                        </button>
+                      )}
+                      {/* Admin Edit (Pencil) — inline HTML editor */}
+                      {_isAdminUser && (
+                        <button
+                          onClick={() => {
+                            const src = (activeHw as any)?.htmlNotes || '';
+                            setInlineEditContent(src);
+                            setInlineEditPoints(splitHtmlIntoBlocks(src));
+                            setInlineEditPointIdx(null);
+                            setInlineEditPointDraft('');
+                            setInlineEditModal({
+                              type: 'hw_html',
+                              entryId: activeHw.id || '',
+                              title: activeHw.title || 'Competition Note',
+                              originalEntry: activeHw,
+                            });
+                            setHwWriteMenuOpen(false);
+                          }}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-orange-400/30 border border-orange-300/50 text-orange-200 active:scale-90 transition-all shrink-0"
+                          title="Edit HTML Notes (Admin)"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                      {/* A− / % / A+ zoom group */}
+                      <div className="flex items-center rounded-xl overflow-hidden border border-white/25" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                        <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center text-white text-[11px] font-black active:scale-90 transition-all hover:bg-white/15">A−</button>
+                        <span className="px-1 text-white/70 text-[10px] font-bold tabular-nums border-x border-white/20">{Math.round(noteZoom * 100)}%</span>
+                        <button onClick={zoomIn} className="w-7 h-7 flex items-center justify-center text-white text-[11px] font-black active:scale-90 transition-all hover:bg-white/15">A+</button>
+                      </div>
+                      {/* Rotate */}
+                      <button
+                        onClick={handleRotate}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                        title="Rotate Screen"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      {/* Save Offline */}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const chunkSrc = (activeHw as any).chunkNotes;
+                            const htmlSrc = (activeHw as any).htmlNotes;
+                            const content = chunkSrc?.trim() || htmlSrc?.trim() || activeHw.notes || '';
+                            await saveOfflineItem({
+                              id: `hw_${activeHw.id}`,
+                              type: 'NOTE',
+                              title: activeHw.title || 'Homework',
+                              subtitle: `Competition · ${activeHw.targetSubject || ''}`,
+                              data: { kind: 'LUCENT_CHUNK', chunkNotes: content, lessonTitle: activeHw.title, subject: activeHw.targetSubject },
+                            });
+                            setHwSaved(true);
+                            showAlert('✅ Saved offline! Check the Offline tab.', 'SUCCESS');
+                            setTimeout(() => setHwSaved(false), 3000);
+                          } catch { showAlert('Save failed. Please try again.', 'ERROR'); }
+                        }}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${hwSaved ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                        title={hwSaved ? 'Offline Saved ✓' : 'Save Offline'}
+                      >
+                        <WifiOff size={14} />
+                      </button>
+                      {/* Download */}
+                      {(activeHw as any).htmlNotes && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const safeTitle = (activeHw.title || 'Homework').replace(/[^a-z0-9_\- ]/gi, '_').slice(0, 60);
+                              const _dlOk = await checkAndDoDownload(async () => {
+                                await downloadAsMHTML('hw-html-download', safeTitle, { appName: settings?.appShortName || settings?.appName || 'IIC', pageTitle: activeHw.title || 'Homework', subtitle: 'Homework Notes — Write Mode' });
+                              });
+                              if (_dlOk) showAlert('📥 Saved!', 'SUCCESS');
+                            } catch { showAlert('Download failed. Please try again.', 'ERROR'); }
+                          }}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white transition-all active:scale-90 shrink-0"
+                          title="Notes Download karo"
+                        >
+                          <Download size={14} />
+                        </button>
+                      )}
+                      {/* More Options */}
+                      <button
+                        onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 text-white transition-all active:scale-90 shrink-0 ml-auto"
+                        title="More Options"
+                      >
+                        <LayoutGrid size={14} />
+                      </button>
+                    </div>
                   )}
                 </div>
-              </div>
-              {/* Write mode inline top-bar controls */}
-              {effectiveMode === 'notes' && hwNotesViewMode === 'html' && (
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* A− / % / A+ group */}
-                  <div className="flex items-center rounded-xl overflow-hidden border border-white/25" style={{ background: 'rgba(255,255,255,0.12)' }}>
-                    <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center text-white text-[11px] font-black active:scale-90 transition-all hover:bg-white/15">A−</button>
-                    <span className="px-1 text-white/70 text-[10px] font-bold tabular-nums border-x border-white/20">{Math.round(noteZoom * 100)}%</span>
-                    <button onClick={zoomIn} className="w-7 h-7 flex items-center justify-center text-white text-[11px] font-black active:scale-90 transition-all hover:bg-white/15">A+</button>
-                  </div>
-                  {/* Rotate */}
-                  <button
-                    onClick={handleRotate}
-                    className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
-                    title="Rotate Screen"
-                  >
-                    <RotateCcw size={14} />
+              ) : (
+                /* ── OTHER MODES (audio / video / pdf / mcq): single-row layout ── */
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <button onClick={goBack} className="bg-white/20 hover:bg-white/30 p-2 rounded-full shrink-0 transition-colors">
+                    <ChevronRight size={18} className="rotate-180" />
                   </button>
-                  {/* Save Offline */}
-                  {(activeHw as any).htmlNotes && (
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest truncate flex items-center gap-1.5">
+                      <span className="truncate">{crumb}</span>
+                      {activeHw.date && (
+                        <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">
+                          📅 {new Date(activeHw.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                    </p>
+                    <p className="font-black text-sm leading-tight truncate">{activeHw.title}</p>
+                  </div>
+                  {/* Admin WhiteBoard trigger */}
+                  {_isAdminUser && (
                     <button
-                      onClick={async () => {
-                        try {
-                          const safeTitle = (activeHw.title || 'Homework').replace(/[^a-z0-9_\- ]/gi, '_').slice(0, 60);
-                          const _dlOk = await checkAndDoDownload(async () => {
-                            await downloadAsMHTML('hw-html-download', safeTitle, { appName: settings?.appShortName || settings?.appName || 'IIC', pageTitle: activeHw.title || 'Homework', subtitle: 'Homework Notes — Write Mode' });
-                          });
-                          if (_dlOk) showAlert('📥 Saved!', 'SUCCESS');
-                        } catch { showAlert('Download failed. Please try again.', 'ERROR'); }
-                      }}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                      title="Save Offline"
+                      onClick={() => setShowAdminBoard(true)}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
+                      title="Admin WhiteBoard"
                     >
-                      <Download size={14} />
+                      <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
                     </button>
                   )}
-                  {/* More Options */}
-                  <button
-                    onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                    title="More Options"
-                  >
-                    <LayoutGrid size={14} />
-                  </button>
+                  {/* More button — non-write modes */}
+                  {effectiveMode !== 'choose' && (
+                    <button
+                      onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                      title="More — Switch Content"
+                    >
+                      <LayoutGrid size={14} />
+                    </button>
+                  )}
+                  {/* Rotate — video only */}
+                  {effectiveMode === 'video' && (
+                    <button
+                      onClick={handleRotate}
+                      className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                      title="Screen Rotate"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                  <span className="bg-white/20 text-white text-[11px] font-black px-2.5 py-1 rounded-full shrink-0">
+                    {flatIdx + 1}/{filteredHw.length}
+                  </span>
                 </div>
               )}
-              {/* More button — visible in audio / video / pdf / mcq modes (not write-notes, not choose) */}
-              {effectiveMode !== 'choose' && !(effectiveMode === 'notes' && hwNotesViewMode === 'html') && (
-                <button
-                  onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                  title="More — Switch Content"
-                >
-                  <LayoutGrid size={14} />
-                </button>
-              )}
-              {/* Rotate button — only in video mode */}
-              {effectiveMode === 'video' && (
-                <button
-                  onClick={handleRotate}
-                  className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
-                  title="Screen Rotate"
-                >
-                  <RotateCcw size={14} />
-                </button>
-              )}
-              <span className="bg-white/20 text-white text-[11px] font-black px-2.5 py-1 rounded-full shrink-0">
-                {flatIdx + 1}/{filteredHw.length}
-              </span>
             </div>
 
             {/* CHOOSER OVERLAY — appears when both notes and MCQ exist and user hasn't picked yet */}
@@ -5924,7 +6151,7 @@ export const StudentDashboard: React.FC<Props> = ({
             {effectiveMode === 'video' && hasVideo && (
               <div className={`flex-1 relative bg-black overflow-hidden ${!isLandscape ? 'pb-[72px]' : ''}`}>
                 <div style={{ position: 'absolute', inset: 0, bottom: isLandscape ? 0 : 72 }}>
-                  <CustomPlayer videoUrl={activeHw.videoUrl!} onBack={goBack} onBrandingClick={() => setHwImmersive(v => !v)} badgePos={settings?.iicNstaBadgePos} isAdmin={_isAdminUser} onBadgePosChange={handleBadgePosChange} badgeLabel={settings?.playerBadgeLabel} fsButtonLabel={settings?.playerFsButtonLabel} />
+                  <CustomPlayer videoUrl={activeHw.videoUrl!} onBack={goBack} onBrandingClick={() => setHwImmersive(v => !v)} badgePos={settings?.iicNstaBadgePos} isAdmin={_isAdminUser} onBadgePosChange={handleBadgePosChange} badgeLabel={settings?.playerBadgeLabel} fsButtonLabel={settings?.playerFsButtonLabel} hideYtLogoBlocker={settings?.hideYtLogoBlocker} />
                 </div>
               </div>
             )}
@@ -6059,6 +6286,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   dangerouslySetInnerHTML={{ __html: buildNoteStyleBlock((activeHw as any).lightCSS, (activeHw as any).darkCSS) + processHtmlForWriteMode((activeHw as any).htmlNotes || combinedNotes || '') }}
                                 />
                               </div>
+                              {syllabusMode !== 'COMPETITION' && <WriteModeCorrection user={user} lessonTitle={activeHw.title} subject={activeHw.targetSubject} />}
                             </div>
                           ) : (
                             <div className="bg-slate-50 rounded-2xl p-8 text-center border border-slate-200 mx-4 mt-4">
@@ -6072,6 +6300,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       /* ── Read Mode: ChunkedNotesReader TTS ── */
                       <ChunkedNotesReader
                         key={`hw-reader-${activeHw.id}-chunk`}
+                        triggerControlsRef={hwControlsRef}
                         onBack={goBack}
                         onSaveOffline={async () => {
                           try {
@@ -6128,6 +6357,19 @@ export const StudentDashboard: React.FC<Props> = ({
                         hideTopBar={hwImmersive}
                         suppressStickyControls={hwImmersive}
                         preferChunkMode={true}
+                        isAdmin={user.role === 'ADMIN' || user.role === 'SUB_ADMIN'}
+                        onAdminEdit={(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') ? () => {
+                          const chunkSrc = (activeHw as any)?.chunkNotes || '';
+                          setInlineEditPoints(chunkSrc.split('\n'));
+                          setInlineEditPointIdx(null);
+                          setInlineEditPointDraft('');
+                          setInlineEditModal({
+                            type: 'hw_chunk',
+                            entryId: activeHw.id || '',
+                            title: activeHw.title || 'Competition Note',
+                            originalEntry: activeHw,
+                          });
+                        } : undefined}
                         searchQuery={pendingReadQuery}
                         getStarCount={getNoteStarCount}
                         initialIndex={activeHw.id ? hwNotePositions[activeHw.id] ?? null : null}
@@ -6184,17 +6426,13 @@ export const StudentDashboard: React.FC<Props> = ({
                           } catch {}
                         }}
                         noteKey={activeHw.id ? `hw_${activeHw.id}` : undefined}
-                        isStarred={activeHw.id ? (text) => isNoteTopicStarred(`hw_${activeHw.id}`, text) : undefined}
-                        onStarToggle={activeHw.id ? (text) => toggleStarNote(
-                          `hw_${activeHw.id}`,
-                          text,
-                          {
-                            kind: 'homework',
-                            hwId: activeHw.id,
-                            lessonTitle: activeHw.title,
-                            subject: activeHw.targetSubject,
-                          }
-                        ) : undefined}
+                        isStarred={activeHw.id ? (text) => _isAdminUser ? isTopicAdminImportant(text) : isNoteTopicStarred(`hw_${activeHw.id}`, text) : undefined}
+                        onStarToggle={activeHw.id ? (text) => _isAdminUser
+                          ? toggleAdminImportant(`hw_${activeHw.id}`, text, { kind: 'homework', hwId: activeHw.id, lessonTitle: activeHw.title, subject: activeHw.targetSubject })
+                          : toggleStarNote(`hw_${activeHw.id}`, text, { kind: 'homework', hwId: activeHw.id, lessonTitle: activeHw.title, subject: activeHw.targetSubject })
+                        : undefined}
+                        isAdminImportant={isTopicAdminImportant}
+                        sourceMeta={{ lessonTitle: activeHw.title, subject: activeHw.targetSubject }}
                         readingScoreConfig={user?.id ? {
                           userId: user.id,
                           userLevel: getLevelInfo(user.totalScore || 0).level,
@@ -6314,7 +6552,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       ) : (
                         <div className="flex-1 relative bg-black">
                           <div style={{ position: 'absolute', inset: 0 }}>
-                            <CustomPlayer videoUrl={hwFullscreenMedia.url} onBack={goBack} onBrandingClick={() => setHwImmersive(v => !v)} badgePos={settings?.iicNstaBadgePos} isAdmin={_isAdminUser} onBadgePosChange={handleBadgePosChange} badgeLabel={settings?.playerBadgeLabel} fsButtonLabel={settings?.playerFsButtonLabel} />
+                            <CustomPlayer videoUrl={hwFullscreenMedia.url} onBack={goBack} onBrandingClick={() => setHwImmersive(v => !v)} badgePos={settings?.iicNstaBadgePos} isAdmin={_isAdminUser} onBadgePosChange={handleBadgePosChange} badgeLabel={settings?.playerBadgeLabel} fsButtonLabel={settings?.playerFsButtonLabel} hideYtLogoBlocker={settings?.hideYtLogoBlocker} />
                           </div>
                         </div>
                       )}
@@ -6373,6 +6611,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               title: activeHw.title || 'Homework MCQs',
                               subtitle: 'Flashcard Mode',
                               subject: activeHw.targetSubject || activeHw.subject || activeHw.subjectName || '—',
+                              sourceKey: `hw_${activeHw.id}`,
                             });
                           }}
                           className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95"
@@ -7120,7 +7359,7 @@ export const StudentDashboard: React.FC<Props> = ({
       };
       // All COMPETITION-level admin notes — filtered by classLevel=COMPETITION + active board
       const competitionNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (!n.board || n.board === _curBoard));
+        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')));
       // Unique book names — entries with no bookName fall under 'Lucent'
       const uniqueBooks: string[] = Array.from(
         new Set(competitionNotes.map(n => (n.bookName?.trim()) || 'Lucent'))
@@ -7201,7 +7440,7 @@ export const StudentDashboard: React.FC<Props> = ({
       // STEP 2 — Subject categories (only for 'Lucent' book)
       // Pre-compute lesson counts per subject so we can show badges and block empty navigation
       const _allCompNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (!n.board || n.board === _curBoard));
+        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')));
       const _lucentSubjectCount = (catId: string) =>
         _allCompNotes.filter(n => n.subject?.toLowerCase().trim() === catId.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent').length;
 
@@ -7233,7 +7472,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 // Admin lessons for this subject under 'Lucent' book — board-filtered
                 const allLucentNotes = (settings?.lucentNotes || []) as LucentNoteEntry[];
                 const subjectEntries = allLucentNotes
-                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (!n.board || n.board === _curBoard))
+                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
                   .sort((a, b) => _minPg(a) - _minPg(b));
 
                 // No lessons yet — don't navigate to a blank page
@@ -7262,7 +7501,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 }
 
                 // Multiple lessons → show chapters list
-                const lang = (activeSessionBoard || user.board) === "BSEB" ? "Hindi" : "English";
+                const _b7 = activeSessionBoard || user.board;
+                const lang = (_b7 === "BSEB" || _b7 === "NCERT_HI") ? "Hindi" : "English";
                 const adminLucentLessons: Chapter[] = subjectEntries.map(n => {
                   const mp = _minPg(n);
                   return {
@@ -7283,7 +7523,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   setChapters(adminLucentLessons);
                   setLoadingChapters(false);
                 } else {
-                  fetchChapters(activeSessionBoard || user.board || "CBSE", 'COMPETITION', user.stream || "Science", cat, lang).then((data) => {
+                  fetchChapters(activeSessionBoard || user.board || "NCERT_EN", 'COMPETITION', user.stream || "Science", cat, lang).then((data) => {
                     const sorted = [...data].sort((a, b) => a.title.localeCompare(b.title));
                     setChapters([...adminLucentLessons, ...sorted]);
                     setLoadingChapters(false);
@@ -7395,9 +7635,9 @@ export const StudentDashboard: React.FC<Props> = ({
       {
         category: "Fun & Utilities",
         items: [
-          {
+          ...(user.role === 'TEACHER' ? [{
             id: "TEACHER_STORE_MENU",
-            label: user.role === 'TEACHER' ? "Teacher Store" : "Become a Teacher",
+            label: "Teacher Store",
             icon: LayoutGrid,
             color: "violet",
             action: () => {
@@ -7405,7 +7645,7 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowSidebar(false);
             },
             featureId: "TEACHER_STORE",
-          },
+          }] : []),
           {
             id: "LEADERBOARD_MENU",
             label: "Leaderboard",
@@ -7413,6 +7653,16 @@ export const StudentDashboard: React.FC<Props> = ({
             color: "amber",
             action: () => {
               onTabChange("LEADERBOARD");
+              setShowSidebar(false);
+            },
+          },
+          {
+            id: "MY_PROGRESS",
+            label: "Mera Progress",
+            icon: TrendingUp,
+            color: "indigo",
+            action: () => {
+              setShowProgressDashboard(true);
               setShowSidebar(false);
             },
           },
@@ -7932,7 +8182,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
             {/* ── CLASS 6-12 GRID + QUICK ACTIONS (themed to top-bar color) ── */}
             {(() => {
-              const _board = activeSessionBoard || user.board || 'CBSE';
+              const _board = activeSessionBoard || user.board || 'NCERT_EN';
               const _stream = user.stream || 'Science';
               const isActive = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
               const level = user.subscriptionLevel || '';
@@ -8058,6 +8308,23 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                   )}
 
+                  {/* ── MY SCHOOL CARD ── */}
+                  {userSchool && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="flex-1 h-px" style={{ background: `${tierTheme.primary}30` }} />
+                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: tierTheme.primary }}> My School</span>
+                        <span className="flex-1 h-px" style={{ background: `${tierTheme.primary}30` }} />
+                      </div>
+                      <SchoolHomeCard
+                        school={userSchool}
+                        onOpen={() => { hapticStrong(); onOpenSchool?.(); }}
+                        onChangeSchool={() => { hapticMedium(); onOpenSchool?.(); }}
+                        card3D={settings?.tierOverrides?.card3D ?? false}
+                      />
+                    </div>
+                  )}
+
                   {/* ── QUICK ACTION CARDS 3×2 ── */}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
@@ -8144,6 +8411,8 @@ export const StudentDashboard: React.FC<Props> = ({
           user={user}
           onBack={() => onTabChange("HOME")}
           settings={settings}
+          isAdmin={_isAdminUser}
+          onBadgePosChange={handleBadgePosChange}
         />
       );
     }
@@ -8163,7 +8432,8 @@ export const StudentDashboard: React.FC<Props> = ({
           onOpenMcq={(subjectId, chapterId, chapterTitle, topic) => {
             try {
               // Navigate to MCQ view for this chapter
-              const lang = (activeSessionBoard || user.board) === "BSEB" ? "Hindi" : "English";
+              const _b8 = activeSessionBoard || user.board;
+              const lang = (_b8 === "BSEB" || _b8 === "NCERT_HI") ? "Hindi" : "English";
               const subjects = getSubjectsList(
                 (activeSessionClass as any) || user.classLevel || "10",
                 user.stream || "Science",
@@ -8172,7 +8442,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const targetSubject = subjects.find(s => s.id === subjectId) || subjects[0];
               if (targetSubject) {
                 fetchChapters(
-                  activeSessionBoard || user.board || "CBSE",
+                  activeSessionBoard || user.board || "NCERT_EN",
                   (activeSessionClass as any) || user.classLevel || "10",
                   user.stream || "Science",
                   targetSubject,
@@ -8205,10 +8475,8 @@ export const StudentDashboard: React.FC<Props> = ({
           onNavigateContent={(type, chapterId, topicName, subjectName) => {
             // Navigate to MCQ Player
             setLoadingChapters(true);
-            const lang =
-              (activeSessionBoard || user.board) === "BSEB"
-                ? "Hindi"
-                : "English";
+            const _bNav = activeSessionBoard || user.board;
+            const lang = (_bNav === "BSEB" || _bNav === "NCERT_HI") ? "Hindi" : "English";
 
             // Fix Subject Context FIRST
             const subjects = getSubjectsList(
@@ -8226,7 +8494,7 @@ export const StudentDashboard: React.FC<Props> = ({
             }
 
             fetchChapters(
-              activeSessionBoard || user.board || "CBSE",
+              activeSessionBoard || user.board || "NCERT_EN",
               (activeSessionClass as any) || user.classLevel || "10",
               user.stream || "Science",
               targetSubject,
@@ -8265,7 +8533,7 @@ export const StudentDashboard: React.FC<Props> = ({
               board={activeSessionBoard as any}
               settings={settings}
               initialParentSubject={initialParentSubject}
-              contentIndex={classContentIndex[`${activeSessionBoard || user.board || 'CBSE'}_${activeSessionClass || '10'}`] || {}}
+              contentIndex={classContentIndex[`${activeSessionBoard || user.board || 'NCERT_EN'}_${activeSessionClass || '10'}`] || {}}
               lucentNotes={(settings?.lucentNotes || []) as any[]}
               subscriptionLevel={user.subscriptionLevel}
               isPremium={user.isPremium}
@@ -10032,7 +10300,7 @@ export const StudentDashboard: React.FC<Props> = ({
               onClick={() => {
                 setSyllabusMode('SCHOOL');
                 setActiveSessionClass(showBoardPromptForClass);
-                setActiveSessionBoard("CBSE");
+                setActiveSessionBoard("NCERT_EN");
                 setShowBoardPromptForClass(null);
                 setContentViewStep("SUBJECTS");
                 setInitialParentSubject(null);
@@ -10040,9 +10308,9 @@ export const StudentDashboard: React.FC<Props> = ({
               }}
               className="py-4 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:border-blue-500 hover:bg-blue-50 transition-all"
             >
-              CBSE <br />
+              NCERT English <br />
               <span className="text-[10px] font-medium text-slate-500">
-                (English)
+                (English Medium)
               </span>
             </button>
             <button
@@ -10174,6 +10442,10 @@ export const StudentDashboard: React.FC<Props> = ({
   <ThemeProvider theme={_extendedTheme}>
     <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
       <NotificationPrompt />
+      {/* Admin WhiteBoard floating panel — fixed z-[9999], visible in ALL modes */}
+      {_isAdminUser && showAdminBoard && (
+        <AdminWhiteBoard onClose={() => setShowAdminBoard(false)} />
+      )}
       {/* ADMIN SWITCH BUTTON — only visible inside content (Notes/MCQ player or HW notes) */}
       {(user.role === "ADMIN" ||
         user.role === "SUB_ADMIN" ||
@@ -10202,7 +10474,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* NEW GLOBAL TOP BAR */}
       <div
         id="top-banner-container"
-        className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-150 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
+        className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-150 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE' || activeTab === 'UNIVERSAL_VIDEO') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
         style={{ background: tierTheme.topBarGrad, paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Main Header Row */}
@@ -10660,6 +10932,16 @@ export const StudentDashboard: React.FC<Props> = ({
               );
             })()}
 
+            {/* 💡 Suggestions & Corrections */}
+            <button
+              onClick={() => setShowSuggestionsPanel(true)}
+              className="p-[3px] rounded-xl transition-colors relative text-white shrink-0 active:scale-95"
+              title="Suggestions & Corrections"
+              style={{ color: 'rgba(255,255,255,0.85)' }}
+            >
+              <Lightbulb size={18} />
+            </button>
+
             {/* 3-dot menu */}
             <div className="relative shrink-0">
               <button
@@ -10706,14 +10988,19 @@ export const StudentDashboard: React.FC<Props> = ({
 
                       {/* Board switch */}
                       <div className="px-3 pt-2 pb-2 border-b border-slate-100">
-                        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 px-0.5">Board चुनें</p>
+                        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg gap-0.5">
                           <button
-                            onClick={() => { setActiveSessionBoard("CBSE"); }}
-                            className={`flex-1 py-1 text-[11px] font-black rounded-md transition-all ${activeSessionBoard !== "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
-                          >CBSE</button>
+                            onClick={() => { setActiveSessionBoard("NCERT_EN"); }}
+                            className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${activeSessionBoard === "NCERT_EN" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
+                          >NCERT EN</button>
+                          <button
+                            onClick={() => { setActiveSessionBoard("NCERT_HI"); }}
+                            className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${activeSessionBoard === "NCERT_HI" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
+                          >NCERT HI</button>
                           <button
                             onClick={() => { setActiveSessionBoard("BSEB"); }}
-                            className={`flex-1 py-1 text-[11px] font-black rounded-md transition-all ${activeSessionBoard === "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
+                            className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${activeSessionBoard === "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
                           >BSEB</button>
                         </div>
                       </div>
@@ -12007,14 +12294,16 @@ export const StudentDashboard: React.FC<Props> = ({
                   }
                   className="w-full p-3 rounded-xl border border-slate-200 font-bold bg-slate-50"
                 >
-                  {(settings?.allowedBoards || ["CBSE", "BSEB"]).map((b) => (
+                  {(settings?.allowedBoards || ["NCERT_EN", "NCERT_HI", "BSEB"]).map((b) => (
                     <option key={b} value={b}>
-                      {b}{" "}
-                      {b === "CBSE"
-                        ? "(English)"
-                        : b === "BSEB"
-                          ? "(Hindi)"
-                          : ""}
+                      {b === "NCERT_EN" ? "NCERT English" : b === "NCERT_HI" ? "NCERT Hindi" : b}{" "}
+                      {b === "NCERT_EN"
+                        ? "(English Medium)"
+                        : b === "NCERT_HI"
+                          ? "(Hindi Medium)"
+                          : b === "BSEB"
+                            ? "(Bihar Board)"
+                            : ""}
                     </option>
                   ))}
                 </select>
@@ -12382,26 +12671,6 @@ export const StudentDashboard: React.FC<Props> = ({
                   );
                 })()}
 
-                {/* FULL BOOK COMPARE — Homework section shortcut (ULTRA only) */}
-                {user.subscriptionLevel === 'ULTRA' && user.isPremium && (
-                  <button
-                    onClick={() => setShowFullBookCompare(true)}
-                    className="w-full rounded-2xl p-3.5 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white shadow-lg relative overflow-hidden text-left active:scale-[0.98] transition-all flex items-center gap-3"
-                  >
-                    <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(105deg,transparent 30%,rgba(168,85,247,0.2) 50%,transparent 70%)', animation: 'shimmer-sweep 2.5s linear infinite' }} />
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 relative z-10">
-                      <GitCompare size={18} className="text-yellow-400" />
-                    </div>
-                    <div className="flex-1 relative z-10 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-black text-sm">Full Book Compare</p>
-                        <span className="text-[8px] font-black bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">ULTRA</span>
-                      </div>
-                      <p className="text-[11px] text-purple-200">Select a topic — see common and extra points</p>
-                    </div>
-                    <ChevronRight size={15} className="text-purple-300 shrink-0 relative z-10" />
-                  </button>
-                )}
 
                 {/* TODAY'S HOMEWORK BANNER */}
                 {todaysHw.length > 0 && (
@@ -13007,6 +13276,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   options: m.options,
                                   correctAnswer: m.correctAnswer,
                                   explanation: (m as any).explanation || '',
+                                  id: (m as any).id || '',
                                 })),
                                 title: 'Practice MCQs',
                                 subtitle: `Flashcard Mode · ${allMcqs.length} cards`,
@@ -14184,6 +14454,32 @@ export const StudentDashboard: React.FC<Props> = ({
                 />
               </div>
 
+              {/* Daily request counter pill */}
+              {(() => {
+                const DAILY_LIMIT = 5;
+                const used = todayDemandCount ?? 0;
+                const remaining = DAILY_LIMIT - used;
+                const isLoading = todayDemandCount === null;
+                const isFull = used >= DAILY_LIMIT;
+                return (
+                  <div className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold border ${isFull ? 'bg-red-50 border-red-200 text-red-600' : remaining === 1 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[14px]">{isFull ? '🚫' : remaining === 1 ? '⚠️' : '📋'}</span>
+                      <span>
+                        {isLoading ? 'Aaj ki requests check ho rahi hain…' :
+                         isFull ? 'Aaj ki limit poori ho gayi (5/5)' :
+                         `${used}/5 requests aaj use ki hain`}
+                      </span>
+                    </span>
+                    {!isLoading && !isFull && (
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${remaining === 1 ? 'bg-amber-200 text-amber-800' : 'bg-indigo-100 text-indigo-600'}`}>
+                        {remaining} baki
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Buttons */}
               <div className="flex gap-2 pt-1">
                 <button
@@ -14193,11 +14489,31 @@ export const StudentDashboard: React.FC<Props> = ({
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
+                  disabled={todayDemandCount !== null && todayDemandCount >= 5}
+                  onClick={async () => {
                     if (!requestData.subject.trim() || !requestData.topic.trim()) {
                       showAlert("Subject and lesson name are required", "ERROR");
                       return;
                     }
+
+                    // 1. Daily limit check — use cached count first, re-fetch to confirm
+                    const todayCount = todayDemandCount !== null ? todayDemandCount : await getUserTodayDemandCount(user.id);
+                    if (todayCount >= 5) {
+                      showAlert("⚠️ Aaj ki limit poori ho gayi! Ek din mein sirf 5 request bhej sakte ho. Kal dobara try karo.", "ERROR");
+                      return;
+                    }
+
+                    // 2. Duplicate check — if same subject+chapter already pending, increment count
+                    const duplicate = await findDuplicateDemand(requestData.subject.trim(), requestData.topic.trim());
+                    if (duplicate) {
+                      await incrementDemandReportCount(duplicate.id);
+                      setShowRequestModal(false);
+                      setRequestData({ subject: '', topic: '', pageNo: '', type: 'PDF', note: '' });
+                      showAlert(`📌 Ye request already exist karti hai! Iske report count mein +1 add kar diya gaya. Admin isse priority se dekha jayega.`, "INFO");
+                      return;
+                    }
+
+                    // 3. No duplicate — create fresh request
                     const request = {
                       id: `dem_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
                       userId: user.id,
@@ -14212,18 +14528,19 @@ export const StudentDashboard: React.FC<Props> = ({
                       note: requestData.note.trim(),
                       timestamp: new Date().toISOString(),
                       status: 'PENDING',
+                      reportCount: 1,
                     };
                     saveDemandRequest(request)
                       .then(() => {
                         setShowRequestModal(false);
                         setRequestData({ subject: '', topic: '', pageNo: '', type: 'PDF', note: '' });
-                        showAlert("✅ Request sent! Admin will review it.", "SUCCESS");
+                        showAlert("✅ Request send ho gayi! Admin review karega.", "SUCCESS");
                       })
-                      .catch(() => showAlert("Failed to send request. Please try again.", "ERROR"));
+                      .catch(() => showAlert("Request send nahi hui. Dobara try karo.", "ERROR"));
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold shadow-lg transition-all"
+                  className="flex-1 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold shadow-lg transition-all"
                 >
-                  Send 🚀
+                  {todayDemandCount !== null && todayDemandCount >= 5 ? 'Limit Full 🚫' : 'Send 🚀'}
                 </button>
               </div>
             </div>
@@ -14264,25 +14581,6 @@ export const StudentDashboard: React.FC<Props> = ({
         />
       )}
 
-      {/* ── FULL BOOK COMPARE MODAL (Ultra only) ─────────────────────────────
-          Aggregates ALL competition books and shows common + extra points
-          paginated with per-book download options.
-      ───────────────────────────────────────────────────────────────────────── */}
-      {showFullBookCompare && (
-        <FullBookCompare
-          settings={settings}
-          user={{ subscriptionLevel: user.subscriptionLevel, isPremium: user.isPremium, isAdmin: user.role === 'ADMIN' || user.role === 'SUB_ADMIN' }}
-          isLimited={!(user.subscriptionLevel === 'ULTRA' && user.isPremium)}
-          freeLimit={(settings as any)?.comparePointsLimit || 4}
-          isFocusMode={isLandscapeUiHidden}
-          topBarGrad={tierTheme.topBarGrad}
-          profileBg={tierTheme.profileBg}
-          profileCardBg={tierTheme.profileCardBg}
-          isDarkMode={isDarkMode}
-          primaryColor={tierTheme.primary}
-          onClose={() => setShowFullBookCompare(false)}
-        />
-      )}
 
       {/* ── LESSON COMPARE MODAL ─────────────────────────────────────────────
           Opens when student taps "📌 Topics — Compare karein" on a lesson card.
@@ -14554,6 +14852,8 @@ export const StudentDashboard: React.FC<Props> = ({
                           content={fullLessonText}
                           topBarLabel={lce.lessonTitle}
                           hideTopBar={isLandscapeUiHidden}
+                          isAdmin={user.role === 'ADMIN' || user.role === 'SUB_ADMIN'}
+                          isAdminImportant={isTopicAdminImportant}
                           language="hi-IN"
                         />
                       </div>
@@ -15109,9 +15409,6 @@ export const StudentDashboard: React.FC<Props> = ({
               // Close Community Support chat overlay if open — otherwise the
               // chat keeps covering the dashboard when user taps other nav tabs.
               setShowChat(false);
-              // Close Full Book Compare overlay — otherwise it stays on screen
-              // when the user taps any other bottom-nav tab.
-              setShowFullBookCompare(false);
               // Close word-search Compare View if open.
               setShowCompareView(false);
               // Close the Important Notes overlay if it's open — otherwise the
@@ -15165,23 +15462,22 @@ export const StudentDashboard: React.FC<Props> = ({
                 // When the Important Notes overlay is open, Home should NOT
                 // appear active — only ONE bottom-nav tab can be active at a
                 // time. Same rule applies to all sibling tabs below.
-                isActive: !showStarredPage && !showChat && !showFullBookCompare && currentLogicalTab === "HOME",
+                isActive: !showStarredPage && !showChat && currentLogicalTab === "HOME",
                 onClick: () => switchToLogicalTab("HOME"),
               },
 
-              // Compre — Full Book Compare shortcut in bottom nav
+              // Universal Video — shortcut in bottom nav
               {
-                id: "COMPRE" as any,
-                label: "Compre",
-                Icon: GitCompare,
+                id: "VIDEO" as LogicalTab,
+                label: "Video",
+                Icon: Youtube,
                 filledOnActive: true,
-                isActive: showFullBookCompare,
-                isBeta: true,
+                isActive: !showStarredPage && !showChat && currentLogicalTab === "VIDEO",
                 onClick: () => {
                   setShowChat(false);
                   try { stopProfileStarRead(); } catch (_) {}
                   setShowStarredPage(false);
-                  setShowFullBookCompare(true);
+                  switchToLogicalTab("VIDEO");
                 },
               },
 
@@ -15202,7 +15498,6 @@ export const StudentDashboard: React.FC<Props> = ({
                      filledOnActive: true,
                      isActive: showChat,
                      onClick: () => {
-                       setShowFullBookCompare(false);
                        setShowCompareView(false);
                        try { stopProfileStarRead(); } catch (_) {}
                        setShowStarredPage(false);
@@ -15215,7 +15510,6 @@ export const StudentDashboard: React.FC<Props> = ({
                      filledOnActive: true,
                      isActive: showStarredPage,
                      onClick: () => {
-                       setShowFullBookCompare(false);
                        setShowCompareView(false);
                        setShowChat(false);
                        setShowStarredPage(true);
@@ -16483,7 +16777,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const hasWriteNotes = isCourse
           ? (courseAvailability?.writeNotes ?? true)
           : isLucent
-            ? !!(page?.htmlNotes)
+            ? !!(page?.htmlNotes || page?.content || page?.chunkNotes)
             : !!(hw?.htmlNotes);
         const hasNotes = hasReadNotes || hasWriteNotes;
         const hasMcq = isCourse
@@ -16880,40 +17174,79 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
             )}
             {/* Header */}
-            <div className={`text-white px-4 py-3 flex items-center gap-2 shrink-0 ${(isLandscapeUiHidden || lucentImmersive || isLandscape || (lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk')) ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
-              <button onClick={closeLucentViewer} className="bg-white/20 hover:bg-white/30 p-2 rounded-full shrink-0 transition-colors">
-                <ChevronRight size={18} className="rotate-180" />
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest truncate flex items-center gap-1.5">
-                  <span className="truncate">
-                    {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject); return _cat ? `📘 ${_cat.name}` : '📘 Lucent Book'; })()}
-                  </span>
-                  {currentPage?.date && (
-                    <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">
-                      📅 {new Date(currentPage.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
-                </p>
-                <div className="flex items-center gap-2 min-w-0">
-                  <p className="font-black text-sm leading-tight truncate">{entry.lessonTitle}</p>
-                  {lucentNotesViewMode === 'html' && lucentActiveTab === 'NOTES' && (
-                    <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-white/30 select-none">WRITE MODE</span>
-                  )}
-                </div>
-              </div>
-              {/* Top-bar controls — NOTES tab only */}
-              {lucentActiveTab === 'NOTES' && (() => {
-                const _isWriteMode = lucentNotesViewMode === 'html';
-                return (
-                  <div className="flex items-center gap-1.5 shrink-0 relative">
-                    {/* A− / % / A+ group — both modes */}
+            <div className={`text-white shrink-0 ${(isLandscapeUiHidden || lucentImmersive || (isLandscape && !(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html')) || (lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk')) ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
+              {(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html') ? (
+                /* ── WRITE MODE: 2-row layout ── */
+                <div className="px-3 py-2 flex flex-col gap-1.5">
+                  {/* Row 1: Back + Category · LessonTitle (single line) + WRITE badge + 3-dot toggle */}
+                  <div className="flex items-center gap-2">
+                    <button onClick={closeLucentViewer} className="bg-white/20 hover:bg-white/30 p-2 rounded-full shrink-0 transition-colors">
+                      <ChevronRight size={18} className="rotate-180" />
+                    </button>
+                    <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden">
+                      <span className="shrink-0 text-[10px] font-bold opacity-60 uppercase tracking-widest whitespace-nowrap">
+                        {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject); return _cat ? `📘 ${_cat.name}` : '📘 Lucent'; })()}
+                      </span>
+                      <span className="text-white/40 shrink-0">·</span>
+                      <span className="font-black text-sm leading-tight truncate">{entry.lessonTitle}</span>
+                      {currentPage?.date && (
+                        <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">
+                          📅 {new Date(currentPage.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </span>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-white/30 select-none whitespace-nowrap">✏️ WRITE</span>
+                    <button
+                      onClick={() => setLucentWriteMenuOpen(v => !v)}
+                      className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all active:scale-90 shrink-0 ${lucentWriteMenuOpen ? 'bg-white/30 border-white/50' : 'bg-white/15 border-white/25'}`}
+                      title="Toggle Controls"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                  </div>
+                  {/* Row 2: Controls — toggled by 3-dot in Row 1 */}
+                  {lucentWriteMenuOpen && <div className="flex items-center gap-1.5">
+                    {/* Admin WhiteBoard trigger */}
+                    {_isAdminUser && (
+                      <button
+                        onClick={() => setShowAdminBoard(true)}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
+                        title="Admin WhiteBoard"
+                      >
+                        <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                      </button>
+                    )}
+                    {/* Admin Edit (Pencil) button — inline editor */}
+                    {_isAdminUser && (
+                      <button
+                        onClick={() => {
+                          const src = (currentPage as any)?.htmlNotes || (currentPage as any)?.content || '';
+                          setInlineEditContent(src);
+                          setInlineEditPoints(splitHtmlIntoBlocks(src));
+                          setInlineEditPointIdx(null);
+                          setInlineEditPointDraft('');
+                          setInlineEditModal({
+                            type: 'lucent_html',
+                            entryId: entry.id,
+                            pageIndex: safeIndex,
+                            title: `${entry.lessonTitle} · Page ${currentPage?.pageNo ?? safeIndex + 1}`,
+                            originalEntry: entry,
+                          });
+                          setLucentWriteMenuOpen(false);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-orange-400/30 border border-orange-300/50 text-orange-200 active:scale-90 transition-all shrink-0"
+                        title="Edit HTML Notes (Admin)"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                    {/* A− / % / A+ group */}
                     <div className="flex items-center rounded-xl overflow-hidden border border-white/25" style={{ background: 'rgba(255,255,255,0.12)' }}>
                       <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center text-white text-[11px] font-black active:scale-90 transition-all hover:bg-white/15">A−</button>
                       <span className="px-1 text-white/70 text-[10px] font-bold tabular-nums border-x border-white/20">{Math.round(noteZoom * 100)}%</span>
                       <button onClick={zoomIn} className="w-7 h-7 flex items-center justify-center text-white text-[11px] font-black active:scale-90 transition-all hover:bg-white/15">A+</button>
                     </div>
-                    {/* Rotate — both modes */}
+                    {/* Rotate */}
                     <button
                       onClick={handleRotate}
                       className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
@@ -16921,8 +17254,16 @@ export const StudentDashboard: React.FC<Props> = ({
                     >
                       <RotateCcw size={14} />
                     </button>
-                    {/* Download — write mode only */}
-                    {_isWriteMode && (currentPage?.htmlNotes || currentPage?.content) && (
+                    {/* Save Offline — directly in row 2 */}
+                    <button
+                      onClick={() => handleLucentSaveOffline(true)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentSaved ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                      title={lucentSaved ? 'Offline Saved ✓' : 'Save Offline'}
+                    >
+                      <WifiOff size={14} />
+                    </button>
+                    {/* Download — directly in row 2 */}
+                    {(currentPage?.htmlNotes || currentPage?.content) && (
                       <button
                         onClick={async () => {
                           try {
@@ -16934,108 +17275,109 @@ export const StudentDashboard: React.FC<Props> = ({
                             if (_dlOk) showAlert('📥 Saved!', 'SUCCESS');
                           } catch { showAlert('Download failed. Please try again.', 'ERROR'); }
                         }}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                        title="Download Notes"
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white transition-all active:scale-90 shrink-0"
+                        title="Notes Download karo"
                       >
                         <Download size={14} />
                       </button>
                     )}
-                    {/* Save Offline — both modes */}
-                    <button
-                      onClick={() => handleLucentSaveOffline(_isWriteMode)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentSaved ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
-                      title={lucentSaved ? 'Saved!' : 'Save Offline'}
-                    >
-                      <WifiOff size={14} />
-                    </button>
-                    {/* More Options — both modes */}
+                    {/* More Options — directly in row 2, ml-auto pushes to right */}
                     <button
                       onClick={() => setContentPickerPopup({ type: 'LUCENT', entry, pageIdx: safeIndex })}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 text-white transition-all active:scale-90 shrink-0 ml-auto"
                       title="More Options"
                     >
                       <LayoutGrid size={14} />
                     </button>
-                    {/* 3-dot controls — read mode only (opens ChunkedNotesReader bottom-sheet) */}
-                    {!_isWriteMode && (
-                      <button
-                        onClick={() => lucentControlsRef.current?.()}
-                        className="flex items-center justify-center w-8 h-8 rounded-xl bg-white/20 border border-white/30 text-white hover:bg-white/30 transition-colors shrink-0"
-                        title="Reading controls"
-                      >
-                        <MoreVertical size={15} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
-              {/* Page counter + controls for non-NOTES tabs */}
-              {lucentActiveTab !== 'NOTES' && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {/* PDF-specific 4 buttons */}
-                  {lucentActiveTab === 'PDF' && (
-                    <>
-                      <button
-                        onClick={() => setLucentPdfRotated(r => !r)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentPdfRotated ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
-                        title="Rotate PDF"
-                      >
-                        <RotateCcw size={14} />
-                      </button>
-                      <button
-                        onClick={() => setLucentPdfNight(m => m === 'normal' ? 'night' : m === 'night' ? 'sepia' : 'normal')}
-                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 text-base ${lucentPdfNight !== 'normal' ? 'bg-indigo-500/30 border-indigo-400/50' : 'bg-white/15 border-white/25'}`}
-                        title="Night / Sepia Mode"
-                      >
-                        {lucentPdfNight === 'night' ? '🌙' : lucentPdfNight === 'sepia' ? '📜' : '☀️'}
-                      </button>
-                      <button
-                        onClick={() => setLucentImmersive(v => !v)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentImmersive ? 'bg-indigo-500/30 border-indigo-400/50 text-indigo-300' : 'bg-white/15 border-white/25 text-white'}`}
-                        title={lucentImmersive ? 'Exit Focus Mode' : 'Focus Mode'}
-                      >
-                        {lucentImmersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                      </button>
-                      <button
-                        onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                        title="Switch Content"
-                      >
-                        <LayoutGrid size={14} />
-                      </button>
-                    </>
-                  )}
-                  {/* More Options — for AUDIO / VIDEO / MCQ tabs */}
-                  {lucentActiveTab !== 'PDF' && (
-                    <button
-                      onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                      title="More — Switch Content"
-                    >
-                      <LayoutGrid size={14} />
-                    </button>
-                  )}
-                  {/* Rotate — VIDEO tab only */}
-                  {lucentActiveTab === 'VIDEO' && (
-                    <button
-                      onClick={handleRotate}
-                      className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
-                      title="Screen Rotate"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                  )}
-                  <span className="bg-white/20 px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap">
-                    {safeIndex + 1}/{totalPages}
-                  </span>
-                  <button
-                    onClick={() => { const next = !autoSyncOn; setLucentAutoSync(next); if (!next) stopSpeech(); }}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${autoSyncOn ? 'bg-white text-indigo-700' : 'bg-white/20 text-white'}`}
-                    title="Auto-Read & Sync"
-                  >
-                    <Zap size={11} className={autoSyncOn ? 'fill-indigo-600' : ''} />
-                    {autoSyncOn ? 'Auto ON' : 'Auto'}
+                  </div>}
+                </div>
+              ) : (
+                /* ── OTHER TABS (PDF/VIDEO/MCQ/AUDIO): single-row layout ── */
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <button onClick={closeLucentViewer} className="bg-white/20 hover:bg-white/30 p-2 rounded-full shrink-0 transition-colors">
+                    <ChevronRight size={18} className="rotate-180" />
                   </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest truncate flex items-center gap-1.5">
+                      <span className="truncate">
+                        {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject); return _cat ? `📘 ${_cat.name}` : '📘 Lucent Book'; })()}
+                      </span>
+                      {currentPage?.date && (
+                        <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">
+                          📅 {new Date(currentPage.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                    </p>
+                    <p className="font-black text-sm leading-tight truncate">{entry.lessonTitle}</p>
+                  </div>
+                  {/* Admin WhiteBoard trigger */}
+                  {_isAdminUser && (
+                    <button
+                      onClick={() => setShowAdminBoard(true)}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
+                      title="Admin WhiteBoard"
+                    >
+                      <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                    </button>
+                  )}
+                  {/* Page counter + controls for non-NOTES tabs */}
+                  {lucentActiveTab !== 'NOTES' && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {lucentActiveTab === 'PDF' && (
+                        <>
+                          <button
+                            onClick={() => setLucentPdfRotated(r => !r)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentPdfRotated ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                            title="Rotate PDF"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                          <button
+                            onClick={() => setLucentPdfNight(m => m === 'normal' ? 'night' : m === 'night' ? 'sepia' : 'normal')}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 text-base ${lucentPdfNight !== 'normal' ? 'bg-indigo-500/30 border-indigo-400/50' : 'bg-white/15 border-white/25'}`}
+                            title="Night / Sepia Mode"
+                          >
+                            {lucentPdfNight === 'night' ? '🌙' : lucentPdfNight === 'sepia' ? '📜' : '☀️'}
+                          </button>
+                          <button
+                            onClick={() => setLucentImmersive(v => !v)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentImmersive ? 'bg-indigo-500/30 border-indigo-400/50 text-indigo-300' : 'bg-white/15 border-white/25 text-white'}`}
+                            title={lucentImmersive ? 'Exit Focus Mode' : 'Focus Mode'}
+                          >
+                            {lucentImmersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                          </button>
+                          <button
+                            onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
+                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                            title="Switch Content"
+                          >
+                            <LayoutGrid size={14} />
+                          </button>
+                        </>
+                      )}
+                      {lucentActiveTab !== 'PDF' && (
+                        <button
+                          onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
+                          title="More — Switch Content"
+                        >
+                          <LayoutGrid size={14} />
+                        </button>
+                      )}
+                      {lucentActiveTab === 'VIDEO' && (
+                        <button
+                          onClick={handleRotate}
+                          className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                          title="Screen Rotate"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                      <span className="bg-white/20 px-2.5 py-1 rounded-full text-[11px] font-black whitespace-nowrap">
+                        {safeIndex + 1}/{totalPages}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -17098,7 +17440,9 @@ export const StudentDashboard: React.FC<Props> = ({
                     htmlContent={(() => {
                       const chunkSrc = (currentPage as any).chunkNotes;
                       const htmlSrc = (currentPage as any).htmlNotes;
-                      return chunkSrc?.trim() && htmlSrc?.trim() ? htmlSrc.trim() : undefined;
+                      if (htmlSrc?.trim()) return htmlSrc.trim();
+                      if (chunkSrc?.trim() && htmlSrc?.trim()) return htmlSrc.trim();
+                      return undefined;
                     })()}
                     content={`Page ${currentPage.pageNo}.\n\n${(() => {
                       const chunkSrc = (currentPage as any).chunkNotes;
@@ -17117,6 +17461,20 @@ export const StudentDashboard: React.FC<Props> = ({
                     hideTopBar={lucentImmersive}
                     suppressStickyControls={lucentImmersive}
                     preferChunkMode={true}
+                    isAdmin={user.role === 'ADMIN' || user.role === 'SUB_ADMIN'}
+                    onAdminEdit={(user.role === 'ADMIN' || user.role === 'SUB_ADMIN') ? () => {
+                      const chunkSrc = (currentPage as any)?.chunkNotes || '';
+                      setInlineEditPoints(chunkSrc.split('\n'));
+                      setInlineEditPointIdx(null);
+                      setInlineEditPointDraft('');
+                      setInlineEditModal({
+                        type: 'lucent_chunk',
+                        entryId: entry.id,
+                        pageIndex: safeIndex,
+                        title: `${entry.lessonTitle} · Page ${currentPage?.pageNo ?? safeIndex + 1}`,
+                        originalEntry: entry,
+                      });
+                    } : undefined}
                     autoStart={autoSyncOn}
                     searchQuery={pendingReadQuery}
                     getStarCount={getNoteStarCount}
@@ -17166,19 +17524,13 @@ export const StudentDashboard: React.FC<Props> = ({
                       }
                     }}
                     noteKey={`lucent_${entry.id}_p${safeIndex}`}
-                    isStarred={(text) => isNoteTopicStarred(`lucent_${entry.id}_p${safeIndex}`, text)}
-                    onStarToggle={(text) => toggleStarNote(
-                      `lucent_${entry.id}_p${safeIndex}`,
-                      text,
-                      {
-                        kind: 'lucent',
-                        lucentId: entry.id,
-                        pageIndex: safeIndex,
-                        pageNo: currentPage?.pageNo,
-                        lessonTitle: entry.lessonTitle,
-                        subject: entry.subject,
-                      }
-                    )}
+                    isStarred={(text) => _isAdminUser ? isTopicAdminImportant(text) : isNoteTopicStarred(`lucent_${entry.id}_p${safeIndex}`, text)}
+                    onStarToggle={(text) => _isAdminUser
+                      ? toggleAdminImportant(`lucent_${entry.id}_p${safeIndex}`, text, { kind: 'lucent', lucentId: entry.id, pageIndex: safeIndex, pageNo: currentPage?.pageNo, lessonTitle: entry.lessonTitle, subject: entry.subject })
+                      : toggleStarNote(`lucent_${entry.id}_p${safeIndex}`, text, { kind: 'lucent', lucentId: entry.id, pageIndex: safeIndex, pageNo: currentPage?.pageNo, lessonTitle: entry.lessonTitle, subject: entry.subject })
+                    }
+                    isAdminImportant={isTopicAdminImportant}
+                    sourceMeta={{ lessonTitle: entry.lessonTitle, pageNo: currentPage?.pageNo, subject: entry.subject, classLevel: (entry as any).classLevel }}
                     readingScoreConfig={user?.id ? {
                       userId: user.id,
                       userLevel: getLevelInfo(user.totalScore || 0).level,
@@ -17466,6 +17818,7 @@ RULES:
                                 title: entry.lessonTitle || 'Lucent MCQs',
                                 subtitle: `Page ${currentPage?.pageNo || ''} · Flashcards`,
                                 subject: entry.subject || 'Lucent',
+                                sourceKey: `lucent_${entry.id}_p${safeIndex}`,
                               });
                             }}
                             className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95"
@@ -17844,8 +18197,8 @@ RULES:
 
             {/* VIDEO TAB CONTENT */}
             {lucentActiveTab === 'VIDEO' && (currentPage as any)?.videoUrl && (
-              <div className="flex-1 relative bg-black overflow-hidden pb-[72px]">
-                <div style={{ position: 'absolute', inset: 0, bottom: 72 }}>
+              <div className="flex-1 relative bg-black overflow-hidden">
+                <div style={{ position: 'absolute', inset: 0 }}>
                   <CustomPlayer
                     videoUrl={(currentPage as any).videoUrl}
                     onBack={closeLucentViewer}
@@ -17855,6 +18208,7 @@ RULES:
                     onBadgePosChange={handleBadgePosChange}
                     badgeLabel={settings?.playerBadgeLabel}
                     fsButtonLabel={settings?.playerFsButtonLabel}
+                    hideYtLogoBlocker={settings?.hideYtLogoBlocker}
                   />
                 </div>
               </div>
@@ -18113,10 +18467,12 @@ RULES:
                       options: m.options,
                       correctAnswer: m.correctAnswer,
                       explanation: (m as any).explanation || '',
+                      id: (m as any).id || '',
                     })),
                     title: activePlayerHw.title || 'Homework MCQs',
                     subtitle: `Flashcard Mode · ${activePlayerHw.parsedMcqs?.length || 0} cards`,
                     subject: activePlayerHw.targetSubject || 'mcq',
+                    sourceKey: `hw_${activePlayerHw.id}`,
                   });
                 }}
                 className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95"
@@ -18681,6 +19037,8 @@ RULES:
           user={user}
           settings={settings}
           onUpdateUser={handleUserUpdate}
+          sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
+          sourceKey={flashcardMcqs.sourceKey}
         />
       )}
 
@@ -19640,6 +19998,15 @@ RULES:
             onBack={() => setShowLevelLeaderboard(false)}
           />
         </div>
+      )}
+
+      {/* ===================== GLOBAL SUGGESTIONS PANEL ===================== */}
+      {showSuggestionsPanel && (
+        <SuggestionsPanel
+          user={user}
+          isAdmin={!!(user as any)?.isAdmin}
+          onClose={() => setShowSuggestionsPanel(false)}
+        />
       )}
 
       {/* ===================== COMMUNITY "MOST SAVED" / TRENDING NOTES PAGE ===================== */}
@@ -21941,6 +22308,11 @@ RULES:
         </div>
       )}
 
+      {/* ═══════════ MY PROGRESS DASHBOARD ═══════════ */}
+      {showProgressDashboard && (
+        <StudentProgressDashboard user={user} onBack={() => setShowProgressDashboard(false)} />
+      )}
+
       {/* ═══════════ LOGIN HISTORY OVERLAY ═══════════ */}
       {showLoginHistory && (() => {
         const sessions = getLoginHistory(user.id).slice(0, 20);
@@ -22398,6 +22770,238 @@ RULES:
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline Notes Editor Modal (Admin only) ── */}
+      {inlineEditModal && (
+        <div className="fixed inset-0 z-[500] flex flex-col bg-black/60 backdrop-blur-sm">
+          <div className="flex flex-col h-full bg-white">
+
+            {/* ── Header ── */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 bg-white shrink-0">
+              <button
+                onClick={() => { setInlineEditModal(null); setInlineEditPointIdx(null); }}
+                className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 shrink-0 active:scale-90 transition-all"
+              >
+                <X size={17} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Admin · Direct Edit</p>
+                <p className="text-[13px] font-black text-slate-800 truncate leading-tight">{inlineEditModal.title}</p>
+              </div>
+              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${
+                inlineEditModal.type.endsWith('_html')
+                  ? 'bg-violet-50 border-violet-200 text-violet-600'
+                  : 'bg-indigo-50 border-indigo-200 text-indigo-600'
+              }`}>
+                {inlineEditModal.type.endsWith('_html') ? 'HTML · Write Mode' : 'Chunks · Read Mode'}
+              </span>
+              <button
+                onClick={handleInlineEditSave}
+                disabled={inlineEditSaving}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[12px] font-black rounded-xl shrink-0 disabled:opacity-50 transition-all"
+              >
+                {inlineEditSaving ? 'Saving…' : 'Save All'}
+              </button>
+            </div>
+
+            {/* ── HTML mode: block-wise editor ── */}
+            {inlineEditModal.type.endsWith('_html') && (
+              <>
+                <div className="px-4 py-1.5 bg-violet-50 border-b border-violet-100 text-[11px] text-violet-700 font-semibold shrink-0 flex items-center justify-between">
+                  <span>📝 Har block alag edit karo — ✏️ dabao · Save All se save karo</span>
+                  <span className="text-violet-400">{inlineEditPoints.length} blocks</span>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {inlineEditPoints.map((block, idx) => {
+                    if (!block.trim() && inlineEditPointIdx !== idx) return null;
+                    const isEditing = inlineEditPointIdx === idx;
+                    const isHeading = /<h[1-6][^>]*>/i.test(block);
+                    const preview = stripHtmlForPreview(block);
+                    return (
+                      <div key={idx} className={`border-b border-slate-100 ${isEditing ? 'bg-violet-50' : 'bg-white'}`}>
+                        {isEditing ? (
+                          /* ── Editing this block ── */
+                          <div className="p-3 flex flex-col gap-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 px-1">Raw HTML — edit directly</p>
+                            <textarea
+                              className="w-full p-2.5 font-mono text-[11px] text-slate-800 bg-white border border-violet-300 rounded-xl resize-none outline-none focus:ring-2 focus:ring-violet-400 leading-relaxed"
+                              rows={Math.max(3, Math.ceil(inlineEditPointDraft.length / 60))}
+                              value={inlineEditPointDraft}
+                              onChange={e => setInlineEditPointDraft(e.target.value)}
+                              autoFocus
+                              spellCheck={false}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  const updated = [...inlineEditPoints];
+                                  updated[idx] = inlineEditPointDraft;
+                                  setInlineEditPoints(updated);
+                                  setInlineEditPointIdx(null);
+                                }}
+                                className="flex-1 py-2 bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-black rounded-xl active:scale-95 transition-all"
+                              >
+                                ✓ Done
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const updated = inlineEditPoints.filter((_, i) => i !== idx);
+                                  setInlineEditPoints(updated);
+                                  setInlineEditPointIdx(null);
+                                }}
+                                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-black rounded-xl border border-red-200 active:scale-95 transition-all"
+                              >
+                                🗑
+                              </button>
+                              <button
+                                onClick={() => setInlineEditPointIdx(null)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-black rounded-xl active:scale-95 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* ── Display this block (stripped preview) ── */
+                          <div className="flex items-start gap-2 px-4 py-3 group">
+                            <span className={`flex-1 text-[13px] leading-snug ${
+                              isHeading
+                                ? 'font-black text-violet-800 text-[14px]'
+                                : 'font-medium text-slate-700'
+                            }`}>
+                              {preview || <span className="text-slate-300 italic text-[11px]">empty block</span>}
+                            </span>
+                            <button
+                              onClick={() => { setInlineEditPointIdx(idx); setInlineEditPointDraft(block); }}
+                              className="p-1.5 rounded-lg bg-slate-50 hover:bg-violet-50 text-slate-400 hover:text-violet-600 active:scale-90 transition-all shrink-0"
+                              title="Edit this block"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* ── Add new block ── */}
+                  <div className="p-4">
+                    <button
+                      onClick={() => {
+                        const newPoints = [...inlineEditPoints, '<p></p>'];
+                        setInlineEditPoints(newPoints);
+                        setInlineEditPointIdx(newPoints.length - 1);
+                        setInlineEditPointDraft('<p></p>');
+                      }}
+                      className="w-full py-3 border-2 border-dashed border-violet-200 hover:border-violet-400 text-violet-500 hover:text-violet-700 text-[12px] font-black rounded-xl active:scale-[0.98] transition-all"
+                    >
+                      + Naya Block Add Karo
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Chunk mode: point-wise list ── */}
+            {inlineEditModal.type.endsWith('_chunk') && (
+              <>
+                <div className="px-4 py-1.5 bg-indigo-50 border-b border-indigo-100 text-[11px] text-indigo-700 font-semibold shrink-0 flex items-center justify-between">
+                  <span>📄 Har point alag edit karo — ✏️ dabao · Save All se save karo</span>
+                  <span className="text-indigo-400">{inlineEditPoints.filter(p => p.trim()).length} points</span>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {inlineEditPoints.map((point, idx) => {
+                    if (!point.trim() && inlineEditPointIdx !== idx) return null;
+                    const isEditing = inlineEditPointIdx === idx;
+                    const isHeading = /^#{1,6}\s/.test(point) || /^\*\*[^*]+\*\*\s*$/.test(point);
+                    return (
+                      <div key={idx} className={`border-b border-slate-100 ${isEditing ? 'bg-indigo-50' : 'bg-white'}`}>
+                        {isEditing ? (
+                          /* ── Editing this point ── */
+                          <div className="p-3 flex flex-col gap-2">
+                            <textarea
+                              className="w-full p-2.5 font-mono text-[12px] text-slate-800 bg-white border border-indigo-300 rounded-xl resize-none outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
+                              rows={Math.max(2, Math.ceil(inlineEditPointDraft.length / 55))}
+                              value={inlineEditPointDraft}
+                              onChange={e => setInlineEditPointDraft(e.target.value)}
+                              autoFocus
+                              spellCheck={false}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  const updated = [...inlineEditPoints];
+                                  updated[idx] = inlineEditPointDraft;
+                                  setInlineEditPoints(updated);
+                                  setInlineEditPointIdx(null);
+                                }}
+                                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black rounded-xl active:scale-95 transition-all"
+                              >
+                                ✓ Done
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const updated = inlineEditPoints.filter((_, i) => i !== idx);
+                                  setInlineEditPoints(updated);
+                                  setInlineEditPointIdx(null);
+                                }}
+                                className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-black rounded-xl border border-red-200 active:scale-95 transition-all"
+                              >
+                                🗑
+                              </button>
+                              <button
+                                onClick={() => setInlineEditPointIdx(null)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-black rounded-xl active:scale-95 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* ── Display this point ── */
+                          <div className="flex items-start gap-2 px-4 py-3 group">
+                            <span className={`flex-1 text-[13px] leading-snug ${
+                              isHeading
+                                ? 'font-black text-indigo-800 text-[14px]'
+                                : 'font-medium text-slate-700'
+                            }`}>
+                              {isHeading
+                                ? point.replace(/^#{1,6}\s+/, '').replace(/^\*\*|\*\*$/g, '')
+                                : point.replace(/^[*\-•]\s+/, '')}
+                            </span>
+                            <button
+                              onClick={() => { setInlineEditPointIdx(idx); setInlineEditPointDraft(point); }}
+                              className="p-1.5 rounded-lg bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 active:scale-90 transition-all shrink-0"
+                              title="Edit this point"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* ── Add new point ── */}
+                  <div className="p-4">
+                    <button
+                      onClick={() => {
+                        const newPoints = [...inlineEditPoints, ''];
+                        setInlineEditPoints(newPoints);
+                        setInlineEditPointIdx(newPoints.length - 1);
+                        setInlineEditPointDraft('');
+                      }}
+                      className="w-full py-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 text-indigo-500 hover:text-indigo-700 text-[12px] font-black rounded-xl active:scale-[0.98] transition-all"
+                    >
+                      + Naya Point Add Karo
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}

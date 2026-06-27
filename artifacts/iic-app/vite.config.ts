@@ -31,7 +31,7 @@ export default defineConfig({
     runtimeErrorOverlay(),
     VitePWA({
       registerType: 'autoUpdate',
-      devOptions: { enabled: true },
+      devOptions: { enabled: false },
       workbox: { maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 },
     }),
     ...(process.env.NODE_ENV !== "production" &&
