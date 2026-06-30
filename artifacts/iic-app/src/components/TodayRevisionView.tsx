@@ -10,6 +10,8 @@ import { formatMcqNotes, findRelevantNote } from '../utils/noteFormatter';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { renderMathInHtml } from '../utils/mathUtils';
 import { tryEarnScore } from '../utils/scoreSystem';
+import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
+import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
 
 interface Props {
     user: User;
@@ -28,6 +30,33 @@ export const TodayRevisionView: React.FC<Props> = ({ user, topics, onClose, onCo
     const [loadedTopics, setLoadedTopics] = useState<LoadedTopic[]>([]);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [completedTopicIds, setCompletedTopicIds] = useState<Set<string>>(new Set());
+
+    // ── Level-based Notes Daily Limit ─────────────────────────────────────────
+    const _getNotesLimit = () => {
+        const _subValid = SubscriptionEngine.isPremium(user);
+        const _tier: 'FREE' | 'BASIC' | 'ULTRA' =
+            _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+            _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+        const userLevel = getLevelInfo(user.totalScore || 0).level;
+        return getEffectiveDailyLimit('notes', userLevel, _tier);
+    };
+    const _getTodayNotesKey = () => {
+        const today = new Date().toISOString().split('T')[0];
+        return `nst_revision_notes_today_${user.id}_${today}`;
+    };
+    const _getTodayNotesCount = () => {
+        try { return parseInt(localStorage.getItem(_getTodayNotesKey()) || '0', 10); } catch { return 0; }
+    };
+    const _addTodayNotesCount = (n: number) => {
+        try { localStorage.setItem(_getTodayNotesKey(), String(_getTodayNotesCount() + n)); } catch {}
+    };
+
+    const notesLimit = _getNotesLimit();
+    const [dailyNotesRemaining, setDailyNotesRemaining] = useState<number>(() => {
+        if (notesLimit === UNLIMITED) return UNLIMITED;
+        return Math.max(0, notesLimit - _getTodayNotesCount());
+    });
+    const [limitReached, setLimitReached] = useState(dailyNotesRemaining === 0 && notesLimit !== UNLIMITED);
 
     // ── Revision Score System (1 min = +10, need ≥5% scroll) ──────────────────
     const [revisionScore, setRevisionScore]     = useState(0);
@@ -112,7 +141,17 @@ export const TodayRevisionView: React.FC<Props> = ({ user, topics, onClose, onCo
             setLoading(true);
             const loaded: LoadedTopic[] = [];
 
-            for (const topic of topics) {
+            // Level-based notes daily limit — slice topics to remaining allowance
+            const _curLimit = _getNotesLimit();
+            const _remaining = _curLimit === UNLIMITED ? topics.length : Math.max(0, _curLimit - _getTodayNotesCount());
+            if (_remaining === 0 && _curLimit !== UNLIMITED) {
+                setLimitReached(true);
+                setLoading(false);
+                return;
+            }
+            const allowedTopics = _curLimit === UNLIMITED ? topics : topics.slice(0, _remaining);
+
+            for (const topic of allowedTopics) {
                 if (!isMounted) return;
                 try {
                     let content = '';
@@ -205,6 +244,13 @@ export const TodayRevisionView: React.FC<Props> = ({ user, topics, onClose, onCo
             if (!isMounted) return;
             setLoadedTopics(loaded);
 
+            // Save how many topics were loaded into daily count
+            if (_curLimit !== UNLIMITED && loaded.length > 0) {
+                _addTodayNotesCount(loaded.length);
+                const newRemaining = Math.max(0, _curLimit - _getTodayNotesCount());
+                setDailyNotesRemaining(newRemaining);
+            }
+
             // Filter: Valid vs Missing
             const valid = loaded.filter(t => t.content && t.content.length > 5 && !t.content.includes("Content not available") && !t.content.includes("No specific notes found"));
             const missing = loaded.filter(t => !valid.includes(t));
@@ -235,6 +281,38 @@ export const TodayRevisionView: React.FC<Props> = ({ user, topics, onClose, onCo
         topicRefs.current = topicRefs.current.slice(0, displayList.length);
     }, [displayList]);
 
+
+    // Limit reached screen
+    if (limitReached) {
+        const _subValid = SubscriptionEngine.isPremium(user);
+        const _tier: 'FREE' | 'BASIC' | 'ULTRA' =
+            _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+            _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+        const userLevel = getLevelInfo(user.totalScore || 0).level;
+        const lim = getEffectiveDailyLimit('notes', userLevel, _tier);
+        return (
+            <div className="fixed inset-0 z-[50] bg-white flex flex-col items-center justify-center p-6 text-center gap-6">
+                <div className="text-5xl">📚</div>
+                <div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-2">Daily Reading Limit Reached</h2>
+                    <p className="text-slate-500 font-medium text-sm">
+                        You've read your daily limit of <span className="font-bold text-indigo-600">{lim} topics</span> today.
+                    </p>
+                    <p className="text-slate-400 text-xs mt-1">Level up or upgrade your plan to unlock more daily reading!</p>
+                </div>
+                <div className="bg-indigo-50 rounded-2xl p-4 w-full max-w-xs">
+                    <p className="text-xs font-bold text-indigo-700 mb-1">Your Level: {userLevel} • {_tier}</p>
+                    <p className="text-xs text-indigo-500">L1 Free = 10 topics/day • L9+ = Unlimited</p>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700"
+                >
+                    Back to Dashboard
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-[50] bg-white flex flex-col h-[100dvh] w-screen animate-in slide-in-from-bottom-10 overflow-hidden">
@@ -307,7 +385,14 @@ export const TodayRevisionView: React.FC<Props> = ({ user, topics, onClose, onCo
                     <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
                         <BookOpen className="text-indigo-600" /> Today's Revision
                     </h2>
-                    <p className="text-xs text-slate-600 font-bold">{topics.length} Topics to Cover</p>
+                    <p className="text-xs text-slate-600 font-bold">
+                        {loadedTopics.length} Topics to Cover
+                        {notesLimit !== UNLIMITED && (
+                            <span className="ml-2 text-indigo-500">
+                                • {dailyNotesRemaining} remaining today
+                            </span>
+                        )}
+                    </p>
                 </div>
                 {/* Revision Score Badge */}
                 {revisionScore > 0 && (

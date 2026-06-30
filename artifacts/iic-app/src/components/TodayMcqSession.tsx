@@ -171,30 +171,10 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
     const handleAnswer = (optionIdx: number) => {
         if (answers[qIndex] !== undefined) return;
 
-        // Daily MCQ limit
-        if (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
-            const today = new Date().toISOString().split('T')[0];
-            const countKey = `nst_mcq_daily_total_${today}_${user.id}`;
-            const prevTotal = parseInt(localStorage.getItem(countKey) || '0', 10);
-            const _subValid = SubscriptionEngine.isPremium(user);
-            const _tier: 'FREE' | 'BASIC' | 'ULTRA' =
-                _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
-                _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
-            const mcqLim = getEffectiveDailyLimit('mcq', getLevelInfo(user.totalScore || 0).level, _tier, settings);
-            if (mcqLim < UNLIMITED && prevTotal >= mcqLim) {
-                if (onTrackAnswer) onTrackAnswer(false);
-                return;
-            }
-        }
-
+        // Today Revision Hub MCQs — NO daily MCQ limit applies here
         const isCorrect = interleavedQuestions[qIndex]?.correctAnswer === optionIdx;
         if (onTrackAnswer) {
             if (!onTrackAnswer(isCorrect)) return;
-        } else if (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
-            const today = new Date().toISOString().split('T')[0];
-            const countKey = `nst_mcq_daily_total_${today}_${user.id}`;
-            const prevTotal = parseInt(localStorage.getItem(countKey) || '0', 10);
-            localStorage.setItem(countKey, String(prevTotal + 1));
         }
 
         // ── Award score on correct answer ─────────────────────────────────────
