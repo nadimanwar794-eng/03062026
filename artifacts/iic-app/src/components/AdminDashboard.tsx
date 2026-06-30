@@ -674,6 +674,11 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [lucentPageBulk, setLucentPageBulk] = useState<Record<string, string>>({});
   const [cn612EditingId, setCn612EditingId] = useState<string | null>(null);
   const [cn612FilterClass, setCn612FilterClass] = useState<string>('ALL');
+  const [bnMoveCopyModal, setBnMoveCopyModal] = useState<{ entry: any; origIdx: number; mode: 'move' | 'copy' } | null>(null);
+  const [bnMcTargetClass, setBnMcTargetClass] = useState<string>('COMPETITION');
+  const [bnMcTargetSubject, setBnMcTargetSubject] = useState<string>('biology');
+  const [bnMcTargetBook, setBnMcTargetBook] = useState<string>('');
+  const [bnMcWorking, setBnMcWorking] = useState(false);
   const [cn612FilterBook, setCn612FilterBook] = useState<string>('ALL');
   const [cn612FilterSubject, setCn612FilterSubject] = useState<string>('ALL');
 
@@ -2048,6 +2053,35 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       } finally {
           setIsSavingLucent(false);
       }
+  };
+
+  const handleBnMoveCopy = async () => {
+      if (!bnMoveCopyModal || !bnMcTargetClass || !bnMcTargetSubject) return;
+      setBnMcWorking(true);
+      try {
+          const { entry, origIdx, mode } = bnMoveCopyModal;
+          const ts = Date.now();
+          const newEntry = {
+              ...entry,
+              id: `lucent_${ts}_${Math.random().toString(36).slice(2)}`,
+              classLevel: bnMcTargetClass,
+              subject: bnMcTargetSubject,
+              bookName: bnMcTargetBook || entry.bookName || '',
+              updatedAt: new Date().toISOString(),
+          };
+          const currentNotes: any[] = [...(localSettings.lucentNotes || [])];
+          if (mode === 'move') {
+              currentNotes.splice(origIdx, 1, newEntry);
+              await saveLucentEntryDirectly(currentNotes, `✅ "${entry.lessonTitle}" move ho gaya → Class ${bnMcTargetClass} / ${bnMcTargetSubject}`);
+          } else {
+              currentNotes.push(newEntry);
+              await saveLucentEntryDirectly(currentNotes, `✅ "${entry.lessonTitle}" copy ho gaya → Class ${bnMcTargetClass} / ${bnMcTargetSubject}`);
+          }
+          setBnMoveCopyModal(null);
+      } catch (e: any) {
+          setAlertConfig({ isOpen: true, message: `❌ Error: ${e?.message || 'Failed'}` });
+      }
+      setBnMcWorking(false);
   };
 
   // Always writes directly to Firebase + localStorage.
@@ -13079,6 +13113,18 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                           setBookNotesTab('ADD');
                                                       }} className="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors" title="Edit lesson"><Edit3 size={13}/></button>
                                                       <button onClick={() => {
+                                                          setBnMcTargetClass('COMPETITION');
+                                                          setBnMcTargetSubject('biology');
+                                                          setBnMcTargetBook(entry.bookName || '');
+                                                          setBnMoveCopyModal({ entry, origIdx, mode: 'move' });
+                                                      }} className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors" title="Dusri class mein move karein"><ArrowRight size={13}/></button>
+                                                      <button onClick={() => {
+                                                          setBnMcTargetClass('COMPETITION');
+                                                          setBnMcTargetSubject('biology');
+                                                          setBnMcTargetBook(entry.bookName || '');
+                                                          setBnMoveCopyModal({ entry, origIdx, mode: 'copy' });
+                                                      }} className="p-1 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors" title="Dusri class mein copy karein"><Copy size={13}/></button>
+                                                      <button onClick={() => {
                                                           if (!confirm(`⚠️ DELETE\n\n"${entry.lessonTitle}"\n\nHamesha ke liye delete hoga.\n\nSure?`)) return;
                                                           const updated = (localSettings.lucentNotes || []).filter((_, i) => i !== origIdx);
                                                           permanentDeleteNote({ ...localSettings, lucentNotes: updated }, entry.lessonTitle || 'Lucent Note', entry.id, 'lucent');
@@ -13136,6 +13182,63 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               </div>
                                           );
                                       })}
+                                  </div>
+                              )}
+
+                              {/* ── Book Notes Move / Copy Modal ─────────────────────────────────── */}
+                              {bnMoveCopyModal && (
+                                  <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4">
+                                      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+                                          <div className="flex items-center justify-between">
+                                              <h3 className="font-black text-slate-800 text-base">
+                                                  {bnMoveCopyModal.mode === 'move' ? '➡️ Lesson Move Karein' : '📋 Lesson Copy Karein'}
+                                              </h3>
+                                              <button onClick={() => setBnMoveCopyModal(null)} className="p-1 rounded-lg bg-slate-100 text-slate-500 active:scale-95"><X size={15}/></button>
+                                          </div>
+                                          <div className="px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-800 font-bold truncate">
+                                              "{bnMoveCopyModal.entry.lessonTitle || '(untitled)'}"
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase">Target Class</label>
+                                              <div className="grid grid-cols-4 gap-1.5">
+                                                  {(['6','7','8','9','10','11','12'] as string[]).map(c => (
+                                                      <button key={c} onClick={() => { setBnMcTargetClass(c); setBnMcTargetSubject('biology'); }}
+                                                          className={`py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${bnMcTargetClass === c ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}`}
+                                                      >{c}</button>
+                                                  ))}
+                                                  <button onClick={() => { setBnMcTargetClass('COMPETITION'); setBnMcTargetSubject('biology'); }}
+                                                      className={`col-span-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${bnMcTargetClass === 'COMPETITION' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}
+                                                  >🏆 Competition / Govt. Exams</button>
+                                              </div>
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase">Target Subject</label>
+                                              <select value={bnMcTargetSubject} onChange={e => setBnMcTargetSubject(e.target.value)}
+                                                  className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-400 bg-white"
+                                              >
+                                                  {LUCENT_SUBJECT_OPTIONS_BASE.map(opt => (
+                                                      <option key={opt.id} value={opt.id}>{opt.name}</option>
+                                                  ))}
+                                              </select>
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase">Book Name (optional)</label>
+                                              <input type="text" value={bnMcTargetBook} onChange={e => setBnMcTargetBook(e.target.value)}
+                                                  placeholder="e.g. Lucent GK, Speedy Science…"
+                                                  className="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-400"
+                                              />
+                                          </div>
+                                          {bnMoveCopyModal.mode === 'move' && (
+                                              <p className="text-[10px] text-rose-500 font-bold bg-rose-50 px-3 py-2 rounded-xl">
+                                                  ⚠️ Move karne ke baad original entry current class se hat jayegi.
+                                              </p>
+                                          )}
+                                          <button onClick={handleBnMoveCopy} disabled={bnMcWorking || !bnMcTargetSubject}
+                                              className={`w-full py-3 rounded-xl font-black text-white text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 ${bnMoveCopyModal.mode === 'move' ? 'bg-indigo-600' : 'bg-emerald-600'}`}
+                                          >
+                                              {bnMcWorking ? (bnMoveCopyModal.mode === 'move' ? 'Moving...' : 'Copying...') : (bnMoveCopyModal.mode === 'move' ? `➡️ Move → Class ${bnMcTargetClass}` : `📋 Copy → Class ${bnMcTargetClass}`)}
+                                          </button>
+                                      </div>
                                   </div>
                               )}
 
