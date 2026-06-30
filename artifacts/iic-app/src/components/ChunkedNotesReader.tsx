@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil } from 'lucide-react';
+import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil, Presentation } from 'lucide-react';
 import { AdminWhiteBoard } from './AdminWhiteBoard';
 import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayPrefs';
 import { saveSuggestion, auth, findDuplicateSuggestionByPoint, incrementSuggestionReportCount, updateSuggestionLeaderboard } from '../firebase';
@@ -1325,7 +1325,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 active:scale-90 transition shrink-0"
                 title="Admin WhiteBoard"
               >
-                <img src="/splash-logo.png" alt="WB" className="w-4 h-4 object-contain" />
+                <Presentation size={14} />
               </button>
             )}
             {/* 3-dot icon — opens full controls panel */}

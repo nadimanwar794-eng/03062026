@@ -176,6 +176,7 @@ import {
   Flame,
   Lightbulb,
   Pencil,
+  Presentation,
 } from "lucide-react";
 import { speakText, stopSpeech, stripHtml } from "../utils/textToSpeech";
 import { getMistakeBankSync, getMistakeBank, addMistakes, removeMistakeByQuestion, MistakeEntry } from "../utils/mistakeBank";
@@ -5948,7 +5949,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                           title="Admin WhiteBoard"
                         >
-                          <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                          <Presentation size={16} />
                         </button>
                       )}
                       {/* Admin Edit (Pencil) — inline HTML editor */}
@@ -6065,7 +6066,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                       title="Admin WhiteBoard"
                     >
-                      <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                      <Presentation size={16} />
                     </button>
                   )}
                   {/* More button — non-write modes */}
@@ -17334,7 +17335,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                         title="Admin WhiteBoard"
                       >
-                        <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                        <Presentation size={16} />
                       </button>
                     )}
                     {/* Admin Edit (Pencil) button — inline editor */}
@@ -17438,7 +17439,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                       title="Admin WhiteBoard"
                     >
-                      <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                      <Presentation size={16} />
                     </button>
                   )}
                   {/* Page counter + controls for non-NOTES tabs */}
