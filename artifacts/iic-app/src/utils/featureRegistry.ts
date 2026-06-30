@@ -288,7 +288,7 @@ export const ALL_FEATURES: Feature[] = [
     {
         id: 'REVISION_MCQ_MANAGER',
         label: 'Class MCQ Manager',
-        group: 'CORE',
+        group: 'CONTENT',
         adminVisible: true,
         adminTab: 'REVISION_MCQ_MANAGER',
         icon: 'BookOpenCheck',
