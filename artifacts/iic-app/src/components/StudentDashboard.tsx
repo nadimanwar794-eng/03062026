@@ -9590,26 +9590,10 @@ export const StudentDashboard: React.FC<Props> = ({
                     {user.email ? user.email : <span className="text-slate-400 font-semibold">Set nahi hai</span>}
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
-                    background: user.email ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
-                    color: user.email ? '#16a34a' : '#94a3b8',
-                  }}>{user.email ? '✓ Active' : 'Inactive'}</span>
-                  <button
-                    onClick={() => {
-                      setRecoveryData({
-                        mobile: (user as any).mobile || '',
-                        password: (user as any).password || '',
-                        email: user.email || '',
-                      });
-                      setShowRecoveryModal(true);
-                    }}
-                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-[10px] font-black active:opacity-60"
-                    style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}
-                  >
-                    ✏️ Edit
-                  </button>
-                </div>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
+                  background: user.email ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
+                  color: user.email ? '#16a34a' : '#94a3b8',
+                }}>{user.email ? '✓ Active' : 'Inactive'}</span>
               </div>
               {/* UID */}
               <div className="flex items-center gap-3 px-4 py-3">
