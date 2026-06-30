@@ -258,7 +258,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
     }
     // ── Award score when "Easy" (student knew the answer) ─────────────────
     if (level === 'easy' && user?.id && !isAdmin) {
-      const pts = tryEarnScore(user.id, 5, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');
+      const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');
       if (pts > 0) showMcqScore(pts);
     }
     // Auto-advance after brief visual feedback
