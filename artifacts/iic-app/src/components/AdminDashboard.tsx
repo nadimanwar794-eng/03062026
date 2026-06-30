@@ -678,6 +678,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [bnMcTargetClass, setBnMcTargetClass] = useState<string>('COMPETITION');
   const [bnMcTargetSubject, setBnMcTargetSubject] = useState<string>('biology');
   const [bnMcTargetBook, setBnMcTargetBook] = useState<string>('');
+  const [bnMcTargetBoard, setBnMcTargetBoard] = useState<'' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB'>('');
   const [bnMcWorking, setBnMcWorking] = useState(false);
   // Board move/copy modal for bnItems (Sar Sangrah / Speedy / Custom page-wise entries)
   const [bnBoardMoveModal, setBnBoardMoveModal] = useState<{ hw: any; origIdx: number; mode: 'move' | 'copy' } | null>(null);
@@ -2065,7 +2066,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       try {
           const { entry, origIdx, mode } = bnMoveCopyModal;
           const ts = Date.now();
-          const newEntry = {
+          const boardVal = bnMcTargetBoard || undefined;
+          const newEntry: any = {
               ...entry,
               id: `lucent_${ts}_${Math.random().toString(36).slice(2)}`,
               classLevel: bnMcTargetClass,
@@ -2073,6 +2075,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               bookName: bnMcTargetBook || entry.bookName || '',
               updatedAt: new Date().toISOString(),
           };
+          if (boardVal) newEntry.board = boardVal; else delete newEntry.board;
           const currentNotes: any[] = [...(localSettings.lucentNotes || [])];
           if (mode === 'move') {
               currentNotes.splice(origIdx, 1, newEntry);
@@ -13180,12 +13183,14 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                           setBnMcTargetClass('COMPETITION');
                                                           setBnMcTargetSubject('biology');
                                                           setBnMcTargetBook(entry.bookName || '');
+                                                          setBnMcTargetBoard((entry.board as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB') || '');
                                                           setBnMoveCopyModal({ entry, origIdx, mode: 'move' });
                                                       }} className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors" title="Dusri class mein move karein"><ArrowRight size={13}/></button>
                                                       <button onClick={() => {
                                                           setBnMcTargetClass('COMPETITION');
                                                           setBnMcTargetSubject('biology');
                                                           setBnMcTargetBook(entry.bookName || '');
+                                                          setBnMcTargetBoard((entry.board as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB') || '');
                                                           setBnMoveCopyModal({ entry, origIdx, mode: 'copy' });
                                                       }} className="p-1 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors" title="Dusri class mein copy karein"><Copy size={13}/></button>
                                                       <button onClick={() => {
@@ -13291,6 +13296,21 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                   placeholder="e.g. Lucent GK, Speedy Science…"
                                                   className="w-full p-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-400"
                                               />
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase">🏫 Board (optional)</label>
+                                              <div className="grid grid-cols-4 gap-1.5">
+                                                  {([
+                                                      { id: '' as const,         label: '🌐 All' },
+                                                      { id: 'NCERT_EN' as const, label: '📘 EN' },
+                                                      { id: 'NCERT_HI' as const, label: '📙 HI' },
+                                                      { id: 'BSEB' as const,     label: '🟠 BSEB' },
+                                                  ]).map(b => (
+                                                      <button key={b.id} onClick={() => setBnMcTargetBoard(b.id)}
+                                                          className={`py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${bnMcTargetBoard === b.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-indigo-50 text-indigo-700 border border-indigo-100 hover:border-indigo-300'}`}
+                                                      >{b.label}</button>
+                                                  ))}
+                                              </div>
                                           </div>
                                           {bnMoveCopyModal.mode === 'move' && (
                                               <p className="text-[10px] text-rose-500 font-bold bg-rose-50 px-3 py-2 rounded-xl">
