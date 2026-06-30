@@ -250,9 +250,11 @@ export const subtractDailyScore = (userId: string, pts: number): void => {
   } catch {}
 };
 
-/** Get bonus score for consecutive correct MCQ answers: 3→+5, 5→+10, 10→+20, else 0 */
+/** Get bonus score for consecutive correct MCQ answers: 3→+5, 5→+10, 7→+15, 10→+20, else 0.
+ *  Only the milestone that is EXACTLY hit is rewarded (not all previous milestones). */
 export const getMcqStreakBonus = (streak: number): number => {
   if (streak === 10) return 20;
+  if (streak === 7) return 15;
   if (streak === 5) return 10;
   if (streak === 3) return 5;
   return 0;

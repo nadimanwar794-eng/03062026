@@ -158,6 +158,8 @@ export const LessonView: React.FC<Props> = ({
     onScoreEarned: handleReadingScoreEarned,
   } : undefined;
 
+  const writingScoreConfig = readingScoreConfig ? { ...readingScoreConfig, mode: 'writing' as const } : undefined;
+
   // ── Media (Video / Audio) time-based score session ───────────────────────
   const mediaScoreSessionRef = useRef<ReadingScoreSession | null>(null);
   const [mediaScoreState, setMediaScoreState] = useState<ReadingScoreState | null>(null);
@@ -1183,7 +1185,7 @@ export const LessonView: React.FC<Props> = ({
                           triggerControlsRef={schoolControlsRef}
                           onMoreOptions={schoolMode && onSchoolModeSwitch ? onSchoolModeSwitch : undefined}
                           onDesktopModeChange={setIsDesktopMode}
-                          readingScoreConfig={readingScoreConfig}
+                          readingScoreConfig={writingScoreConfig}
                           isAdmin={isAdmin}
                           useImportantMark2={false}
                           isMarked2={isTopicMark2}
@@ -1354,15 +1356,26 @@ export const LessonView: React.FC<Props> = ({
                   setMcqStreak(newStreak);
                   const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'MCQ_CORRECT');
                   const bonus = getMcqStreakBonus(newStreak);
-                  if (bonus > 0) {
-                      tryEarnScore(user.id, bonus, _tier, _subValid, 0, `MCQ_STREAK_${newStreak}`);
-                      showMcqScore(pts + bonus);
-                  } else {
-                      if (pts > 0) showMcqScore(pts);
+                  const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `MCQ_STREAK_${newStreak}`) : 0;
+                  const totalPts = pts + bonusPts;
+                  if (totalPts > 0) {
+                      const _u = userRef.current;
+                      if (_u && onUpdateUserRef.current) {
+                          const updated = { ..._u, totalScore: (_u.totalScore || 0) + totalPts };
+                          onUpdateUserRef.current(updated);
+                          saveUserToLive(updated);
+                      }
+                      showMcqScore(totalPts);
                   }
               } else {
                   setMcqStreak(0);
                   subtractDailyScore(user.id, 1);
+                  const _u = userRef.current;
+                  if (_u && onUpdateUserRef.current) {
+                      const updated = { ..._u, totalScore: Math.max(0, (_u.totalScore || 0) - 1) };
+                      onUpdateUserRef.current(updated);
+                      saveUserToLive(updated);
+                  }
                   showMcqScore(-1);
               }
           }

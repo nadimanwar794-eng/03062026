@@ -31,6 +31,7 @@ interface Props {
   onTabChange: (tab: StudentTab) => void;
   onNavigateContent?: (type: 'PDF' | 'MCQ', chapterId: string, topicName?: string, subjectName?: string) => void;
   onUpdateUser?: (user: User) => void;
+  onMcqAnswer?: (isCorrect: boolean) => boolean;
 }
 
 const TABS: { id: HubTab; label: string; icon: React.ReactNode }[] = [
@@ -73,7 +74,7 @@ const TIER_STYLES: Record<string, { bg: string; text: string; label: string }> =
 };
 
 export const RevisionHubScreen: React.FC<Props> = ({
-  user, settings, onBack, onTabChange, onNavigateContent, onUpdateUser,
+  user, settings, onBack, onTabChange, onNavigateContent, onUpdateUser, onMcqAnswer,
 }) => {
   const theme = useAppTheme();
   const primary = theme.primary || '#6366f1';
@@ -174,6 +175,11 @@ export const RevisionHubScreen: React.FC<Props> = ({
   function handleOptionSelect(optIdx: number) {
     // Only record if not already answered for this question
     if (sessionAnswers[sessionQIndex] !== null && sessionAnswers[sessionQIndex] !== undefined) return;
+    // Apply level-based daily MCQ limit (if parent provides the tracker)
+    if (onMcqAnswer) {
+      const isCorrect = optIdx === (sessionMcqs[sessionQIndex]?.correctAnswer);
+      if (!onMcqAnswer(isCorrect)) return;
+    }
     setSelectedOption(optIdx);
     setSessionAnswers(prev => {
       const next = [...prev];

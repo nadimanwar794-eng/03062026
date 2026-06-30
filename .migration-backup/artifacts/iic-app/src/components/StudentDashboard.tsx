@@ -18477,6 +18477,7 @@ RULES:
             setShowRevisionHubScreen(false);
           }}
           onUpdateUser={handleUserUpdate}
+          onMcqAnswer={trackDailyMcqAnswer}
         />
       )}
 

@@ -586,6 +586,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [bnBookFilter, setBnBookFilter] = useState<string>('ALL');
   const [bnHistorySearch, setBnHistorySearch] = useState<string>('');
   const [bnBoardFilter, setBnBoardFilter] = useState<string>('ALL');
+  const [bnClassFilter, setBnClassFilter] = useState<string>('ALL');
   const [bnEditingId, setBnEditingId] = useState<string | null>(null);
   const [newBookNote, setNewBookNote] = useState({ date: new Date().toISOString().split('T')[0], title: '', notes: '', chunkNotes: '', htmlNotes: '', lightCSS: '', darkCSS: '', mcqText: '', audioUrl: '', videoUrl: '', pdfUrl: '', targetSubject: 'sarSangrah', pageNo: '', topicName: '', classTarget: 'ALL' as 'COMPETITION' | 'ALL' | '6' | '7' | '8' | '9' | '10' | '11' | '12', board: '' as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB' });
   const [editingPt, setEditingPt] = React.useState<{srcId: string; ptIdx: number; text: string} | null>(null);
@@ -12717,7 +12718,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       {/* ── BOARD SELECTOR ── */}
                                       <div>
                                           <label className="text-[10px] font-black text-indigo-700 uppercase block mb-2">🏫 Board (Optional)</label>
-                                          <div className="flex gap-2 flex-wrap">
+                                          <div className="flex gap-2">
                                               {([
                                                   { id: '' as const,         label: '🌐 All Boards', desc: 'Sabhi students' },
                                                   { id: 'NCERT_EN' as const, label: '📘 NCERT EN',   desc: 'English medium' },
@@ -12726,7 +12727,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               ]).map(b => (
                                                   <button key={b.id} type="button"
                                                       onClick={() => setNewBookNote({ ...newBookNote, board: b.id })}
-                                                      className={`flex flex-col items-start px-3 py-2 rounded-xl border-2 text-xs font-black transition-all ${newBookNote.board === b.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.03]' : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400'}`}>
+                                                      className={`flex-1 flex flex-col items-center px-2 py-2 rounded-xl border-2 text-xs font-black transition-all ${newBookNote.board === b.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.03]' : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400'}`}>
                                                       <span>{b.label}</span>
                                                       <span className={`text-[9px] font-medium ${newBookNote.board === b.id ? 'opacity-80' : 'opacity-50'}`}>{b.desc}</span>
                                                   </button>
@@ -13143,9 +13144,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           </button>
                                       )}
                                   </div>
-                                  {/* Book + Board filters */}
+                                  {/* Book + Board + Class filters */}
                                   <div className="flex gap-2 items-end flex-wrap">
-                                      <div className="flex-1 min-w-[130px]">
+                                      <div className="flex-1 min-w-[120px]">
                                           <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">📚 Book</label>
                                           <select
                                               value={bnBookFilter}
@@ -13160,7 +13161,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               ))}
                                           </select>
                                       </div>
-                                      <div className="flex-1 min-w-[110px]">
+                                      <div className="flex-1 min-w-[95px]">
                                           <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">🏫 Board</label>
                                           <select
                                               value={bnBoardFilter}
@@ -13174,9 +13175,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               <option value="BSEB">🟠 BSEB</option>
                                           </select>
                                       </div>
-                                      {(bnBookFilter !== 'ALL' || bnBoardFilter !== 'ALL' || bnHistorySearch) && (
+                                      <div className="flex-1 min-w-[85px]">
+                                          <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">🎓 Class</label>
+                                          <select
+                                              value={bnClassFilter}
+                                              onChange={e => setBnClassFilter(e.target.value)}
+                                              className="w-full p-1.5 border border-amber-300 rounded-lg text-xs outline-none focus:border-amber-500 bg-white font-bold"
+                                          >
+                                              <option value="ALL">All Classes</option>
+                                              {(['6','7','8','9','10','11','12','COMPETITION'] as string[]).map(c => (
+                                                  <option key={c} value={c}>{c === 'COMPETITION' ? '🏆 Comp.' : `Class ${c}`}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                      {(bnBookFilter !== 'ALL' || bnBoardFilter !== 'ALL' || bnClassFilter !== 'ALL' || bnHistorySearch) && (
                                           <button
-                                              onClick={() => { setBnBookFilter('ALL'); setBnBoardFilter('ALL'); setBnHistorySearch(''); }}
+                                              onClick={() => { setBnBookFilter('ALL'); setBnBoardFilter('ALL'); setBnClassFilter('ALL'); setBnHistorySearch(''); }}
                                               className="px-2 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 shrink-0"
                                           >✕ Reset</button>
                                       )}
@@ -13202,9 +13216,11 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       if (_bdf === '') return !(hw as any).board;
                                       return (hw as any).board === _bdf;
                                   };
+                                  const _matchClass = (hw: HomeworkItem) => bnClassFilter === 'ALL' || (hw as any).classTarget === bnClassFilter;
                                   const _filtered = bnItems
                                       .filter(hw => _bf === 'ALL' || hw.targetSubject === _bf)
                                       .filter(_matchBoard)
+                                      .filter(_matchClass)
                                       .filter(_matchSearch);
                                   return null; // Just precomputing — actual render block references same logic below
                               })()}
@@ -13228,10 +13244,11 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           if (_bdf === '') return !(hw as any).board;
                                           return (hw as any).board === _bdf;
                                       };
-                                      const filtered = bnItems.filter(hw => _bf === 'ALL' || hw.targetSubject === _bf).filter(_matchBoard).filter(_matchSearch);
+                                      const _matchClass = (hw: HomeworkItem) => bnClassFilter === 'ALL' || (hw as any).classTarget === bnClassFilter;
+                                      const filtered = bnItems.filter(hw => _bf === 'ALL' || hw.targetSubject === _bf).filter(_matchBoard).filter(_matchClass).filter(_matchSearch);
                                       return (
                                           <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
-                                              {_sq || _bf !== 'ALL' || _bdf !== 'ALL'
+                                              {_sq || _bf !== 'ALL' || _bdf !== 'ALL' || bnClassFilter !== 'ALL'
                                                   ? `${filtered.length} matches (of ${bnItems.length})`
                                                   : `Saved Book Notes (${bnItems.length})`}
                                           </p>
@@ -13477,7 +13494,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       if (bnBoardFilter === '') return !(hw as any).board;
                                       return (hw as any).board === bnBoardFilter;
                                   };
-                                  const filtered = bnItems.filter(hw => bnBookFilter === 'ALL' || hw.targetSubject === bnBookFilter).filter(_matchBoard).filter(_matchSearch);
+                                  const _matchClass = (hw: HomeworkItem) => bnClassFilter === 'ALL' || (hw as any).classTarget === bnClassFilter;
+                                  const filtered = bnItems.filter(hw => bnBookFilter === 'ALL' || hw.targetSubject === bnBookFilter).filter(_matchBoard).filter(_matchClass).filter(_matchSearch);
                                   if (filtered.length === 0) {
                                       return <p className="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-slate-100">Koi result nahi mila — filter ya search badlein.</p>;
                                   }
@@ -13500,7 +13518,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       if (bnBoardFilter === '') return !(hw as any).board;
                                       return (hw as any).board === bnBoardFilter;
                                   };
-                                  return (bnItems.filter(hw => bnBookFilter === 'ALL' || hw.targetSubject === bnBookFilter).filter(_matchBoard).filter(_matchSearch)).map((hw, idx) => {
+                                  const _matchClass = (hw: HomeworkItem) => bnClassFilter === 'ALL' || (hw as any).classTarget === bnClassFilter;
+                                  return (bnItems.filter(hw => bnBookFilter === 'ALL' || hw.targetSubject === bnBookFilter).filter(_matchBoard).filter(_matchClass).filter(_matchSearch)).map((hw, idx) => {
                                   const bookMeta = BOOK_TYPES.find(b => b.id === hw.targetSubject);
                                   const mcqs: MCQItem[] = hw.parsedMcqs || [];
                                   const handleCopyAll = () => {

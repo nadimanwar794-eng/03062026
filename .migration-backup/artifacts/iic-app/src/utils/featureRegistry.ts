@@ -695,7 +695,7 @@ export const ALL_FEATURES: Feature[] = [
     {
         id: 'ADMIN_EFFECTS',
         label: 'Animations',
-        group: 'CONTENT',
+        group: 'GAME',
         surfaceLevel: 3,
         adminVisible: true,
         adminTab: 'CONFIG_EFFECTS',
@@ -817,7 +817,7 @@ export const ALL_FEATURES: Feature[] = [
     {
         id: 'ADMIN_NSTA_CONTROL',
         label: 'NSTA Control',
-        group: 'CONTENT',
+        group: 'GAME',
         surfaceLevel: 3,
         adminVisible: true,
         adminTab: 'NSTA_CONTROL',

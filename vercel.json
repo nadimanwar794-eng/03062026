@@ -1,6 +1,0 @@
-{
-  "outputDirectory": "artifacts/iic-app/dist/public",
-  "rewrites": [
-    { "source": "/((?!assets/|sw\\.js|workbox-.*\\.js|\\.well-known/).*)", "destination": "/index.html" }
-  ]
-}

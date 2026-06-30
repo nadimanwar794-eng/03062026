@@ -1,9 +1,6 @@
 {
   "outputDirectory": "artifacts/iic-app/dist/public",
   "rewrites": [
-    {
-      "source": "/((?!.*\\.[a-zA-Z0-9]{1,6}$).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/((?!assets/|sw\\.js|workbox-.*\\.js|\\.well-known/).*)", "destination": "/index.html" }
   ]
 }
