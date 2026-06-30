@@ -54,6 +54,54 @@ const applySubscripts = (text: string): string =>
     });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LaTeX command symbols — convert common bare \cmd patterns to Unicode.
+// These run on plain-text nodes (not inside KaTeX HTML) so un-delimited LaTeX
+// like "8^\circ 4'" in notes becomes "8° 4'" without needing $…$ wrappers.
+// ─────────────────────────────────────────────────────────────────────────────
+const LATEX_SYMBOL_MAP: [RegExp, string][] = [
+  [/\^\{?\\circ\}?/g,   '°'],   // ^\circ  or  ^{\circ}  → °
+  [/\\circ\b/g,          '°'],   // standalone \circ → °
+  [/\\times\b/g,         '×'],
+  [/\\div\b/g,           '÷'],
+  [/\\pm\b/g,            '±'],
+  [/\\mp\b/g,            '∓'],
+  [/\\approx\b/g,        '≈'],
+  [/\\infty\b/g,         '∞'],
+  [/\\leq?\b/g,          '≤'],
+  [/\\geq?\b/g,          '≥'],
+  [/\\neq\b/g,           '≠'],
+  [/\\cdot\b/g,          '·'],
+  [/\\ldots\b/g,         '…'],
+  [/\\alpha\b/g,         'α'],
+  [/\\beta\b/g,          'β'],
+  [/\\gamma\b/g,         'γ'],
+  [/\\delta\b/g,         'δ'],
+  [/\\epsilon\b/g,       'ε'],
+  [/\\theta\b/g,         'θ'],
+  [/\\lambda\b/g,        'λ'],
+  [/\\mu\b/g,            'μ'],
+  [/\\nu\b/g,            'ν'],
+  [/\\pi\b/g,            'π'],
+  [/\\rho\b/g,           'ρ'],
+  [/\\sigma\b/g,         'σ'],
+  [/\\tau\b/g,           'τ'],
+  [/\\phi\b/g,           'φ'],
+  [/\\omega\b/g,         'ω'],
+  [/\\Delta\b/g,         'Δ'],
+  [/\\Sigma\b/g,         'Σ'],
+  [/\\Omega\b/g,         'Ω'],
+  [/\\sqrt\{([^}]+)\}/g, '√($1)'],  // \sqrt{x} → √(x)
+];
+
+const applyLatexSymbols = (text: string): string => {
+  let out = text;
+  for (const [pattern, replacement] of LATEX_SYMBOL_MAP) {
+    out = out.replace(pattern, replacement as string);
+  }
+  return out;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Degree symbol normalisation  (30* → 30°, 90 degrees → 90°)
 // ─────────────────────────────────────────────────────────────────────────────
 const applyDegrees = (text: string): string =>
@@ -114,8 +162,9 @@ export const renderMathInHtml = (html: string): string => {
     catch { return match; }
   });
 
-  // ── 5-8. Plain-text patterns (text nodes only, won't touch KaTeX HTML) ──
+  // ── 5-9. Plain-text patterns (text nodes only, won't touch KaTeX HTML) ──
   out = processTextNodes(out, text => {
+    text = applyLatexSymbols(text);  // ^\circ → °, \times → ×, etc.
     text = applySuperscripts(text);
     text = applySubscripts(text);
     text = applyDegrees(text);

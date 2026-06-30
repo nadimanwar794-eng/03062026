@@ -1,47 +1,46 @@
 # IIC — The Future of Learning
 
-An educational platform for students in India (CBSE, BSEB, etc.) providing study notes, PDF resources, MCQ practice, daily challenges, and a credit/subscription system.
+An AI-powered educational platform for Indian students (CBSE/BSEB boards) providing high-yield study materials: notes, MCQs, videos, and school management tools.
 
 ## Run & Operate
 
-- `PORT=5000 pnpm --filter @workspace/iic-app run dev` — run the frontend (port 5000, mapped to port 80)
+- `pnpm --filter @workspace/iic-app run dev` — run the student app (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm install` — install all workspace packages (required after clone)
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 
 ## Stack
 
-- pnpm workspaces, Node.js 20, TypeScript 5.9
-- Frontend: React 19, Vite, Tailwind CSS, Shadcn/UI, Framer Motion
-- Backend/DB: Firebase (Realtime Database + Firestore + Auth + Analytics)
-- PWA: vite-plugin-pwa with offline support
-- Routing: wouter
-- API server: Express 5 + Drizzle ORM (minimal, health-check only)
+- pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React 19 PWA, Vite, Tailwind CSS v4, Framer Motion, Radix UI
+- Backend/DB: Firebase (Firestore + Realtime Database + Auth)
+- Offline: localforage (IndexedDB cache)
+- API: Express 5 (skeleton in artifacts/api-server)
+- DB: PostgreSQL + Drizzle ORM (lib/db)
+- Build: esbuild (CJS bundle)
 
 ## Where things live
 
-- `artifacts/iic-app/src/` — React frontend source
-- `artifacts/iic-app/src/firebase.ts` — Firebase config and all DB/auth helpers
-- `artifacts/iic-app/src/components/` — UI components (StudentDashboard, AdminDashboard, Auth, etc.)
-- `artifacts/api-server/` — Express API server (minimal, extends later)
-- `lib/db/` — Drizzle schema (PostgreSQL, for future server-side use)
+- `artifacts/iic-app/src/firebase.ts` — Firebase initialization, all RTDB/Firestore helpers
+- `artifacts/iic-app/src/components/Auth.tsx` — login/signup UI (email, Google, anonymous)
+- `artifacts/iic-app/src/services/groq.ts` — AI service stubs (currently disabled)
+- `artifacts/iic-app/src/components/StudentDashboard.tsx` — main student experience
+- `lib/db/` — Drizzle ORM schema and migrations
 
 ## Architecture decisions
 
-- Firebase is the primary data store (RTDB + Firestore). The Express api-server is a future extension point, not currently used by the frontend.
-- Firebase config (apiKey etc.) is hardcoded in `firebase.ts` — this is correct for client-side Firebase; these are not secret keys.
-- Auth uses Firebase Auth (email/password + Google). This is intentional; replacing with Replit Auth would require a full backend rewrite.
-- PWA with offline support via localforage caching of content.
-- Monorepo with pnpm workspaces; all frontend deps live in `artifacts/iic-app/`.
+- Firebase is the primary data store (RTDB for content, Firestore for structured data). Firebase client config is intentionally hardcoded — standard for Firebase web apps.
+- Groq AI integration is stubbed out and returns disabled messages. Re-enable by restoring `callGroqApi` in `src/services/groq.ts` with a valid API key via Replit secrets.
+- PWA with offline-first caching via localforage; content is cached per chapter key (`nst_content_*`).
+- Port 5000 is the Vite dev server port (configured via `PORT` env var).
 
 ## Product
 
-- Student onboarding: board/class selection (CBSE, BSEB, etc.)
-- Study notes and PDF viewer per subject/chapter
-- MCQ practice with scoring
-- Daily challenges and competitions
-- Credit system and subscription tiers
-- Admin dashboard for content management
+- Student dashboard with study timer, performance tracker, level/reward system
+- Subject content (notes, MCQs, PDFs) served from Firebase RTDB
+- Smart School Ecosystem: attendance, fees, exams, teacher/admin panels
+- Admin dashboard for content management and AI-assisted tools
 
 ## User preferences
 
@@ -49,11 +48,6 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-- Run `pnpm install` from the workspace root before starting any workflow.
-- The "permission-denied" Firestore errors in the browser console are Firebase security rules — they don't break the app and are managed in the Firebase console.
-- The `.migration-backup/` directory contains the pre-migration snapshot; it can be safely ignored.
-
-## Pointers
-
-- Firebase project: `project-1959318394445181665`
-- Main workflow: `IIC App` (runs `PORT=5000 pnpm --filter @workspace/iic-app run dev`)
+- Firebase Firestore shows `permission-denied` for unauthenticated reads — this is expected and handled gracefully; the app falls back to RTDB.
+- `StudentDashboard.tsx` exceeds 500KB — Babel deoptimises styling. Consider splitting if performance becomes an issue.
+- Always run `pnpm install` from the workspace root after pulling new changes.

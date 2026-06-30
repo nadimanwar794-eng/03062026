@@ -286,6 +286,15 @@ export const ALL_FEATURES: Feature[] = [
 
     // --- REVISION SUB-FEATURES (Internal to Revision Hub) ---
     {
+        id: 'REVISION_MCQ_MANAGER',
+        label: 'Class MCQ Manager',
+        group: 'REVISION',
+        adminVisible: true,
+        adminTab: 'REVISION_MCQ_MANAGER',
+        icon: 'BookOpenCheck',
+        description: 'Revision Hub ke liye class-wise MCQ add karein (6–12 + Competition).',
+    },
+    {
         id: 'REVISION_AI_PLAN',
         label: 'AI Study Plan',
         group: 'REVISION',

@@ -610,6 +610,111 @@ export const saveHomeworkEntryDirect = async (entry: any): Promise<void> => {
   console.log(`[IIC] saveHomeworkEntryDirect: ${id} saved`);
 };
 
+// ── MCQ Lessons (per-lesson Firebase docs) ───────────────────────────────────
+export const saveMcqLesson = async (lesson: any): Promise<void> => {
+  const id = lesson.id as string;
+  const payload = sanitizeForFirestore(lesson);
+  await Promise.allSettled([
+    setDoc(doc(db, 'mcq_lessons', id), payload),
+    set(ref(rtdb, `mcq_lessons/${id}`), payload),
+  ]);
+  console.log(`[IIC] saveMcqLesson: ${id} saved (${lesson.mcqCount} MCQs)`);
+};
+
+export const fetchMcqLesson = async (id: string): Promise<any | null> => {
+  if (!id) return null;
+  try {
+    const snap = await get(ref(rtdb, `mcq_lessons/${id}`));
+    if (snap.exists()) return snap.val();
+  } catch (_) {}
+  try {
+    const docSnap = await getDoc(doc(db, 'mcq_lessons', id));
+    if (docSnap.exists()) return docSnap.data();
+  } catch (_) {}
+  return null;
+};
+
+/**
+ * Search Firebase chapter content for a specific topic note.
+ * Uses the content_index to find candidate chapters (by board/class/subject),
+ * then fetches each candidate and looks for a matching topicNotes entry.
+ * Caps at 8 candidates to limit network requests.
+ */
+export const fetchTopicNoteFromChapters = async (
+  board: string,
+  classLevel: string,
+  subjectName: string,
+  topicName: string
+): Promise<{ title: string; content: string } | null> => {
+  if (!board || !classLevel || !topicName) return null;
+  try {
+    const statsKey = `${board}_${classLevel}`;
+    const snap = await get(ref(rtdb, `content_index/${statsKey}`));
+    if (!snap.exists()) return null;
+    const indexRaw = snap.val() as Record<string, { notes: boolean; subject?: string }>;
+    const topicLower = topicName.trim().toLowerCase();
+    const subjectLower = (subjectName || '').trim().toLowerCase();
+
+    const findNote = async (keys: string[]) => {
+      for (const safeKey of keys) {
+        try {
+          const data = await getChapterData(safeKey);
+          if (!data || !Array.isArray(data.topicNotes)) continue;
+          const note = data.topicNotes.find((n: any) =>
+            n?.title && n.title.trim().toLowerCase() === topicLower
+          ) || data.topicNotes.find((n: any) =>
+            n?.title && (
+              n.title.trim().toLowerCase().includes(topicLower) ||
+              topicLower.includes(n.title.trim().toLowerCase())
+            )
+          );
+          if (note?.content) return { title: note.title as string, content: note.content as string };
+        } catch (_) { continue; }
+      }
+      return null;
+    };
+
+    const allKeys = Object.keys(indexRaw);
+
+    // Pass 1: subject-filtered candidates (up to 8)
+    if (subjectLower) {
+      const subjectFiltered = allKeys.filter(safeKey => {
+        const entry = indexRaw[safeKey];
+        if (!entry?.notes) return false;
+        const entrySubject = (entry.subject || '').replace(/-/g, ' ').toLowerCase();
+        return entrySubject.includes(subjectLower) || subjectLower.includes(entrySubject);
+      }).slice(0, 8);
+      const found = await findNote(subjectFiltered);
+      if (found) return found;
+    }
+
+    // Pass 2: all chapters with notes (up to 8), excluding already-checked ones
+    const allWithNotes = allKeys.filter(k => indexRaw[k]?.notes).slice(0, 8);
+    return await findNote(allWithNotes);
+  } catch (_) {}
+  return null;
+};
+
+export const deleteMcqLesson = async (id: string): Promise<void> => {
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'mcq_lessons', id)),
+    remove(ref(rtdb, `mcq_lessons/${id}`)),
+  ]);
+  console.log(`[IIC] deleteMcqLesson: ${id} deleted`);
+};
+
+export const subscribeMcqLessons = (cb: (lessons: any[]) => void): (() => void) => {
+  const r = ref(rtdb, 'mcq_lessons');
+  const unsub = onValue(r, (snap) => {
+    if (!snap.exists()) { cb([]); return; }
+    const val = snap.val();
+    const lessons = Object.values(val) as any[];
+    lessons.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    cb(lessons);
+  });
+  return unsub;
+};
+
 export const resetAllContent = async () => {
   let cloudError = null;
   try {
@@ -894,6 +999,29 @@ export const getUserByEmail = async (email: string) => {
             return coreData;
         }
         return null; 
+    } catch (e) { console.error(e); return null; }
+};
+
+export const getUserByNameAndClass = async (name: string, classLevel: string) => {
+    try {
+        const nameNorm = name.trim().toLowerCase();
+        const q = query(collection(db, "users"), where("classLevel", "==", classLevel));
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+
+        // Find by case-insensitive name match
+        const matched = snap.docs.find(d => {
+            const n = (d.data().name || '').toLowerCase().trim();
+            return n === nameNorm;
+        });
+        if (!matched) return null;
+
+        const coreData = matched.data();
+        if (coreData?.id) {
+            const bulkySnap = await getDoc(doc(db, "user_data", coreData.id)).catch(() => null);
+            if (bulkySnap && bulkySnap.exists()) return { ...coreData, ...bulkySnap.data() };
+        }
+        return coreData;
     } catch (e) { console.error(e); return null; }
 };
 

@@ -210,6 +210,7 @@ import { AiHub } from "./AiHub"; // NEW: AI Hub
 import { McqReviewHub } from "./McqReviewHub"; // NEW
 import { UniversalVideoView } from "./UniversalVideoView"; // NEW
 import { RevisionHubV2 } from "./RevisionHubV2"; // NEW: Revision Hub V2 with auto-note search
+import { RevisionHubScreen } from "./RevisionHubScreen"; // NEW: Revision Hub full-screen with top tabs
 import { CustomBloggerPage } from "./CustomBloggerPage";
 import { ReferralPopup } from "./ReferralPopup";
 import { SpeakButton } from "./SpeakButton";
@@ -2802,6 +2803,7 @@ export const StudentDashboard: React.FC<Props> = ({
     try { return JSON.parse(localStorage.getItem('nst_starred_notes_v1') || '[]'); } catch { return []; }
   });
   const [showStarredPage, setShowStarredPage] = useState(false);
+  const [showRevisionHubScreen, setShowRevisionHubScreen] = useState(false);
   // 2-category view toggle for the Important Notes pages: 'list' = original
   // flat list, 'bybook' = grouped by source book / page.
   const [importantNotesView, setImportantNotesView] = useState<'list' | 'bybook'>('list');
@@ -5046,6 +5048,7 @@ export const StudentDashboard: React.FC<Props> = ({
       if (s.showChat)            { setShowChat(false);                reTrap(); return; }
       if (s.showNotifPage)       { setShowNotifPage(false);           reTrap(); return; }
       if (s.showStarredPage)     { setShowStarredPage(false);         reTrap(); return; }
+      if ((s as any).showRevisionHubScreen) { setShowRevisionHubScreen(false); reTrap(); return; }
       if (s.showCompMcqHub)      { setShowCompMcqHub(false);         reTrap(); return; }
       if (s.showMistakePractice) { setShowMistakePractice(false);    reTrap(); return; }
       if (s.showRulesPage)       { setShowRulesPage(false);           reTrap(); return; }
@@ -8325,6 +8328,35 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                   )}
 
+                  {/* ── REVISION HUB CARD ── */}
+                  {(() => {
+                    const _rhBdr = settings?.homeRevisionHubCardBorder || _cmpBdr || tierTheme.primary || '#6366f1';
+                    const _rhBg  = settings?.homeRevisionHubCardBg    || tierTheme.profileCardBg || '#ffffff';
+                    const _rh3D  = _masterAll3D || (settings?.homeRevisionHubCard3D ?? true);
+                    return (
+                  <button
+                    onClick={() => { hapticMedium(); setShowRevisionHubScreen(true); }}
+                    className="w-full rounded-2xl overflow-hidden active:scale-[0.99] transition-all mb-1"
+                    style={_rh3D ? { background: _rhBg, border: `2px solid ${_rhBdr}`, boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${_rhBdr}bb, 0 7px 18px ${_rhBdr}28`, transform: 'translateY(-1px)' } : { background: _rhBg, border: `2px solid ${_rhBdr}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className="flex items-center gap-3 px-4 py-3.5">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${_rhBdr}18` }}>
+                        🧠
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-[10px] font-black uppercase tracking-wider mb-0.5" style={{ color: _rhBdr }}>Revision Hub</p>
+                        <div className="text-slate-800 font-black text-sm leading-tight">Smart Learning</div>
+                        <div className="text-slate-500 text-[10px] font-medium mt-0.5 leading-tight">MCQ · Revision · History · Performance</div>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide" style={{ background: `${_rhBdr}18`, color: _rhBdr }}>New</span>
+                        <ChevronRight size={16} className="mt-0.5" style={{ color: _rhBdr }} />
+                      </div>
+                    </div>
+                  </button>
+                    );
+                  })()}
+
                   {/* ── QUICK ACTION CARDS 3×2 ── */}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
@@ -8424,6 +8456,7 @@ export const StudentDashboard: React.FC<Props> = ({
           user={user}
           settings={settings}
           onBack={() => { onTabChange("HOME"); currentLogicalTabRef.current = 'HOME'; setCurrentLogicalTab("HOME"); }}
+          onUpdateUser={handleUserUpdate}
           onOpenChapter={(subjectId, chapterId, chapterTitle) => {
             try {
               handleChapterSelect({ id: chapterId, title: chapterTitle || 'Chapter' } as any);
@@ -8431,7 +8464,6 @@ export const StudentDashboard: React.FC<Props> = ({
           }}
           onOpenMcq={(subjectId, chapterId, chapterTitle, topic) => {
             try {
-              // Navigate to MCQ view for this chapter
               const _b8 = activeSessionBoard || user.board;
               const lang = (_b8 === "BSEB" || _b8 === "NCERT_HI") ? "Hindi" : "English";
               const subjects = getSubjectsList(
@@ -9507,6 +9539,76 @@ export const StudentDashboard: React.FC<Props> = ({
                 </div>
               );
             })()}
+          </div>
+
+          {/* ── RECOVERY OPTIONS CARD ── */}
+          <div className="px-3 mb-3">
+            <div className="rounded-2xl overflow-hidden" style={{
+              background: _pCard,
+              border: `1px solid ${tierTheme.primary}18`,
+            }}>
+              <div className="px-4 pt-3 pb-2 flex items-center gap-2" style={{ borderBottom: _pSep }}>
+                <span className="text-sm">🔐</span>
+                <p className={`text-[11px] font-black uppercase tracking-wider flex-1 ${_pTxt}`}>Account Recovery Options</p>
+              </div>
+              {/* Mobile */}
+              <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
+                <span className="text-base">📱</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${_pTxtSub}`}>Mobile Number</p>
+                  <p className={`text-xs font-bold truncate ${_pTxt}`}>
+                    {(user as any).mobile ? (user as any).mobile : <span className="text-slate-400 font-semibold">Set nahi hai</span>}
+                  </p>
+                </div>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
+                  background: (user as any).mobile ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
+                  color: (user as any).mobile ? '#16a34a' : '#94a3b8',
+                }}>{(user as any).mobile ? '✓ Active' : 'Inactive'}</span>
+              </div>
+              {/* Email */}
+              <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
+                <span className="text-base">📧</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${_pTxtSub}`}>Email</p>
+                  <p className={`text-xs font-bold truncate ${_pTxt}`}>
+                    {user.email ? user.email : <span className="text-slate-400 font-semibold">Set nahi hai</span>}
+                  </p>
+                </div>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
+                  background: user.email ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
+                  color: user.email ? '#16a34a' : '#94a3b8',
+                }}>{user.email ? '✓ Active' : 'Inactive'}</span>
+              </div>
+              {/* Name + Class */}
+              <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
+                <span className="text-base">👤</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${_pTxtSub}`}>Naam + Class</p>
+                  <p className={`text-xs font-bold truncate ${_pTxt}`}>
+                    {user.name} {(user as any).classLevel ? `· Class ${(user as any).classLevel}` : ''}
+                  </p>
+                </div>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
+                  background: 'rgba(34,197,94,0.12)',
+                  color: '#16a34a',
+                }}>✓ Active</span>
+              </div>
+              {/* UID */}
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="text-base">🔑</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${_pTxtSub}`}>Account UID</p>
+                  <p className="text-[10px] font-mono font-bold truncate" style={{ color: _pTxtMutedColor }}>{user.id}</p>
+                </div>
+                <button
+                  onClick={() => { try { navigator.clipboard.writeText(user.id); showAlert('UID copied!', 'SUCCESS'); } catch {} }}
+                  className="shrink-0 p-1.5 rounded-lg active:opacity-60"
+                  style={{ background: `${tierTheme.primary}14` }}
+                >
+                  <span style={{ fontSize: 12 }}>📋</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* ── STATS ROW ── */}
@@ -15245,6 +15347,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
+        data-iic-bottom-nav=""
         className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
         style={{
           background: tierTheme.navBg,
@@ -15411,6 +15514,8 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowChat(false);
               // Close word-search Compare View if open.
               setShowCompareView(false);
+              // Close Revision Hub Screen if open — otherwise it covers all other tabs.
+              setShowRevisionHubScreen(false);
               // Close the Important Notes overlay if it's open — otherwise the
               // overlay (z-[200]) keeps covering the dashboard even after the
               // user taps Home / Homework / Profile / Revision in bottom nav.
@@ -15536,7 +15641,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 label: "Profile",
                 Icon: UserIcon,
                 filledOnActive: false,
-                isActive: !showStarredPage && currentLogicalTab === "PROFILE",
+                isActive: !showStarredPage && !showRevisionHubScreen && currentLogicalTab === "PROFILE",
                 onClick: () => switchToLogicalTab("PROFILE"),
               },
             ];
@@ -18360,6 +18465,20 @@ RULES:
       })()}
 
 
+      {/* REVISION HUB FULL-SCREEN — MCQ · Revision · History · Performance */}
+      {showRevisionHubScreen && (
+        <RevisionHubScreen
+          user={user}
+          settings={settings}
+          onBack={() => setShowRevisionHubScreen(false)}
+          onTabChange={onTabChange}
+          onNavigateContent={(type, chapterId, topicName, subjectName) => {
+            setShowRevisionHubScreen(false);
+          }}
+          onUpdateUser={handleUserUpdate}
+        />
+      )}
+
       {/* HOMEWORK MCQ FULL-SCREEN PLAYER */}
       {homeworkPlayerHwId && activePlayerHw && (
         <div className="fixed inset-0 z-[200] bg-white flex flex-col h-[100dvh] w-screen animate-in fade-in slide-in-from-bottom-4">
@@ -20198,6 +20317,7 @@ RULES:
       {!activeExternalApp && !hwActiveHwId && contentViewStep === "PLAYER" && !lucentNoteViewer && (
         <button
           ref={floatLogoBtnRef}
+          data-iic-float-logo=""
           onClick={() => { if (!floatLogoMoved.current) setIsLandscapeUiHidden(prev => { const next = !prev; setIsTopBarHidden(next); return next; }); }}
           className="fixed z-[9200] shadow-2xl"
           style={{

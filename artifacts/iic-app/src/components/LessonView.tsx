@@ -4,14 +4,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { LessonContent, Subject, ClassLevel, Chapter, MCQItem, ContentType, User, SystemSettings } from '../types';
-import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe, Lightbulb, FileText, BrainCircuit, Grip, CheckSquare, List, Download, BarChart3, RotateCcw, Monitor, CloudOff, MoreVertical, EyeOff, Eye, LayoutGrid, Pencil } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe, Lightbulb, FileText, BrainCircuit, Grip, CheckSquare, List, Download, BarChart3, RotateCcw, Monitor, CloudOff, MoreVertical, EyeOff, Eye, LayoutGrid, Pencil, Send } from 'lucide-react';
 import { CustomConfirm, CustomAlert } from './CustomDialogs';
 import { CustomPlayer } from './CustomPlayer';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { decodeHtml } from '../utils/htmlDecoder';
 import { storage } from '../utils/storage';
-import { getChapterData, saveUserHistory, saveTestResult, saveUserToLive, saveAdminMark2Topics, subscribeAdminMark2Topics } from '../firebase';
+import { getChapterData, saveUserHistory, saveTestResult, saveUserToLive, saveAdminMark2Topics, subscribeAdminMark2Topics, saveSuggestion } from '../firebase';
 import { WriteModeCorrection } from "./WriteModeCorrection";
 import { SpeakButton } from './SpeakButton';
 import { McqSpeakButtons } from './McqSpeakButtons';
@@ -353,6 +353,9 @@ export const LessonView: React.FC<Props> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSuggestionPanel, setShowSuggestionPanel] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [mcqSuggestionOpen, setMcqSuggestionOpen] = useState<Record<number, boolean>>({});
+  const [mcqSuggestionText, setMcqSuggestionText] = useState<Record<number, string>>({});
+  const [mcqSuggestionSent, setMcqSuggestionSent] = useState<Set<number>>(new Set());
 
   const toggleFullScreen = () => {
       if (!document.fullscreenElement) {
@@ -2251,8 +2254,17 @@ export const LessonView: React.FC<Props> = ({
                            }
 
                            // 1. Group Data
+                           const lastAttemptedIdx = Object.keys(mcqState).length > 0
+                               ? Math.max(...Object.keys(mcqState).map(Number))
+                               : -1;
+
                            const grouped: Record<string, {questions: MCQItem[], indices: number[], correct: number}> = {};
                            displayData.forEach((q, idx) => {
+                               // For QUESTIONS tab: only show questions up to last attempted index
+                               if (activeAnalysisTab === 'QUESTIONS') {
+                                   if (idx > lastAttemptedIdx) return;
+                               }
+
                                // Filter for MISTAKES tab
                                if (activeAnalysisTab === 'MISTAKES') {
                                    if (mcqState[idx] === undefined || mcqState[idx] === q.correctAnswer) return;
@@ -2321,6 +2333,11 @@ export const LessonView: React.FC<Props> = ({
                                                                    {idx + 1}
                                                                </span>
                                                                <div className="w-full">
+                                                                   {!isAnswered && (
+                                                                       <span className="inline-block text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200 uppercase tracking-wide mb-1">
+                                                                           Skip
+                                                                       </span>
+                                                                   )}
                                                                    <div dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} className="prose prose-sm max-w-none" />
                                                                    {q.statements && q.statements.length > 0 && (
                                                                        <div className="mt-3 mb-2 flex flex-col space-y-2">
@@ -2340,6 +2357,12 @@ export const LessonView: React.FC<Props> = ({
                                                                index={localI}
                                                            />
                                                        </div>
+                                                       {!isAnswered ? (
+                                                           <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                                                               <p className="text-orange-600 font-bold text-sm">Question Skip ki gayi</p>
+                                                               <p className="text-orange-500 text-xs mt-1">Sahi jawab: Option {String.fromCharCode(65 + q.correctAnswer)}) {q.options[q.correctAnswer]}</p>
+                                                           </div>
+                                                       ) : (
                                                        <div className="space-y-2">
                                                            {q.options.map((opt, oIdx) => {
                                                                let btnClass = "w-full text-left p-3 rounded-xl border transition-all text-sm font-medium relative overflow-hidden ";
@@ -2364,6 +2387,7 @@ export const LessonView: React.FC<Props> = ({
                                                                );
                                                            })}
                                                        </div>
+                                                       )}
                                                        {q.explanation && (
                                                            <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
                                                                <div className="flex items-center justify-between mb-1">
@@ -2402,7 +2426,7 @@ export const LessonView: React.FC<Props> = ({
                                const isWrong = isAnswered && !isCorrect;
                                
                                const isRevealed = revealedAnswers.has(idx);
-                               const showExplanation = (instantExplanation && isAnswered && isWrong) || isRevealed;
+                               const showExplanation = (showResults && isAnswered) || isRevealed;
                                const fullQuestionText = `${q.question}. Options are: ${q.options.map((opt, i) => `Option ${i+1}: ${opt}`).join('. ')}`;
 
                                return (
@@ -2444,7 +2468,7 @@ export const LessonView: React.FC<Props> = ({
                                            {q.options.map((opt, oIdx) => {
                                                let btnClass = "w-full text-left p-3 rounded-xl border transition-all text-sm font-medium relative overflow-hidden ";
 
-                                               const showColors = (instantExplanation && isAnswered) || isRevealed;
+                                               const showColors = showResults || isRevealed;
 
                                                if (showColors) {
                                                    if (oIdx === q.correctAnswer) {
@@ -2484,20 +2508,79 @@ export const LessonView: React.FC<Props> = ({
                                            })}
                                        </div>
 
-                                       {!showResults && !isRevealed && !(instantExplanation && isAnswered) && (
-                                           <div className="mt-3 flex justify-end">
-                                               <button
-                                                   type="button"
-                                                   onClick={() => setRevealedAnswers(prev => {
-                                                       const next = new Set(prev);
-                                                       next.add(idx);
-                                                       return next;
-                                                   })}
-                                                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-full transition-colors"
-                                               >
-                                                   <Lightbulb size={12} /> Show Answer
-                                               </button>
-                                           </div>
+                                       {/* ── MCQ Suggestion Button ── */}
+                                       <div className="mt-3 flex justify-end">
+                                         <button
+                                           onClick={() => setMcqSuggestionOpen(p => ({ ...p, [idx]: !p[idx] }))}
+                                           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                                             mcqSuggestionOpen[idx]
+                                               ? 'bg-amber-100 text-amber-700 border-amber-300'
+                                               : mcqSuggestionSent.has(idx)
+                                                 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                 : 'bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
+                                           }`}
+                                         >
+                                           <Lightbulb size={12} />
+                                           {mcqSuggestionSent.has(idx) ? '✓ Sent' : 'Question mein galti?'}
+                                         </button>
+                                       </div>
+
+                                       {mcqSuggestionOpen[idx] && (
+                                         <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                                           {mcqSuggestionSent.has(idx) ? (
+                                             <p className="text-xs text-emerald-700 font-bold text-center py-1">
+                                               ✅ Suggestion bhej diya! Admin fix karega.
+                                             </p>
+                                           ) : (
+                                             <>
+                                               <p className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                                                 <Lightbulb size={11} className="text-amber-600" />
+                                                 Is question mein kya galti hai? Batao:
+                                               </p>
+                                               <textarea
+                                                 value={mcqSuggestionText[idx] || ''}
+                                                 onChange={e => setMcqSuggestionText(p => ({ ...p, [idx]: e.target.value }))}
+                                                 placeholder="Question galat hai, option galat hai, answer galat hai..."
+                                                 className="w-full text-xs border border-amber-200 rounded-xl p-2.5 bg-white resize-none h-14 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                                               />
+                                               <div className="flex gap-2">
+                                                 <button
+                                                   onClick={() => setMcqSuggestionOpen(p => ({ ...p, [idx]: false }))}
+                                                   className="flex-1 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600"
+                                                 >
+                                                   Cancel
+                                                 </button>
+                                                 <button
+                                                   onClick={async () => {
+                                                     const text = (mcqSuggestionText[idx] || '').trim();
+                                                     if (!text) return;
+                                                     try {
+                                                       await saveSuggestion({
+                                                         id: `mcq_lv_${Date.now()}`,
+                                                         text: `MCQ: "${(q.question || '').substring(0, 100)}" | Sahi Jawab: ${q.options?.[q.correctAnswer] || '—'} | Correction: ${text}`,
+                                                         uid: user?.id || 'anonymous',
+                                                         userName: user?.name || user?.email?.split('@')[0] || 'Student',
+                                                         userBoard: (user as any)?.board || '',
+                                                         createdAt: new Date().toISOString(),
+                                                         mode: 'mcq',
+                                                         lessonTitle: chapter?.title,
+                                                         subject: subject?.name,
+                                                       });
+                                                       setMcqSuggestionSent(prev => new Set(prev).add(idx));
+                                                       setMcqSuggestionOpen(p => ({ ...p, [idx]: false }));
+                                                     } catch (err) {
+                                                       console.error('Suggestion save failed:', err);
+                                                     }
+                                                   }}
+                                                   disabled={!(mcqSuggestionText[idx] || '').trim()}
+                                                   className="flex-1 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                 >
+                                                   <Send size={11} /> Admin ko Bhejo
+                                                 </button>
+                                               </div>
+                                             </>
+                                           )}
+                                         </div>
                                        )}
 
                                        {showExplanation && (

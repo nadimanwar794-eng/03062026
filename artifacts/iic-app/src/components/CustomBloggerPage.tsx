@@ -5,6 +5,7 @@ import { ref, onValue } from 'firebase/database';
 import { APP_VERSION } from '../constants';
 import { SystemSettings } from '../types';
 import { CustomPlayer } from './CustomPlayer';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 interface Props {
   onBack: () => void;
@@ -77,7 +78,7 @@ export const CustomBloggerPage: React.FC<Props> = ({ onBack, settings }) => {
 
              {/* Render Custom HTML Content */}
              {content ? (
-                 <div className="custom-html-content dark-mode-text blue-mode-text" dangerouslySetInnerHTML={{ __html: content }} />
+                 <div className="custom-html-content dark-mode-text blue-mode-text" dangerouslySetInnerHTML={{ __html: renderMathInHtml(content) }} />
              ) : (
                  <div className="text-center py-20 text-slate-500">
                      <p>No content available.</p>

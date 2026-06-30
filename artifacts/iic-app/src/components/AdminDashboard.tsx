@@ -4,9 +4,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { User, ViewState, SystemSettings, Subject, Chapter, MCQItem, RecoveryRequest, ActivityLogEntry, LeaderboardEntry, RecycleBinItem, Stream, Board, ClassLevel, GiftCode, SubscriptionPlan, CreditPackage, SpinReward, SpinGameType, HtmlModule, PremiumNoteSlot, ContentInfoConfig, ContentInfoItem, SubscriptionHistoryEntry, UniversalAnalysisLog, ContentType, LessonContent, DeepDiveEntry, AdditionalNoteEntry, TeacherStorePlan, TeacherCode, HomeworkItem, LucentNoteEntry, LucentPageNote, AppNotification, BroadcastRedeemCode, LoginBonusRandomGiftOption } from '../types';
 import { List, GraduationCap, LayoutDashboard, Users, Search, Trash2, Save, X, Eye, EyeOff, Shield, Megaphone, CheckCircle, ListChecks, Database, FileText, Monitor, Sparkles, Banknote, BrainCircuit, AlertOctagon, ArrowLeft, ArrowRight, Key, Bell, ShieldCheck, Lock, Globe, Layers, Zap, PenTool, RefreshCw, RotateCcw, Plus, LogOut, Download, Upload, CreditCard, Ticket, Video, Image as ImageIcon, Type, Link, FileJson, Activity, AlertTriangle, Gift, Book, Mail, Edit3, MessageSquare, ShoppingBag, Cloud, Rocket, Code2, Layers as LayersIcon, Wifi, WifiOff, Copy, Crown, Gamepad2, Calendar, BookOpen, Image, HelpCircle, Youtube, Play, Star, Trophy, Palette, Settings, Headphones, Layout, Bot, LayoutDashboard as DashboardIcon, Loader2, Gauge, LayoutGrid, ArrowUpCircle, KeyRound, Award, Send, GitCompare, Lightbulb, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { getSubjectsList, DEFAULT_SUBJECTS, DEFAULT_APP_FEATURES, ALL_APP_FEATURES, STUDENT_APP_FEATURES, DEFAULT_CONTENT_INFO_CONFIG, ADMIN_PERMISSIONS, APP_VERSION, STATIC_SYLLABUS, LEVEL_UNLOCKABLE_FEATURES } from '../constants';
+import { AdminClassMcqManager } from './AdminClassMcqManager';
 import { fetchChapters, fetchLessonContent } from '../services/groq';
 import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
+import { saveTopicNotes } from '../utils/revisionTrackerV2';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
 import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson, subscribeSuggestions, adminReplySuggestion, deleteSuggestion, reactToSuggestion, resolvesuggestion, applyNoteCorrection, applyMcqCorrection, applyMcqFullEdit } from '../firebase'; // IMPORT FIREBASE
@@ -134,7 +136,8 @@ type AdminTab =
   | 'ADMIN_HELP'
   | 'ERROR_LOGS' // Error Notice Board
   | 'CONTENT_HISTORY' // Content addition history log
-  | 'FEEDBACK'; // App Feedback from users
+  | 'FEEDBACK' // App Feedback from users
+  | 'REVISION_MCQ_MANAGER'; // Revision Hub MCQ Manager
 
 interface ContentConfig {
     freeLink?: string;
@@ -578,7 +581,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
   // --- DAILY GK STATE ---
   // --- HOMEWORK STATE ---
-  const [homeworkTab, setHomeworkTab] = useState<'ADD' | 'HISTORY' | 'COMP_MCQ'>('ADD');
+  const [homeworkTab, setHomeworkTab] = useState<'ADD' | 'HISTORY' | 'COMP_MCQ' | 'CLASS_MCQ'>('ADD');
   const [bookNotesTab, setBookNotesTab] = useState<'ADD' | 'HISTORY'>('ADD');
   const [bnBookFilter, setBnBookFilter] = useState<string>('ALL');
   const [bnEditingId, setBnEditingId] = useState<string | null>(null);
@@ -1181,6 +1184,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [teachingStrategyNotes, setTeachingStrategyNotes] = useState<{ id: string, title: string, content: string, type: 'HTML', audioUrl?: string }[]>([]); // NEW: Unlimited Teaching Strategy Notes
   const [editingMcqs, setEditingMcqs] = useState<MCQItem[]>([]);
   const [editingTestMcqs, setEditingTestMcqs] = useState<MCQItem[]>([]);
+  const [editingMcqText, setEditingMcqText] = useState('');
   const [importText, setImportText] = useState('');
   const [importFormatMode, setImportFormatMode] = useState<'AUTO' | 'ADVANCED_EMOJI' | 'STANDARD_TSV'>('AUTO');
   const [syllabusImportText, setSyllabusImportText] = useState('');
@@ -1492,6 +1496,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       
       // Save locally AND to Firebase
       await storage.setItem(key, newData);
+      // Keep direct topic-note index in sync so Revision Hub can find notes by topic name
+      if (topicNotes.length > 0) {
+          saveTopicNotes(topicNotes.map(n => ({ title: n.topic || n.title, content: n.content })));
+      }
 
       try {
           await saveChapterData(key, newData); // <--- FIREBASE SAVE
@@ -3222,7 +3230,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       id: `note-${Date.now()}-${generateSecureRandomId(9)}`,
                       title: n.title,
                       topic: n.title,
-                      content: `<p>${n.content.replace(/\n/g, '<br>')}</p>`,
+                      content: /^<(h[1-6]|div|p|ul|ol|li|section)/i.test(n.content.trimStart()) ? n.content : `<p>${n.content.replace(/\n/g, '<br>')}</p>`,
                       isPremium: false
                   }));
                   setTopicNotes(prev => [...prev, ...newTopicNotes]);
@@ -3353,7 +3361,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           id: `note-${Date.now()}-${generateSecureRandomId(9)}`,
                           title: n.title,
                           topic: n.title,
-                          content: `<p>${n.content.replace(/\n/g, '<br>')}</p>`,
+                          content: /^<(h[1-6]|div|p|ul|ol|li|section)/i.test(n.content.trimStart()) ? n.content : `<p>${n.content.replace(/\n/g, '<br>')}</p>`,
                           isPremium: false
                       })));
                   }
@@ -3561,9 +3569,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   }
               }
 
-              // Update Topic Notes State
+              // Update Topic Notes State + save to direct topic index for Revision Hub
               if (newTopicNotes.length > 0) {
                   setTopicNotes(prev => [...prev, ...newTopicNotes]);
+                  saveTopicNotes(newTopicNotes.map(n => ({ title: n.topic || n.title, content: n.content })));
               }
 
               if (newQuestions.length > 0) {
@@ -3950,6 +3959,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   userRole={currentUser?.role || 'STUDENT'}
                   settings={localSettings}
               />
+
               {/* COMPARE ANALYTICS PANEL */}
               {(() => {
                 const freq = new Map<string, { displayQuery: string; count: number; totalHits: number; last: string }>();
@@ -4213,146 +4223,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           )}
                       </div>
                   </div>
-
-                  {/* REVISION HUB — INTERVAL CONFIGURATION */}
-                  {(localSettings.revisionConfig?.trackWrongAnswers ?? true) && (
-                      <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-inner mb-4 animate-in fade-in slide-in-from-top-2">
-                          <h5 className="font-bold text-indigo-800 mb-1 flex items-center gap-2">
-                              <BrainCircuit size={16} className="text-indigo-600" /> Revision Hub — Interval Settings
-                          </h5>
-                          <p className="text-[10px] text-indigo-600 mb-4">
-                              MCQ mein galat hone ke baad student ko kab Notes aur kab MCQ milega — yahan adjust karein (days mein).
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                              {/* Score thresholds */}
-                              <div>
-                                  <label className="text-[10px] font-bold text-slate-600 block mb-1">Strong Score % (min)</label>
-                                  <input type="number" min={50} max={100} className="w-full p-2 border rounded text-sm"
-                                      value={localSettings.revisionConfig?.thresholds?.strong ?? 65}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          thresholds: { ...(localSettings.revisionConfig?.thresholds || {strong:65,average:50,mastery:80}), strong: Number(e.target.value) }
-                                      } as any})}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="text-[10px] font-bold text-slate-600 block mb-1">Average Score % (min)</label>
-                                  <input type="number" min={20} max={90} className="w-full p-2 border rounded text-sm"
-                                      value={localSettings.revisionConfig?.thresholds?.average ?? 50}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          thresholds: { ...(localSettings.revisionConfig?.thresholds || {strong:65,average:50,mastery:80}), average: Number(e.target.value) }
-                                      } as any})}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="text-[10px] font-bold text-slate-600 block mb-1">Mastery Score % (min)</label>
-                                  <input type="number" min={70} max={100} className="w-full p-2 border rounded text-sm"
-                                      value={localSettings.revisionConfig?.thresholds?.mastery ?? 80}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          thresholds: { ...(localSettings.revisionConfig?.thresholds || {strong:65,average:50,mastery:80}), mastery: Number(e.target.value) }
-                                      } as any})}
-                                  />
-                              </div>
-                              <div>
-                                  <label className="text-[10px] font-bold text-slate-600 block mb-1">Mastery Required Count</label>
-                                  <input type="number" min={1} max={10} className="w-full p-2 border rounded text-sm"
-                                      value={localSettings.revisionConfig?.mastery?.requiredCount ?? 2}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          mastery: { requiredCount: Number(e.target.value) }
-                                      } as any})}
-                                  />
-                              </div>
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              {/* Weak */}
-                              <div className="bg-rose-50 rounded-lg p-3 border border-rose-200">
-                                  <p className="text-[10px] font-black text-rose-700 uppercase mb-2">Weak Topic</p>
-                                  <label className="text-[10px] text-slate-600 block">Notes due after (days)</label>
-                                  <input type="number" min={1} max={30} className="w-full p-1.5 border rounded text-sm mb-2"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.weak?.revision ?? 86400) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), weak: { ...(localSettings.revisionConfig?.intervals?.weak || {} as any), revision: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                                  <label className="text-[10px] text-slate-600 block">MCQ due after notes (days)</label>
-                                  <input type="number" min={1} max={30} className="w-full p-1.5 border rounded text-sm"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.weak?.mcq ?? 86400) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), weak: { ...(localSettings.revisionConfig?.intervals?.weak || {} as any), mcq: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                              </div>
-                              {/* Average */}
-                              <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-                                  <p className="text-[10px] font-black text-amber-700 uppercase mb-2">Average Topic</p>
-                                  <label className="text-[10px] text-slate-600 block">Next notes after (days)</label>
-                                  <input type="number" min={1} max={60} className="w-full p-1.5 border rounded text-sm mb-2"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.average?.revision ?? 259200) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), average: { ...(localSettings.revisionConfig?.intervals?.average || {} as any), revision: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                                  <label className="text-[10px] text-slate-600 block">Next MCQ after (days)</label>
-                                  <input type="number" min={1} max={60} className="w-full p-1.5 border rounded text-sm"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.average?.mcq ?? 432000) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), average: { ...(localSettings.revisionConfig?.intervals?.average || {} as any), mcq: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                              </div>
-                              {/* Strong */}
-                              <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
-                                  <p className="text-[10px] font-black text-emerald-700 uppercase mb-2">Strong Topic</p>
-                                  <label className="text-[10px] text-slate-600 block">Next notes after (days)</label>
-                                  <input type="number" min={1} max={90} className="w-full p-1.5 border rounded text-sm mb-2"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.strong?.revision ?? 604800) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), strong: { ...(localSettings.revisionConfig?.intervals?.strong || {} as any), revision: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                                  <label className="text-[10px] text-slate-600 block">Next MCQ after (days)</label>
-                                  <input type="number" min={1} max={90} className="w-full p-1.5 border rounded text-sm"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.strong?.mcq ?? 864000) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), strong: { ...(localSettings.revisionConfig?.intervals?.strong || {} as any), mcq: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                              </div>
-                              {/* Mastered */}
-                              <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                                  <p className="text-[10px] font-black text-purple-700 uppercase mb-2">Mastered Topic</p>
-                                  <label className="text-[10px] text-slate-600 block">Next notes after (days)</label>
-                                  <input type="number" min={7} max={365} className="w-full p-1.5 border rounded text-sm mb-2"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.mastered?.revision ?? 2592000) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), mastered: { ...(localSettings.revisionConfig?.intervals?.mastered || {} as any), revision: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                                  <label className="text-[10px] text-slate-600 block">Next MCQ after (days)</label>
-                                  <input type="number" min={7} max={365} className="w-full p-1.5 border rounded text-sm"
-                                      value={Math.round((localSettings.revisionConfig?.intervals?.mastered?.mcq ?? 864000) / 86400)}
-                                      onChange={e => setLocalSettings({...localSettings, revisionConfig: {
-                                          ...localSettings.revisionConfig,
-                                          intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), mastered: { ...(localSettings.revisionConfig?.intervals?.mastered || {} as any), mcq: Number(e.target.value) * 86400 } }
-                                      } as any})}
-                                  />
-                              </div>
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-3">
-                              ℹ️ Weak = score &lt; Average%; Average = score &lt; Strong%; Strong = score &lt; Mastery%; Mastered = score ≥ Mastery%
-                          </p>
-                      </div>
-                  )}
 
                   {/* EVENT DETAILED SETTINGS */}
                   {localSettings.specialDiscountEvent?.enabled && (
@@ -8545,6 +8415,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                           <button onClick={() => setHomeworkTab('ADD')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${homeworkTab === 'ADD' ? 'bg-white text-indigo-800 shadow' : 'text-indigo-600 hover:bg-indigo-200/50'}`}>Add New</button>
                           <button onClick={() => setHomeworkTab('HISTORY')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${homeworkTab === 'HISTORY' ? 'bg-white text-indigo-800 shadow' : 'text-indigo-600 hover:bg-indigo-200/50'}`}>History</button>
                           <button onClick={() => setHomeworkTab('COMP_MCQ')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${homeworkTab === 'COMP_MCQ' ? 'bg-white text-indigo-800 shadow' : 'text-indigo-600 hover:bg-indigo-200/50'}`}>Comp MCQ ({(localSettings.competitionMcqs || []).length})</button>
+                          <button onClick={() => setHomeworkTab('CLASS_MCQ')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${homeworkTab === 'CLASS_MCQ' ? 'bg-white text-indigo-800 shadow' : 'text-indigo-600 hover:bg-indigo-200/50'}`}>Class MCQ</button>
                       </div>
                   </h4>
 
@@ -10244,6 +10115,25 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                   ))}
                               </div>
                           </div>
+                      </div>
+                  )}
+
+                  {homeworkTab === 'CLASS_MCQ' && (
+                      <div className="bg-white rounded-xl border border-indigo-200 shadow-sm animate-in fade-in w-full">
+                          <AdminClassMcqManager
+                              settings={localSettings}
+                              onSave={(key, mcqs) => {
+                                  const newSettings = {
+                                      ...localSettings,
+                                      classMcqs: {
+                                          ...(localSettings.classMcqs || {}),
+                                          [key]: mcqs,
+                                      },
+                                  };
+                                  setLocalSettings(newSettings);
+                                  handleSaveSettings(newSettings);
+                              }}
+                          />
                       </div>
                   )}
               </div>
@@ -17632,6 +17522,182 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   </div>
               </div>
           </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          REVISION HUB MCQ MANAGER
+          Class-wise MCQ directly add karein (6-12 + Competition)
+          ══════════════════════════════════════════════════════ */}
+      {activeTab === 'REVISION_MCQ_MANAGER' && (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right space-y-4">
+          <div className="flex items-center gap-4 border-b pb-4">
+            <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200">
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h3 className="text-xl font-black text-slate-800">Revision Hub — Class MCQ Manager</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Class aur subject chunke MCQ add karein — student ke Revision Hub MCQ tab mein dikhega</p>
+            </div>
+          </div>
+          <AdminClassMcqManager
+            settings={localSettings}
+            onSave={(key, mcqs) => {
+              const newSettings = {
+                ...localSettings,
+                classMcqs: {
+                  ...(localSettings.classMcqs || {}),
+                  [key]: mcqs,
+                },
+              };
+              setLocalSettings(newSettings);
+              handleSaveSettings(newSettings);
+            }}
+          />
+          {/* REVISION HUB — INTERVAL CONFIGURATION */}
+              <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-inner mb-4 animate-in fade-in slide-in-from-top-2">
+                  <h5 className="font-bold text-indigo-800 mb-1 flex items-center gap-2">
+                      <BrainCircuit size={16} className="text-indigo-600" /> Revision Hub — Interval Settings
+                  </h5>
+                  <p className="text-[10px] text-indigo-600 mb-4">
+                      MCQ mein galat hone ke baad student ko kab Notes aur kab MCQ milega — yahan adjust karein (days mein).
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      {/* Score thresholds */}
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Strong Score % (min)</label>
+                          <input type="number" min={50} max={100} className="w-full p-2 border rounded text-sm"
+                              value={localSettings.revisionConfig?.thresholds?.strong ?? 65}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  thresholds: { ...(localSettings.revisionConfig?.thresholds || {strong:65,average:50,mastery:80}), strong: Number(e.target.value) }
+                              } as any})}
+                          />
+                      </div>
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Average Score % (min)</label>
+                          <input type="number" min={20} max={90} className="w-full p-2 border rounded text-sm"
+                              value={localSettings.revisionConfig?.thresholds?.average ?? 50}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  thresholds: { ...(localSettings.revisionConfig?.thresholds || {strong:65,average:50,mastery:80}), average: Number(e.target.value) }
+                              } as any})}
+                          />
+                      </div>
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Mastery Score % (min)</label>
+                          <input type="number" min={70} max={100} className="w-full p-2 border rounded text-sm"
+                              value={localSettings.revisionConfig?.thresholds?.mastery ?? 80}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  thresholds: { ...(localSettings.revisionConfig?.thresholds || {strong:65,average:50,mastery:80}), mastery: Number(e.target.value) }
+                              } as any})}
+                          />
+                      </div>
+                      <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Mastery Required Count</label>
+                          <input type="number" min={1} max={10} className="w-full p-2 border rounded text-sm"
+                              value={localSettings.revisionConfig?.mastery?.requiredCount ?? 2}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  mastery: { requiredCount: Number(e.target.value) }
+                              } as any})}
+                          />
+                      </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Weak */}
+                      <div className="bg-rose-50 rounded-lg p-3 border border-rose-200">
+                          <p className="text-[10px] font-black text-rose-700 uppercase mb-2">Weak Topic</p>
+                          <label className="text-[10px] text-slate-600 block">Notes due after (days)</label>
+                          <input type="number" min={1} max={30} className="w-full p-1.5 border rounded text-sm mb-2"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.weak?.revision ?? 86400) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), weak: { ...(localSettings.revisionConfig?.intervals?.weak || {} as any), revision: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                          <label className="text-[10px] text-slate-600 block">MCQ due after notes (days)</label>
+                          <input type="number" min={1} max={30} className="w-full p-1.5 border rounded text-sm"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.weak?.mcq ?? 86400) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), weak: { ...(localSettings.revisionConfig?.intervals?.weak || {} as any), mcq: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                      </div>
+                      {/* Average */}
+                      <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                          <p className="text-[10px] font-black text-amber-700 uppercase mb-2">Average Topic</p>
+                          <label className="text-[10px] text-slate-600 block">Next notes after (days)</label>
+                          <input type="number" min={1} max={60} className="w-full p-1.5 border rounded text-sm mb-2"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.average?.revision ?? 259200) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), average: { ...(localSettings.revisionConfig?.intervals?.average || {} as any), revision: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                          <label className="text-[10px] text-slate-600 block">Next MCQ after (days)</label>
+                          <input type="number" min={1} max={60} className="w-full p-1.5 border rounded text-sm"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.average?.mcq ?? 432000) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), average: { ...(localSettings.revisionConfig?.intervals?.average || {} as any), mcq: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                      </div>
+                      {/* Strong */}
+                      <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                          <p className="text-[10px] font-black text-emerald-700 uppercase mb-2">Strong Topic</p>
+                          <label className="text-[10px] text-slate-600 block">Next notes after (days)</label>
+                          <input type="number" min={1} max={90} className="w-full p-1.5 border rounded text-sm mb-2"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.strong?.revision ?? 604800) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), strong: { ...(localSettings.revisionConfig?.intervals?.strong || {} as any), revision: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                          <label className="text-[10px] text-slate-600 block">Next MCQ after (days)</label>
+                          <input type="number" min={1} max={90} className="w-full p-1.5 border rounded text-sm"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.strong?.mcq ?? 864000) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), strong: { ...(localSettings.revisionConfig?.intervals?.strong || {} as any), mcq: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                      </div>
+                      {/* Mastered */}
+                      <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                          <p className="text-[10px] font-black text-purple-700 uppercase mb-2">Mastered Topic</p>
+                          <label className="text-[10px] text-slate-600 block">Next notes after (days)</label>
+                          <input type="number" min={7} max={365} className="w-full p-1.5 border rounded text-sm mb-2"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.mastered?.revision ?? 2592000) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), mastered: { ...(localSettings.revisionConfig?.intervals?.mastered || {} as any), revision: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                          <label className="text-[10px] text-slate-600 block">Next MCQ after (days)</label>
+                          <input type="number" min={7} max={365} className="w-full p-1.5 border rounded text-sm"
+                              value={Math.round((localSettings.revisionConfig?.intervals?.mastered?.mcq ?? 864000) / 86400)}
+                              onChange={e => setLocalSettings({...localSettings, revisionConfig: {
+                                  ...localSettings.revisionConfig,
+                                  intervals: { ...(localSettings.revisionConfig?.intervals || {} as any), mastered: { ...(localSettings.revisionConfig?.intervals?.mastered || {} as any), mcq: Number(e.target.value) * 86400 } }
+                              } as any})}
+                          />
+                      </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-3">
+                      ℹ️ Weak = score &lt; Average%; Average = score &lt; Strong%; Strong = score &lt; Mastery%; Mastered = score ≥ Mastery%
+                  </p>
+                  <button
+                      onClick={() => handleSaveSettings()}
+                      className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors shadow"
+                  >
+                      <Save size={15} /> Save Interval Settings
+                  </button>
+              </div>
+
+        </div>
       )}
     </div>
   );

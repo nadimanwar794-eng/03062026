@@ -3196,3 +3196,7 @@ model-viewer {
 [data-pw="1"] .text-blue-400 { color: #2563eb !important; }
 [data-pw="1"] .text-violet-400 { color: #7c3aed !important; }
 [data-pw="1"] .text-amber-400 { color: #d97706 !important; }
+
+/* ── Notes Focus Mode — hides bottom nav and floating logo button ── */
+body[data-iic-notes-focus] [data-iic-bottom-nav] { display: none !important; }
+body[data-iic-notes-focus] [data-iic-float-logo] { display: none !important; }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Board, ClassLevel, Stream, SystemSettings, RecoveryRequest } from '../types';
 import { ADMIN_EMAIL } from '../constants';
-import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, rtdb, getUserData, updateUserUID, getUserByLinkedGoogleUid } from '../firebase';
+import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserByNameAndClass, rtdb, getUserData, updateUserUID, getUserByLinkedGoogleUid } from '../firebase';
 import { ref, set } from "firebase/database";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signInAnonymously, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { UserPlus, LogIn, Lock, User as UserIcon, Phone, Mail, ShieldCheck, ArrowRight, School, GraduationCap, Layers, KeyRound, Copy, Check, AlertTriangle, XCircle, MessageCircle, Send, RefreshCcw, ShieldAlert, HelpCircle, Eye, EyeOff, Search } from 'lucide-react';
@@ -55,6 +55,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   const [showGuide, setShowGuide] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
   const [pendingLoginUser, setPendingLoginUser] = useState<User | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState<'id' | 'profile'>('id');
 
   // LOGIN REQUEST TIMER STATE
   const [requestTimestamp, setRequestTimestamp] = useState<number | null>(null);
@@ -349,7 +350,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
         try {
             // STEP 1: QUERY FIRESTORE
-            let appUser: any = await getUserByMobileOrId(input);
+            let appUser: any = recoveryMode === 'profile'
+                ? await getUserByNameAndClass(formData.name.trim(), formData.classLevel.trim())
+                : await getUserByMobileOrId(input);
 
             // STEP 2: VERIFY CREDENTIALS LOCALLY IF USER EXISTS
             if (appUser) {
@@ -818,7 +821,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         )}
 
         {view === 'HOME' && (
-            <div className="space-y-6 relative z-10 animate-in fade-in mt-10">
+            <div className="space-y-4 relative z-10 animate-in fade-in mt-10">
                  <button type="button" onClick={() => setView('SIGNUP')} className="w-full bg-[#111827] hover:bg-[#1f2937] text-white font-bold py-4 rounded-[2rem] flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95">
                      Create Account
                  </button>
@@ -827,6 +830,27 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                      Log in
                  </button>
 
+                 {/* Recovery text links — no button styling, plain text */}
+                 <div className="pt-2 flex flex-col items-center gap-2">
+                   <p className={`text-[11px] font-semibold uppercase tracking-wider ${isVideoMode ? 'text-slate-400' : 'text-slate-400'}`}>Account recover karo</p>
+                   <div className="flex items-center gap-4">
+                     <button
+                       type="button"
+                       onClick={() => { setFormData(f => ({ ...f, id: '', password: '' })); setView('RECOVERY'); }}
+                       className={`text-sm font-semibold underline underline-offset-2 transition-colors ${isVideoMode ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                     >
+                       📱 Mobile number se
+                     </button>
+                     <span className={`text-xs ${isVideoMode ? 'text-slate-500' : 'text-slate-300'}`}>|</span>
+                     <button
+                       type="button"
+                       onClick={() => { setFormData(f => ({ ...f, id: '', password: '' })); setView('RECOVERY'); }}
+                       className={`text-sm font-semibold underline underline-offset-2 transition-colors ${isVideoMode ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                     >
+                       📧 Email se
+                     </button>
+                   </div>
+                 </div>
             </div>
         )}
 
@@ -869,7 +893,43 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
               {view === 'RECOVERY' && (
                   <>
-                     <div className="space-y-1.5"><label className="text-xs font-bold text-slate-600 uppercase">Mobile Number / Email / UID</label><input name="id" type="text" placeholder="Enter Mobile Number" value={formData.id} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold" /></div>
+                     {/* ── Mode toggle ── */}
+                     <div className="flex rounded-xl overflow-hidden border border-slate-200 mb-4">
+                       <button type="button"
+                         onClick={() => setRecoveryMode('id')}
+                         className={`flex-1 py-2.5 text-xs font-black transition-colors ${recoveryMode === 'id' ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-500'}`}
+                       >📱 Mobile / Email / UID</button>
+                       <button type="button"
+                         onClick={() => setRecoveryMode('profile')}
+                         className={`flex-1 py-2.5 text-xs font-black transition-colors ${recoveryMode === 'profile' ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-500'}`}
+                       >👤 Name + Class</button>
+                     </div>
+
+                     {/* ── ID / Mobile / Email mode ── */}
+                     {recoveryMode === 'id' && (
+                       <div className="space-y-1.5">
+                         <label className="text-xs font-bold text-slate-600 uppercase">Mobile / Email / Account ID</label>
+                         <input name="id" type="text" placeholder="Mobile Number / Email / UID" value={formData.id} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                       </div>
+                     )}
+
+                     {/* ── Name + Class mode ── */}
+                     {recoveryMode === 'profile' && (<>
+                       <div className="space-y-1.5">
+                         <label className="text-xs font-bold text-slate-600 uppercase">Apna Naam</label>
+                         <input name="name" type="text" placeholder="Poora naam likhो (e.g. Rahul Sharma)" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                       </div>
+                       <div className="space-y-1.5">
+                         <label className="text-xs font-bold text-slate-600 uppercase">Class / Level</label>
+                         <select name="classLevel" value={formData.classLevel} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                           <option value="">-- Class select karo --</option>
+                           {['6','7','8','9','10','11','12','COMPETITION'].map(c => (
+                             <option key={c} value={c}>Class {c}</option>
+                           ))}
+                         </select>
+                       </div>
+                     </>)}
+
                      <div className="space-y-1.5">
                          <label className="text-xs font-bold text-slate-600 uppercase">Password</label>
                          <div className="relative">
