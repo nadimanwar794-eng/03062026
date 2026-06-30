@@ -79,8 +79,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const sessionCommittedRef = useRef(false); // prevents double-counting on exit
 
   // ── MCQ Score Popup ────────────────────────────────────────────────────────
-  const [mcqScorePopup, setMcqScorePopup] = (useState as any)<number | null>(null);
-  const [mcqScoreVisible, setMcqScoreVisible] = (useState as any)<boolean>(false);
+  const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
+  const [mcqScoreVisible, setMcqScoreVisible] = useState<boolean>(false);
   const mcqPopupTimerRef = useRef<any>(null);
 
   const showMcqScore = (pts: number) => {
