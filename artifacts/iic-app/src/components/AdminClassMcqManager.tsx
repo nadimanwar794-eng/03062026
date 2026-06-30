@@ -90,6 +90,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   const [moveCopyModal, setMoveCopyModal] = useState<{ lesson: any; mode: 'move' | 'copy' } | null>(null);
   const [mcTargetClass, setMcTargetClass] = useState<string>('6');
   const [mcTargetSubject, setMcTargetSubject] = useState<string>('');
+  const [mcTargetBoard, setMcTargetBoard] = useState<'' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB'>('');
   const [mcWorking, setMcWorking] = useState(false);
 
   const showAlert = (msg: string) => { setAlert(msg); setTimeout(() => setAlert(''), 4000); };
@@ -229,6 +230,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
     const defaultClass = CLASSES.filter(c => c !== lesson.classLevel)[0] || '6';
     setMcTargetClass(defaultClass);
     setMcTargetSubject((SUBJECTS_BY_CLASS[defaultClass] || [])[0] || '');
+    setMcTargetBoard(lesson.board || '');
     setMoveCopyModal({ lesson, mode });
   };
 
@@ -244,14 +246,16 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
         id: newId,
         classLevel: mcTargetClass,
         subject: mcTargetSubject,
+        board: mcTargetBoard || null,
         updatedAt: new Date().toISOString(),
       };
       await saveMcqLesson(newLesson);
+      const boardLabel = mcTargetBoard ? ` / ${BOARD_OPTIONS.find(b => b.id === mcTargetBoard)?.label ?? mcTargetBoard}` : '';
       if (mode === 'move') {
         await deleteMcqLesson(lesson.id);
-        showAlert(`✅ "${lesson.lessonTitle}" move ho gaya → Class ${mcTargetClass} / ${mcTargetSubject}`);
+        showAlert(`✅ "${lesson.lessonTitle}" move ho gaya → Class ${mcTargetClass} / ${mcTargetSubject}${boardLabel}`);
       } else {
-        showAlert(`✅ "${lesson.lessonTitle}" copy ho gaya → Class ${mcTargetClass} / ${mcTargetSubject}`);
+        showAlert(`✅ "${lesson.lessonTitle}" copy ho gaya → Class ${mcTargetClass} / ${mcTargetSubject}${boardLabel}`);
       }
       setMoveCopyModal(null);
     } catch (err: any) {
@@ -440,6 +444,26 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
                   <option key={sub} value={sub}>{sub}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Target Board</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {BOARD_OPTIONS.map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setMcTargetBoard(b.id as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB')}
+                    className={`py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${
+                      mcTargetBoard === b.id
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                    }`}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {moveCopyModal.mode === 'move' && (
