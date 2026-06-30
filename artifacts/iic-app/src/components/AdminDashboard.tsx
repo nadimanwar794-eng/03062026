@@ -12717,7 +12717,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                       {/* ── BOARD SELECTOR ── */}
                                       <div>
                                           <label className="text-[10px] font-black text-indigo-700 uppercase block mb-2">🏫 Board (Optional)</label>
-                                          <div className="flex gap-2 flex-wrap">
+                                          <div className="flex gap-2">
                                               {([
                                                   { id: '' as const,         label: '🌐 All Boards', desc: 'Sabhi students' },
                                                   { id: 'NCERT_EN' as const, label: '📘 NCERT EN',   desc: 'English medium' },
@@ -12726,7 +12726,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               ]).map(b => (
                                                   <button key={b.id} type="button"
                                                       onClick={() => setNewBookNote({ ...newBookNote, board: b.id })}
-                                                      className={`flex flex-col items-start px-3 py-2 rounded-xl border-2 text-xs font-black transition-all ${newBookNote.board === b.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.03]' : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400'}`}>
+                                                      className={`flex-1 flex flex-col items-center px-2 py-2 rounded-xl border-2 text-xs font-black transition-all ${newBookNote.board === b.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.03]' : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400'}`}>
                                                       <span>{b.label}</span>
                                                       <span className={`text-[9px] font-medium ${newBookNote.board === b.id ? 'opacity-80' : 'opacity-50'}`}>{b.desc}</span>
                                                   </button>
