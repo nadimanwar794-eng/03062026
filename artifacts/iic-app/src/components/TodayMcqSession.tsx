@@ -9,6 +9,7 @@ import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
+import { tryEarnScore } from '../utils/scoreSystem';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -52,6 +53,18 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
     // Result screen state
     const [sessionSummary, setSessionSummary] = useState<TopicSessionResult[] | null>(null);
     const pendingCompleteRef = useRef<{ results: MCQResult[]; questions: any[] } | null>(null);
+
+    // ── MCQ Score Popup ────────────────────────────────────────────────────────
+    const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
+    const [mcqScoreVisible, setMcqScoreVisible] = useState(false);
+    const mcqPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showMcqScore = (pts: number) => {
+        if (mcqPopupTimerRef.current) clearTimeout(mcqPopupTimerRef.current);
+        setMcqScorePopup(pts);
+        setMcqScoreVisible(true);
+        mcqPopupTimerRef.current = setTimeout(() => setMcqScoreVisible(false), 1800);
+    };
 
     // Timer
     useEffect(() => {
@@ -182,6 +195,15 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             const countKey = `nst_mcq_daily_total_${today}_${user.id}`;
             const prevTotal = parseInt(localStorage.getItem(countKey) || '0', 10);
             localStorage.setItem(countKey, String(prevTotal + 1));
+        }
+
+        // ── Award score on correct answer ─────────────────────────────────────
+        if (isCorrect && user.id) {
+            const _subValid = SubscriptionEngine.isPremium(user);
+            const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+                          _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+            const pts = tryEarnScore(user.id, 5, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
+            if (pts > 0) showMcqScore(pts);
         }
 
         const newAnswers = { ...answers, [qIndex]: optionIdx };
@@ -632,6 +654,22 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
 
     return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col">
+            {/* MCQ Score Popup */}
+            {mcqScorePopup !== null && (
+                <div style={{
+                    position: 'fixed', bottom: 80, right: 20, zIndex: 9999,
+                    background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                    color: '#fff', borderRadius: 14, padding: '8px 16px',
+                    fontSize: 14, fontWeight: 900,
+                    boxShadow: '0 6px 20px rgba(99,102,241,0.4)',
+                    opacity: mcqScoreVisible ? 1 : 0,
+                    transform: mcqScoreVisible ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.95)',
+                    transition: 'opacity 0.25s, transform 0.25s',
+                    pointerEvents: 'none',
+                }}>
+                    ⭐ +{mcqScorePopup} pts
+                </div>
+            )}
             {/* Sidebar */}
             {showSidebar && (
                 <div className="fixed inset-0 bg-black/50 z-[110]" onClick={() => setShowSidebar(false)}>

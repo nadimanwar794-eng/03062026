@@ -8413,6 +8413,7 @@ export const StudentDashboard: React.FC<Props> = ({
         {showMistakePractice && (
           <MistakePracticeView
             mistakes={homeMistakes}
+            user={user}
             onClose={() => setShowMistakePractice(false)}
             onComplete={() => {
               setMistakeCount(getMistakeBankSync().length);
