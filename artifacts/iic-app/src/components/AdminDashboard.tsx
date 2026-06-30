@@ -584,6 +584,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [homeworkTab, setHomeworkTab] = useState<'ADD' | 'HISTORY' | 'COMP_MCQ' | 'CLASS_MCQ'>('ADD');
   const [bookNotesTab, setBookNotesTab] = useState<'ADD' | 'HISTORY'>('ADD');
   const [bnBookFilter, setBnBookFilter] = useState<string>('ALL');
+  const [bnHistorySearch, setBnHistorySearch] = useState<string>('');
+  const [bnBoardFilter, setBnBoardFilter] = useState<string>('ALL');
   const [bnEditingId, setBnEditingId] = useState<string | null>(null);
   const [newBookNote, setNewBookNote] = useState({ date: new Date().toISOString().split('T')[0], title: '', notes: '', chunkNotes: '', htmlNotes: '', lightCSS: '', darkCSS: '', mcqText: '', audioUrl: '', videoUrl: '', pdfUrl: '', targetSubject: 'sarSangrah', pageNo: '', topicName: '', classTarget: 'ALL' as 'COMPETITION' | 'ALL' | '6' | '7' | '8' | '9' | '10' | '11' | '12', board: '' as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB' });
   const [editingPt, setEditingPt] = React.useState<{srcId: string; ptIdx: number; text: string} | null>(null);
@@ -13123,11 +13125,28 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       {/* ── HISTORY TAB ── */}
                       {bookNotesTab === 'HISTORY' && (
                           <div className="animate-in fade-in space-y-3">
-                              {/* Book-wise Filter */}
+                              {/* Book-wise Filter + Search */}
                               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                                  {/* Search box */}
+                                  <div className="relative">
+                                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-500 pointer-events-none"/>
+                                      <input
+                                          type="text"
+                                          value={bnHistorySearch}
+                                          onChange={e => setBnHistorySearch(e.target.value)}
+                                          placeholder="🔍 Page no., notes, topic se search karein…"
+                                          className="w-full pl-7 pr-8 py-2 border border-amber-300 rounded-lg text-xs outline-none focus:border-amber-500 bg-white"
+                                      />
+                                      {bnHistorySearch && (
+                                          <button onClick={() => setBnHistorySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                              <X size={13}/>
+                                          </button>
+                                      )}
+                                  </div>
+                                  {/* Book + Board filters */}
                                   <div className="flex gap-2 items-end flex-wrap">
-                                      <div className="flex-1 min-w-[140px]">
-                                          <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">📚 Book Filter</label>
+                                      <div className="flex-1 min-w-[130px]">
+                                          <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">📚 Book</label>
                                           <select
                                               value={bnBookFilter}
                                               onChange={e => setBnBookFilter(e.target.value)}
@@ -13141,18 +13160,84 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               ))}
                                           </select>
                                       </div>
-                                      {bnBookFilter !== 'ALL' && (
+                                      <div className="flex-1 min-w-[110px]">
+                                          <label className="text-[9px] font-bold text-amber-700 uppercase block mb-1">🏫 Board</label>
+                                          <select
+                                              value={bnBoardFilter}
+                                              onChange={e => setBnBoardFilter(e.target.value)}
+                                              className="w-full p-1.5 border border-amber-300 rounded-lg text-xs outline-none focus:border-amber-500 bg-white font-bold"
+                                          >
+                                              <option value="ALL">All Boards</option>
+                                              <option value="">🌐 Untagged</option>
+                                              <option value="NCERT_EN">📘 NCERT EN</option>
+                                              <option value="NCERT_HI">📙 NCERT HI</option>
+                                              <option value="BSEB">🟠 BSEB</option>
+                                          </select>
+                                      </div>
+                                      {(bnBookFilter !== 'ALL' || bnBoardFilter !== 'ALL' || bnHistorySearch) && (
                                           <button
-                                              onClick={() => setBnBookFilter('ALL')}
+                                              onClick={() => { setBnBookFilter('ALL'); setBnBoardFilter('ALL'); setBnHistorySearch(''); }}
                                               className="px-2 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 shrink-0"
-                                          >✕ Clear</button>
+                                          >✕ Reset</button>
                                       )}
                                   </div>
                               </div>
+                              {/* Computed filtered list (used for count display + render below) */}
+                              {(() => {
+                                  const _sq = bnHistorySearch.trim().toLowerCase();
+                                  const _bf = bnBookFilter;
+                                  const _bdf = bnBoardFilter;
+                                  const _matchSearch = (hw: HomeworkItem) => {
+                                      if (!_sq) return true;
+                                      const haystack = [
+                                          (hw as any).pageNo, hw.title, hw.notes,
+                                          (hw as any).chunkNotes, (hw as any).topicName, hw.date,
+                                          ((hw as any).htmlNotes || '').replace(/<[^>]+>/g, ' '),
+                                          ...(hw.parsedMcqs || []).map((m: any) => m.question),
+                                      ].filter(Boolean).join(' ').toLowerCase();
+                                      return haystack.includes(_sq);
+                                  };
+                                  const _matchBoard = (hw: HomeworkItem) => {
+                                      if (_bdf === 'ALL') return true;
+                                      if (_bdf === '') return !(hw as any).board;
+                                      return (hw as any).board === _bdf;
+                                  };
+                                  const _filtered = bnItems
+                                      .filter(hw => _bf === 'ALL' || hw.targetSubject === _bf)
+                                      .filter(_matchBoard)
+                                      .filter(_matchSearch);
+                                  return null; // Just precomputing — actual render block references same logic below
+                              })()}
                               <div className="flex justify-between items-center">
-                                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
-                                      Saved Book Notes ({bnBookFilter === 'ALL' ? bnItems.length : bnItems.filter(hw => hw.targetSubject === bnBookFilter).length}{bnBookFilter !== 'ALL' ? ` of ${bnItems.length} total` : ''})
-                                  </p>
+                                  {(() => {
+                                      const _sq = bnHistorySearch.trim().toLowerCase();
+                                      const _bf = bnBookFilter;
+                                      const _bdf = bnBoardFilter;
+                                      const _matchSearch = (hw: HomeworkItem) => {
+                                          if (!_sq) return true;
+                                          const haystack = [
+                                              (hw as any).pageNo, hw.title, hw.notes,
+                                              (hw as any).chunkNotes, (hw as any).topicName, hw.date,
+                                              ((hw as any).htmlNotes || '').replace(/<[^>]+>/g, ' '),
+                                              ...(hw.parsedMcqs || []).map((m: any) => m.question),
+                                          ].filter(Boolean).join(' ').toLowerCase();
+                                          return haystack.includes(_sq);
+                                      };
+                                      const _matchBoard = (hw: HomeworkItem) => {
+                                          if (_bdf === 'ALL') return true;
+                                          if (_bdf === '') return !(hw as any).board;
+                                          return (hw as any).board === _bdf;
+                                      };
+                                      const filtered = bnItems.filter(hw => _bf === 'ALL' || hw.targetSubject === _bf).filter(_matchBoard).filter(_matchSearch);
+                                      return (
+                                          <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+                                              {_sq || _bf !== 'ALL' || _bdf !== 'ALL'
+                                                  ? `${filtered.length} matches (of ${bnItems.length})`
+                                                  : `Saved Book Notes (${bnItems.length})`}
+                                          </p>
+                                      );
+                                  })()}
+                              
                                   <button onClick={() => { handleSaveSettings(localSettings); setAlertConfig({isOpen:true,message:'✅ Edits Saved!'}); }} className="bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-xs shadow hover:bg-amber-700 flex items-center gap-2"><Save size={14}/> Save Edits</button>
                               </div>
 
@@ -13375,10 +13460,47 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
                               {bnItems.length === 0 && (localSettings.lucentNotes || []).length === 0 && <p className="text-xs text-slate-400 text-center py-8">Abhi koi book notes nahi hain.</p>}
                               {bnItems.length === 0 && (localSettings.lucentNotes || []).length > 0 && <p className="text-xs text-slate-400 text-center py-4">Sar Sangrah / Speedy / Custom book notes abhi nahi hain.</p>}
-                              {bnItems.length > 0 && bnBookFilter !== 'ALL' && bnItems.filter(hw => hw.targetSubject === bnBookFilter).length === 0 && (
-                                  <p className="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-slate-100">Is book mein koi notes nahi hain.</p>
-                              )}
-                              {(bnBookFilter === 'ALL' ? bnItems : bnItems.filter(hw => hw.targetSubject === bnBookFilter)).map((hw, idx) => {
+                              {bnItems.length > 0 && (() => {
+                                  const _sq = bnHistorySearch.trim().toLowerCase();
+                                  const _matchSearch = (hw: HomeworkItem) => {
+                                      if (!_sq) return true;
+                                      const haystack = [
+                                          (hw as any).pageNo, hw.title, hw.notes,
+                                          (hw as any).chunkNotes, (hw as any).topicName, hw.date,
+                                          ((hw as any).htmlNotes || '').replace(/<[^>]+>/g, ' '),
+                                          ...(hw.parsedMcqs || []).map((m: any) => m.question),
+                                      ].filter(Boolean).join(' ').toLowerCase();
+                                      return haystack.includes(_sq);
+                                  };
+                                  const _matchBoard = (hw: HomeworkItem) => {
+                                      if (bnBoardFilter === 'ALL') return true;
+                                      if (bnBoardFilter === '') return !(hw as any).board;
+                                      return (hw as any).board === bnBoardFilter;
+                                  };
+                                  const filtered = bnItems.filter(hw => bnBookFilter === 'ALL' || hw.targetSubject === bnBookFilter).filter(_matchBoard).filter(_matchSearch);
+                                  if (filtered.length === 0) {
+                                      return <p className="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-slate-100">Koi result nahi mila — filter ya search badlein.</p>;
+                                  }
+                                  return null;
+                              })()}
+                              {(() => {
+                                  const _sq = bnHistorySearch.trim().toLowerCase();
+                                  const _matchSearch = (hw: HomeworkItem) => {
+                                      if (!_sq) return true;
+                                      const haystack = [
+                                          (hw as any).pageNo, hw.title, hw.notes,
+                                          (hw as any).chunkNotes, (hw as any).topicName, hw.date,
+                                          ((hw as any).htmlNotes || '').replace(/<[^>]+>/g, ' '),
+                                          ...(hw.parsedMcqs || []).map((m: any) => m.question),
+                                      ].filter(Boolean).join(' ').toLowerCase();
+                                      return haystack.includes(_sq);
+                                  };
+                                  const _matchBoard = (hw: HomeworkItem) => {
+                                      if (bnBoardFilter === 'ALL') return true;
+                                      if (bnBoardFilter === '') return !(hw as any).board;
+                                      return (hw as any).board === bnBoardFilter;
+                                  };
+                                  return (bnItems.filter(hw => bnBookFilter === 'ALL' || hw.targetSubject === bnBookFilter).filter(_matchBoard).filter(_matchSearch)).map((hw, idx) => {
                                   const bookMeta = BOOK_TYPES.find(b => b.id === hw.targetSubject);
                                   const mcqs: MCQItem[] = hw.parsedMcqs || [];
                                   const handleCopyAll = () => {
@@ -13493,7 +13615,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           </div>
                                       </div>
                                   );
-                              })}
+                              }); })()}
                           </div>
                       )}
                   </div>
