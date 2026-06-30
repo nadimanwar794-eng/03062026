@@ -5,21 +5,39 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
 
-const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
+const isBuild = process.argv.includes("build");
 
 const rawPort = process.env.PORT;
-const port = Number(rawPort ?? "5000");
+
+if (!isBuild) {
+  if (!rawPort) {
+    throw new Error(
+      "PORT environment variable is required but was not provided.",
+    );
+  }
+}
+
+const port = rawPort ? Number(rawPort) : 3000;
+
+if (!isBuild && (Number.isNaN(port) || port <= 0)) {
+  throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+const basePath = process.env.BASE_PATH || "/";
 
 export default defineConfig({
-  base: process.env.BASE_PATH ?? "/",
+  base: basePath,
   plugins: [
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: "autoUpdate",
       devOptions: { enabled: true },
-      workbox: { maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 },
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
+        globIgnores: ["**/*.map"],
+      },
     }),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Save, Trash2, ChevronRight, ArrowLeft, Plus, BookOpen, Edit2, X } from 'lucide-react';
+import { Save, Trash2, ChevronRight, ArrowLeft, Plus, BookOpen, Edit2, X, ArrowRight, Copy } from 'lucide-react';
 import { parseMCQText } from '../utils/mcqParser';
 import { saveTopicNotes } from '../utils/revisionTrackerV2';
 import { saveMcqLesson, deleteMcqLesson, subscribeMcqLessons } from '../firebase';
@@ -77,6 +77,12 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   const [pasteText, setPasteText]     = useState('');
   const [saving, setSaving]           = useState(false);
   const [alert, setAlert]             = useState('');
+
+  // Move/Copy modal state
+  const [moveCopyModal, setMoveCopyModal] = useState<{ lesson: any; mode: 'move' | 'copy' } | null>(null);
+  const [mcTargetClass, setMcTargetClass] = useState<string>('6');
+  const [mcTargetSubject, setMcTargetSubject] = useState<string>('');
+  const [mcWorking, setMcWorking] = useState(false);
 
   const showAlert = (msg: string) => { setAlert(msg); setTimeout(() => setAlert(''), 4000); };
 
@@ -192,6 +198,41 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
     showAlert(`✅ Q${mcqIdx + 1} delete ho gaya. Remaining: ${newMcqs.length}`);
   };
 
+  const openMoveCopy = (lesson: any, mode: 'move' | 'copy') => {
+    const defaultClass = CLASSES.filter(c => c !== lesson.classLevel)[0] || '6';
+    setMcTargetClass(defaultClass);
+    setMcTargetSubject((SUBJECTS_BY_CLASS[defaultClass] || [])[0] || '');
+    setMoveCopyModal({ lesson, mode });
+  };
+
+  const handleConfirmMoveCopy = async () => {
+    if (!moveCopyModal || !mcTargetClass || !mcTargetSubject) return;
+    const { lesson, mode } = moveCopyModal;
+    setMcWorking(true);
+    try {
+      const ts = Date.now();
+      const newId = `lesson_${ts}_${Math.random().toString(36).slice(2)}`;
+      const newLesson = {
+        ...lesson,
+        id: newId,
+        classLevel: mcTargetClass,
+        subject: mcTargetSubject,
+        updatedAt: new Date().toISOString(),
+      };
+      await saveMcqLesson(newLesson);
+      if (mode === 'move') {
+        await deleteMcqLesson(lesson.id);
+        showAlert(`✅ "${lesson.lessonTitle}" move ho gaya → Class ${mcTargetClass} / ${mcTargetSubject}`);
+      } else {
+        showAlert(`✅ "${lesson.lessonTitle}" copy ho gaya → Class ${mcTargetClass} / ${mcTargetSubject}`);
+      }
+      setMoveCopyModal(null);
+    } catch (err: any) {
+      showAlert(`❌ Error: ${err?.message || 'Failed'}`);
+    }
+    setMcWorking(false);
+  };
+
   const goBack = () => {
     if (screen === 'ADD_LESSON')  { setScreen('LESSON_LIST'); setLessonTitle(''); setPasteText(''); setEditingLesson(null); return; }
     if (screen === 'LESSON_LIST') { setScreen('SUBJECT'); setSelectedSubject(null); return; }
@@ -299,8 +340,99 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
               onEdit={() => { setEditingLesson(lesson); setLessonTitle(lesson.lessonTitle); setPasteText(''); setScreen('ADD_LESSON'); }}
               onDelete={() => handleDeleteLesson(lesson)}
               onDeleteMcq={(idx) => handleDeleteSingleMcq(lesson, idx)}
+              onMove={() => openMoveCopy(lesson, 'move')}
+              onCopy={() => openMoveCopy(lesson, 'copy')}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── Move / Copy Modal ───────────────────────────────────────────── */}
+      {moveCopyModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-800 text-base">
+                {moveCopyModal.mode === 'move' ? '➡️ Lesson Move Karein' : '📋 Lesson Copy Karein'}
+              </h3>
+              <button onClick={() => setMoveCopyModal(null)} className="p-1 rounded-lg bg-slate-100 text-slate-500 active:scale-95">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="px-3 py-2 bg-indigo-50 rounded-xl text-xs text-indigo-700 font-bold truncate">
+              "{moveCopyModal.lesson.lessonTitle}" ({moveCopyModal.lesson.mcqCount} MCQs)
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Target Class</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {CLASSES.filter(c => c !== 'COMPETITION').map(c => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setMcTargetClass(c);
+                      setMcTargetSubject((SUBJECTS_BY_CLASS[c] || [])[0] || '');
+                    }}
+                    className={`py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${
+                      mcTargetClass === c
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    setMcTargetClass('COMPETITION');
+                    setMcTargetSubject((SUBJECTS_BY_CLASS['COMPETITION'] || [])[0] || '');
+                  }}
+                  className={`col-span-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${
+                    mcTargetClass === 'COMPETITION'
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-amber-50 text-amber-700 border border-amber-100'
+                  }`}
+                >
+                  🏆 Competition
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Target Subject</label>
+              <select
+                value={mcTargetSubject}
+                onChange={e => setMcTargetSubject(e.target.value)}
+                className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-400 bg-white"
+              >
+                {(SUBJECTS_BY_CLASS[mcTargetClass] || []).map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+
+            {moveCopyModal.mode === 'move' && (
+              <p className="text-[10px] text-rose-500 font-bold bg-rose-50 px-3 py-2 rounded-xl">
+                ⚠️ Move karne ke baad yeh lesson current class se hat jayega.
+              </p>
+            )}
+
+            <button
+              onClick={handleConfirmMoveCopy}
+              disabled={mcWorking || !mcTargetSubject}
+              className={`w-full py-3 rounded-xl font-black text-white text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 ${
+                moveCopyModal.mode === 'move' ? 'bg-indigo-600' : 'bg-emerald-600'
+              }`}
+            >
+              {moveCopyModal.mode === 'move' ? <ArrowRight size={15} /> : <Copy size={15} />}
+              {mcWorking
+                ? (moveCopyModal.mode === 'move' ? 'Moving...' : 'Copying...')
+                : (moveCopyModal.mode === 'move'
+                    ? `Move → Class ${mcTargetClass}`
+                    : `Copy → Class ${mcTargetClass}`)}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -394,11 +526,13 @@ Answer: B) H2O`}</pre>
 };
 
 // ── Lesson Card component ─────────────────────────────────────────────────────
-function LessonCard({ lesson, onEdit, onDelete, onDeleteMcq }: {
+function LessonCard({ lesson, onEdit, onDelete, onDeleteMcq, onMove, onCopy }: {
   lesson: any;
   onEdit: () => void;
   onDelete: () => void;
   onDeleteMcq: (idx: number) => void;
+  onMove: () => void;
+  onCopy: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -428,8 +562,14 @@ function LessonCard({ lesson, onEdit, onDelete, onDeleteMcq }: {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={onEdit} className="p-1.5 rounded-lg bg-violet-50 text-violet-600 active:scale-95 transition-all" title="Add more MCQs">
+          <button onClick={onEdit} className="p-1.5 rounded-lg bg-violet-50 text-violet-600 active:scale-95 transition-all" title="MCQs add karein">
             <Edit2 size={13} />
+          </button>
+          <button onClick={onMove} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 active:scale-95 transition-all" title="Dusri class mein move karein">
+            <ArrowRight size={13} />
+          </button>
+          <button onClick={onCopy} className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 active:scale-95 transition-all" title="Dusri class mein copy karein">
+            <Copy size={13} />
           </button>
           <button onClick={onDelete} className="p-1.5 rounded-lg bg-rose-50 text-rose-500 active:scale-95 transition-all" title="Delete lesson">
             <Trash2 size={13} />
