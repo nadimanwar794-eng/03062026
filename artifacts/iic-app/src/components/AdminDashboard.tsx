@@ -3960,118 +3960,6 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   settings={localSettings}
               />
 
-              {/* COMPARE ANALYTICS PANEL */}
-              {(() => {
-                const freq = new Map<string, { displayQuery: string; count: number; totalHits: number; last: string }>();
-                for (const e of compareAnalytics) {
-                  const key = (e.query || '').trim().toLowerCase();
-                  if (!key) continue;
-                  const prev = freq.get(key);
-                  if (prev) {
-                    prev.count += 1;
-                    prev.totalHits += e.hitCount || 0;
-                    if ((e.ts || 0) > new Date(prev.last).getTime()) prev.last = e.timestamp || prev.last;
-                  } else {
-                    freq.set(key, { displayQuery: e.displayQuery || e.query, count: 1, totalHits: e.hitCount || 0, last: e.timestamp || '' });
-                  }
-                }
-                const allSorted = Array.from(freq.values()).sort((a, b) => b.count - a.count);
-                const sorted = allSorted.slice(0, 5);
-                return (
-                  <div className="mt-4 bg-white border border-violet-100 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-violet-50 to-indigo-50 border-b border-violet-100">
-                      <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0">
-                        <Activity size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-slate-800">Compare Trending Topics</p>
-                        <p className="text-[10px] text-violet-500 font-medium">
-                          {compareAnalytics.length} compare event{compareAnalytics.length !== 1 ? 's' : ''} · {freq.size} unique topic{freq.size !== 1 ? 's' : ''} · Top 5 shown
-                        </p>
-                      </div>
-                      <GitCompare size={18} className="text-violet-400 shrink-0" />
-                    </div>
-                    {sorted.length === 0 ? (
-                      <p className="text-center text-xs text-slate-400 py-6">Abhi tak koi compare nahi hua</p>
-                    ) : (
-                      <div className="divide-y divide-slate-50">
-                        {sorted.map((item, i) => (
-                          <div key={item.displayQuery} className="flex items-center gap-3 px-4 py-2.5 group">
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-slate-300 text-white' : i === 2 ? 'bg-orange-300 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                              {i + 1}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-800 truncate">{item.displayQuery}</p>
-                              <p className="text-[10px] text-slate-400">Last: {item.last ? new Date(item.last).toLocaleDateString('hi-IN') : '—'}</p>
-                            </div>
-                            <div className="text-right shrink-0 flex items-center gap-2">
-                              <div>
-                                <p className="text-xs font-black text-violet-600">{item.count}×</p>
-                                <p className="text-[10px] text-slate-400">{item.totalHits} books</p>
-                              </div>
-                              <button
-                                onClick={async () => {
-                                  if (!window.confirm(`"${item.displayQuery}" ko trending list se hata dein? Ye sirf compare log hatega, notes safe rahenge.`)) return;
-                                  await deleteCompareAnalyticsByQuery((item.displayQuery || '').trim().toLowerCase());
-                                }}
-                                className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors shrink-0"
-                                title="Is topic ko list se hatao"
-                              >
-                                <X size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* ── Compare Limit Config ── */}
-                    <div className="border-t border-violet-100 px-4 py-3 bg-violet-50/40">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-violet-500 mb-2">Compare Limit — Tier ke hisaab se (0 = unlimited)</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { label: 'Free', key: 'compareLimitFree' as const, default: 2, color: 'slate' },
-                          { label: 'Basic', key: 'compareLimitBasic' as const, default: 5, color: 'indigo' },
-                          { label: 'Ultra', key: 'compareLimitUltra' as const, default: 0, color: 'amber' },
-                        ] as const).map(({ label, key, default: def, color }) => (
-                          <div key={key} className="flex flex-col gap-1">
-                            <label className={`text-[9px] font-black uppercase tracking-wider text-${color}-600`}>{label}</label>
-                            <input
-                              type="number"
-                              min={0}
-                              max={20}
-                              value={localSettings[key] ?? def}
-                              onChange={e => setLocalSettings((s: any) => ({ ...s, [key]: Number(e.target.value) }))}
-                              className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-center text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        onClick={handleSaveSettings}
-                        className="mt-2 w-full bg-violet-600 text-white text-[10px] font-black py-1.5 rounded-lg hover:bg-violet-700 active:scale-95 transition-all"
-                      >
-                        Save Compare Limits
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* CONTENT HISTORY QUICK ACCESS */}
-              <div className="mt-4 bg-emerald-50 rounded-2xl border border-emerald-200 p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                          <Activity size={18} />
-                      </div>
-                      <div>
-                          <p className="font-black text-slate-800 text-sm">Content History</p>
-                          <p className="text-[10px] text-emerald-700">Kab kya add hua — lifetime log</p>
-                      </div>
-                  </div>
-                  <button onClick={() => setActiveTab('CONTENT_HISTORY')} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all whitespace-nowrap">
-                      View Log →
-                  </button>
-              </div>
 
               <div className="mt-4 flex justify-end">
                   <button onClick={() => onNavigate('STUDENT_DASHBOARD')} className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all shadow-md text-xs">
@@ -7231,6 +7119,120 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   )}
                   {activeTab === 'CONFIG_GAME' && (
                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-5">
+
+                           {/* COMPARE ANALYTICS PANEL */}
+                           {(() => {
+                             const freq = new Map<string, { displayQuery: string; count: number; totalHits: number; last: string }>();
+                             for (const e of compareAnalytics) {
+                               const key = (e.query || '').trim().toLowerCase();
+                               if (!key) continue;
+                               const prev = freq.get(key);
+                               if (prev) {
+                                 prev.count += 1;
+                                 prev.totalHits += e.hitCount || 0;
+                                 if ((e.ts || 0) > new Date(prev.last).getTime()) prev.last = e.timestamp || prev.last;
+                               } else {
+                                 freq.set(key, { displayQuery: e.displayQuery || e.query, count: 1, totalHits: e.hitCount || 0, last: e.timestamp || '' });
+                               }
+                             }
+                             const allSorted = Array.from(freq.values()).sort((a, b) => b.count - a.count);
+                             const sorted = allSorted.slice(0, 5);
+                             return (
+                               <div className="bg-white border border-violet-100 rounded-2xl shadow-sm overflow-hidden">
+                                 <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-violet-50 to-indigo-50 border-b border-violet-100">
+                                   <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0">
+                                     <Activity size={16} />
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                     <p className="text-sm font-black text-slate-800">Compare Trending Topics</p>
+                                     <p className="text-[10px] text-violet-500 font-medium">
+                                       {compareAnalytics.length} compare event{compareAnalytics.length !== 1 ? 's' : ''} · {freq.size} unique topic{freq.size !== 1 ? 's' : ''} · Top 5 shown
+                                     </p>
+                                   </div>
+                                   <GitCompare size={18} className="text-violet-400 shrink-0" />
+                                 </div>
+                                 {sorted.length === 0 ? (
+                                   <p className="text-center text-xs text-slate-400 py-6">Abhi tak koi compare nahi hua</p>
+                                 ) : (
+                                   <div className="divide-y divide-slate-50">
+                                     {sorted.map((item, i) => (
+                                       <div key={item.displayQuery} className="flex items-center gap-3 px-4 py-2.5 group">
+                                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-slate-300 text-white' : i === 2 ? 'bg-orange-300 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                           {i + 1}
+                                         </span>
+                                         <div className="flex-1 min-w-0">
+                                           <p className="text-xs font-bold text-slate-800 truncate">{item.displayQuery}</p>
+                                           <p className="text-[10px] text-slate-400">Last: {item.last ? new Date(item.last).toLocaleDateString('hi-IN') : '—'}</p>
+                                         </div>
+                                         <div className="text-right shrink-0 flex items-center gap-2">
+                                           <div>
+                                             <p className="text-xs font-black text-violet-600">{item.count}×</p>
+                                             <p className="text-[10px] text-slate-400">{item.totalHits} books</p>
+                                           </div>
+                                           <button
+                                             onClick={async () => {
+                                               if (!window.confirm(`"${item.displayQuery}" ko trending list se hata dein? Ye sirf compare log hatega, notes safe rahenge.`)) return;
+                                               await deleteCompareAnalyticsByQuery((item.displayQuery || '').trim().toLowerCase());
+                                             }}
+                                             className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors shrink-0"
+                                             title="Is topic ko list se hatao"
+                                           >
+                                             <X size={13} />
+                                           </button>
+                                         </div>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 )}
+                                 {/* ── Compare Limit Config ── */}
+                                 <div className="border-t border-violet-100 px-4 py-3 bg-violet-50/40">
+                                   <p className="text-[10px] font-black uppercase tracking-wider text-violet-500 mb-2">Compare Limit — Tier ke hisaab se (0 = unlimited)</p>
+                                   <div className="grid grid-cols-3 gap-2">
+                                     {([
+                                       { label: 'Free', key: 'compareLimitFree' as const, default: 2, color: 'slate' },
+                                       { label: 'Basic', key: 'compareLimitBasic' as const, default: 5, color: 'indigo' },
+                                       { label: 'Ultra', key: 'compareLimitUltra' as const, default: 0, color: 'amber' },
+                                     ] as const).map(({ label, key, default: def, color }) => (
+                                       <div key={key} className="flex flex-col gap-1">
+                                         <label className={`text-[9px] font-black uppercase tracking-wider text-${color}-600`}>{label}</label>
+                                         <input
+                                           type="number"
+                                           min={0}
+                                           max={20}
+                                           value={localSettings[key] ?? def}
+                                           onChange={e => setLocalSettings((s: any) => ({ ...s, [key]: Number(e.target.value) }))}
+                                           className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-center text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                                         />
+                                       </div>
+                                     ))}
+                                   </div>
+                                   <button
+                                     onClick={handleSaveSettings}
+                                     className="mt-2 w-full bg-violet-600 text-white text-[10px] font-black py-1.5 rounded-lg hover:bg-violet-700 active:scale-95 transition-all"
+                                   >
+                                     Save Compare Limits
+                                   </button>
+                                 </div>
+                               </div>
+                             );
+                           })()}
+
+                           {/* CONTENT HISTORY QUICK ACCESS */}
+                           <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-4 flex items-center justify-between gap-4">
+                               <div className="flex items-center gap-3">
+                                   <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                       <Activity size={18} />
+                                   </div>
+                                   <div>
+                                       <p className="font-black text-slate-800 text-sm">Content History</p>
+                                       <p className="text-[10px] text-emerald-700">Kab kya add hua — lifetime log</p>
+                                   </div>
+                               </div>
+                               <button onClick={() => setActiveTab('CONTENT_HISTORY')} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all whitespace-nowrap">
+                                   View Log →
+                               </button>
+                           </div>
+
                            {/* Show/Hide toggle for the entire game */}
                            <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-3">
                                <div className="flex items-center gap-3">
