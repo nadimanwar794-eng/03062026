@@ -9551,6 +9551,19 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className="px-4 pt-3 pb-2 flex items-center gap-2" style={{ borderBottom: _pSep }}>
                 <span className="text-sm">🔐</span>
                 <p className={`text-[11px] font-black uppercase tracking-wider flex-1 ${_pTxt}`}>Account Recovery Options</p>
+                <button
+                  onClick={() => {
+                    setRecoveryData({
+                      mobile: (user as any).mobile || '',
+                      password: (user as any).password || '',
+                    });
+                    setShowRecoveryModal(true);
+                  }}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black active:opacity-60"
+                  style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                >
+                  ✏️ Edit
+                </button>
               </div>
               {/* Mobile */}
               <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
@@ -12510,11 +12523,11 @@ export const StudentDashboard: React.FC<Props> = ({
       )}
 
       {showRecoveryModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full shadow-xl border-t-4 border-orange-500">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)' }}>
+          <div className="bg-white rounded-2xl p-6 w-full shadow-xl border-t-4 border-orange-500" style={{ maxWidth: 420 }}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <Lock className="text-orange-500" /> Setup Recovery
+                <Lock className="text-orange-500" /> Edit Recovery Info
               </h3>
               <button
                 onClick={() => setShowRecoveryModal(false)}
