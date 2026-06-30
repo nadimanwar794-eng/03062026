@@ -65,12 +65,20 @@ interface Props {
 
 type Screen = 'CLASS' | 'SUBJECT' | 'LESSON_LIST' | 'ADD_LESSON';
 
+const BOARD_OPTIONS = [
+  { id: '' as const,         label: '🌐 All',       desc: 'All Boards' },
+  { id: 'NCERT_EN' as const, label: '📘 NCERT EN',  desc: 'English medium' },
+  { id: 'NCERT_HI' as const, label: '📙 NCERT HI',  desc: 'Hindi medium' },
+  { id: 'BSEB' as const,     label: '🟠 BSEB',      desc: 'Bihar board' },
+];
+
 export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   const [screen, setScreen]               = useState<Screen>('CLASS');
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [allLessons, setAllLessons]       = useState<any[]>([]);
   const [editingLesson, setEditingLesson] = useState<any | null>(null);
+  const [boardFilter, setBoardFilter]     = useState<'' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB'>('');
 
   // Add lesson form state
   const [lessonTitle, setLessonTitle] = useState('');
@@ -92,18 +100,36 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
     return unsub;
   }, []);
 
-  // Lessons filtered for current class+subject
+  // Lessons filtered for current class+subject+board
   const filteredLessons = allLessons.filter(
-    l => l.classLevel === selectedClass && l.subject === selectedSubject
+    l => l.classLevel === selectedClass && l.subject === selectedSubject && (boardFilter === '' || l.board === boardFilter)
   );
 
   // Count lessons per subject for subject screen
   const lessonCountForSubject = (cls: string, sub: string) =>
-    allLessons.filter(l => l.classLevel === cls && l.subject === sub).length;
+    allLessons.filter(l => l.classLevel === cls && l.subject === sub && (boardFilter === '' || l.board === boardFilter)).length;
 
   // Count total lessons per class for class screen
   const lessonCountForClass = (cls: string) =>
-    allLessons.filter(l => l.classLevel === cls).length;
+    allLessons.filter(l => l.classLevel === cls && (boardFilter === '' || l.board === boardFilter)).length;
+
+  // Reusable board switcher bar
+  const BoardBar = (
+    <div className="flex gap-1.5 mb-3">
+      {BOARD_OPTIONS.map(b => (
+        <button key={b.id} type="button"
+          onClick={() => setBoardFilter(b.id)}
+          className={`flex-1 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
+            boardFilter === b.id
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow'
+              : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400'
+          }`}
+        >
+          {b.label}
+        </button>
+      ))}
+    </div>
+  );
 
   const handleSaveLesson = async () => {
     if (!lessonTitle.trim()) { showAlert('❌ Lesson title daalein'); return; }
@@ -156,6 +182,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
         id: lessonId,
         classLevel: selectedClass,
         subject: selectedSubject,
+        board: boardFilter || null,
         lessonTitle: lessonTitle.trim(),
         mcqs: editingLesson ? [...(editingLesson.mcqs || []), ...parsed] : parsed,
         mcqCount: (editingLesson ? (editingLesson.mcqs || []).length : 0) + parsed.length,
@@ -242,6 +269,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   // ── Screen: CLASS ────────────────────────────────────────────────────────────
   if (screen === 'CLASS') return (
     <div className="space-y-3 p-4">
+      {BoardBar}
       <p className="text-xs font-bold text-slate-500 uppercase mb-3">Class Choose Karein</p>
       <div className="grid grid-cols-4 gap-2">
         {CLASSES.filter(c => c !== 'COMPETITION').map(c => {
@@ -281,6 +309,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   // ── Screen: SUBJECT ───────────────────────────────────────────────────────────
   if (screen === 'SUBJECT') return (
     <div className="space-y-2 p-4">
+      {BoardBar}
       <button onClick={goBack} className="flex items-center gap-1 text-xs text-indigo-600 font-bold mb-3">
         <ArrowLeft size={14} /> Back to Classes
       </button>
@@ -309,6 +338,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   // ── Screen: LESSON LIST ───────────────────────────────────────────────────────
   if (screen === 'LESSON_LIST') return (
     <div className="p-4 space-y-4">
+      {BoardBar}
       <div className="flex items-center gap-2">
         <button onClick={goBack} className="flex items-center gap-1 text-xs text-indigo-600 font-bold">
           <ArrowLeft size={14} /> Back
@@ -446,6 +476,11 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
           <ArrowLeft size={14} /> Back
         </button>
         <span className="text-xs text-slate-400">{selectedClass} → {selectedSubject}</span>
+        {boardFilter && (
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+            {BOARD_OPTIONS.find(b => b.id === boardFilter)?.label}
+          </span>
+        )}
         <span className="ml-auto text-xs font-black text-indigo-600">
           {editingLesson ? `Edit: ${editingLesson.lessonTitle}` : 'New Lesson'}
         </span>
