@@ -38,9 +38,12 @@ interface Props {
     onComplete: (results: MCQResult[], questions?: any[]) => void;
     settings?: SystemSettings | null;
     onTrackAnswer?: (isCorrect: boolean) => boolean;
+    onUpdateUser?: (user: User) => void;
 }
 
-export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComplete, settings, onTrackAnswer }) => {
+export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComplete, settings, onTrackAnswer, onUpdateUser }) => {
+    const userRef = useRef(user);
+    useEffect(() => { userRef.current = user; }, [user]);
     const [loading, setLoading] = useState(true);
     const [loadingMsg, setLoadingMsg] = useState('Sab topics load ho rahe hain...');
     const [interleavedQuestions, setInterleavedQuestions] = useState<InterleavedQ[]>([]);
@@ -189,15 +192,26 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 setMcqStreak(newStreak);
                 const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
                 const bonus = getMcqStreakBonus(newStreak);
-                if (bonus > 0) {
-                    tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`);
-                    showMcqScore(pts + bonus);
-                } else {
-                    if (pts > 0) showMcqScore(pts);
+                const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`) : 0;
+                const totalPts = pts + bonusPts;
+                if (totalPts > 0) {
+                    const _u = userRef.current;
+                    if (_u && onUpdateUser) {
+                        const updated = { ..._u, totalScore: (_u.totalScore || 0) + totalPts };
+                        onUpdateUser(updated);
+                        saveUserToLive(updated);
+                    }
+                    showMcqScore(totalPts);
                 }
             } else {
                 setMcqStreak(0);
                 subtractDailyScore(user.id, 1);
+                const _u = userRef.current;
+                if (_u && onUpdateUser) {
+                    const updated = { ..._u, totalScore: Math.max(0, (_u.totalScore || 0) - 1) };
+                    onUpdateUser(updated);
+                    saveUserToLive(updated);
+                }
                 showMcqScore(-1);
             }
         }

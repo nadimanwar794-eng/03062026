@@ -552,6 +552,7 @@ export const RevisionHubV2: React.FC<Props> = ({ user, settings, onBack, onOpenC
           user={user}
           topics={revMcqTopics}
           settings={settings}
+          onUpdateUser={onUpdateUser}
           onClose={() => setRevMcqSessionActive(false)}
           onComplete={(_results) => {
             setRevMcqSessionActive(false);
