@@ -158,6 +158,8 @@ export const LessonView: React.FC<Props> = ({
     onScoreEarned: handleReadingScoreEarned,
   } : undefined;
 
+  const writingScoreConfig = readingScoreConfig ? { ...readingScoreConfig, mode: 'writing' as const } : undefined;
+
   // ── Media (Video / Audio) time-based score session ───────────────────────
   const mediaScoreSessionRef = useRef<ReadingScoreSession | null>(null);
   const [mediaScoreState, setMediaScoreState] = useState<ReadingScoreState | null>(null);
@@ -1183,7 +1185,7 @@ export const LessonView: React.FC<Props> = ({
                           triggerControlsRef={schoolControlsRef}
                           onMoreOptions={schoolMode && onSchoolModeSwitch ? onSchoolModeSwitch : undefined}
                           onDesktopModeChange={setIsDesktopMode}
-                          readingScoreConfig={readingScoreConfig}
+                          readingScoreConfig={writingScoreConfig}
                           isAdmin={isAdmin}
                           useImportantMark2={false}
                           isMarked2={isTopicMark2}
