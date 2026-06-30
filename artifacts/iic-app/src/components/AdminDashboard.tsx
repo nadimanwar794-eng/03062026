@@ -684,6 +684,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [homeworkHistorySearch, setHomeworkHistorySearch] = useState<string>('');
   const [expandedHomework, setExpandedHomework] = useState<Record<string, boolean>>({});
   const [expandedLucent, setExpandedLucent] = useState<Record<string, boolean>>({});
+  const [showAddSubjectUI, setShowAddSubjectUI] = useState(false);
+  const [newSubjectInput, setNewSubjectInput] = useState('');
   const [expandedLucentPage, setExpandedLucentPage] = useState<Record<string, boolean>>({});
 
   // Normalize common Hindi / shorthand MCQ paste formats so they parse with parseMCQText().
@@ -889,15 +891,18 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   // Derived from localSettings — declared here (after useState) to avoid TDZ.
   // Custom books appear as additional page-wise subject options across the UI.
   const customBooksList = (localSettings.customBooks || []).filter(b => b && b.id && b.name);
+  // Custom subjects saved by admin (stored in localSettings.customLucentSubjects)
+  const customLucentSubjectsList: { id: string; name: string }[] = (localSettings.customLucentSubjects || []).filter((s: any) => s && s.id && s.name);
   // Lucent GK subject dropdown — only academic subjects (Biology, Chemistry, etc.)
   // Custom page-wise books (Speedy, Sar Sangrah, custom) must NOT appear here.
   const LUCENT_SUBJECT_OPTIONS: { id: string; name: string }[] = [
     ...LUCENT_SUBJECT_OPTIONS_BASE,
+    ...customLucentSubjectsList,
   ];
   // Dynamic subject options — changes based on which classLevel admin selected.
-  // For COMPETITION: competition subjects. For class 6-12: all subjects of that class.
+  // For COMPETITION: competition subjects (built-in + custom). For class 6-12: all subjects of that class.
   const activeLucentSubjectOptions: { id: string; name: string }[] = (() => {
-    if (newLucent.classLevel === 'COMPETITION') return LUCENT_SUBJECT_OPTIONS_BASE;
+    if (newLucent.classLevel === 'COMPETITION') return [...LUCENT_SUBJECT_OPTIONS_BASE, ...customLucentSubjectsList];
     try {
       const seen = new Set<string>();
       const results: { id: string; name: string }[] = [];
@@ -8478,6 +8483,57 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                   <option key={opt.id} value={opt.id}>{opt.name}</option>
                                               ))}
                                           </select>
+                                          <button
+                                              type="button"
+                                              onClick={() => setShowAddSubjectUI(v => !v)}
+                                              className="mt-1 text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                          >
+                                              {showAddSubjectUI ? '✕ Band karo' : '＋ Add Subject'}
+                                          </button>
+                                          {showAddSubjectUI && (
+                                              <div className="mt-1 flex gap-1">
+                                                  <input
+                                                      type="text"
+                                                      value={newSubjectInput}
+                                                      onChange={e => setNewSubjectInput(e.target.value)}
+                                                      onKeyDown={e => {
+                                                          if (e.key === 'Enter') {
+                                                              e.preventDefault();
+                                                              const raw = newSubjectInput.trim();
+                                                              if (!raw) return;
+                                                              let baseId = ('subj_' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')).slice(0, 32) || 'subj_' + Date.now();
+                                                              const existingIds = new Set([...LUCENT_SUBJECT_OPTIONS_BASE.map(s => s.id), ...customLucentSubjectsList.map(s => s.id)]);
+                                                              let id = baseId; let n = 2;
+                                                              while (existingIds.has(id)) { id = `${baseId}_${n++}`; }
+                                                              const next = [...(localSettings.customLucentSubjects || []), { id, name: raw }];
+                                                              setLocalSettings({ ...localSettings, customLucentSubjects: next });
+                                                              setNewLucent({ ...newLucent, subject: id });
+                                                              setNewSubjectInput('');
+                                                              setShowAddSubjectUI(false);
+                                                          }
+                                                      }}
+                                                      placeholder="e.g. भूगोल (Geography)"
+                                                      className="flex-1 p-1.5 border border-indigo-300 rounded text-xs outline-none focus:border-indigo-500"
+                                                  />
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                          const raw = newSubjectInput.trim();
+                                                          if (!raw) return;
+                                                          let baseId = ('subj_' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')).slice(0, 32) || 'subj_' + Date.now();
+                                                          const existingIds = new Set([...LUCENT_SUBJECT_OPTIONS_BASE.map(s => s.id), ...customLucentSubjectsList.map(s => s.id)]);
+                                                          let id = baseId; let n = 2;
+                                                          while (existingIds.has(id)) { id = `${baseId}_${n++}`; }
+                                                          const next = [...(localSettings.customLucentSubjects || []), { id, name: raw }];
+                                                          setLocalSettings({ ...localSettings, customLucentSubjects: next });
+                                                          setNewLucent({ ...newLucent, subject: id });
+                                                          setNewSubjectInput('');
+                                                          setShowAddSubjectUI(false);
+                                                      }}
+                                                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-2 py-1 rounded active:scale-95"
+                                                  >✓</button>
+                                              </div>
+                                          )}
                                       </div>
                                   </div>
                                   {/* Board filter */}
@@ -12243,6 +12299,57 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               <select value={newLucent.subject} onChange={e => setNewLucent({...newLucent, subject: e.target.value})} className="w-full p-2 border border-slate-200 rounded text-sm outline-none focus:border-indigo-500 bg-white">
                                                   {activeLucentSubjectOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                                               </select>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setShowAddSubjectUI(v => !v)}
+                                                  className="mt-1 text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                              >
+                                                  {showAddSubjectUI ? '✕ Band karo' : '＋ Add Subject'}
+                                              </button>
+                                              {showAddSubjectUI && (
+                                                  <div className="mt-1 flex gap-1">
+                                                      <input
+                                                          type="text"
+                                                          value={newSubjectInput}
+                                                          onChange={e => setNewSubjectInput(e.target.value)}
+                                                          onKeyDown={e => {
+                                                              if (e.key === 'Enter') {
+                                                                  e.preventDefault();
+                                                                  const raw = newSubjectInput.trim();
+                                                                  if (!raw) return;
+                                                                  let baseId = ('subj_' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')).slice(0, 32) || 'subj_' + Date.now();
+                                                                  const existingIds = new Set([...LUCENT_SUBJECT_OPTIONS_BASE.map(s => s.id), ...customLucentSubjectsList.map(s => s.id)]);
+                                                                  let id = baseId; let n = 2;
+                                                                  while (existingIds.has(id)) { id = `${baseId}_${n++}`; }
+                                                                  const next = [...(localSettings.customLucentSubjects || []), { id, name: raw }];
+                                                                  setLocalSettings({ ...localSettings, customLucentSubjects: next });
+                                                                  setNewLucent({ ...newLucent, subject: id });
+                                                                  setNewSubjectInput('');
+                                                                  setShowAddSubjectUI(false);
+                                                              }
+                                                          }}
+                                                          placeholder="e.g. भूगोल (Geography)"
+                                                          className="flex-1 p-1.5 border border-indigo-300 rounded text-xs outline-none focus:border-indigo-500"
+                                                      />
+                                                      <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                              const raw = newSubjectInput.trim();
+                                                              if (!raw) return;
+                                                              let baseId = ('subj_' + raw.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')).slice(0, 32) || 'subj_' + Date.now();
+                                                              const existingIds = new Set([...LUCENT_SUBJECT_OPTIONS_BASE.map(s => s.id), ...customLucentSubjectsList.map(s => s.id)]);
+                                                              let id = baseId; let n = 2;
+                                                              while (existingIds.has(id)) { id = `${baseId}_${n++}`; }
+                                                              const next = [...(localSettings.customLucentSubjects || []), { id, name: raw }];
+                                                              setLocalSettings({ ...localSettings, customLucentSubjects: next });
+                                                              setNewLucent({ ...newLucent, subject: id });
+                                                              setNewSubjectInput('');
+                                                              setShowAddSubjectUI(false);
+                                                          }}
+                                                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-2 py-1 rounded active:scale-95"
+                                                      >✓</button>
+                                                  </div>
+                                              )}
                                           </div>
                                       </div>
                                       <div>
