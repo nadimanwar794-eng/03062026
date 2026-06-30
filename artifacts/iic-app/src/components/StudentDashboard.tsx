@@ -1830,8 +1830,9 @@ export const StudentDashboard: React.FC<Props> = ({
   const [editMode, setEditMode] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [recoveryData, setRecoveryData] = useState({
-    mobile: user.mobile || "",
-    password: user.password || "",
+    mobile: (user as any).mobile || "",
+    password: (user as any).password || "",
+    email: user.email || "",
   });
   const [profileData, setProfileData] = useState({
     classLevel: activeSessionClass || user.classLevel || "10",
@@ -9556,6 +9557,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     setRecoveryData({
                       mobile: (user as any).mobile || '',
                       password: (user as any).password || '',
+                      email: user.email || '',
                     });
                     setShowRecoveryModal(true);
                   }}
@@ -9588,24 +9590,26 @@ export const StudentDashboard: React.FC<Props> = ({
                     {user.email ? user.email : <span className="text-slate-400 font-semibold">Set nahi hai</span>}
                   </p>
                 </div>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
-                  background: user.email ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
-                  color: user.email ? '#16a34a' : '#94a3b8',
-                }}>{user.email ? '✓ Active' : 'Inactive'}</span>
-              </div>
-              {/* Name + Class */}
-              <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
-                <span className="text-base">👤</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[10px] font-bold uppercase tracking-wide ${_pTxtSub}`}>Naam + Class</p>
-                  <p className={`text-xs font-bold truncate ${_pTxt}`}>
-                    {user.name} {(user as any).classLevel ? `· Class ${(user as any).classLevel}` : ''}
-                  </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
+                    background: user.email ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
+                    color: user.email ? '#16a34a' : '#94a3b8',
+                  }}>{user.email ? '✓ Active' : 'Inactive'}</span>
+                  <button
+                    onClick={() => {
+                      setRecoveryData({
+                        mobile: (user as any).mobile || '',
+                        password: (user as any).password || '',
+                        email: user.email || '',
+                      });
+                      setShowRecoveryModal(true);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-[10px] font-black active:opacity-60"
+                    style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                  >
+                    ✏️ Edit
+                  </button>
                 </div>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
-                  background: 'rgba(34,197,94,0.12)',
-                  color: '#16a34a',
-                }}>✓ Active</span>
               </div>
               {/* UID */}
               <div className="flex items-center gap-3 px-4 py-3">
@@ -12536,10 +12540,6 @@ export const StudentDashboard: React.FC<Props> = ({
                 <X size={20} />
               </button>
             </div>
-            <p className="text-xs font-bold text-slate-600 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100">
-              Set a Mobile Number and Password. If Google Auth fails, you can
-              use these to login via the Recovery option.
-            </p>
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
@@ -12556,6 +12556,23 @@ export const StudentDashboard: React.FC<Props> = ({
                   }
                   className="w-full p-3 rounded-xl border border-slate-200 font-bold"
                   placeholder="10-digit mobile number"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={recoveryData.email}
+                  onChange={(e) =>
+                    setRecoveryData({
+                      ...recoveryData,
+                      email: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 font-bold"
+                  placeholder="your@email.com"
                 />
               </div>
               <div>
@@ -12604,6 +12621,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     ...user,
                     mobile: recoveryData.mobile,
                     password: recoveryData.password,
+                    email: recoveryData.email || user.email,
                   });
                   setShowRecoveryModal(false);
                   showAlert("Recovery details saved successfully!", "SUCCESS");
