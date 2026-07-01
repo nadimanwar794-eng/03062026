@@ -130,35 +130,14 @@ export const getSubjectsList = (classLevel: string, stream: string | null, board
 
   if (classLevel === 'COMPETITION') {
       selectedSubjects = [
-          pool.lucent,
-          pool.speedyScience,
-          pool.speedySocialScience,
-          pool.sarSangrah,
-          pool.mcq,
+          pool.physics,
+          pool.chemistry,
+          pool.biology,
+          pool.history,
+          pool.geography,
+          pool.polity,
+          pool.economics,
       ].filter(Boolean);
-
-      // Admin-defined Custom Books (Sar Sangrah / Speedy ki tarah). Stored under
-      // SystemSettings.customBooks (mirrored to localStorage for fast read).
-      // Each becomes a subject card on the Competition home, opening a flat
-      // page-wise list of notes/MCQs in StudentDashboard.
-      try {
-          const settingsRaw = localStorage.getItem('nst_system_settings');
-          const settingsObj = settingsRaw ? JSON.parse(settingsRaw) : null;
-          const customBooks: Array<{ id: string; name: string }> = Array.isArray(settingsObj?.customBooks)
-              ? settingsObj.customBooks
-              : [];
-          const palette = ['bg-white text-slate-700', 'bg-white text-slate-700', 'bg-white text-slate-700', 'bg-white text-slate-700', 'bg-white text-slate-700'];
-          customBooks.forEach((b, i) => {
-              if (b && b.id && b.name) {
-                  selectedSubjects.push({
-                      id: b.id,
-                      name: b.name,
-                      icon: 'book',
-                      color: palette[i % palette.length],
-                  });
-              }
-          });
-      } catch (e) { /* ignore */ }
   }
   else if (!isSenior) {
       const isClass9or10 = ['9', '10'].includes(classLevel);
