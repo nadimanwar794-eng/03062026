@@ -5405,7 +5405,8 @@ export const StudentDashboard: React.FC<Props> = ({
     }
   };
 
-  const LUCENT_CATEGORIES = [
+  const _customLucentSubjects: { id: string; name: string }[] = ((settings as any)?.customLucentSubjects || []).filter((s: any) => s && s.id && s.name);
+  const LUCENT_CATEGORIES: Subject[] = [
     { id: 'biology', name: 'जीव विज्ञान (Biology)', icon: 'bio', color: 'bg-white text-slate-700' },
     { id: 'chemistry', name: 'रसायन शास्त्र (Chemistry)', icon: 'flask', color: 'bg-white text-slate-700' },
     { id: 'physics', name: 'भौतिकी (Physics)', icon: 'physics', color: 'bg-white text-slate-700' },
@@ -5413,7 +5414,8 @@ export const StudentDashboard: React.FC<Props> = ({
     { id: 'geography', name: 'भूगोल (Geography)', icon: 'geo', color: 'bg-white text-slate-700' },
     { id: 'polity', name: 'राजनीति विज्ञान (Polity)', icon: 'gov', color: 'bg-white text-slate-700' },
     { id: 'history', name: 'इतिहास (History)', icon: 'history', color: 'bg-white text-slate-700' },
-  ] as Subject[];
+    ..._customLucentSubjects.map(s => ({ id: s.id, name: s.name, icon: 'book', color: 'bg-white text-slate-700' })),
+  ];
 
   const renderContentSection = (
     type: "VIDEO" | "PDF" | "MCQ" | "AUDIO" | "GENERIC",
