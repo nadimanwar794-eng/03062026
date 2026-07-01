@@ -188,6 +188,7 @@ import { SubjectSelection } from "./SubjectSelection";
 import { BannerCarousel } from "./BannerCarousel";
 import { MiniPlayer } from "./MiniPlayer"; // Imported for Audio Flow
 import { MistakePracticeView } from "./MistakePracticeView"; // My Mistake home page practice
+import { CoachingHomeworkSection } from "./CoachingHomeworkView"; // Coaching Homework Cards
 import { HistoryPage } from "./HistoryPage";
 import TeacherStore from "./TeacherStore";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -8314,6 +8315,9 @@ export const StudentDashboard: React.FC<Props> = ({
                       />
                     </div>
                   )}
+
+                  {/* ── COACHING HOMEWORK CARDS ── */}
+                  <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode} />
 
                   {/* ── REVISION HUB CARD ── */}
                   {(() => {

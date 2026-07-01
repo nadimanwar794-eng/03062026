@@ -27,6 +27,7 @@ import { AdminPowerManager } from './AdminPowerManager';
 import { EventManager } from './admin/EventManager';
 import AdminHelp from './AdminHelp';
 import { AdminTrendingNotes } from './AdminTrendingNotes';
+import { AdminCoachingHomework } from './AdminCoachingHomework';
 import { FeatureGroupList } from './admin/FeatureGroupList';
 import { ErrorNoticeBoard } from './admin/ErrorNoticeBoard';
 import { ALL_FEATURES } from '../utils/featureRegistry';
@@ -137,7 +138,8 @@ type AdminTab =
   | 'ERROR_LOGS' // Error Notice Board
   | 'CONTENT_HISTORY' // Content addition history log
   | 'FEEDBACK' // App Feedback from users
-  | 'REVISION_MCQ_MANAGER'; // Revision Hub MCQ Manager
+  | 'REVISION_MCQ_MANAGER' // Revision Hub MCQ Manager
+  | 'COACHING_HOMEWORK'; // Coaching Homework Manager
 
 interface ContentConfig {
     freeLink?: string;
@@ -18090,6 +18092,13 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   </div>
               </div>
           </div>
+      )}
+
+      {/* COACHING HOMEWORK MANAGER */}
+      {activeTab === 'COACHING_HOMEWORK' && (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right">
+          <AdminCoachingHomework onBack={() => setActiveTab('DASHBOARD')} />
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════
