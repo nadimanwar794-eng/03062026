@@ -2687,7 +2687,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // student returns to exactly where they were when they tap that tab again.
   // Eg: creating an MCQ on Home → tap Profile → tap Home → MCQ creator restores.
   // Reading a homework note → tap GK → tap Homework → same note reopens.
-  type LogicalTab = 'HOME' | 'HOMEWORK' | 'REVISION_V2' | 'GK' | 'VIDEO' | 'PROFILE' | 'APP_STORE' | 'HISTORY';
+  type LogicalTab = 'HOME' | 'HOMEWORK' | 'REVISION_V2' | 'GK' | 'VIDEO' | 'PROFILE' | 'APP_STORE' | 'HISTORY' | 'PROGRESS';
   const [currentLogicalTab, setCurrentLogicalTab] = useState<LogicalTab>('HOME');
 
   // ── MY MISTAKE COUNT (lightweight: synced via storage event + 30s poll) ──
@@ -15467,6 +15467,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 case 'PROFILE':  return { ...empty, activeTab: 'PROFILE' };
                 case 'APP_STORE':return { ...empty, activeTab: 'APP_STORE' };
                 case 'HISTORY':  return { ...empty, activeTab: 'HISTORY' };
+                case 'PROGRESS': return { ...empty, activeTab: 'HOME' };
                 default:         return empty;
               }
             };
@@ -15489,6 +15490,7 @@ export const StudentDashboard: React.FC<Props> = ({
               PROFILE:   ['PROFILE'],
               APP_STORE: ['APP_STORE'],
               HISTORY:   ['HISTORY'],
+              PROGRESS:  ['HOME'],
             };
 
             const NAV_TAB_INFO: Record<string, {emoji: string; desc: string}> = {
@@ -15499,6 +15501,7 @@ export const StudentDashboard: React.FC<Props> = ({
               APP_STORE:          { emoji: '📱', desc: 'Admin recommended apps' },
               PROFILE:            { emoji: '👤', desc: 'Profile, credits and settings' },
               REVISION_V2:        { emoji: '🔁', desc: 'Spaced revision and weak topics' },
+              PROGRESS:           { emoji: '📊', desc: 'Daily stats, XP, streak aur Revision Hub progress' },
               COMPRE:             { emoji: '📖', desc: 'Full book comparison tool' },
               GK:                 { emoji: '🌍', desc: 'Daily GK and current affairs' },
               VIDEO:              { emoji: '🎬', desc: 'Educational videos' },
@@ -15522,6 +15525,8 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowCompareView(false);
               // Close Revision Hub Screen if open — otherwise it covers all other tabs.
               setShowRevisionHubScreen(false);
+              // Close Progress Dashboard overlay if open — prevents it bleeding into other tabs.
+              setShowProgressDashboard(false);
               // Close the Important Notes overlay if it's open — otherwise the
               // overlay (z-[200]) keeps covering the dashboard even after the
               // user taps Home / Homework / Profile / Revision in bottom nav.
@@ -15641,13 +15646,31 @@ export const StudentDashboard: React.FC<Props> = ({
                   ]
                 : []),
 
+              // Progress Dashboard — student learning report card
+              {
+                id: "PROGRESS" as const,
+                label: "Progress",
+                Icon: BarChart2,
+                filledOnActive: true,
+                isActive: !showStarredPage && !showChat && currentLogicalTab === "PROGRESS" && showProgressDashboard,
+                onClick: () => {
+                  setShowStarredPage(false);
+                  setShowChat(false);
+                  setShowRevisionHubScreen(false);
+                  setShowCompareView(false);
+                  setShowProgressDashboard(true);
+                  currentLogicalTabRef.current = 'PROGRESS';
+                  setCurrentLogicalTab('PROGRESS');
+                },
+              },
+
               // Profile — always visible, pinned to the right of bottom nav
               {
                 id: "PROFILE" as const,
                 label: "Profile",
                 Icon: UserIcon,
                 filledOnActive: false,
-                isActive: !showStarredPage && !showRevisionHubScreen && currentLogicalTab === "PROFILE",
+                isActive: !showStarredPage && !showRevisionHubScreen && !showProgressDashboard && currentLogicalTab === "PROFILE",
                 onClick: () => switchToLogicalTab("PROFILE"),
               },
             ];
@@ -22437,7 +22460,11 @@ RULES:
 
       {/* ═══════════ MY PROGRESS DASHBOARD ═══════════ */}
       {showProgressDashboard && (
-        <StudentProgressDashboard user={user} onBack={() => setShowProgressDashboard(false)} />
+        <StudentProgressDashboard user={user} onBack={() => {
+          setShowProgressDashboard(false);
+          currentLogicalTabRef.current = 'HOME';
+          setCurrentLogicalTab('HOME');
+        }} />
       )}
 
       {/* ═══════════ LOGIN HISTORY OVERLAY ═══════════ */}
