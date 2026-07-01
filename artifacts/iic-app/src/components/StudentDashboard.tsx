@@ -7448,8 +7448,15 @@ export const StudentDashboard: React.FC<Props> = ({
       // Pre-compute lesson counts per subject so we can show badges and block empty navigation
       const _allCompNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
         .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')));
-      const _lucentSubjectCount = (catId: string) =>
-        _allCompNotes.filter(n => n.subject?.toLowerCase().trim() === catId.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent').length;
+      const _customSubjectIds = new Set(_customLucentSubjects.map(s => s.id.toLowerCase()));
+      const _lucentSubjectCount = (catId: string) => {
+        const id = catId.toLowerCase().trim();
+        const isCustom = _customSubjectIds.has(id);
+        return _allCompNotes.filter(n =>
+          n.subject?.toLowerCase().trim() === id &&
+          (isCustom || (n.bookName?.trim() || 'Lucent') === 'Lucent')
+        ).length;
+      };
 
       return (
         <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
@@ -7478,8 +7485,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 };
                 // Admin lessons for this subject under 'Lucent' book — board-filtered
                 const allLucentNotes = (settings?.lucentNotes || []) as LucentNoteEntry[];
+                const _isCustomCat = _customSubjectIds.has(cat.id?.toLowerCase() || '');
                 const subjectEntries = allLucentNotes
-                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
+                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (_isCustomCat || (n.bookName?.trim() || 'Lucent') === 'Lucent') && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
                   .sort((a, b) => _minPg(a) - _minPg(b));
 
                 // No lessons yet — don't navigate to a blank page
