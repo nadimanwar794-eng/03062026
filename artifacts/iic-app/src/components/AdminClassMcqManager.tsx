@@ -15,7 +15,7 @@ const SUBJECTS_BY_CLASS: Record<string, string[]> = {
   '10': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English', 'Hindi'],
   '11': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Economics', 'History', 'Political Science'],
   '12': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Economics', 'History', 'Political Science'],
-  'COMPETITION': ['General Knowledge', 'Reasoning', 'Mathematics', 'English', 'Science', 'Current Affairs'],
+  'COMPETITION': ['Physics', 'Chemistry', 'Biology', 'History', 'Geography', 'Political Science', 'Economics'],
 };
 
 function normalizeMcqPaste(raw: string): string {
