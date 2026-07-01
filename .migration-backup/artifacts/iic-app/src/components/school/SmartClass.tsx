@@ -94,7 +94,7 @@ function getPdfIframeUrl(pdfUrl: string): string {
 }
 
 export const SmartClass: React.FC<Props> = ({
-  lesson, initialMode, onBack, onMCQComplete, isAdmin,
+  lesson, initialMode, onBack, onMCQComplete, isAdmin, studentId, studentName,
 }) => {
   const schoolControlsRef = useRef<(() => void) | null>(null);
 

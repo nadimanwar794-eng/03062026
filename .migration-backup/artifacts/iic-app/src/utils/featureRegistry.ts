@@ -599,6 +599,18 @@ export const ALL_FEATURES: Feature[] = [
         color: 'amber'
     },
     {
+        id: 'COACHING_HOMEWORK',
+        label: 'Coaching Homework',
+        group: 'CONTENT',
+        surfaceLevel: 3,
+        adminVisible: true,
+        adminTab: 'COACHING_HOMEWORK',
+        requiredPermission: 'MANAGE_CONTENT',
+        icon: 'School',
+        color: 'indigo',
+        description: 'Coaching-wise date-based homework cards manage karein — students ke home screen pe dikhenge.'
+    },
+    {
         id: 'ADMIN_UNIVERSAL_PLAYLIST',
         label: 'Universal Playlist',
         group: 'CONTENT',

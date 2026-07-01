@@ -1,6 +1,15 @@
 {
   "outputDirectory": "artifacts/iic-app/dist/public",
+  "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ],
   "rewrites": [
-    { "source": "/((?!assets/|sw\\.js|workbox-.*\\.js|\\.well-known/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets|.well-known|.*\\..*).*)", "destination": "/index.html" }
   ]
 }

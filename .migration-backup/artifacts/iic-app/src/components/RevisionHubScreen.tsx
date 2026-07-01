@@ -102,12 +102,14 @@ export const RevisionHubScreen: React.FC<Props> = ({
   const mcqSubjects = mcqSelectedClass
     ? mcqSelectedClass === 'COMPETITION'
       ? [
-          { id: 'GK',          name: 'General Knowledge' },
-          { id: 'REASONING',   name: 'Reasoning' },
-          { id: 'MATHEMATICS', name: 'Mathematics' },
-          { id: 'ENGLISH',     name: 'English' },
-          { id: 'SCIENCE',     name: 'Science' },
-          { id: 'CURRENT',     name: 'Current Affairs' },
+          { id: 'physics',   name: 'Physics' },
+          { id: 'chemistry', name: 'Chemistry' },
+          { id: 'biology',   name: 'Biology' },
+          { id: 'history',   name: 'History' },
+          { id: 'geography', name: 'Geography' },
+          { id: 'polity',    name: 'Political Science' },
+          { id: 'economics', name: 'Economics' },
+          ...((settings as any)?.customLucentSubjects || []).filter((s: any) => s && s.id && s.name),
         ]
       : getSubjectsList(mcqSelectedClass, user?.stream || null, user?.board || 'CBSE')
     : [];
