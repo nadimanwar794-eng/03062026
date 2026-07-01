@@ -7780,7 +7780,7 @@ export const StudentDashboard: React.FC<Props> = ({
     if (activeTab === "HOME") {
       return (
         <PullToRefresh onRefresh={() => window.location.reload()}>
-        <div className="flex flex-col gap-4 pb-4">
+        <div className="flex flex-col gap-2 pb-4">
           {/* RESUME READING — page-wise (chapters + ALL homework notes), sorted by latest activity */}
           <div className="order-1">
           {isHomeSectionVisible('home_continue_reading', settings) && (() => {
@@ -11992,7 +11992,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const _nb_b = parseInt(_nb_hex.substring(4,6),16);
         return (
           <div
-            className="text-white p-3 mb-4 rounded-xl shadow-md animate-in slide-in-from-top-4 relative mx-2 mt-2 overflow-hidden"
+            className="text-white p-3 mb-1 rounded-xl shadow-md animate-in slide-in-from-top-4 relative mx-2 mt-1 overflow-hidden"
             style={{
               background: `linear-gradient(135deg, rgba(${_nb_r},${_nb_g},${_nb_b},0.85) 0%, rgba(${_nb_r},${_nb_g},${_nb_b},0.65) 100%)`,
               border: `1px solid rgba(${_nb_r},${_nb_g},${_nb_b},0.5)`,
@@ -15090,7 +15090,7 @@ export const StudentDashboard: React.FC<Props> = ({
             : activeTab === "REVISION" || activeTab === "AI_HUB"
               ? ""
               : activeTab === "HOME"
-                ? "px-4 pt-3 pb-20"
+                ? "px-4 pt-1 pb-20"
                 : activeTab === "PROFILE"
                   ? "p-0"
                   : "p-4 pb-20"
