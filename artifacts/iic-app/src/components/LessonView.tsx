@@ -760,6 +760,7 @@ export const LessonView: React.FC<Props> = ({
                           onSaveOffline={schoolSaveOffline ?? (user ? handleSaveNotesOffline : undefined)}
                           isSavedOffline={savedOffline}
                           onAdminEdit={isAdmin ? onAdminEdit : undefined}
+                          onBack={schoolMode ? onBack : undefined}
                       />
                   ) : (
                       <>
@@ -849,7 +850,7 @@ export const LessonView: React.FC<Props> = ({
                       </div>
                   )}
                   {/* Header — 2-row write mode bar */}
-                  <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 flex-shrink-0 z-10 shadow-sm${isImmersive ? ' hidden' : ''}`}>
+                  <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 flex-shrink-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
                       {/* Row 1: Back + Title + WRITE badge + Close */}
                       <div className="flex items-center gap-2">
                           <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
@@ -1101,7 +1102,7 @@ export const LessonView: React.FC<Props> = ({
                   </div>
               )}
               {/* Header — 2-row write mode bar */}
-              <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 sticky top-0 z-10 shadow-sm${isImmersive ? ' hidden' : ''}`}>
+              <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 sticky top-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
                   {/* Row 1: Back + Title + WRITE badge + Close */}
                   <div className="flex items-center gap-2">
                       <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
@@ -1193,6 +1194,7 @@ export const LessonView: React.FC<Props> = ({
                           onSaveOffline={schoolSaveOffline ?? (user ? handleSaveNotesOffline : undefined)}
                           isSavedOffline={savedOffline}
                           onAdminEdit={isAdmin ? onAdminEdit : undefined}
+                          onBack={schoolMode ? onBack : undefined}
                       />
                       {isStreaming && (
                         <div className="flex items-center gap-2 text-slate-600 mt-4 animate-pulse">

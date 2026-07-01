@@ -1222,18 +1222,24 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <ChevronRight size={15} className="rotate-180" />
               </button>
             )}
-            {/* Counter / READING ACTIVE label */}
+            {/* Counter / READING ACTIVE label / Lesson name */}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-              <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
-                {isReading && activeIdx !== null
-                  ? `${activeIdx + 1}/${activeTopicList.length}`
-                  : activeTopicList.length > 0
-                    ? `1/${activeTopicList.length}`
-                    : ''}
-              </span>
-              {isReading && (
-                <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.14em] text-indigo-400 select-none">
-                  READING ACTIVE
+              {isReading ? (
+                <>
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
+                    {activeIdx !== null ? `${activeIdx + 1}/${activeTopicList.length}` : `1/${activeTopicList.length}`}
+                  </span>
+                  <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.14em] text-indigo-400 select-none">
+                    READING ACTIVE
+                  </span>
+                </>
+              ) : topBarLabel ? (
+                <span className="truncate text-[12px] font-black text-slate-700 select-none">
+                  {topBarLabel}
+                </span>
+              ) : (
+                <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
+                  {activeTopicList.length > 0 ? `1/${activeTopicList.length}` : ''}
                 </span>
               )}
               {/* Live session score */}
