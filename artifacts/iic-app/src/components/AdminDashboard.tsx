@@ -8572,6 +8572,27 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           >
                                               {showAddSubjectUI ? '✕ Band karo' : '＋ Add Subject'}
                                           </button>
+                                          {/* Custom subjects list with remove buttons */}
+                                          {customLucentSubjectsList.length > 0 && (
+                                              <div className="mt-1.5 space-y-1">
+                                                  {customLucentSubjectsList.map(s => (
+                                                      <div key={s.id} className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 rounded px-2 py-1">
+                                                          <span className="flex-1 text-xs font-bold text-indigo-800 truncate">{s.name}</span>
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                  if (!confirm(`"${s.name}" subject hata dein?`)) return;
+                                                                  const next = (localSettings.customLucentSubjects || []).filter((x: any) => x.id !== s.id);
+                                                                  setLocalSettings({ ...localSettings, customLucentSubjects: next });
+                                                                  if (newLucent.subject === s.id) setNewLucent({ ...newLucent, subject: LUCENT_SUBJECT_OPTIONS_BASE[0]?.id || 'biology' });
+                                                              }}
+                                                              className="p-0.5 text-rose-500 hover:text-rose-700 shrink-0"
+                                                              title="Remove subject"
+                                                          ><Trash2 size={12} /></button>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                          )}
                                           {showAddSubjectUI && (
                                               <div className="mt-1 flex gap-1">
                                                   <input
