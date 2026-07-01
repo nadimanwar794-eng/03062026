@@ -8320,13 +8320,14 @@ export const StudentDashboard: React.FC<Props> = ({
                   )}
 
                   {/* ── COACHING HOMEWORK CARDS ── */}
-                  <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode} />
+                  <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode}
+                    card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)} />
 
                   {/* ── REVISION HUB CARD ── */}
                   {(() => {
-                    const _rhBdr = settings?.homeRevisionHubCardBorder || _cmpBdr || tierTheme.primary || '#6366f1';
-                    const _rhBg  = settings?.homeRevisionHubCardBg    || tierTheme.profileCardBg || '#ffffff';
-                    const _rh3D  = _masterAll3D || (settings?.homeRevisionHubCard3D ?? true);
+                    const _rhBdr = settings?.homeRevisionHubCardBorder || tierTheme.primary || _cmpBdr || '#6366f1';
+                    const _rhBg  = settings?.homeRevisionHubCardBg    || tierTheme.profileCardBg || tierTheme.cardBg || '#ffffff';
+                    const _rh3D  = _masterAll3D || (settings?.homeRevisionHubCard3D ?? false);
                     return (
                   <button
                     onClick={() => { hapticMedium(); setShowRevisionHubScreen(true); }}

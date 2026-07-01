@@ -419,9 +419,11 @@ function CoachingDetailView({
 export function CoachingHomeworkSection({
   tierTheme,
   isDarkMode,
+  card3D: card3DProp,
 }: {
   tierTheme: any;
   isDarkMode?: boolean;
+  card3D?: boolean;
 }) {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
@@ -441,8 +443,8 @@ export function CoachingHomeworkSection({
     return () => off(r, 'value', unsub);
   }, []);
 
-  const accent = tierTheme?.primary || '#6366f1';
-  const card3D = true;
+  const accent = tierTheme?.primary || tierTheme?.border || '#6366f1';
+  const card3D = card3DProp ?? false;
 
   if (loading) {
     return (
@@ -478,7 +480,7 @@ export function CoachingHomeworkSection({
           const latestDate = getLatestDate(coaching);
           const entryCount = countEntries(coaching);
           const borderColor = accent;
-          const bg = tierTheme?.profileCardBg || '#ffffff';
+          const bg = tierTheme?.profileCardBg || tierTheme?.cardBg || '#ffffff';
 
           return (
             <button

@@ -12,8 +12,8 @@ interface Props {
 }
 
 export const SchoolHomeCard: React.FC<Props> = ({ school, onOpen, onChangeSchool, themeAccent, card3D = false }) => {
-  // Use themeAccent (tierTheme.primary) if provided, else school's bannerColor, else default indigo
-  const accent = themeAccent || school.bannerColor || "#4f46e5";
+  // Use themeAccent (tierTheme.primary) if provided, else school's bannerColor, else neutral fallback
+  const accent = themeAccent || school.bannerColor || "#6366f1";
 
   const initial = school.name.trim().slice(0, 2).toUpperCase();
 
