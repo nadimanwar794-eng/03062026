@@ -8169,31 +8169,6 @@ export const StudentDashboard: React.FC<Props> = ({
             onToggleVisibility={toggleLayoutVisibility}
           >
 
-            {/* ── CONTENT TYPE FILTER (compact) ── */}
-            <div className="flex justify-center mb-3">
-              <div className="flex items-center gap-1 p-1 rounded-full bg-slate-100">
-                {([
-                  { label: 'All',   val: 'ALL'   },
-                  { label: 'Notes', val: 'PDF'   },
-                  { label: 'MCQ',   val: 'MCQ'   },
-                  { label: 'Video', val: 'VIDEO' },
-                ] as {label:string;val:string}[]).map(f => {
-                  const isActive2 = contentTypePref === f.val || (f.val === 'MCQ' && contentTypePref === 'MCQ');
-                  return (
-                    <button
-                      key={f.val}
-                      onClick={() => { hapticStrong(); setContentTypePref(f.val as any); }}
-                      className="px-3 py-1 rounded-full text-[11px] font-black transition-all"
-                      style={isActive2
-                        ? { background: tierTheme.primary, color: '#fff' }
-                        : { background: 'transparent', color: '#64748b' }}
-                    >
-                      {f.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* ── CLASS 6-12 GRID + QUICK ACTIONS (themed to top-bar color) ── */}
             {(() => {
