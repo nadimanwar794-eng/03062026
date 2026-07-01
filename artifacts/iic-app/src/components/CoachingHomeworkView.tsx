@@ -126,7 +126,7 @@ function NoteCard({ note, accent }: { note: CoachingNote; accent: string }) {
 
       {/* Full-screen ChunkedNotesReader overlay */}
       {readerOpen && hasContent && (
-        <div className="fixed inset-0 z-[500]">
+        <div className="fixed inset-0 z-[500] bg-white overflow-y-auto">
           <ChunkedNotesReader
             content={note.content!}
             topBarLabel={note.title || (note.pageNo ? `Page ${note.pageNo}` : 'Note')}
