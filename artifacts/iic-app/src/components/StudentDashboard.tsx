@@ -8220,6 +8220,8 @@ export const StudentDashboard: React.FC<Props> = ({
               const _masterAll3D = settings?.homeAllCards3D ?? false;
               const _cmp3D   = _masterAll3D || (settings?.homeCompetitionCard3D ?? false);
               const _card3D  = _masterAll3D || (settings?.homeClass612Card3D ?? false);
+              const _scBdr   = settings?.homeSchoolCardBorder  || tierTheme.primary;
+              const _sc3D    = _masterAll3D || (settings?.homeSchoolCard3D ?? false);
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjectCount = getSubjectsList(c, _stream, _board).length;
@@ -8311,7 +8313,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         school={userSchool}
                         onOpen={() => { hapticStrong(); onOpenSchool?.(); }}
                         onChangeSchool={() => { hapticMedium(); onOpenSchool?.(); }}
-                        card3D={settings?.tierOverrides?.card3D ?? false}
+                        themeAccent={_scBdr}
+                        card3D={_sc3D}
                       />
                     </div>
                   )}

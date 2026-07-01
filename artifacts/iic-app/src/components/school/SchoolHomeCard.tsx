@@ -1,37 +1,45 @@
 // @ts-nocheck
 import React from "react";
 import type { School } from "../../school-types";
-import { GraduationCap, MapPin, Users, Shield, ChevronRight, RefreshCw } from "lucide-react";
+import { MapPin, Users, Shield, ChevronRight, RefreshCw } from "lucide-react";
 
 interface Props {
   school: School;
   onOpen: () => void;
   onChangeSchool: () => void;
+  themeAccent?: string;
   card3D?: boolean;
 }
 
-export const SchoolHomeCard: React.FC<Props> = ({ school, onOpen, onChangeSchool }) => {
-  const accent = school.bannerColor || "#4f46e5";
-
-  // Derive a lighter tint from the accent for backgrounds
-  const hexToRgb = (hex: string) => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `${r},${g},${b}`;
-  };
-  const rgb = hexToRgb(accent.startsWith("#") && accent.length === 7 ? accent : "#4f46e5");
+export const SchoolHomeCard: React.FC<Props> = ({ school, onOpen, onChangeSchool, themeAccent, card3D = false }) => {
+  // Use themeAccent (tierTheme.primary) if provided, else school's bannerColor, else default indigo
+  const accent = themeAccent || school.bannerColor || "#4f46e5";
 
   const initial = school.name.trim().slice(0, 2).toUpperCase();
 
+  const cardStyle: React.CSSProperties = card3D
+    ? {
+        background: `linear-gradient(135deg, ${accent} 0%, ${accent}dd 60%, ${accent}99 100%)`,
+        boxShadow: `0 1px 0 rgba(255,255,255,0.25) inset, 0 4px 0 ${accent}bb, 0 8px 24px ${accent}38`,
+        transform: "translateY(-1px)",
+        border: `1.5px solid ${accent}cc`,
+      }
+    : {
+        background: `linear-gradient(135deg, ${accent} 0%, ${accent}dd 60%, ${accent}99 100%)`,
+        boxShadow: `0 2px 16px ${accent}30`,
+        border: `1.5px solid ${accent}cc`,
+      };
+
   return (
-    <div className="w-full rounded-3xl overflow-hidden shadow-lg relative" style={{ background: `linear-gradient(135deg, ${accent} 0%, ${accent}dd 60%, ${accent}99 100%)` }}>
+    <div className="w-full rounded-3xl overflow-hidden relative transition-all" style={cardStyle}>
 
       {/* Decorative circles */}
-      <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10" style={{ background: "white", transform: "translate(30%, -30%)" }} />
-      <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-10" style={{ background: "white", transform: "translate(-30%, 30%)" }} />
+      <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+        style={{ background: "white", transform: "translate(30%, -30%)" }} />
+      <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-10 pointer-events-none"
+        style={{ background: "white", transform: "translate(-30%, 30%)" }} />
 
-      {/* Top: IIC×NSTA badge */}
+      {/* Top: IIC×NSTA badge + plan */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2 relative z-10">
         <span className="text-[10px] font-black uppercase tracking-widest text-white/70 bg-white/10 px-2.5 py-1 rounded-full">
           IIC × NSTA
@@ -71,9 +79,8 @@ export const SchoolHomeCard: React.FC<Props> = ({ school, onOpen, onChangeSchool
         {/* Info pills */}
         <div className="flex flex-wrap gap-1.5 mt-3">
           {school.principalName && (
-            <span className="text-[10px] font-semibold text-white/80 bg-white/15 px-2.5 py-1 rounded-full flex items-center gap-1">
-              <GraduationCap className="w-3 h-3" />
-              {school.principalName}
+            <span className="text-[10px] font-semibold text-white/80 bg-white/15 px-2.5 py-1 rounded-full">
+              👨‍🏫 {school.principalName}
             </span>
           )}
           {school.address && (
