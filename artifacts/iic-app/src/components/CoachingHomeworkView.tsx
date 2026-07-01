@@ -78,12 +78,20 @@ function getCorrectSet(mcq: CoachingMcq): Set<number> {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // NoteCard — with ChunkedNotesReader support
+// directOpen=true → tap karo toh seedha reader khule (Speedy/Sar Sangrah)
+// directOpen=false → expand → preview → button (Lucent)
 // ──────────────────────────────────────────────────────────────────────────────
-function NoteCard({ note, accent }: { note: CoachingNote; accent: string }) {
+function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; accent: string; directOpen?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
 
   const hasContent = !!note.content;
+
+  const handleTap = () => {
+    hapticMedium();
+    if (directOpen && hasContent) { setReaderOpen(true); return; }
+    setExpanded(e => !e);
+  };
 
   return (
     <>
@@ -91,7 +99,7 @@ function NoteCard({ note, accent }: { note: CoachingNote; accent: string }) {
         <button
           className="w-full flex items-center gap-2 px-3 py-2.5 text-left active:scale-[0.99] transition-all"
           style={{ background: `${accent}08` }}
-          onClick={() => { hapticMedium(); setExpanded(e => !e); }}
+          onClick={handleTap}
         >
           <BookOpen size={13} style={{ color: accent }} className="shrink-0" />
           <span className="flex-1 text-[12px] font-bold text-slate-800 leading-snug">
@@ -102,16 +110,15 @@ function NoteCard({ note, accent }: { note: CoachingNote; accent: string }) {
               P.{note.pageNo}
             </span>
           )}
-          {hasContent && (expanded ? <ChevronUp size={13} style={{ color: accent }} /> : <ChevronDown size={13} style={{ color: accent }} />)}
+          {!directOpen && hasContent && (expanded ? <ChevronUp size={13} style={{ color: accent }} /> : <ChevronDown size={13} style={{ color: accent }} />)}
+          {directOpen && hasContent && <ChevronRight size={13} style={{ color: accent }} />}
         </button>
 
-        {expanded && hasContent && (
+        {!directOpen && expanded && hasContent && (
           <div className="px-3 py-2 bg-white border-t" style={{ borderColor: `${accent}20` }}>
-            {/* Quick preview (first 200 chars) */}
             <p className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap line-clamp-4">
               {note.content}
             </p>
-            {/* ChunkedNotesReader button */}
             <button
               className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold active:scale-95 transition-all"
               style={{ background: `${accent}15`, color: accent }}
@@ -300,7 +307,7 @@ function CategorySection({ catKey, data, accent }: { catKey: CatKey; data: Categ
       </button>
       {open && (
         <div className="space-y-2 pl-1">
-          {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} />)}
+          {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} />)}
           {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} />)}
           {pdfs.map(p => (
             <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"

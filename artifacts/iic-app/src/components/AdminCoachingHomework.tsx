@@ -98,8 +98,66 @@ function NotesEditor({ notes, onChange, accent }:{ notes: CoachingNote[]; onChan
   );
 }
 
+// ─── Bulk MCQ text parser ──────────────────────────────────────────────────────
+// Format (blocks separated by blank line or ---):
+//   Q: Question text?
+//   A: Option A
+//   *B: Option B  ← * se sahi answer
+//   C: Option C
+//   D: Option D
+//   Exp: Explanation (optional)
+function parseBulkMcq(text: string): CoachingMcq[] {
+  const blocks = text.split(/\n(?:\s*-{3,}\s*|\s*)\n/).map(b => b.trim()).filter(Boolean);
+  const result: CoachingMcq[] = [];
+  for (const block of blocks) {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    let question = '';
+    const options: string[] = [];
+    const correctAnswers: number[] = [];
+    let explanation = '';
+    for (const line of lines) {
+      const qMatch = line.match(/^(?:\*?\s*)?Q[:.]\s*(.+)/i);
+      if (qMatch) { question = qMatch[1].trim(); continue; }
+      const expMatch = line.match(/^(?:Exp|Explanation)[:.]\s*(.+)/i);
+      if (expMatch) { explanation = expMatch[1].trim(); continue; }
+      const optMatch = line.match(/^(\*?)\s*([A-Da-d])[:.]\s*(.+)/);
+      if (optMatch) {
+        const isCorrect = optMatch[1] === '*';
+        const idx = optMatch[2].toUpperCase().charCodeAt(0) - 65;
+        options[idx] = optMatch[3].trim();
+        if (isCorrect) correctAnswers.push(idx);
+        continue;
+      }
+      // First line without prefix = question
+      if (!question) question = line;
+    }
+    if (!question || options.filter(Boolean).length < 2) continue;
+    result.push({
+      id: uid(),
+      question,
+      options: [options[0]||'', options[1]||'', options[2]||'', options[3]||''],
+      correctAnswers: correctAnswers.length ? correctAnswers : [0],
+      explanation,
+    });
+  }
+  return result;
+}
+
 // ─── MCQ editor — supports multiple correct answers ────────────────────────────
 function McqEditor({ mcqs, onChange, accent }:{ mcqs: CoachingMcq[]; onChange:(m:CoachingMcq[])=>void; accent:string }) {
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkError, setBulkError] = useState('');
+
+  const handleBulkImport = () => {
+    setBulkError('');
+    const parsed = parseBulkMcq(bulkText);
+    if (parsed.length === 0) { setBulkError('Koi MCQ parse nahi hua — format check karo'); return; }
+    onChange([...mcqs, ...parsed]);
+    setBulkText('');
+    setShowBulk(false);
+  };
+
   const add = () => onChange([...mcqs, { id: uid(), question: '', options: ['','','',''], correctAnswers: [0], explanation: '' }]);
   const del = (id:string) => onChange(mcqs.filter(m=>m.id!==id));
   const upd = (id:string, k:string, v:any) => onChange(mcqs.map(m=>m.id===id?{...m,[k]:v}:m));
@@ -182,7 +240,49 @@ function McqEditor({ mcqs, onChange, accent }:{ mcqs: CoachingMcq[]; onChange:(m
           </div>
         );
       })}
-      <Btn small ghost onClick={add}><Plus size={11}/> MCQ Add Karo</Btn>
+      <div className="flex gap-2">
+        <Btn small ghost onClick={add}><Plus size={11}/> MCQ Add Karo</Btn>
+        <Btn small ghost onClick={() => { setShowBulk(s => !s); setBulkError(''); }}
+          style={{ color: accent, borderColor: `${accent}40`, background: `${accent}08` }}>
+          📋 Bulk Upload
+        </Btn>
+      </div>
+
+      {/* Bulk paste panel */}
+      {showBulk && (
+        <div className="border rounded-xl p-3 space-y-2 bg-slate-50" style={{ borderColor: `${accent}30` }}>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ Paste — Format:</p>
+          <pre className="text-[9px] text-slate-400 bg-white border border-slate-200 rounded-lg p-2 leading-relaxed whitespace-pre-wrap font-mono">{`Q: India ka rashtriya khel kya hai?
+A: Cricket
+*B: Hockey
+C: Kabaddi
+D: Football
+Exp: Hockey India ka rashtriya khel hai
+
+Q: Dusra question?
+A: ...
+*B: Sahi jawab
+C: ...
+D: ...`}</pre>
+          <p className="text-[9px] text-slate-400">💡 Sahi jawab ke option ke aage <b>*</b> lagao • Blank line se alag karo • Multiple correct ke liye multiple * lagao</p>
+          <textarea
+            value={bulkText}
+            onChange={e => setBulkText(e.target.value)}
+            placeholder="Yahan MCQs paste karo..."
+            rows={10}
+            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs outline-none focus:border-indigo-400 resize-y font-mono"
+          />
+          {bulkError && <p className="text-[10px] text-red-500 font-bold">{bulkError}</p>}
+          <div className="flex gap-2">
+            <Btn small onClick={handleBulkImport} style={{ background: accent, color: '#fff', borderColor: accent }}>
+              ✅ Import Karo
+            </Btn>
+            <Btn small ghost onClick={() => { setShowBulk(false); setBulkText(''); setBulkError(''); }}>
+              Rद्द
+            </Btn>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
