@@ -109,6 +109,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
           { id: 'geography', name: 'Geography' },
           { id: 'polity',    name: 'Political Science' },
           { id: 'economics', name: 'Economics' },
+          ...((settings as any)?.customLucentSubjects || []).filter((s: any) => s && s.id && s.name),
         ]
       : getSubjectsList(mcqSelectedClass, user?.stream || null, user?.board || 'CBSE')
     : [];
