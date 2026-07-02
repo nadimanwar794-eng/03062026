@@ -360,18 +360,20 @@ function CategorySection({ catKey, data, accent }: { catKey: CatKey; data: Categ
 
 // Detail view for a single coaching
 function CoachingDetailView({
-  coaching, onClose, tierTheme, isDarkMode
+  coaching, onClose, tierTheme, isDarkMode, settings
 }: {
   coaching: Coaching;
   onClose: () => void;
   tierTheme: any;
   isDarkMode?: boolean;
+  settings?: any;
 }) {
   const accent = tierTheme?.primary || '#6366f1';
   const entries = Object.values(coaching.entries || {})
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   const [expandedDate, setExpandedDate] = useState<string | null>(entries[0]?.id || null);
+  const [focusMode, setFocusMode] = useState(false);
 
   const hasContent = (entry: CoachingEntry) => {
     const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
@@ -384,22 +386,39 @@ function CoachingDetailView({
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: isDarkMode ? '#0f172a' : '#f8fafc' }}>
-      {/* Header */}
-      <div className="shrink-0 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: accent }}>
-        <button onClick={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
-          <ArrowLeft size={18} className="text-white" />
-        </button>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-2xl">{coaching.emoji || '🏫'}</span>
-          <div>
-            <p className="text-white font-black text-base leading-tight truncate">{coaching.name}</p>
-            <p className="text-white/70 text-[10px] font-medium">{entries.length} entries</p>
+      {/* Header — hidden in focus mode */}
+      {!focusMode && (
+        <div className="shrink-0 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: accent }}>
+          <button onClick={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+            <ArrowLeft size={18} className="text-white" />
+          </button>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="text-2xl">{coaching.emoji || '🏫'}</span>
+            <div>
+              <p className="text-white font-black text-base leading-tight truncate">{coaching.name}</p>
+              <p className="text-white/70 text-[10px] font-medium">{entries.length} entries</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Focus mode top mini bar */}
+      {focusMode && (
+        <div className="shrink-0 flex items-center gap-2 px-3 py-1.5" style={{ background: isDarkMode ? '#1e293b' : '#fff', borderBottom: `1px solid ${accent}20` }}>
+          <span className="text-base">{coaching.emoji || '🏫'}</span>
+          <span className="text-[11px] font-black text-slate-700 flex-1 truncate">{coaching.name}</span>
+          <button
+            onClick={() => { hapticMedium(); setFocusMode(false); }}
+            className="text-[10px] font-black px-2 py-1 rounded-lg"
+            style={{ background: `${accent}18`, color: accent }}
+          >
+            ↩ Exit Focus
+          </button>
+        </div>
+      )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ paddingBottom: '80px' }}>
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <span className="text-5xl">📭</span>
@@ -443,6 +462,32 @@ function CoachingDetailView({
           );
         })}
       </div>
+
+      {/* Focus Mode FAB — fixed bottom-right, app logo / initial */}
+      <button
+        onClick={() => { hapticMedium(); setFocusMode(v => !v); }}
+        className="fixed bottom-5 right-4 z-[9999] w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white transition-all overflow-hidden border-2"
+        style={{
+          background: focusMode ? accent : 'rgba(15,23,42,0.88)',
+          borderColor: focusMode ? accent : 'rgba(255,255,255,0.4)',
+          backdropFilter: 'blur(10px)',
+        }}
+        title={focusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+      >
+        {focusMode ? (
+          <span style={{ fontSize: 18, lineHeight: 1 }}>↩</span>
+        ) : settings?.appLogo ? (
+          <img
+            src={settings.appLogo}
+            alt="App"
+            style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: '50%', pointerEvents: 'none' }}
+          />
+        ) : (
+          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.5px', pointerEvents: 'none' }}>
+            {(settings?.appShortName || settings?.appName || '📚').charAt(0)}
+          </span>
+        )}
+      </button>
     </div>
   );
 }
@@ -452,10 +497,12 @@ export function CoachingHomeworkSection({
   tierTheme,
   isDarkMode,
   card3D: card3DProp,
+  settings,
 }: {
   tierTheme: any;
   isDarkMode?: boolean;
   card3D?: boolean;
+  settings?: any;
 }) {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
@@ -560,6 +607,7 @@ export function CoachingHomeworkSection({
           onClose={() => setSelected(null)}
           tierTheme={tierTheme}
           isDarkMode={isDarkMode}
+          settings={settings}
         />
       )}
     </>

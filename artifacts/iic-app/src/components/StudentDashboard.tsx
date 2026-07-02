@@ -8321,7 +8321,8 @@ export const StudentDashboard: React.FC<Props> = ({
 
                   {/* ── COACHING HOMEWORK CARDS ── */}
                   <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode}
-                    card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)} />
+                    card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)}
+                    settings={settings} />
 
                   {/* ── REVISION HUB CARD ── */}
                   {(() => {
