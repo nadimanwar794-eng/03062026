@@ -39,6 +39,7 @@ interface CoachingEntry {
   speedySocialScience?: CategoryData;
   sarSangrah?: CategoryData;
   lucent?: CategoryData;
+  mcq?: CategoryData;
 }
 interface Coaching {
   id: string;
@@ -53,6 +54,7 @@ const CATEGORY_META = {
   speedySocialScience: { label: 'Speedy Social Science', icon: '🌍', color: '#f59e0b' },
   sarSangrah:          { label: 'Sar Sangrah',           icon: '📕', color: '#ef4444' },
   lucent:              { label: 'Lucent',                icon: '🌟', color: '#8b5cf6' },
+  mcq:                 { label: 'MCQ Practice',          icon: '🧠', color: '#3b82f6' },
 } as const;
 
 type CatKey = keyof typeof CATEGORY_META;
@@ -372,7 +374,7 @@ function CoachingDetailView({
   const [expandedDate, setExpandedDate] = useState<string | null>(entries[0]?.id || null);
 
   const hasContent = (entry: CoachingEntry) => {
-    const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent'];
+    const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
     return cats.some(c => {
       const d = entry[c];
       if (!d) return false;
@@ -406,7 +408,7 @@ function CoachingDetailView({
         ) : entries.map(entry => {
           if (!hasContent(entry)) return null;
           const isOpen = expandedDate === entry.id;
-          const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent'];
+          const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
           return (
             <div key={entry.id} className="rounded-2xl overflow-hidden border" style={{ borderColor: `${accent}30`, background: isDarkMode ? '#1e293b' : '#fff' }}>
               <button

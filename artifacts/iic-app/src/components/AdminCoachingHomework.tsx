@@ -32,6 +32,7 @@ interface CoachingEntry {
   speedySocialScience?: CategoryData;
   sarSangrah?:          CategoryData;
   lucent?:              CategoryData;
+  mcq?:                 CategoryData;
 }
 interface Coaching { id: string; name: string; emoji?: string; createdAt?: string; }
 
@@ -42,9 +43,10 @@ const CAT_META = {
   speedySocialScience: { label: 'Speedy Social Science',  icon: '🌍', color: '#f59e0b', hasContent: ['notes'] },
   sarSangrah:          { label: 'Sar Sangrah',            icon: '📕', color: '#ef4444', hasContent: ['notes'] },
   lucent:              { label: 'Lucent',                 icon: '🌟', color: '#8b5cf6', hasContent: ['notes','mcqs','pdfs'] },
+  mcq:                 { label: 'MCQ Practice',           icon: '🧠', color: '#3b82f6', hasContent: ['mcqs','pdfs'] },
 } as const;
 type CatKey = keyof typeof CAT_META;
-const ALL_CATS: CatKey[] = ['speedyScience','speedySocialScience','sarSangrah','lucent'];
+const ALL_CATS: CatKey[] = ['speedyScience','speedySocialScience','sarSangrah','lucent','mcq'];
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
 
@@ -316,13 +318,14 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
   const [date, setDate] = useState(existing?.date || new Date().toISOString().slice(0,10));
   const [openCat, setOpenCat] = useState<CatKey|null>('speedyScience');
   const [cats, setCats] = useState<Record<CatKey,CategoryData>>(()=>{
-    const base: Record<CatKey,CategoryData> = { speedyScience:{notes:[]}, speedySocialScience:{notes:[]}, sarSangrah:{notes:[]}, lucent:{notes:[],mcqs:[],pdfs:[]} };
+    const base: Record<CatKey,CategoryData> = { speedyScience:{notes:[]}, speedySocialScience:{notes:[]}, sarSangrah:{notes:[]}, lucent:{notes:[],mcqs:[],pdfs:[]}, mcq:{notes:[],mcqs:[],pdfs:[]} };
     if (!existing) return base;
     return {
       speedyScience:       { notes: existing.speedyScience?.notes || [] },
       speedySocialScience: { notes: existing.speedySocialScience?.notes || [] },
       sarSangrah:          { notes: existing.sarSangrah?.notes || [] },
       lucent:              { notes: existing.lucent?.notes||[], mcqs: existing.lucent?.mcqs||[], pdfs: existing.lucent?.pdfs||[] },
+      mcq:                 { notes: [], mcqs: existing.mcq?.mcqs||[], pdfs: existing.mcq?.pdfs||[] },
     };
   });
   const [saving, setSaving] = useState(false);
@@ -342,12 +345,17 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
       const entryData: any = { id: entryId, date };
       ALL_CATS.forEach(c => {
         const d = cats[c];
-        const notes = (d.notes||[]).filter(n=>n.title||n.pageNo||n.content);
-        if (c==='lucent') {
+        if (c === 'mcq') {
+          const mcqs = (d.mcqs||[]).filter(m=>m.question);
+          const pdfs = (d.pdfs||[]).filter(p=>p.url);
+          if (mcqs.length||pdfs.length) entryData[c] = { mcqs, pdfs };
+        } else if (c === 'lucent') {
+          const notes = (d.notes||[]).filter(n=>n.title||n.pageNo||n.content);
           const mcqs  = (d.mcqs||[]).filter(m=>m.question);
           const pdfs  = (d.pdfs||[]).filter(p=>p.url);
           if (notes.length||mcqs.length||pdfs.length) entryData[c] = { notes, mcqs, pdfs };
         } else {
+          const notes = (d.notes||[]).filter(n=>n.title||n.pageNo||n.content);
           if (notes.length) entryData[c] = { notes };
         }
       });
@@ -392,24 +400,26 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
               </button>
               {isOpen && (
                 <div className="px-3 py-3 space-y-4 border-t" style={{borderColor:`${meta.color}15`}}>
-                  {/* Notes */}
-                  <div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1"><BookOpen size={10}/> Notes</p>
-                    <NotesEditor notes={d.notes||[]} accent={meta.color}
-                      onChange={notes=>setCats(prev=>({...prev,[catKey]:{...prev[catKey],notes}}))} />
-                  </div>
-                  {/* MCQ + PDF only for Lucent */}
-                  {catKey==='lucent' && (
+                  {/* Notes — not shown for MCQ-only block */}
+                  {catKey !== 'mcq' && (
+                    <div>
+                      <p className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1"><BookOpen size={10}/> Notes</p>
+                      <NotesEditor notes={d.notes||[]} accent={meta.color}
+                        onChange={notes=>setCats(prev=>({...prev,[catKey]:{...prev[catKey],notes}}))} />
+                    </div>
+                  )}
+                  {/* MCQ + PDF for Lucent and MCQ block */}
+                  {(catKey==='lucent' || catKey==='mcq') && (
                     <>
-                      <div className="border-t pt-3">
+                      <div className={catKey==='mcq' ? '' : 'border-t pt-3'}>
                         <p className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1"><HelpCircle size={10}/> MCQ</p>
                         <McqEditor mcqs={d.mcqs||[]} accent={meta.color}
-                          onChange={mcqs=>setCats(prev=>({...prev,lucent:{...prev.lucent,mcqs}}))} />
+                          onChange={mcqs=>setCats(prev=>({...prev,[catKey]:{...prev[catKey],mcqs}}))} />
                       </div>
                       <div className="border-t pt-3">
                         <p className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1"><FileText size={10}/> PDF</p>
                         <PdfEditor pdfs={d.pdfs||[]} accent={meta.color}
-                          onChange={pdfs=>setCats(prev=>({...prev,lucent:{...prev.lucent,pdfs}}))} />
+                          onChange={pdfs=>setCats(prev=>({...prev,[catKey]:{...prev[catKey],pdfs}}))} />
                       </div>
                     </>
                   )}
