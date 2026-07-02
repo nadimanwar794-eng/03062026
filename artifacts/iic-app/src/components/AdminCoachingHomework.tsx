@@ -100,14 +100,14 @@ function NotesEditor({ notes, onChange, accent }:{ notes: CoachingNote[]; onChan
   );
 }
 
-// ─── Bulk MCQ text parser ──────────────────────────────────────────────────────
-// Format (blocks separated by blank line or ---):
-//   Q: Question text?
-//   A: Option A
-//   *B: Option B  ← * se sahi answer
-//   C: Option C
-//   D: Option D
-//   Exp: Explanation (optional)
+// ─── Unified Bulk MCQ parser — accepts BOTH formats ───────────────────────────
+// FORMAT 1 (star style):        FORMAT 2 (exam style):
+//   Q: Question?                  Q1. Question?
+//   A: Option A                   A) Option A
+//   *B: Correct option ← star     *B) Correct option ← star
+//   C: Option C                   C) Option C
+//   Exp: Explanation              Ans: B) option   Explanation: text
+// Blocks separated by blank line or ---
 function parseBulkMcq(text: string): CoachingMcq[] {
   const blocks = text.split(/\n(?:\s*-{3,}\s*|\s*)\n/).map(b => b.trim()).filter(Boolean);
   const result: CoachingMcq[] = [];
@@ -117,22 +117,48 @@ function parseBulkMcq(text: string): CoachingMcq[] {
     const options: string[] = [];
     const correctAnswers: number[] = [];
     let explanation = '';
+    let ansLetter = ''; // from Ans: B) style
+    let collectingExp = false;
+
     for (const line of lines) {
-      const qMatch = line.match(/^(?:\*?\s*)?Q[:.]\s*(.+)/i);
-      if (qMatch) { question = qMatch[1].trim(); continue; }
-      const expMatch = line.match(/^(?:Exp|Explanation)[:.]\s*(.+)/i);
-      if (expMatch) { explanation = expMatch[1].trim(); continue; }
-      const optMatch = line.match(/^(\*?)\s*([A-Da-d])[:.]\s*(.+)/);
+      // Question: Q: / Q1. / Q1) / प्रश्न 1:
+      const qMatch = line.match(/^(?:\*?\s*)?(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.])\s*(.+)/i);
+      if (qMatch) { question = qMatch[1].trim(); collectingExp = false; continue; }
+
+      // Explanation / Exp:
+      const expMatch = line.match(/^(?:Exp|Explanation|व्याख्या)[:.]\s*(.*)/i);
+      if (expMatch) { explanation = expMatch[1].trim(); collectingExp = true; continue; }
+      if (collectingExp && !/^[*]?[A-Da-d][:.)]/.test(line) && !/^(?:Ans|Answer)/i.test(line)) {
+        explanation += (explanation ? ' ' : '') + line; continue;
+      }
+
+      // Ans: / Answer: B or B) or B) text
+      const ansMatch = line.match(/^(?:Ans|Answer|सही\s*उत्तर)[:.]\s*\*?\s*([A-Da-d])/i);
+      if (ansMatch) { ansLetter = ansMatch[1].toUpperCase(); collectingExp = false; continue; }
+
+      // Options: *A: text OR *A) text OR A: text OR A) text
+      const optMatch = line.match(/^(\*?)\s*([A-Da-d])[:.)\s]\s*(.+)/);
       if (optMatch) {
         const isCorrect = optMatch[1] === '*';
         const idx = optMatch[2].toUpperCase().charCodeAt(0) - 65;
-        options[idx] = optMatch[3].trim();
-        if (isCorrect) correctAnswers.push(idx);
+        if (idx >= 0 && idx < 4) {
+          options[idx] = optMatch[3].trim();
+          if (isCorrect) correctAnswers.push(idx);
+        }
+        collectingExp = false;
         continue;
       }
-      // First line without prefix = question
-      if (!question) question = line;
+
+      // First unrecognized line = question fallback
+      if (!question) { question = line; }
     }
+
+    // Apply Ans: style if star style wasn't used
+    if (ansLetter && correctAnswers.length === 0) {
+      const idx = ansLetter.charCodeAt(0) - 65;
+      if (idx >= 0 && idx < 4) correctAnswers.push(idx);
+    }
+
     if (!question || options.filter(Boolean).length < 2) continue;
     result.push({
       id: uid(),
@@ -253,20 +279,15 @@ function McqEditor({ mcqs, onChange, accent }:{ mcqs: CoachingMcq[]; onChange:(m
       {/* Bulk paste panel */}
       {showBulk && (
         <div className="border rounded-xl p-3 space-y-2 bg-slate-50" style={{ borderColor: `${accent}30` }}>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ Paste — Format:</p>
-          <pre className="text-[9px] text-slate-400 bg-white border border-slate-200 rounded-lg p-2 leading-relaxed whitespace-pre-wrap font-mono">{`Q: India ka rashtriya khel kya hai?
-A: Cricket
-*B: Hockey
-C: Kabaddi
-D: Football
-Exp: Hockey India ka rashtriya khel hai
-
-Q: Dusra question?
-A: ...
-*B: Sahi jawab
-C: ...
-D: ...`}</pre>
-          <p className="text-[9px] text-slate-400">💡 Sahi jawab ke option ke aage <b>*</b> lagao • Blank line se alag karo • Multiple correct ke liye multiple * lagao</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ — Dono Format Supported:</p>
+          <pre className="text-[9px] text-slate-400 bg-white border border-slate-200 rounded-lg p-2 leading-relaxed whitespace-pre-wrap font-mono">{`Style 1 (star):          Style 2 (exam):
+Q: Question text?        Q1. Question text?
+A: Option 1              A) Option 1
+*B: Sahi jawab ← star   *B) Sahi jawab ← star
+C: Option 3              C) Option 3
+Exp: Explanation         Ans: B) Option 2
+                         Explanation: text`}</pre>
+          <p className="text-[9px] text-slate-400">💡 Sahi option ke aage <b>*</b> lagao (ya Ans: B) likhein) • Blank line se alag karo</p>
           <textarea
             value={bulkText}
             onChange={e => setBulkText(e.target.value)}
