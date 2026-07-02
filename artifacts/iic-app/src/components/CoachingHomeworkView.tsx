@@ -418,7 +418,7 @@ function CoachingDetailView({
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ paddingBottom: '80px' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ paddingBottom: '100px' }}>
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <span className="text-5xl">📭</span>
@@ -466,7 +466,7 @@ function CoachingDetailView({
       {/* Focus Mode FAB — fixed bottom-right, app logo / initial */}
       <button
         onClick={() => { hapticMedium(); setFocusMode(v => !v); }}
-        className="fixed bottom-5 right-4 z-[9999] w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white transition-all overflow-hidden border-2"
+        className="fixed bottom-20 right-4 z-[9999] w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white transition-all overflow-hidden border-2"
         style={{
           background: focusMode ? accent : 'rgba(15,23,42,0.88)',
           borderColor: focusMode ? accent : 'rgba(255,255,255,0.4)',
