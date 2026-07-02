@@ -130,10 +130,12 @@ export const RevisionHubScreen: React.FC<Props> = ({
     if (!sessionDone || !sessionMcqs.length) return [];
     const map: Record<string, { topic: string; correct: number; total: number }> = {};
     sessionMcqs.forEach((q: any, i: number) => {
+      // Only count questions that were actually attempted (answered)
+      if (sessionAnswers[i] === null || sessionAnswers[i] === undefined) return;
       const t = (q.topic || 'General').trim();
       if (!map[t]) map[t] = { topic: t, correct: 0, total: 0 };
       map[t].total += 1;
-      if (sessionAnswers[i] !== null && sessionAnswers[i] === q.correctAnswer) {
+      if (sessionAnswers[i] === q.correctAnswer) {
         map[t].correct += 1;
       }
     });
