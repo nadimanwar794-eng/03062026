@@ -138,6 +138,7 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
             content={note.content!}
             topBarLabel={note.title || (note.pageNo ? `Page ${note.pageNo}` : 'Note')}
             onBack={() => setReaderOpen(false)}
+            preferChunkMode={true}
           />
         </div>
       )}
