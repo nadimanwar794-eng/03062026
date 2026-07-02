@@ -375,6 +375,19 @@ function CoachingDetailView({
   const [expandedDate, setExpandedDate] = useState<string | null>(entries[0]?.id || null);
   const [focusMode, setFocusMode] = useState(false);
 
+  // Hide bottom nav when coaching view opens; hide+show based on focus mode
+  useEffect(() => {
+    const nav = document.querySelector('[data-iic-bottom-nav]') as HTMLElement | null;
+    if (!nav) return;
+    // Always hide bottom nav when coaching view is open
+    const prevDisplay = nav.style.display;
+    nav.style.display = 'none';
+    return () => { nav.style.display = prevDisplay; };
+  }, []);
+
+  // When focus mode toggles, slim bar hides/shows but bottom nav stays hidden (handled above)
+  // On exit focus (or close), bottom nav restored by the cleanup above
+
   const hasContent = (entry: CoachingEntry) => {
     const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
     return cats.some(c => {
@@ -385,21 +398,9 @@ function CoachingDetailView({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: isDarkMode ? '#0f172a' : '#f8fafc', position: 'fixed' }}>
-      {/* Header — full bar (normal) or slim bar (focus mode) */}
-      {focusMode ? (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-2" style={{ background: isDarkMode ? '#1e293b' : '#fff', borderBottom: `2px solid ${accent}30` }}>
-          <span className="text-lg">{coaching.emoji || '🏫'}</span>
-          <span className="text-[12px] font-black flex-1 truncate" style={{ color: accent }}>{coaching.name}</span>
-          <button
-            onPointerDown={(e) => { e.stopPropagation(); hapticMedium(); setFocusMode(false); }}
-            className="text-[11px] font-black px-2.5 py-1 rounded-lg active:scale-95 transition-all"
-            style={{ background: `${accent}20`, color: accent }}
-          >
-            ↩ Exit
-          </button>
-        </div>
-      ) : (
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 350, background: isDarkMode ? '#0f172a' : '#f8fafc' }}>
+      {/* Header — full bar in normal mode, completely hidden in focus mode */}
+      {!focusMode && (
         <div className="shrink-0 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: accent }}>
           <button onPointerDown={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
             <ArrowLeft size={18} className="text-white" />
@@ -463,7 +464,7 @@ function CoachingDetailView({
       {/* Focus Mode FAB — absolute within this full-screen panel */}
       <button
         onPointerDown={(e) => { e.stopPropagation(); hapticMedium(); setFocusMode(v => !v); }}
-        className="absolute bottom-20 right-4 w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white overflow-hidden border-2 active:scale-95 transition-transform"
+        className="absolute bottom-6 right-4 w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white overflow-hidden border-2 active:scale-95 transition-transform"
         style={{
           zIndex: 10,
           background: focusMode ? accent : 'rgba(15,23,42,0.88)',
