@@ -456,14 +456,7 @@ function CoachingDetailView({
 
   const [expandedDate, setExpandedDate] = useState<string | null>(entries[0]?.id || null);
 
-  // Hide bottom nav when coaching view opens
-  useEffect(() => {
-    const nav = document.querySelector('[data-iic-bottom-nav]') as HTMLElement | null;
-    if (!nav) return;
-    const prevDisplay = nav.style.display;
-    nav.style.display = 'none';
-    return () => { nav.style.display = prevDisplay; };
-  }, []);
+  // Bottom nav is hidden via React state in StudentDashboard (onDetailOpen/onDetailClose props)
 
   const hasContent = (entry: CoachingEntry) => {
     const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
@@ -548,6 +541,8 @@ export function CoachingHomeworkSection({
   settings,
   onSendToMcqCommunity,
   user,
+  onDetailOpen,
+  onDetailClose,
 }: {
   tierTheme: any;
   isDarkMode?: boolean;
@@ -555,10 +550,19 @@ export function CoachingHomeworkSection({
   settings?: any;
   onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
   user?: any;
+  onDetailOpen?: () => void;
+  onDetailClose?: () => void;
 }) {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Coaching | null>(null);
+
+  useEffect(() => {
+    if (selected) { onDetailOpen?.(); }
+    else { onDetailClose?.(); }
+    // Unmount cleanup: always reset nav state when section leaves the tree
+    return () => { if (selected) onDetailClose?.(); };
+  }, [selected, onDetailOpen, onDetailClose]);
 
   useEffect(() => {
     const r = ref(rtdb, 'coaching_homework');

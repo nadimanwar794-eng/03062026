@@ -2365,6 +2365,7 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [isLandscapeUiHidden, setIsLandscapeUiHidden] = useState(false);
   const [isInternalImmersive, setIsInternalImmersive] = useState(false);
+  const [coachingDetailOpen, setCoachingDetailOpen] = useState(false);
   useEffect(() => {
     setIsInternalImmersive(contentViewStep === 'PLAYER');
   }, [contentViewStep]);
@@ -8324,7 +8325,9 @@ export const StudentDashboard: React.FC<Props> = ({
                     card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)}
                     settings={settings}
                     user={user}
-                    onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }} />
+                    onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }}
+                    onDetailOpen={() => setCoachingDetailOpen(true)}
+                    onDetailClose={() => setCoachingDetailOpen(false)} />
 
                   {/* ── REVISION HUB CARD ── */}
                   {(() => {
@@ -15361,7 +15364,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
         data-iic-bottom-nav=""
-        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
+        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingDetailOpen ? "hidden" : ""}`}
         style={{
           background: tierTheme.navBg,
           borderTop: `1px solid ${(tierTheme as any).navBorderColor || tierTheme.primary + '22'}`,
