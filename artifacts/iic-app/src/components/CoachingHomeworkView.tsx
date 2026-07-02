@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { rtdb } from '../firebase';
-import { ChevronRight, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck } from 'lucide-react';
+import { ChevronRight, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send } from 'lucide-react';
 import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 
@@ -209,7 +209,9 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
 // ──────────────────────────────────────────────────────────────────────────────
 // McqCard — supports multiple correct answers
 // ──────────────────────────────────────────────────────────────────────────────
-function McqCard({ mcq, accent }: { mcq: CoachingMcq; accent: string }) {
+type McqCommunityDraft = { question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string };
+
+function McqCard({ mcq, accent, onSendToMcqCommunity }: { mcq: CoachingMcq; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void }) {
   const correctSet = getCorrectSet(mcq);
   const isMultiple = correctSet.size > 1;
 
@@ -341,12 +343,32 @@ function McqCard({ mcq, accent }: { mcq: CoachingMcq; accent: string }) {
             }
           </p>
         )}
+
+        {/* Send to MCQ Community + button */}
+        {onSendToMcqCommunity && (
+          <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              hapticMedium();
+              const opts = mcq.options.length === 4
+                ? mcq.options as [string,string,string,string]
+                : ([...mcq.options, '', '', '', ''].slice(0, 4) as [string,string,string,string]);
+              const firstCorrect = correctSet.size > 0 ? [...correctSet][0] : 0;
+              onSendToMcqCommunity({ question: mcq.question, options: opts, correctAnswer: firstCorrect, explanation: mcq.explanation || '' });
+            }}
+            className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            style={{ background: `${accent}12`, color: accent, border: `1px solid ${accent}30` }}
+            title="MCQ Community mein bhejo"
+          >
+            <Send size={11} /> MCQ Community Mein Bhejo
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function CategorySection({ catKey, data, accent }: { catKey: CatKey; data: CategoryData; accent: string }) {
+function CategorySection({ catKey, data, accent, onSendToMcqCommunity }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void }) {
   const meta = CATEGORY_META[catKey];
   const [open, setOpen] = useState(true);
   const notes = data.notes || [];
@@ -369,7 +391,7 @@ function CategorySection({ catKey, data, accent }: { catKey: CatKey; data: Categ
       {open && (
         <div className="space-y-2 pl-1">
           {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} />)}
-          {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} />)}
+          {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} onSendToMcqCommunity={onSendToMcqCommunity} />)}
           {pdfs.map(p => (
             <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 rounded-xl border active:scale-[0.99] transition-all"
@@ -389,13 +411,14 @@ function CategorySection({ catKey, data, accent }: { catKey: CatKey; data: Categ
 
 // Detail view for a single coaching
 function CoachingDetailView({
-  coaching, onClose, tierTheme, isDarkMode, settings
+  coaching, onClose, tierTheme, isDarkMode, settings, onSendToMcqCommunity
 }: {
   coaching: Coaching;
   onClose: () => void;
   tierTheme: any;
   isDarkMode?: boolean;
   settings?: any;
+  onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
 }) {
   const accent = tierTheme?.primary || '#6366f1';
   const entries = Object.values(coaching.entries || {})
@@ -474,7 +497,7 @@ function CoachingDetailView({
                   {cats.map(catKey => {
                     const data = entry[catKey];
                     if (!data) return null;
-                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} />;
+                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} />;
                   })}
                 </div>
               )}
@@ -493,11 +516,13 @@ export function CoachingHomeworkSection({
   isDarkMode,
   card3D: card3DProp,
   settings,
+  onSendToMcqCommunity,
 }: {
   tierTheme: any;
   isDarkMode?: boolean;
   card3D?: boolean;
   settings?: any;
+  onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
 }) {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
@@ -603,6 +628,7 @@ export function CoachingHomeworkSection({
           tierTheme={tierTheme}
           isDarkMode={isDarkMode}
           settings={settings}
+          onSendToMcqCommunity={onSendToMcqCommunity}
         />
       )}
     </>

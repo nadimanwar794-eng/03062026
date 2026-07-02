@@ -8322,7 +8322,8 @@ export const StudentDashboard: React.FC<Props> = ({
                   {/* ── COACHING HOMEWORK CARDS ── */}
                   <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode}
                     card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)}
-                    settings={settings} />
+                    settings={settings}
+                    onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }} />
 
                   {/* ── REVISION HUB CARD ── */}
                   {(() => {
@@ -14664,7 +14665,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* UNIVERSAL CHAT (Global + Support) */}
       {showChat && (
         <div
-          className="fixed inset-0 z-[200]"
+          className="fixed inset-0 z-[400]"
           onClick={() => setShowChat(false)}
         >
           <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
@@ -15017,7 +15018,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* MCQ COMMUNITY POPUP — opens from "+" button on any MCQ card */}
       {showMcqCommunityPopup && mcqCommunityDraft && (
         <div
-          className="fixed inset-0 z-[210]"
+          className="fixed inset-0 z-[400]"
           onClick={() => { setShowMcqCommunityPopup(false); setMcqCommunityDraft(null); }}
         >
           <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
