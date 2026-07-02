@@ -100,15 +100,22 @@ function getRevisionStats() {
 function getTodayStats(log: ScoreLogEntry[]) {
   const today = getLocalDate(0);
   const e = log.filter(x => x.date === today);
-  const mcqCorrect   = e.filter(x => x.activity === 'MCQ_CORRECT' || x.activity === 'COACHING_HW_MCQ_CORRECT').length;
-  const mcqWrong     = e.filter(x => x.activity === 'MCQ_WRONG').length;
-  const mcqTotal     = mcqCorrect + mcqWrong;
-  const accuracy     = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 100) : 0;
-  const notesRead    = e.filter(x => x.activity === 'READ_ACTIVE_30S' || x.activity === 'READ_NOTES_TIME' || x.activity === 'COACHING_HW_NOTES').length;
-  const videosWatched= e.filter(x => x.activity === 'VIDEO').length;
-  const pdfsRead     = e.filter(x => x.activity === 'PDF' || x.activity === 'PDF_MILESTONE').length;
-  const xpToday      = e.reduce((s, x) => s + (x.pts || 0), 0);
-  return { mcqCorrect, mcqWrong, mcqTotal, accuracy, notesRead, videosWatched, pdfsRead, xpToday };
+  // MCQ accuracy: only MCQ_CORRECT / MCQ_WRONG (general MCQs).
+  // COACHING_HW_MCQ_CORRECT is NOT counted here because coaching has no
+  // corresponding wrong activity, which would make accuracy calculation wrong.
+  const mcqCorrect    = e.filter(x => x.activity === 'MCQ_CORRECT').length;
+  const mcqWrong      = e.filter(x => x.activity === 'MCQ_WRONG').length;
+  const mcqTotal      = mcqCorrect + mcqWrong;
+  const accuracy      = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 100) : 0;
+  // Coaching MCQ sahi counted separately so Overview card can show both
+  const coachingMcq   = e.filter(x => x.activity === 'COACHING_HW_MCQ_CORRECT').length;
+  // Notes: school notes sessions only (coaching notes shown in Coaching tab separately)
+  const notesRead     = e.filter(x => x.activity === 'READ_ACTIVE_30S' || x.activity === 'READ_NOTES_TIME').length;
+  const coachingNotes = e.filter(x => x.activity === 'COACHING_HW_NOTES').length;
+  const videosWatched = e.filter(x => x.activity === 'VIDEO').length;
+  const pdfsRead      = e.filter(x => x.activity === 'PDF' || x.activity === 'PDF_MILESTONE').length;
+  const xpToday       = e.reduce((s, x) => s + (x.pts || 0), 0);
+  return { mcqCorrect, mcqWrong, mcqTotal, accuracy, coachingMcq, notesRead, coachingNotes, videosWatched, pdfsRead, xpToday };
 }
 
 // ─── Reusable UI pieces ───────────────────────────────────────────────────────
@@ -208,13 +215,19 @@ function OverviewTab({ user, log, rev }: { user: any; log: ScoreLogEntry[]; rev:
 
   const todaySummary = (() => {
     const parts = [];
-    if (todayStats.mcqTotal > 0) parts.push(`${todayStats.mcqTotal} MCQs (${todayStats.accuracy}% accuracy)`);
-    if (todayStats.notesRead > 0) parts.push(`${todayStats.notesRead} notes sessions`);
+    if (todayStats.mcqTotal > 0)      parts.push(`${todayStats.mcqTotal} MCQ (${todayStats.accuracy}% accuracy)`);
+    if (todayStats.coachingMcq > 0)   parts.push(`${todayStats.coachingMcq} coaching MCQ`);
+    if (todayStats.notesRead > 0)     parts.push(`${todayStats.notesRead} notes sessions`);
+    if (todayStats.coachingNotes > 0) parts.push(`${todayStats.coachingNotes} coaching notes`);
     if (todayStats.videosWatched > 0) parts.push(`${todayStats.videosWatched} videos`);
-    if (rev.completedToday > 0) parts.push(`${rev.completedToday} revision topics`);
+    if (rev.completedToday > 0)       parts.push(`${rev.completedToday} revision topics`);
     if (parts.length === 0) return 'Aaj abhi padhai start nahi ki. Chalo shuru karo! 🚀';
     return `Aaj tumne ${parts.join(', ')} complete kiya. ${todayStats.xpToday > 0 ? `+${todayStats.xpToday} XP kamaya!` : ''} 💪`;
   })();
+
+  // Combined today total for display (general MCQ + coaching MCQ, kept separate for accuracy)
+  const todayMcqAll = todayStats.mcqTotal + todayStats.coachingMcq;
+  const todayNotesAll = todayStats.notesRead + todayStats.coachingNotes;
 
   return (
     <div className="space-y-4">
@@ -231,12 +244,12 @@ function OverviewTab({ user, log, rev }: { user: any; log: ScoreLogEntry[]; rev:
         </div>
         <div className="bg-white px-4 py-3 grid grid-cols-2 gap-2">
           {[
-            { icon: '📚', label: 'Notes Sessions',   value: todayStats.notesRead > 0 ? String(todayStats.notesRead) : '—' },
-            { icon: '❓', label: 'MCQs Solve Kiye',  value: todayStats.mcqTotal > 0 ? String(todayStats.mcqTotal) : '—' },
-            { icon: '🎯', label: 'MCQ Accuracy',      value: todayStats.mcqTotal > 0 ? `${todayStats.accuracy}%` : '—' },
-            { icon: '🔄', label: 'Revision Complete', value: rev.completedToday > 0 ? String(rev.completedToday) : '—' },
-            { icon: '🎥', label: 'Videos Dekhe',      value: todayStats.videosWatched > 0 ? String(todayStats.videosWatched) : '—' },
-            { icon: '📄', label: 'PDFs Padhe',        value: todayStats.pdfsRead > 0 ? String(todayStats.pdfsRead) : '—' },
+            { icon: '📚', label: 'Notes Sessions',     value: todayNotesAll > 0 ? String(todayNotesAll) : '—' },
+            { icon: '❓', label: 'MCQs Solve Kiye',    value: todayMcqAll > 0 ? String(todayMcqAll) : '—' },
+            { icon: '🎯', label: 'MCQ Accuracy',        value: todayStats.mcqTotal > 0 ? `${todayStats.accuracy}%` : '—' },
+            { icon: '🔄', label: 'Revision Complete',   value: rev.completedToday > 0 ? String(rev.completedToday) : '—' },
+            { icon: '🎥', label: 'Videos Dekhe',        value: todayStats.videosWatched > 0 ? String(todayStats.videosWatched) : '—' },
+            { icon: '📄', label: 'PDFs Padhe',          value: todayStats.pdfsRead > 0 ? String(todayStats.pdfsRead) : '—' },
           ].map(({ icon, label, value }) => <StatCard key={label} icon={icon} label={label} value={value} />)}
         </div>
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-t border-orange-100">
@@ -434,22 +447,23 @@ function ClassTab({ log, mistakes, user }: { log: ScoreLogEntry[]; mistakes: Mis
 }
 
 function CompetitionTab({ log, mistakes }: { log: ScoreLogEntry[]; mistakes: MistakeEntry[] }) {
+  // Competition mistakes only — board/classLevel tagged as COMPETITION in the mistake bank
   const compMistakes = useMemo(() =>
     mistakes.filter(m => m.board === 'COMPETITION' || m.classLevel === 'COMPETITION'),
   [mistakes]);
 
-  const coachingStats = useMemo(() => {
-    const mcqAll   = log.filter(e => e.activity === 'COACHING_HW_MCQ_CORRECT').length;
-    const notesAll = log.filter(e => e.activity === 'COACHING_HW_NOTES').length;
-    const xpAll    = log.filter(e => e.activity === 'COACHING_HW_MCQ_CORRECT' || e.activity === 'COACHING_HW_NOTES').reduce((s, e) => s + e.pts, 0);
-    const today    = getLocalDate(0);
-    const mcqToday = log.filter(e => e.date === today && e.activity === 'COACHING_HW_MCQ_CORRECT').length;
-    const notesToday = log.filter(e => e.date === today && e.activity === 'COACHING_HW_NOTES').length;
-    return { mcqAll, notesAll, xpAll, mcqToday, notesToday };
+  // Competition-specific activity from score log
+  // NOTE: MCQ_CORRECT/WRONG in score log are not tagged by subject/book,
+  // so we only track what we CAN distinguish: Lucent GK TTS audio
+  const compActivity = useMemo(() => {
+    const today = getLocalDate(0);
+    const gkAll    = log.filter(e => e.activity === 'NOTES_GK_TTS').length;
+    const gkToday  = log.filter(e => e.date === today && e.activity === 'NOTES_GK_TTS').length;
+    const audioAll = log.filter(e => e.activity === 'AUDIO_TTS').length;
+    return { gkAll, gkToday, audioAll };
   }, [log]);
 
-  const gkNotes = useMemo(() => log.filter(e => e.activity === 'NOTES_GK_TTS').length, [log]);
-
+  // Subject-wise breakdown from mistake bank
   const bySubject = useMemo(() => {
     const map: Record<string, { subject: string; topics: string[]; count: number }> = {};
     compMistakes.forEach(m => {
@@ -461,23 +475,49 @@ function CompetitionTab({ log, mistakes }: { log: ScoreLogEntry[]; mistakes: Mis
     return Object.values(map).sort((a,b) => b.count - a.count);
   }, [compMistakes]);
 
+  // Subject coverage from mistake bank — how many unique topics per book
+  const bookCoverage = useMemo(() => {
+    const books: Record<string, Set<string>> = {};
+    compMistakes.forEach(m => {
+      const book = m.chapterTitle || m.subjectName || 'Other';
+      if (!books[book]) books[book] = new Set();
+      if (m.topic) books[book].add(m.topic);
+    });
+    return Object.entries(books).map(([book, topics]) => ({ book, topicCount: topics.size, mistakeCount: compMistakes.filter(m => (m.chapterTitle || m.subjectName) === book).length })).sort((a,b) => b.mistakeCount - a.mistakeCount);
+  }, [compMistakes]);
+
   return (
     <div className="space-y-4">
       <SectionHeader emoji="🏆" title="Competition Progress" subtitle="Speedy Science · Social · Sar Sangrah · Lucent" gradient="bg-gradient-to-r from-amber-500 to-orange-600" />
 
-      {/* Competition Stats */}
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100"><p className="text-sm font-black text-slate-800">📊 Competition Activity</p></div>
-        <div className="px-4 py-3 grid grid-cols-2 gap-2">
-          <StatCard icon="🧪" label="Coaching MCQ Sahi"     value={coachingStats.mcqAll > 0 ? String(coachingStats.mcqAll) : '—'} />
-          <StatCard icon="📚" label="Coaching Notes Sessions" value={coachingStats.notesAll > 0 ? String(coachingStats.notesAll) : '—'} />
-          <StatCard icon="🌟" label="GK Audio Sessions"     value={gkNotes > 0 ? String(gkNotes) : '—'} />
-          <StatCard icon="⭐" label="Coaching XP Kamaya"    value={coachingStats.xpAll > 0 ? `+${coachingStats.xpAll}` : '—'} />
+      {/* Mistake bank summary — only competition data */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-amber-700">{compMistakes.length}</p>
+          <p className="text-[9px] font-bold text-amber-600">Competition Mistakes</p>
+          <p className="text-[8px] text-amber-500 mt-0.5">(Mistake Bank se)</p>
         </div>
-        {(coachingStats.mcqToday > 0 || coachingStats.notesToday > 0) && (
-          <div className="bg-amber-50 px-4 py-2 border-t border-amber-100 flex gap-4">
-            <span className="text-[11px] font-bold text-amber-700">🎯 Aaj: {coachingStats.mcqToday} MCQ sahi</span>
-            <span className="text-[11px] font-bold text-orange-700">📖 {coachingStats.notesToday} notes sessions</span>
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-orange-700">{bySubject.length}</p>
+          <p className="text-[9px] font-bold text-orange-600">Weak Subjects</p>
+          <p className="text-[8px] text-orange-500 mt-0.5">(Jisme mistakes hain)</p>
+        </div>
+      </div>
+
+      {/* Lucent GK Audio — only trackable competition activity */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <p className="text-sm font-black text-slate-800">🔊 Lucent GK Audio Activity</p>
+          <p className="text-[9px] text-slate-400 mt-0.5">Competition ke liye GK sunna — yahi track hota hai score log mein</p>
+        </div>
+        <div className="px-4 py-3 grid grid-cols-2 gap-2">
+          <StatCard icon="🎧" label="GK TTS Sessions (Total)" value={compActivity.gkAll > 0 ? String(compActivity.gkAll) : '—'} />
+          <StatCard icon="📅" label="GK TTS Aaj"              value={compActivity.gkToday > 0 ? String(compActivity.gkToday) : '—'} />
+          <StatCard icon="🔉" label="Audio Sessions (Total)"  value={compActivity.audioAll > 0 ? String(compActivity.audioAll) : '—'} />
+        </div>
+        {compActivity.gkAll === 0 && compActivity.audioAll === 0 && (
+          <div className="px-4 pb-3">
+            <p className="text-[10px] text-slate-400 text-center">GK Audio abhi use nahi kiya. Lucent GK section mein jaao aur suno! 🎧</p>
           </div>
         )}
       </div>
@@ -486,22 +526,34 @@ function CompetitionTab({ log, mistakes }: { log: ScoreLogEntry[]; mistakes: Mis
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
         <p className="text-sm font-black text-amber-800 mb-2">🏆 Competition Tips</p>
         <div className="space-y-1.5">
-          {['Roz 50+ MCQ practice karo', 'Lucent GK TTS se roz suno', 'Speedy Science ke weak topics dobara padhein', 'Coaching homework timely complete karo', 'Current Affairs daily'].map(tip => (
+          {[
+            'Roz 50+ competition MCQ practice karo',
+            'Lucent GK TTS se roz suno',
+            'Speedy Science ke weak topics dobara padhein',
+            'Sar Sangrah current affairs daily',
+            'Weak subjects ko zyada time do',
+          ].map(tip => (
             <p key={tip} className="text-[11px] text-amber-700 font-medium">• {tip}</p>
           ))}
         </div>
       </div>
 
-      {/* Weak topics */}
+      {/* Subject-wise weak topics from mistake bank */}
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-          <p className="text-sm font-black text-slate-800 flex items-center gap-2"><AlertTriangle size={15} className="text-red-500" /> Competition Weak Topics</p>
-          {compMistakes.length > 0 && <span className="text-[10px] bg-red-100 text-red-600 font-black px-2 py-0.5 rounded-full">{compMistakes.length} mistakes</span>}
+          <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+            <AlertTriangle size={15} className="text-red-500" /> Competition Weak Topics
+          </p>
+          {compMistakes.length > 0 && (
+            <span className="text-[10px] bg-red-100 text-red-600 font-black px-2 py-0.5 rounded-full">
+              {compMistakes.length} mistakes
+            </span>
+          )}
         </div>
         <div className="px-4 py-3">
           {bySubject.length === 0
-            ? <EmptyState emoji="💪" msg="Competition subjects mein koi mistake nahi abhi tak!" />
-            : <div className="space-y-2">{bySubject.slice(0,6).map(s => <MistakeSubjectCard key={s.subject} sub={s} />)}</div>
+            ? <EmptyState emoji="💪" msg="Competition subjects mein koi mistake nahi abhi tak! MCQ practice karo." />
+            : <div className="space-y-2">{bySubject.map(s => <MistakeSubjectCard key={s.subject} sub={s} />)}</div>
           }
         </div>
       </div>
@@ -509,106 +561,164 @@ function CompetitionTab({ log, mistakes }: { log: ScoreLogEntry[]; mistakes: Mis
   );
 }
 
-function SchoolTab({ rev }: { rev: any }) {
-  const revDonut = [
-    { name: 'Weak',     value: rev.tierCounts.weak,     fill: '#f87171' },
-    { name: 'Average',  value: rev.tierCounts.average,  fill: '#fbbf24' },
-    { name: 'Strong',   value: rev.tierCounts.strong,   fill: '#34d399' },
-    { name: 'Mastered', value: rev.tierCounts.mastered, fill: '#818cf8' },
-  ].filter(d => d.value > 0);
+// School tab shows school padhai activity (notes reading, writing, PDF, video)
+// NOT revision hub data — that is in the dedicated Revision Hub tab
+function SchoolTab({ log, mistakes, user }: { log: ScoreLogEntry[]; mistakes: MistakeEntry[]; user: any }) {
+  // Class-specific activities from score log
+  const activity = useMemo(() => {
+    const today = getLocalDate(0);
+
+    // Reading/notes activities — these are school notes/textbook sessions
+    const notesReadAll   = log.filter(e => e.activity === 'READ_ACTIVE_30S').length;
+    const notesTimeAll   = log.filter(e => e.activity === 'READ_NOTES_TIME').length;
+    const writingAll     = log.filter(e => e.activity === 'WRITE_ACTIVE_5MIN').length;
+    const ttsAll         = log.filter(e => e.activity === 'READ_TTS_HIGHLIGHT').length;
+    const topicEngageAll = log.filter(e => e.activity === 'READ_MANUAL_TOPIC_10S').length;
+    const videoAll       = log.filter(e => e.activity === 'VIDEO').length;
+    const pdfAll         = log.filter(e => e.activity === 'PDF' || e.activity === 'PDF_MILESTONE').length;
+    // AUDIO_TTS is NOT counted in School tab — it is ambiguous (could be GK/competition audio).
+    // GK audio is tracked in Competition tab via NOTES_GK_TTS.
+
+    const notesReadToday = log.filter(e => e.date === today && e.activity === 'READ_ACTIVE_30S').length;
+    const videoToday     = log.filter(e => e.date === today && e.activity === 'VIDEO').length;
+    const pdfToday       = log.filter(e => e.date === today && (e.activity === 'PDF' || e.activity === 'PDF_MILESTONE')).length;
+    const writingToday   = log.filter(e => e.date === today && e.activity === 'WRITE_ACTIVE_5MIN').length;
+
+    // XP from school study activities (exclude coaching, login, and ambiguous audio)
+    const schoolXp = log
+      .filter(e => ['READ_ACTIVE_30S','READ_NOTES_TIME','WRITE_ACTIVE_5MIN','READ_TTS_HIGHLIGHT',
+                    'READ_MANUAL_TOPIC_10S','VIDEO','PDF','PDF_MILESTONE','MCQ_CORRECT','MCQ_WRONG',
+                    'MCQ_STREAK_3','MCQ_STREAK_5','MILESTONE'].includes(e.activity))
+      .reduce((s, e) => s + e.pts, 0);
+
+    // 7-day reading sessions chart
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = getLocalDate(-i);
+      const dayLog = log.filter(e => e.date === date);
+      const notes = dayLog.filter(e => ['READ_ACTIVE_30S','READ_NOTES_TIME','WRITE_ACTIVE_5MIN'].includes(e.activity)).length;
+      const media = dayLog.filter(e => ['VIDEO','PDF','PDF_MILESTONE'].includes(e.activity)).length;
+      const d = new Date(date + 'T00:00:00');
+      const label = i === 0 ? 'Aaj' : i === 1 ? 'Kal' : d.toLocaleDateString('en-IN', { weekday: 'short' });
+      last7.push({ date, label, notes, media });
+    }
+
+    return { notesReadAll, notesTimeAll, writingAll, ttsAll, topicEngageAll,
+             videoAll, pdfAll, notesReadToday, videoToday, pdfToday, writingToday,
+             schoolXp, last7 };
+  }, [log]);
+
+  // Class mistakes (non-competition only)
+  const classMistakes = useMemo(() =>
+    mistakes.filter(m => m.classLevel && m.classLevel !== 'COMPETITION' && m.board !== 'COMPETITION'),
+  [mistakes]);
+
+  const bySubject = useMemo(() => {
+    const map: Record<string, { subject: string; topics: string[]; count: number }> = {};
+    classMistakes.forEach(m => {
+      const sub = m.subjectName || 'Other';
+      if (!map[sub]) map[sub] = { subject: sub, topics: [], count: 0 };
+      if (m.topic && !map[sub].topics.includes(m.topic)) map[sub].topics.push(m.topic);
+      map[sub].count++;
+    });
+    return Object.values(map).sort((a,b) => b.count - a.count);
+  }, [classMistakes]);
+
+  const hasAnyActivity = activity.notesReadAll > 0 || activity.videoAll > 0 || activity.pdfAll > 0 || activity.writingAll > 0;
 
   return (
     <div className="space-y-4">
-      <SectionHeader emoji="🏫" title="School Progress" subtitle="Revision Hub + Subject Coverage" gradient="bg-gradient-to-r from-emerald-600 to-teal-600" />
+      <SectionHeader
+        emoji="🏫"
+        title={`School Padhai (${user?.board || 'Board'})`}
+        subtitle="Notes · PDF · Video · Reading activity"
+        gradient="bg-gradient-to-r from-emerald-600 to-teal-600"
+      />
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { emoji: '🔴', label: 'Weak',     value: rev.tierCounts.weak,     bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200' },
-          { emoji: '🟡', label: 'Average',  value: rev.tierCounts.average,  bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200' },
-          { emoji: '🟢', label: 'Strong',   value: rev.tierCounts.strong,   bg: 'bg-emerald-50',text: 'text-emerald-700',border: 'border-emerald-200' },
-          { emoji: '⭐', label: 'Mastered', value: rev.tierCounts.mastered, bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
-        ].map(({ emoji, label, value, bg, text, border }) => (
-          <div key={label} className={`${bg} border ${border} rounded-2xl p-3 flex items-center gap-3`}>
-            <span className="text-2xl">{emoji}</span>
-            <div><p className={`text-xl font-black ${text}`}>{value}</p><p className={`text-[10px] font-bold ${text}`}>{label} Topics</p></div>
+      {/* Aaj ki activity highlight */}
+      {(activity.notesReadToday > 0 || activity.videoToday > 0 || activity.pdfToday > 0 || activity.writingToday > 0) && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+          <p className="text-[11px] font-black text-emerald-700 mb-1.5">✅ Aaj Padha</p>
+          <div className="flex flex-wrap gap-2">
+            {activity.notesReadToday > 0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">📖 {activity.notesReadToday} Notes</span>}
+            {activity.videoToday > 0     && <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">🎥 {activity.videoToday} Video</span>}
+            {activity.pdfToday > 0       && <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full">📄 {activity.pdfToday} PDF</span>}
+            {activity.writingToday > 0   && <span className="text-[10px] bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">✏️ {activity.writingToday} Writing</span>}
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* All-time activity stats — only school study activities */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <p className="text-sm font-black text-slate-800">📈 School Study Activity (All Time)</p>
+          <p className="text-[9px] text-slate-400 mt-0.5">Sirf school padhai ki activity — coaching ka data yahan nahi</p>
+        </div>
+        <div className="px-4 py-3 grid grid-cols-2 gap-2">
+          <StatCard icon="📖" label="Notes Padhne ke Sessions"   value={activity.notesReadAll > 0 ? String(activity.notesReadAll) : '—'} />
+          <StatCard icon="🔊" label="TTS Listen Sessions"        value={activity.ttsAll > 0 ? String(activity.ttsAll) : '—'} />
+          <StatCard icon="✏️" label="Notes Likhna (Writing)"     value={activity.writingAll > 0 ? String(activity.writingAll) : '—'} />
+          <StatCard icon="🖱️" label="Topic Engage Sessions"      value={activity.topicEngageAll > 0 ? String(activity.topicEngageAll) : '—'} />
+          <StatCard icon="🎥" label="Videos Dekhe"               value={activity.videoAll > 0 ? String(activity.videoAll) : '—'} />
+          <StatCard icon="📄" label="PDFs Padhe"                 value={activity.pdfAll > 0 ? String(activity.pdfAll) : '—'} />
+        </div>
+        {!hasAnyActivity && (
+          <div className="px-4 pb-4">
+            <EmptyState emoji="📭" msg="School padhai abhi start nahi ki. Notes padhna aur videos dekhna shuru karo!" />
+          </div>
+        )}
       </div>
 
-      {/* Progress overview */}
-      {rev.totalTracked > 0 && (
+      {/* 7-day study chart */}
+      {activity.last7.some(d => d.notes > 0 || d.media > 0) && (
         <div className="bg-white rounded-2xl p-4 border border-slate-100">
-          <div className="flex items-center gap-4">
-            {revDonut.length > 0 && (
-              <div className="w-24 h-24 shrink-0">
-                <PieChart width={96} height={96}>
-                  <Pie data={revDonut} cx={44} cy={44} innerRadius={28} outerRadius={44} dataKey="value" startAngle={90} endAngle={-270}>
-                    {revDonut.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                  </Pie>
-                </PieChart>
-              </div>
-            )}
-            <div className="flex-1 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]"><span className="font-medium text-slate-600">Total topics tracked</span><span className="font-black text-slate-800">{rev.totalTracked}</span></div>
-              <div className="flex items-center justify-between text-[11px]"><span className="font-medium text-slate-600">Aaj due hain</span><span className={`font-black ${rev.dueCount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{rev.dueCount > 0 ? `${rev.dueCount} topics` : '✓ Sab done'}</span></div>
-              <div className="flex items-center justify-between text-[11px]"><span className="font-medium text-slate-600">Aaj complete kiye</span><span className="font-black text-violet-600">{rev.completedToday}</span></div>
-            </div>
+          <p className="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+            <BarChart2 size={15} className="text-emerald-500" /> Last 7 Days School Activity
+          </p>
+          <ResponsiveContainer width="100%" height={130}>
+            <BarChart data={activity.last7} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#64748b', fontWeight: 700 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 8, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 10, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+              <Bar dataKey="notes" fill="#10b981" radius={[4,4,0,0]} name="Notes Sessions" />
+              <Bar dataKey="media" fill="#3b82f6" radius={[4,4,0,0]} name="Video/PDF" />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex gap-3 mt-1">
+            <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Notes</span>
+            <span className="flex items-center gap-1 text-[9px] font-bold text-blue-600"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" /> Video/PDF</span>
           </div>
         </div>
       )}
 
-      {/* Subject breakdown */}
-      {rev.subjectRows.length > 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100"><p className="text-sm font-black text-slate-800">📋 Subject-wise Breakdown</p></div>
-          <div className="px-4 py-3 space-y-3">
-            {rev.subjectRows.slice(0, 8).map((row: any) => {
-              const total = row.total || 1;
-              return (
-                <div key={row.name} className="bg-slate-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[11px] font-black text-slate-800 truncate max-w-[60%]">{row.name}</p>
-                    <span className="text-[9px] font-bold text-slate-500">{row.total} topics</span>
-                  </div>
-                  <div className="flex gap-0.5 h-2.5 rounded-full overflow-hidden mb-1">
-                    {row.weak     > 0 && <div className="bg-red-400"     style={{ width: `${row.weak/total*100}%` }} />}
-                    {row.average  > 0 && <div className="bg-amber-400"   style={{ width: `${row.average/total*100}%` }} />}
-                    {row.strong   > 0 && <div className="bg-emerald-400" style={{ width: `${row.strong/total*100}%` }} />}
-                    {row.mastered > 0 && <div className="bg-indigo-400"  style={{ width: `${row.mastered/total*100}%` }} />}
-                  </div>
-                  <div className="flex gap-2">
-                    {row.weak     > 0 && <span className="text-[8px] text-red-500 font-bold">🔴{row.weak}W</span>}
-                    {row.average  > 0 && <span className="text-[8px] text-amber-600 font-bold">🟡{row.average}A</span>}
-                    {row.strong   > 0 && <span className="text-[8px] text-emerald-600 font-bold">🟢{row.strong}S</span>}
-                    {row.mastered > 0 && <span className="text-[8px] text-indigo-600 font-bold">⭐{row.mastered}M</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* School subject weak topics from mistake bank */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+            <AlertTriangle size={15} className="text-red-500" /> School Weak Topics
+          </p>
+          {classMistakes.length > 0 && (
+            <span className="text-[10px] bg-red-100 text-red-600 font-black px-2 py-0.5 rounded-full">
+              {classMistakes.length} mistakes
+            </span>
+          )}
         </div>
-      ) : <EmptyState emoji="📭" msg="Abhi tak koi MCQ attempt nahi kiya. Shuru karo aur Revision Hub track karega!" />}
+        <div className="px-4 py-3">
+          {bySubject.length === 0
+            ? <EmptyState emoji="🎉" msg="School subjects mein koi weak topic nahi! Bahut achha!" />
+            : <div className="space-y-2">{bySubject.map(s => <MistakeSubjectCard key={s.subject} sub={s} />)}</div>
+          }
+        </div>
+      </div>
 
-      {/* Due today */}
-      {rev.dueCount > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <p className="text-[12px] font-black text-red-700 mb-3 flex items-center gap-1">⏰ Aaj ka Revision Baaki ({rev.dueCount} topics)</p>
-          <div className="space-y-2">
-            {rev.due.slice(0, 5).map((b: any, i: number) => {
-              const m = TIER_META[b.lastTier || 'weak'];
-              return (
-                <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
-                  <span className="text-sm">{m.emoji}</span>
-                  <div className="flex-1 min-w-0"><p className="text-[11px] font-bold text-slate-700 truncate">{b.topic}</p><p className="text-[9px] text-slate-400 truncate">{b.chapterTitle || b.chapterId}</p></div>
-                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${m.pill}`}>{m.label}</span>
-                </div>
-              );
-            })}
-            {rev.dueCount > 5 && <p className="text-[10px] text-red-400 font-medium text-center">+{rev.dueCount - 5} aur topics due</p>}
-          </div>
+      {/* Reminder — Revision Hub is separate */}
+      <div className="bg-violet-50 border border-violet-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+        <span className="text-2xl">🔄</span>
+        <div>
+          <p className="text-[11px] font-black text-violet-700">Revision Hub alag tab mein hai</p>
+          <p className="text-[9px] text-violet-500 font-medium">MCQ topic tracking (Weak/Strong/Mastered) ke liye "Revision Hub" tab dekho</p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -957,7 +1067,7 @@ export const StudentProgressDashboard: React.FC<Props> = ({ user, onBack }) => {
           {activeTab === 'overview'    && <OverviewTab    user={user} log={log} rev={rev} />}
           {activeTab === 'class'       && <ClassTab       log={log}  mistakes={mistakes} user={user} />}
           {activeTab === 'competition' && <CompetitionTab log={log}  mistakes={mistakes} />}
-          {activeTab === 'school'      && <SchoolTab      rev={rev} />}
+          {activeTab === 'school'      && <SchoolTab      log={log} mistakes={mistakes} user={user} />}
           {activeTab === 'coaching'    && <CoachingTab    log={log} />}
           {activeTab === 'revision'    && <RevisionTab    rev={rev} />}
           {activeTab === 'mistakes'    && <MistakesTab    mistakes={mistakes} />}
