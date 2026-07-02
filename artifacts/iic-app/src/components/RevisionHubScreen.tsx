@@ -514,13 +514,14 @@ export const RevisionHubScreen: React.FC<Props> = ({
               <div className="space-y-2">
                 {sessionMcqs.map((q: any, qi: number) => {
                   const userAns = sessionAnswers[qi];
-                  const isCorrect = userAns !== null && userAns !== undefined && userAns === q.correctAnswer;
-                  const isSkipped = userAns === null || userAns === undefined;
+                  // Only show questions that were actually attempted
+                  if (userAns === null || userAns === undefined) return null;
+                  const isCorrect = userAns === q.correctAnswer;
                   return (
-                    <div key={qi} className={`rounded-2xl border overflow-hidden ${isCorrect ? 'border-emerald-200 bg-emerald-50' : isSkipped ? 'border-slate-200 bg-slate-50' : 'border-rose-200 bg-rose-50'}`}>
+                    <div key={qi} className={`rounded-2xl border overflow-hidden ${isCorrect ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
                       <div className="flex items-start gap-3 px-4 py-3">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-black text-sm ${isCorrect ? 'bg-emerald-100 text-emerald-700' : isSkipped ? 'bg-slate-200 text-slate-500' : 'bg-rose-100 text-rose-700'}`}>
-                          {isCorrect ? '✅' : isSkipped ? '—' : '❌'}
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-black text-sm ${isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                          {isCorrect ? '✅' : '❌'}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-black text-slate-400 mb-0.5">Q{qi + 1} · {q.topic || 'General'}</p>
@@ -528,13 +529,10 @@ export const RevisionHubScreen: React.FC<Props> = ({
                             dangerouslySetInnerHTML={{ __html: (q.question || '').replace(/<br\/?>/g, ' ') }}
                           />
                           <div className="mt-1.5 space-y-0.5">
-                            {!isCorrect && !isSkipped && (
+                            {!isCorrect && (
                               <p className="text-[10px] text-rose-600 font-bold">
-                                ❌ Tumhara: {String.fromCharCode(65 + userAns!)}. {q.options?.[userAns!] || ''}
+                                ❌ Tumhara: {String.fromCharCode(65 + userAns)}. {q.options?.[userAns] || ''}
                               </p>
-                            )}
-                            {isSkipped && (
-                              <p className="text-[10px] text-slate-400 font-bold">⚠ Yeh sawaal skip hua</p>
                             )}
                             <p className="text-[10px] text-emerald-700 font-bold">
                               ✅ Sahi: {String.fromCharCode(65 + q.correctAnswer)}. {q.options?.[q.correctAnswer] || ''}
