@@ -1,10 +1,11 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { rtdb } from '../firebase';
 import { ChevronRight, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send } from 'lucide-react';
 import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
+import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
 
 interface CoachingNote {
   id: string;
@@ -93,11 +94,25 @@ const saveStars = (noteId: string, stars: Set<string>) => {
   try { localStorage.setItem(starKey(noteId), JSON.stringify([...stars])); } catch {}
 };
 
-function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; accent: string; directOpen?: boolean }) {
+function NoteCard({ note, accent, directOpen = false, user }: { note: CoachingNote; accent: string; directOpen?: boolean; user?: any }) {
   const [expanded, setExpanded] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [stars, setStars] = useState<Set<string>>(() => loadStars(note.id));
+
+  // Award XP every 30 s while the notes reader is open.
+  // Capture entitlements at open time via a ref so the interval always uses fresh values.
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => {
+    if (!readerOpen || !user?.id) return;
+    const iv = setInterval(() => {
+      const u = userRef.current;
+      if (!u?.id) return;
+      tryEarnScore(u.id, 2, u.subscriptionLevel, u.isPremium, getActiveBoost(u), 'COACHING_HW_NOTES');
+    }, 30000);
+    return () => clearInterval(iv);
+  }, [readerOpen, user?.id]);
 
   const hasContent = !!note.content;
 
@@ -211,7 +226,7 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
 // ──────────────────────────────────────────────────────────────────────────────
 type McqCommunityDraft = { question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string };
 
-function McqCard({ mcq, accent, onSendToMcqCommunity }: { mcq: CoachingMcq; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void }) {
+function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any }) {
   const correctSet = getCorrectSet(mcq);
   const isMultiple = correctSet.size > 1;
 
@@ -221,10 +236,18 @@ function McqCard({ mcq, accent, onSendToMcqCommunity }: { mcq: CoachingMcq; acce
   const [multiSelected, setMultiSelected] = useState<Set<number>>(new Set());
   const [submitted, setSubmitted] = useState(false);
 
+  const awardMcqXp = (isCorrect: boolean) => {
+    if (!user?.id) return;
+    if (isCorrect) {
+      tryEarnScore(user.id, 2, user.subscriptionLevel, user.isPremium, getActiveBoost(user), 'COACHING_HW_MCQ_CORRECT');
+    }
+  };
+
   const handleSingleSelect = (i: number) => {
     if (selected !== null) return;
     hapticMedium();
     setSelected(i);
+    awardMcqXp(correctSet.has(i));
   };
 
   const handleMultiToggle = (i: number) => {
@@ -241,6 +264,12 @@ function McqCard({ mcq, accent, onSendToMcqCommunity }: { mcq: CoachingMcq; acce
     if (multiSelected.size === 0) return;
     hapticMedium();
     setSubmitted(true);
+    // Award XP only when the selection is fully correct (all correct picked, none wrong)
+    if (user?.id) {
+      const allCorrectPicked = [...correctSet].every(i => multiSelected.has(i));
+      const noWrongPicked    = [...multiSelected].every(i => correctSet.has(i));
+      awardMcqXp(allCorrectPicked && noWrongPicked);
+    }
   };
 
   const isAnswered = isMultiple ? submitted : selected !== null;
@@ -368,7 +397,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity }: { mcq: CoachingMcq; acce
   );
 }
 
-function CategorySection({ catKey, data, accent, onSendToMcqCommunity }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void }) {
+function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any }) {
   const meta = CATEGORY_META[catKey];
   const [open, setOpen] = useState(true);
   const notes = data.notes || [];
@@ -390,8 +419,8 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity }: { catKe
       </button>
       {open && (
         <div className="space-y-2 pl-1">
-          {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} />)}
-          {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} onSendToMcqCommunity={onSendToMcqCommunity} />)}
+          {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} user={user} />)}
+          {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />)}
           {pdfs.map(p => (
             <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 rounded-xl border active:scale-[0.99] transition-all"
@@ -411,7 +440,7 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity }: { catKe
 
 // Detail view for a single coaching
 function CoachingDetailView({
-  coaching, onClose, tierTheme, isDarkMode, settings, onSendToMcqCommunity
+  coaching, onClose, tierTheme, isDarkMode, settings, onSendToMcqCommunity, user
 }: {
   coaching: Coaching;
   onClose: () => void;
@@ -419,6 +448,7 @@ function CoachingDetailView({
   isDarkMode?: boolean;
   settings?: any;
   onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
+  user?: any;
 }) {
   const accent = tierTheme?.primary || '#6366f1';
   const entries = Object.values(coaching.entries || {})
@@ -497,7 +527,7 @@ function CoachingDetailView({
                   {cats.map(catKey => {
                     const data = entry[catKey];
                     if (!data) return null;
-                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} />;
+                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />;
                   })}
                 </div>
               )}
@@ -517,12 +547,14 @@ export function CoachingHomeworkSection({
   card3D: card3DProp,
   settings,
   onSendToMcqCommunity,
+  user,
 }: {
   tierTheme: any;
   isDarkMode?: boolean;
   card3D?: boolean;
   settings?: any;
   onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
+  user?: any;
 }) {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
@@ -629,6 +661,7 @@ export function CoachingHomeworkSection({
           isDarkMode={isDarkMode}
           settings={settings}
           onSendToMcqCommunity={onSendToMcqCommunity}
+          user={user}
         />
       )}
     </>

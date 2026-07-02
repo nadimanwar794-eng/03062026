@@ -30,22 +30,24 @@ const getLocalDate = (offsetDays = 0): string => {
 const fmt = (n: number) => n.toLocaleString('en-IN');
 
 const ACTIVITY_LABELS: Record<string, { label: string; color: string; isStudy: boolean }> = {
-  MCQ_CORRECT:           { label: 'MCQ Sahi',      color: '#22c55e', isStudy: true },
-  MCQ_WRONG:             { label: 'MCQ Galat',      color: '#f87171', isStudy: true },
-  MCQ_STREAK_3:          { label: 'MCQ Streak 3x',  color: '#fb923c', isStudy: true },
-  MCQ_STREAK_5:          { label: 'MCQ Streak 5x',  color: '#fbbf24', isStudy: true },
-  READ_ACTIVE_30S:       { label: 'Notes Padha',    color: '#38bdf8', isStudy: true },
-  READ_TTS_HIGHLIGHT:    { label: 'TTS Suna',       color: '#a78bfa', isStudy: true },
-  READ_MANUAL_TOPIC_10S: { label: 'Topic Engage',   color: '#fb923c', isStudy: true },
-  WRITE_ACTIVE_5MIN:     { label: 'Notes Likha',    color: '#34d399', isStudy: true },
-  PDF_MILESTONE:         { label: 'PDF Padha',      color: '#f472b6', isStudy: true },
-  READ_NOTES_TIME:       { label: 'Notes Time',     color: '#818cf8', isStudy: true },
-  AUDIO_TTS:             { label: 'Audio Suna',     color: '#34d399', isStudy: true },
-  NOTES_GK_TTS:          { label: 'GK Suna',        color: '#f472b6', isStudy: true },
-  VIDEO:                 { label: 'Video Dekha',    color: '#3b82f6', isStudy: true },
-  PDF:                   { label: 'PDF Read',       color: '#8b5cf6', isStudy: true },
-  DAILY_LOGIN:           { label: 'Daily Login',    color: '#10b981', isStudy: false },
-  MILESTONE:             { label: 'Milestone',      color: '#06b6d4', isStudy: true },
+  MCQ_CORRECT:               { label: 'MCQ Sahi',           color: '#22c55e', isStudy: true },
+  MCQ_WRONG:                 { label: 'MCQ Galat',          color: '#f87171', isStudy: true },
+  MCQ_STREAK_3:              { label: 'MCQ Streak 3x',      color: '#fb923c', isStudy: true },
+  MCQ_STREAK_5:              { label: 'MCQ Streak 5x',      color: '#fbbf24', isStudy: true },
+  READ_ACTIVE_30S:           { label: 'Notes Padha',        color: '#38bdf8', isStudy: true },
+  READ_TTS_HIGHLIGHT:        { label: 'TTS Suna',           color: '#a78bfa', isStudy: true },
+  READ_MANUAL_TOPIC_10S:     { label: 'Topic Engage',       color: '#fb923c', isStudy: true },
+  WRITE_ACTIVE_5MIN:         { label: 'Notes Likha',        color: '#34d399', isStudy: true },
+  PDF_MILESTONE:             { label: 'PDF Padha',          color: '#f472b6', isStudy: true },
+  READ_NOTES_TIME:           { label: 'Notes Time',         color: '#818cf8', isStudy: true },
+  AUDIO_TTS:                 { label: 'Audio Suna',         color: '#34d399', isStudy: true },
+  NOTES_GK_TTS:              { label: 'GK Suna',            color: '#f472b6', isStudy: true },
+  VIDEO:                     { label: 'Video Dekha',        color: '#3b82f6', isStudy: true },
+  PDF:                       { label: 'PDF Read',           color: '#8b5cf6', isStudy: true },
+  DAILY_LOGIN:               { label: 'Daily Login',        color: '#10b981', isStudy: false },
+  MILESTONE:                 { label: 'Milestone',          color: '#06b6d4', isStudy: true },
+  COACHING_HW_MCQ_CORRECT:   { label: 'Coaching MCQ Sahi',  color: '#10b981', isStudy: true },
+  COACHING_HW_NOTES:         { label: 'Coaching Notes',     color: '#8b5cf6', isStudy: true },
 };
 
 const PIE_COLORS = ['#6366f1','#f59e0b','#10b981','#f43f5e','#3b82f6','#a78bfa','#fb923c','#34d399'];
@@ -98,16 +100,19 @@ function getRevisionStats() {
 function getTodayStats(log: ScoreLogEntry[]) {
   const today = getLocalDate(0);
   const todayEntries = log.filter(e => e.date === today);
-  const mcqCorrect   = todayEntries.filter(e => e.activity === 'MCQ_CORRECT').length;
+  const mcqCorrect   = todayEntries.filter(e => e.activity === 'MCQ_CORRECT' || e.activity === 'COACHING_HW_MCQ_CORRECT').length;
   const mcqWrong     = todayEntries.filter(e => e.activity === 'MCQ_WRONG').length;
   const mcqTotal     = mcqCorrect + mcqWrong;
   const accuracy     = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 100) : 0;
-  const notesRead    = todayEntries.filter(e => e.activity === 'READ_ACTIVE_30S' || e.activity === 'READ_NOTES_TIME').length;
+  const notesRead    = todayEntries.filter(e => e.activity === 'READ_ACTIVE_30S' || e.activity === 'READ_NOTES_TIME' || e.activity === 'COACHING_HW_NOTES').length;
   const videosWatched= todayEntries.filter(e => e.activity === 'VIDEO').length;
   const pdfsRead     = todayEntries.filter(e => e.activity === 'PDF' || e.activity === 'PDF_MILESTONE').length;
   const xpToday      = todayEntries.reduce((s, e) => s + (e.pts || 0), 0);
   const studyActivities = todayEntries.filter(e => ACTIVITY_LABELS[e.activity]?.isStudy).length;
-  return { mcqCorrect, mcqWrong, mcqTotal, accuracy, notesRead, videosWatched, pdfsRead, xpToday, studyActivities };
+  // Coaching Homework specific
+  const coachingMcqToday  = todayEntries.filter(e => e.activity === 'COACHING_HW_MCQ_CORRECT').length;
+  const coachingNotesToday = todayEntries.filter(e => e.activity === 'COACHING_HW_NOTES').length;
+  return { mcqCorrect, mcqWrong, mcqTotal, accuracy, notesRead, videosWatched, pdfsRead, xpToday, studyActivities, coachingMcqToday, coachingNotesToday };
 }
 
 export const StudentProgressDashboard: React.FC<Props> = ({ user, onBack }) => {
@@ -154,11 +159,22 @@ export const StudentProgressDashboard: React.FC<Props> = ({ user, onBack }) => {
   }, [log]);
 
   const mcqStats = useMemo(() => {
-    const correct = log.filter(e => e.activity === 'MCQ_CORRECT').length;
+    const correct = log.filter(e => e.activity === 'MCQ_CORRECT' || e.activity === 'COACHING_HW_MCQ_CORRECT').length;
     const wrong   = log.filter(e => e.activity === 'MCQ_WRONG').length;
     const total   = correct + wrong;
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
     return { correct, wrong, total, accuracy };
+  }, [log]);
+
+  const coachingStats = useMemo(() => {
+    const mcqCorrectAll  = log.filter(e => e.activity === 'COACHING_HW_MCQ_CORRECT').length;
+    const notesAll       = log.filter(e => e.activity === 'COACHING_HW_NOTES').length;
+    const xpAll          = log.filter(e => e.activity === 'COACHING_HW_MCQ_CORRECT' || e.activity === 'COACHING_HW_NOTES').reduce((s, e) => s + e.pts, 0);
+    const today          = getLocalDate(0);
+    const mcqCorrectToday = log.filter(e => e.date === today && e.activity === 'COACHING_HW_MCQ_CORRECT').length;
+    const notesToday      = log.filter(e => e.date === today && e.activity === 'COACHING_HW_NOTES').length;
+    const activeDays     = new Set(log.filter(e => e.activity === 'COACHING_HW_MCQ_CORRECT' || e.activity === 'COACHING_HW_NOTES').map(e => e.date)).size;
+    return { mcqCorrectAll, notesAll, xpAll, mcqCorrectToday, notesToday, activeDays };
   }, [log]);
 
   const activityBreakdown = useMemo(() => {
@@ -309,7 +325,40 @@ export const StudentProgressDashboard: React.FC<Props> = ({ user, onBack }) => {
             )}
           </div>
 
-          {/* ── REVISION HUB SNAPSHOT ── */}
+          {/* ── COACHING HOMEWORK STATS ── */}
+          {(coachingStats.mcqCorrectAll > 0 || coachingStats.notesAll > 0) && (
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 flex items-center gap-2">
+                <span className="text-lg">🏫</span>
+                <div>
+                  <p className="text-white font-black text-sm">Coaching Homework</p>
+                  <p className="text-white/70 text-[10px] font-medium">MCQ + Notes activity tracking</p>
+                </div>
+              </div>
+              <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                {[
+                  { icon: '❓', label: 'MCQs Sahi (Aaj)',    value: coachingStats.mcqCorrectToday > 0 ? String(coachingStats.mcqCorrectToday) : '—' },
+                  { icon: '📚', label: 'Notes Sessions (Aaj)', value: coachingStats.notesToday > 0 ? String(coachingStats.notesToday) : '—' },
+                  { icon: '✅', label: 'Total MCQs Sahi',     value: coachingStats.mcqCorrectAll > 0 ? String(coachingStats.mcqCorrectAll) : '—' },
+                  { icon: '📖', label: 'Total Notes Sessions', value: coachingStats.notesAll > 0 ? String(coachingStats.notesAll) : '—' },
+                ].map(({ icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+                    <span className="text-base shrink-0">{icon}</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-slate-500 font-medium truncate">{label}</p>
+                      <p className={`text-sm font-black ${value === '—' ? 'text-slate-300' : 'text-emerald-700'}`}>{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-emerald-50 px-4 py-2 border-t border-emerald-100 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-700">⭐ Total XP: +{coachingStats.xpAll}</span>
+                <span className="text-[11px] font-bold text-teal-700">📅 {coachingStats.activeDays} active days</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── SCHOOL REVISION HUB SNAPSHOT ── */}
           <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
             {/* Header row — tap to expand/collapse */}
             <button
@@ -317,7 +366,7 @@ export const StudentProgressDashboard: React.FC<Props> = ({ user, onBack }) => {
               onClick={() => setRevExpanded(v => !v)}
             >
               <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <RotateCcw size={15} className="text-violet-500" /> 🔄 Revision Hub Status
+                <RotateCcw size={15} className="text-violet-500" /> 🏫 School Revision Hub
               </p>
               <div className="flex items-center gap-2">
                 {rev.dueCount > 0 && (

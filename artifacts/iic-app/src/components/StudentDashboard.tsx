@@ -8323,6 +8323,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode}
                     card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)}
                     settings={settings}
+                    user={user}
                     onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }} />
 
                   {/* ── REVISION HUB CARD ── */}

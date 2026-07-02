@@ -801,6 +801,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
             onNavigateContent={onNavigateContent}
             onUpdateUser={onUpdateUser}
             hideHeader={true}
+            onMcqAnswer={onMcqAnswer}
           />
         )}
 
