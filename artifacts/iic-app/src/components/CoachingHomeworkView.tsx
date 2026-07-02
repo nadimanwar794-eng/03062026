@@ -81,9 +81,20 @@ function getCorrectSet(mcq: CoachingMcq): Set<number> {
 // directOpen=true → tap karo toh seedha reader khule (Speedy/Sar Sangrah)
 // directOpen=false → expand → preview → button (Lucent)
 // ──────────────────────────────────────────────────────────────────────────────
+// localStorage key for starred topics per note
+const starKey = (noteId: string) => `chw_stars_${noteId}`;
+const loadStars = (noteId: string): Set<string> => {
+  try { return new Set(JSON.parse(localStorage.getItem(starKey(noteId)) || '[]')); }
+  catch { return new Set(); }
+};
+const saveStars = (noteId: string, stars: Set<string>) => {
+  try { localStorage.setItem(starKey(noteId), JSON.stringify([...stars])); } catch {}
+};
+
 function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; accent: string; directOpen?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
+  const [stars, setStars] = useState<Set<string>>(() => loadStars(note.id));
 
   const hasContent = !!note.content;
 
@@ -91,6 +102,16 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
     hapticMedium();
     if (directOpen && hasContent) { setReaderOpen(true); return; }
     setExpanded(e => !e);
+  };
+
+  const isStarred = (text: string) => stars.has(text);
+  const onStarToggle = (text: string) => {
+    setStars(prev => {
+      const next = new Set(prev);
+      next.has(text) ? next.delete(text) : next.add(text);
+      saveStars(note.id, next);
+      return next;
+    });
   };
 
   return (
@@ -108,6 +129,11 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
           {note.pageNo && (
             <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full" style={{ background: `${accent}20`, color: accent }}>
               P.{note.pageNo}
+            </span>
+          )}
+          {stars.size > 0 && (
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#d97706' }}>
+              ⭐{stars.size}
             </span>
           )}
           {!directOpen && hasContent && (expanded ? <ChevronUp size={13} style={{ color: accent }} /> : <ChevronDown size={13} style={{ color: accent }} />)}
@@ -139,6 +165,9 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
             topBarLabel={note.title || (note.pageNo ? `Page ${note.pageNo}` : 'Note')}
             onBack={() => setReaderOpen(false)}
             preferChunkMode={true}
+            noteKey={`chw_${note.id}`}
+            isStarred={isStarred}
+            onStarToggle={onStarToggle}
           />
         </div>
       )}
