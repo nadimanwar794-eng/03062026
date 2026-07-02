@@ -385,11 +385,23 @@ function CoachingDetailView({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: isDarkMode ? '#0f172a' : '#f8fafc' }}>
-      {/* Header — hidden in focus mode */}
-      {!focusMode && (
+    <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: isDarkMode ? '#0f172a' : '#f8fafc', position: 'fixed' }}>
+      {/* Header — full bar (normal) or slim bar (focus mode) */}
+      {focusMode ? (
+        <div className="shrink-0 flex items-center gap-2 px-3 py-2" style={{ background: isDarkMode ? '#1e293b' : '#fff', borderBottom: `2px solid ${accent}30` }}>
+          <span className="text-lg">{coaching.emoji || '🏫'}</span>
+          <span className="text-[12px] font-black flex-1 truncate" style={{ color: accent }}>{coaching.name}</span>
+          <button
+            onPointerDown={(e) => { e.stopPropagation(); hapticMedium(); setFocusMode(false); }}
+            className="text-[11px] font-black px-2.5 py-1 rounded-lg active:scale-95 transition-all"
+            style={{ background: `${accent}20`, color: accent }}
+          >
+            ↩ Exit
+          </button>
+        </div>
+      ) : (
         <div className="shrink-0 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: accent }}>
-          <button onClick={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+          <button onPointerDown={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
             <ArrowLeft size={18} className="text-white" />
           </button>
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -399,21 +411,6 @@ function CoachingDetailView({
               <p className="text-white/70 text-[10px] font-medium">{entries.length} entries</p>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Focus mode top mini bar */}
-      {focusMode && (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-1.5" style={{ background: isDarkMode ? '#1e293b' : '#fff', borderBottom: `1px solid ${accent}20` }}>
-          <span className="text-base">{coaching.emoji || '🏫'}</span>
-          <span className="text-[11px] font-black text-slate-700 flex-1 truncate">{coaching.name}</span>
-          <button
-            onClick={() => { hapticMedium(); setFocusMode(false); }}
-            className="text-[10px] font-black px-2 py-1 rounded-lg"
-            style={{ background: `${accent}18`, color: accent }}
-          >
-            ↩ Exit Focus
-          </button>
         </div>
       )}
 
@@ -463,14 +460,14 @@ function CoachingDetailView({
         })}
       </div>
 
-      {/* Focus Mode FAB — fixed bottom-right, app logo / initial */}
+      {/* Focus Mode FAB — absolute within this full-screen panel */}
       <button
-        onClick={() => { hapticMedium(); setFocusMode(v => !v); }}
-        className="fixed bottom-20 right-4 z-[9999] w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white transition-all overflow-hidden border-2"
+        onPointerDown={(e) => { e.stopPropagation(); hapticMedium(); setFocusMode(v => !v); }}
+        className="absolute bottom-20 right-4 w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white overflow-hidden border-2 active:scale-95 transition-transform"
         style={{
+          zIndex: 10,
           background: focusMode ? accent : 'rgba(15,23,42,0.88)',
           borderColor: focusMode ? accent : 'rgba(255,255,255,0.4)',
-          backdropFilter: 'blur(10px)',
         }}
         title={focusMode ? 'Exit Focus Mode' : 'Focus Mode'}
       >
