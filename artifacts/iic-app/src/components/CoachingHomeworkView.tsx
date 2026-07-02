@@ -96,6 +96,7 @@ const saveStars = (noteId: string, stars: Set<string>) => {
 function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; accent: string; directOpen?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [stars, setStars] = useState<Set<string>>(() => loadStars(note.id));
 
   const hasContent = !!note.content;
@@ -165,12 +166,40 @@ function NoteCard({ note, accent, directOpen = false }: { note: CoachingNote; ac
           <ChunkedNotesReader
             content={note.content!}
             topBarLabel={note.title || (note.pageNo ? `Page ${note.pageNo}` : 'Note')}
-            onBack={() => setReaderOpen(false)}
+            onBack={() => { setReaderOpen(false); setFocusMode(false); }}
             preferChunkMode={true}
             noteKey={`chw_${note.id}`}
             isStarred={isStarred}
             onStarToggle={onStarToggle}
+            hideTopBar={focusMode}
           />
+          {/* Focus Mode FAB — inside the notes reader */}
+          <button
+            onPointerDown={(e) => { e.stopPropagation(); hapticMedium(); setFocusMode(v => !v); }}
+            className="active:scale-95 transition-transform"
+            style={{
+              position: 'fixed',
+              bottom: 24,
+              right: 16,
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              zIndex: 600,
+              background: focusMode ? accent : 'rgba(15,23,42,0.88)',
+              border: `2px solid ${focusMode ? accent : 'rgba(255,255,255,0.4)'}`,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+            }}
+            title={focusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+          >
+            {focusMode
+              ? <span style={{ fontSize: 18, lineHeight: 1 }}>↩</span>
+              : <span style={{ fontSize: 16, lineHeight: 1 }}>🎯</span>
+            }
+          </button>
         </div>
       )}
     </>
@@ -373,20 +402,15 @@ function CoachingDetailView({
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   const [expandedDate, setExpandedDate] = useState<string | null>(entries[0]?.id || null);
-  const [focusMode, setFocusMode] = useState(false);
 
-  // Hide bottom nav when coaching view opens; hide+show based on focus mode
+  // Hide bottom nav when coaching view opens
   useEffect(() => {
     const nav = document.querySelector('[data-iic-bottom-nav]') as HTMLElement | null;
     if (!nav) return;
-    // Always hide bottom nav when coaching view is open
     const prevDisplay = nav.style.display;
     nav.style.display = 'none';
     return () => { nav.style.display = prevDisplay; };
   }, []);
-
-  // When focus mode toggles, slim bar hides/shows but bottom nav stays hidden (handled above)
-  // On exit focus (or close), bottom nav restored by the cleanup above
 
   const hasContent = (entry: CoachingEntry) => {
     const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
@@ -399,21 +423,19 @@ function CoachingDetailView({
 
   return (
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 350, background: isDarkMode ? '#0f172a' : '#f8fafc' }}>
-      {/* Header — full bar in normal mode, completely hidden in focus mode */}
-      {!focusMode && (
-        <div className="shrink-0 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: accent }}>
-          <button onPointerDown={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
-            <ArrowLeft size={18} className="text-white" />
-          </button>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-2xl">{coaching.emoji || '🏫'}</span>
-            <div>
-              <p className="text-white font-black text-base leading-tight truncate">{coaching.name}</p>
-              <p className="text-white/70 text-[10px] font-medium">{entries.length} entries</p>
-            </div>
+      {/* Header */}
+      <div className="shrink-0 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: accent }}>
+        <button onPointerDown={() => { hapticMedium(); onClose(); }} className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+          <ArrowLeft size={18} className="text-white" />
+        </button>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-2xl">{coaching.emoji || '🏫'}</span>
+          <div>
+            <p className="text-white font-black text-base leading-tight truncate">{coaching.name}</p>
+            <p className="text-white/70 text-[10px] font-medium">{entries.length} entries</p>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ paddingBottom: '100px' }}>
@@ -461,31 +483,6 @@ function CoachingDetailView({
         })}
       </div>
 
-      {/* Focus Mode FAB — absolute within this full-screen panel */}
-      <button
-        onPointerDown={(e) => { e.stopPropagation(); hapticMedium(); setFocusMode(v => !v); }}
-        className="absolute bottom-6 right-4 w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-white overflow-hidden border-2 active:scale-95 transition-transform"
-        style={{
-          zIndex: 10,
-          background: focusMode ? accent : 'rgba(15,23,42,0.88)',
-          borderColor: focusMode ? accent : 'rgba(255,255,255,0.4)',
-        }}
-        title={focusMode ? 'Exit Focus Mode' : 'Focus Mode'}
-      >
-        {focusMode ? (
-          <span style={{ fontSize: 18, lineHeight: 1 }}>↩</span>
-        ) : settings?.appLogo ? (
-          <img
-            src={settings.appLogo}
-            alt="App"
-            style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: '50%', pointerEvents: 'none' }}
-          />
-        ) : (
-          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.5px', pointerEvents: 'none' }}>
-            {(settings?.appShortName || settings?.appName || '📚').charAt(0)}
-          </span>
-        )}
-      </button>
     </div>
   );
 }
