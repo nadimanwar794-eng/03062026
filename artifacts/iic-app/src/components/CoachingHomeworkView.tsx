@@ -94,9 +94,11 @@ const saveStars = (noteId: string, stars: Set<string>) => {
   try { localStorage.setItem(starKey(noteId), JSON.stringify([...stars])); } catch {}
 };
 
-function NoteCard({ note, accent, directOpen = false, user }: { note: CoachingNote; accent: string; directOpen?: boolean; user?: any }) {
+function NoteCard({ note, accent, directOpen = false, user, onReaderOpenChange }: { note: CoachingNote; accent: string; directOpen?: boolean; user?: any; onReaderOpenChange?: (open: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
+
+  useEffect(() => { onReaderOpenChange?.(readerOpen); }, [readerOpen]);
   const [focusMode, setFocusMode] = useState(false);
   const [stars, setStars] = useState<Set<string>>(() => loadStars(note.id));
 
@@ -397,7 +399,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq
   );
 }
 
-function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any }) {
+function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user, onReaderOpenChange }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any; onReaderOpenChange?: (open: boolean) => void }) {
   const meta = CATEGORY_META[catKey];
   const [open, setOpen] = useState(true);
   const notes = data.notes || [];
@@ -419,7 +421,7 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user }: {
       </button>
       {open && (
         <div className="space-y-2 pl-1">
-          {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} user={user} />)}
+          {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} user={user} onReaderOpenChange={onReaderOpenChange} />)}
           {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />)}
           {pdfs.map(p => (
             <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
@@ -440,7 +442,7 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user }: {
 
 // Detail view for a single coaching
 function CoachingDetailView({
-  coaching, onClose, tierTheme, isDarkMode, settings, onSendToMcqCommunity, user
+  coaching, onClose, tierTheme, isDarkMode, settings, onSendToMcqCommunity, user, onReaderOpenChange
 }: {
   coaching: Coaching;
   onClose: () => void;
@@ -449,6 +451,7 @@ function CoachingDetailView({
   settings?: any;
   onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
   user?: any;
+  onReaderOpenChange?: (open: boolean) => void;
 }) {
   const accent = tierTheme?.primary || '#6366f1';
   const entries = Object.values(coaching.entries || {})
@@ -520,7 +523,7 @@ function CoachingDetailView({
                   {cats.map(catKey => {
                     const data = entry[catKey];
                     if (!data) return null;
-                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />;
+                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} user={user} onReaderOpenChange={onReaderOpenChange} />;
                   })}
                 </div>
               )}
@@ -541,8 +544,8 @@ export function CoachingHomeworkSection({
   settings,
   onSendToMcqCommunity,
   user,
-  onDetailOpen,
-  onDetailClose,
+  onNotesReaderOpen,
+  onNotesReaderClose,
 }: {
   tierTheme: any;
   isDarkMode?: boolean;
@@ -550,19 +553,17 @@ export function CoachingHomeworkSection({
   settings?: any;
   onSendToMcqCommunity?: (draft: McqCommunityDraft) => void;
   user?: any;
-  onDetailOpen?: () => void;
-  onDetailClose?: () => void;
+  onNotesReaderOpen?: () => void;
+  onNotesReaderClose?: () => void;
 }) {
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Coaching | null>(null);
 
+  // Cleanup: reset nav state when section unmounts with a reader open
   useEffect(() => {
-    if (selected) { onDetailOpen?.(); }
-    else { onDetailClose?.(); }
-    // Unmount cleanup: always reset nav state when section leaves the tree
-    return () => { if (selected) onDetailClose?.(); };
-  }, [selected, onDetailOpen, onDetailClose]);
+    return () => { onNotesReaderClose?.(); };
+  }, [onNotesReaderClose]);
 
   useEffect(() => {
     const r = ref(rtdb, 'coaching_homework');
@@ -666,6 +667,7 @@ export function CoachingHomeworkSection({
           settings={settings}
           onSendToMcqCommunity={onSendToMcqCommunity}
           user={user}
+          onReaderOpenChange={(open) => open ? onNotesReaderOpen?.() : onNotesReaderClose?.()}
         />
       )}
     </>
