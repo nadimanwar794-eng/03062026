@@ -9,6 +9,7 @@ import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
+import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -37,9 +38,12 @@ interface Props {
     onComplete: (results: MCQResult[], questions?: any[]) => void;
     settings?: SystemSettings | null;
     onTrackAnswer?: (isCorrect: boolean) => boolean;
+    onUpdateUser?: (user: User) => void;
 }
 
-export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComplete, settings, onTrackAnswer }) => {
+export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComplete, settings, onTrackAnswer, onUpdateUser }) => {
+    const userRef = useRef(user);
+    useEffect(() => { userRef.current = user; }, [user]);
     const [loading, setLoading] = useState(true);
     const [loadingMsg, setLoadingMsg] = useState('Sab topics load ho rahe hain...');
     const [interleavedQuestions, setInterleavedQuestions] = useState<InterleavedQ[]>([]);
@@ -52,6 +56,20 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
     // Result screen state
     const [sessionSummary, setSessionSummary] = useState<TopicSessionResult[] | null>(null);
     const pendingCompleteRef = useRef<{ results: MCQResult[]; questions: any[] } | null>(null);
+
+    // ── MCQ Score Popup ────────────────────────────────────────────────────────
+    const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
+    const [mcqScoreVisible, setMcqScoreVisible] = useState(false);
+    const mcqPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showMcqScore = (pts: number) => {
+        if (mcqPopupTimerRef.current) clearTimeout(mcqPopupTimerRef.current);
+        setMcqScorePopup(pts);
+        setMcqScoreVisible(true);
+        mcqPopupTimerRef.current = setTimeout(() => setMcqScoreVisible(false), 1800);
+    };
+
+    const [mcqStreak, setMcqStreak] = useState(0);
 
     // Timer
     useEffect(() => {
@@ -158,30 +176,44 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
     const handleAnswer = (optionIdx: number) => {
         if (answers[qIndex] !== undefined) return;
 
-        // Daily MCQ limit
-        if (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
-            const today = new Date().toISOString().split('T')[0];
-            const countKey = `nst_mcq_daily_total_${today}_${user.id}`;
-            const prevTotal = parseInt(localStorage.getItem(countKey) || '0', 10);
-            const _subValid = SubscriptionEngine.isPremium(user);
-            const _tier: 'FREE' | 'BASIC' | 'ULTRA' =
-                _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
-                _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
-            const mcqLim = getEffectiveDailyLimit('mcq', getLevelInfo(user.totalScore || 0).level, _tier, settings);
-            if (mcqLim < UNLIMITED && prevTotal >= mcqLim) {
-                if (onTrackAnswer) onTrackAnswer(false);
-                return;
-            }
-        }
-
+        // Today Revision Hub MCQs — NO daily MCQ limit applies here
         const isCorrect = interleavedQuestions[qIndex]?.correctAnswer === optionIdx;
         if (onTrackAnswer) {
             if (!onTrackAnswer(isCorrect)) return;
-        } else if (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
-            const today = new Date().toISOString().split('T')[0];
-            const countKey = `nst_mcq_daily_total_${today}_${user.id}`;
-            const prevTotal = parseInt(localStorage.getItem(countKey) || '0', 10);
-            localStorage.setItem(countKey, String(prevTotal + 1));
+        }
+
+        // ── MCQ Scoring: +2 correct, -1 wrong, streak bonuses ─────────────────
+        if (user.id) {
+            const _subValid = SubscriptionEngine.isPremium(user);
+            const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+                          _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+            if (isCorrect) {
+                const newStreak = mcqStreak + 1;
+                setMcqStreak(newStreak);
+                const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
+                const bonus = getMcqStreakBonus(newStreak);
+                const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`) : 0;
+                const totalPts = pts + bonusPts;
+                if (totalPts > 0) {
+                    const _u = userRef.current;
+                    if (_u && onUpdateUser) {
+                        const updated = { ..._u, totalScore: (_u.totalScore || 0) + totalPts };
+                        onUpdateUser(updated);
+                        saveUserToLive(updated);
+                    }
+                    showMcqScore(totalPts);
+                }
+            } else {
+                setMcqStreak(0);
+                subtractDailyScore(user.id, 1);
+                const _u = userRef.current;
+                if (_u && onUpdateUser) {
+                    const updated = { ..._u, totalScore: Math.max(0, (_u.totalScore || 0) - 1) };
+                    onUpdateUser(updated);
+                    saveUserToLive(updated);
+                }
+                showMcqScore(-1);
+            }
         }
 
         const newAnswers = { ...answers, [qIndex]: optionIdx };
@@ -632,6 +664,22 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
 
     return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col">
+            {/* MCQ Score Popup */}
+            {mcqScorePopup !== null && (
+                <div style={{
+                    position: 'fixed', bottom: 80, right: 20, zIndex: 9999,
+                    background: mcqScorePopup < 0 ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                    color: '#fff', borderRadius: 14, padding: '8px 16px',
+                    fontSize: 14, fontWeight: 900,
+                    boxShadow: mcqScorePopup < 0 ? '0 6px 20px rgba(239,68,68,0.4)' : '0 6px 20px rgba(99,102,241,0.4)',
+                    opacity: mcqScoreVisible ? 1 : 0,
+                    transform: mcqScoreVisible ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.95)',
+                    transition: 'opacity 0.25s, transform 0.25s',
+                    pointerEvents: 'none',
+                }}>
+                    {mcqScorePopup < 0 ? `❌ ${mcqScorePopup} pts` : `⭐ +${mcqScorePopup} pts`}
+                </div>
+            )}
             {/* Sidebar */}
             {showSidebar && (
                 <div className="fixed inset-0 bg-black/50 z-[110]" onClick={() => setShowSidebar(false)}>

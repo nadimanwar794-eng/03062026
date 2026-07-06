@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil } from 'lucide-react';
+import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil, Presentation } from 'lucide-react';
 import { AdminWhiteBoard } from './AdminWhiteBoard';
 import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayPrefs';
 import { saveSuggestion, auth, findDuplicateSuggestionByPoint, incrementSuggestionReportCount, updateSuggestionLeaderboard } from '../firebase';
@@ -1222,18 +1222,24 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <ChevronRight size={15} className="rotate-180" />
               </button>
             )}
-            {/* Counter / READING ACTIVE label */}
+            {/* Counter / READING ACTIVE label / Lesson name */}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-              <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
-                {isReading && activeIdx !== null
-                  ? `${activeIdx + 1}/${activeTopicList.length}`
-                  : activeTopicList.length > 0
-                    ? `1/${activeTopicList.length}`
-                    : ''}
-              </span>
-              {isReading && (
-                <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.14em] text-indigo-400 select-none">
-                  READING ACTIVE
+              {isReading ? (
+                <>
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
+                    {activeIdx !== null ? `${activeIdx + 1}/${activeTopicList.length}` : `1/${activeTopicList.length}`}
+                  </span>
+                  <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.14em] text-indigo-400 select-none">
+                    READING ACTIVE
+                  </span>
+                </>
+              ) : topBarLabel ? (
+                <span className="truncate text-[12px] font-black text-slate-700 select-none">
+                  {topBarLabel}
+                </span>
+              ) : (
+                <span className="shrink-0 text-[11px] font-black tabular-nums text-slate-600 select-none">
+                  {activeTopicList.length > 0 ? `1/${activeTopicList.length}` : ''}
                 </span>
               )}
               {/* Live session score */}
@@ -1256,18 +1262,25 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               <button
                 type="button"
                 onClick={openScoreInfo}
-                title="Reading score info"
+                title={scoreState.mode === 'writing' ? 'Writing score info' : 'Reading score info'}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   width: 28, height: 28, borderRadius: 8,
-                  background: isReading ? 'rgba(99,102,241,0.15)' : 'rgba(100,116,139,0.10)',
-                  border: isReading ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid rgba(100,116,139,0.2)',
+                  background: scoreState.mode === 'writing'
+                    ? 'rgba(16,185,129,0.15)'
+                    : isReading ? 'rgba(99,102,241,0.15)' : 'rgba(100,116,139,0.10)',
+                  border: scoreState.mode === 'writing'
+                    ? '1.5px solid rgba(16,185,129,0.5)'
+                    : isReading ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid rgba(100,116,139,0.2)',
                   cursor: 'pointer', flexShrink: 0,
-                  animation: isReading ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                  animation: scoreState.mode === 'writing' ? 'pulse 1.5s ease-in-out infinite' : isReading ? 'pulse 1.5s ease-in-out infinite' : 'none',
                   transition: 'all 0.2s',
                 }}
               >
-                <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
+                {scoreState.mode === 'writing'
+                  ? <span style={{ fontSize: 14, lineHeight: 1 }}>✍️</span>
+                  : <BookOpen size={13} style={{ color: isReading ? '#6366f1' : '#94a3b8' }} />
+                }
               </button>
             )}
             {/* 🛡️ Touch Protection — icon-only compact button (hidden when popup is open) */}
@@ -1318,7 +1331,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 active:scale-90 transition shrink-0"
                 title="Admin WhiteBoard"
               >
-                <img src="/splash-logo.png" alt="WB" className="w-4 h-4 object-contain" />
+                <Presentation size={14} />
               </button>
             )}
             {/* 3-dot icon — opens full controls panel */}
@@ -1360,9 +1373,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 userSelect: 'none', touchAction: 'pan-y',
                 boxShadow: '0 3px 10px rgba(99,102,241,0.13), inset 0 -1px 0 #c7d2fe',
               }}>
-              <span style={{ fontSize: 14, flexShrink: 0 }}>📖</span>
-              <span style={{ fontSize: 10, fontWeight: 900, color: isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
-                {isReading ? 'Reading Active' : 'Reading Score'}
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{scoreState.mode === 'writing' ? '✍️' : '📖'}</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: scoreState.mode === 'writing' ? '#059669' : isReading ? '#6366f1' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+                {scoreState.mode === 'writing' ? 'Writing Score' : isReading ? 'Reading Active' : 'Reading Score'}
               </span>
               <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
@@ -1379,7 +1392,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
                   : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
                 const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
-                const _base = scoreState.mode === 'reading' ? 5 : 25;
+                const _base = scoreState.mode === 'reading' ? 5 : scoreState.mode === 'writing' ? 10 : 25;
                 const _pts = Math.max(1, Math.round(_base * _subMul * _boostMul));
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>

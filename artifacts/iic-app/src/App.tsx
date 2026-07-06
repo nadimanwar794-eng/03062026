@@ -33,6 +33,7 @@ import { LoadingOverlay } from './components/LoadingOverlay';
 import { RulesPage } from './components/RulesPage';
 import { IICPage } from './components/IICPage';
 const WeeklyTestView = lazy(() => import('./components/WeeklyTestView').then(m => ({ default: m.WeeklyTestView })));
+const UniversalChat = lazy(() => import('./components/UniversalChat').then(m => ({ default: m.UniversalChat })));
 const MarksheetCard = lazy(() => import('./components/MarksheetCard').then(m => ({ default: m.MarksheetCard })));
 import { CreditConfirmationModal } from './components/CreditConfirmationModal';
 import { CustomAlert, CustomConfirm } from './components/CustomDialogs';
@@ -44,12 +45,14 @@ import { logErrorToFirebase, setErrorLoggerUser } from './utils/errorLogger';
 import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
 import { generateDailyChallengeQuestions } from './utils/challengeGenerator';
-import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react';
+import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
 
 const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const [appMcqCommunityDraft, setAppMcqCommunityDraft] = useState<{question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string} | null>(null);
 
   const [isAppLoading, setIsAppLoading] = useState(() => sessionStorage.getItem('nst_has_loaded') !== 'true');
 
@@ -2967,6 +2970,7 @@ const App: React.FC = () => {
                         const _handleNextPdf = (_isPdfContent && _nextChapter) ? () => onChapterClick(_nextChapter, _pdfContentType) : undefined;
                         const _handleNextVideo = (_isVideoContent && _nextChapter) ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
                         const _handleNext = _handleNextVideo || _handleNextPdf;
+                        const _isFirstChapter = state.selectedClass !== 'COMPETITION' && _curIdx === 0;
                         return (
                           <LessonView
                               content={state.lessonContent}
@@ -2984,8 +2988,10 @@ const App: React.FC = () => {
                               onImmersiveChange={setIsLessonImmersive}
                               onNext={_handleNext}
                               nextTitle={_nextChapter?.title}
+                              isFirstChapter={_isFirstChapter}
                               onAdminBoard={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => setState(prev => ({...prev, view: 'ADMIN'})) : undefined}
-                              onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
+                              onSendToMcqCommunity={(draft) => setAppMcqCommunityDraft(draft)}
+               onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
                                 try {
                                   const ch = state.selectedChapter;
                                   const sub = state.selectedSubject;
@@ -3005,7 +3011,24 @@ const App: React.FC = () => {
             </>
             </ErrorBoundary>
         )}
-      </main>
+      
+      {/* MCQ Community popup — triggered from LessonView */}
+      {appMcqCommunityDraft && state.user && (
+        <div className="fixed inset-0 z-[400]" onClick={() => setAppMcqCommunityDraft(null)}>
+          <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
+            <Suspense fallback={null}>
+              <UniversalChat
+                user={state.user}
+                onClose={() => setAppMcqCommunityDraft(null)}
+                isAdmin={false}
+                defaultTab="MCQ"
+                initialMcqDraft={appMcqCommunityDraft}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
+</main>
       
       {/* PERSISTENT FOOTER - Hide in Student Dashboard as it has its own Bottom Nav */}
       {!isFullScreen && state.view !== 'STUDENT_DASHBOARD' && state.settings.showFooter !== false && !isLessonImmersive && (

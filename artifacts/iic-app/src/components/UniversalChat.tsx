@@ -780,8 +780,8 @@ export const UniversalChat: React.FC<Props> = ({ user, onClose, isAdmin, targetU
                             <div ref={dummyRef} />
                         </div>
 
-                        {/* MCQ quick action bar — only in MCQ tab */}
-                        {activeTab === 'MCQ' && (
+                        {/* MCQ quick action bar — only in MCQ tab, hide for admin (they have their own footer) */}
+                        {activeTab === 'MCQ' && !isAdminOrSub && (
                         <div className="px-3 pt-2 pb-1 border-t border-slate-100 shrink-0" style={{ background: appTheme.profileCardBg || '#ffffff' }}>
                             {!isAdminOrSub && (
                                 <div className={`mb-1.5 flex items-center justify-between text-[10px] font-bold px-0.5 ${mcqDailyCount >= 10 ? 'text-red-500' : ''}`} style={mcqDailyCount < 10 ? { color: subColor } : {}}>
@@ -963,7 +963,7 @@ export const UniversalChat: React.FC<Props> = ({ user, onClose, isAdmin, targetU
                         )}
                         {/* MCQ tab footer — Admin: send MCQ + bulk delete */}
                         {activeTab === 'MCQ' && isAdminOrSub && (
-                        <div className="p-3 pb-6 bg-white border-t border-slate-100 shrink-0 sticky bottom-16 sm:bottom-0 space-y-2">
+                        <div className="p-3 bg-white border-t border-slate-100 shrink-0 sticky bottom-0 space-y-2">
                             <button
                                 onClick={() => setShowMcqBuilder(true)}
                                 className="w-full flex items-center justify-center gap-2 border px-4 py-2.5 rounded-xl text-xs font-black active:scale-95 transition-all"

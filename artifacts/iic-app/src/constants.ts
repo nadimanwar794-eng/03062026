@@ -528,6 +528,7 @@ export const DEFAULT_PLAN_COMPARISON = [
             { id: 'QUICK_REVISION', name: "Quick Revision", free: "✅ Basic", basic: "✅ Full", ultra: "✅ Full" },
             { id: 'DEEP_DIVE', name: "Deep Dive Notes", free: "❌ Locked", basic: "✅ Yes", ultra: "✅ Yes" },
             { id: 'PREMIUM_NOTES', name: "Premium Notes", free: "❌ Locked", basic: "✅ Yes", ultra: "✅ Yes" },
+            { id: 'CLASS_NOTES_TIER', name: "Class 6-12 Notes Content", free: "📖 Book Text only", basic: "📝 Book Text + Smart Notes", ultra: "💡 Smart Notes + Explanation" },
             { id: 'ADDITIONAL_NOTES', name: "Additional Resources", free: "❌ Locked", basic: "✅ Yes", ultra: "✅ Yes" },
             { id: 'SEARCH', name: "Search Capability", free: "✅ Basic", basic: "✅ Advanced", ultra: "✅ Advanced" },
             { id: 'OFFLINE_SYNC', name: "Save / Offline Mode", free: "❌ No", basic: "✅ Yes", ultra: "✅ Yes" },

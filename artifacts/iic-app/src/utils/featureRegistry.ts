@@ -288,7 +288,7 @@ export const ALL_FEATURES: Feature[] = [
     {
         id: 'REVISION_MCQ_MANAGER',
         label: 'Class MCQ Manager',
-        group: 'REVISION',
+        group: 'CONTENT',
         adminVisible: true,
         adminTab: 'REVISION_MCQ_MANAGER',
         icon: 'BookOpenCheck',
@@ -599,6 +599,18 @@ export const ALL_FEATURES: Feature[] = [
         color: 'amber'
     },
     {
+        id: 'COACHING_HOMEWORK',
+        label: 'Coaching Homework',
+        group: 'CONTENT',
+        surfaceLevel: 3,
+        adminVisible: true,
+        adminTab: 'COACHING_HOMEWORK',
+        requiredPermission: 'MANAGE_CONTENT',
+        icon: 'School',
+        color: 'indigo',
+        description: 'Coaching-wise date-based homework cards manage karein — students ke home screen pe dikhenge.'
+    },
+    {
         id: 'ADMIN_UNIVERSAL_PLAYLIST',
         label: 'Universal Playlist',
         group: 'CONTENT',
@@ -695,7 +707,7 @@ export const ALL_FEATURES: Feature[] = [
     {
         id: 'ADMIN_EFFECTS',
         label: 'Animations',
-        group: 'NSTA_CONTROL',
+        group: 'GAME',
         surfaceLevel: 3,
         adminVisible: true,
         adminTab: 'CONFIG_EFFECTS',
@@ -817,7 +829,7 @@ export const ALL_FEATURES: Feature[] = [
     {
         id: 'ADMIN_NSTA_CONTROL',
         label: 'NSTA Control',
-        group: 'NSTA_CONTROL',
+        group: 'GAME',
         surfaceLevel: 3,
         adminVisible: true,
         adminTab: 'NSTA_CONTROL',

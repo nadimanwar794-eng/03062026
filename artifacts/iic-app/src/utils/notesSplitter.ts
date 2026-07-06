@@ -176,10 +176,13 @@ export const splitIntoTopics = (raw: string): NotesTopic[] => {
     let out: string[] = [raw];
     // 1. Hindi danda — always a sentence boundary.
     out = out.flatMap(s => s.split(HINDI_DANDA_BOUNDARY));
-    // 2. English sentence-end split (. ! ?) — DISABLED for "." to avoid
-    //    breaking abbreviations like "ई.पू." or dates like "1857." etc.
-    //    Only ! and ? are used for English splits now.
+    // 2. English sentence-end split (! ?) — "." still handled separately below.
     out = out.flatMap(s => s.split(/(?<=[!?])\s+(?=[A-Z\u0900-\u097F0-9(\-•*"'\u2013\u2014\u2018\u201C\uD83C-\uDBFF\u2600-\u27BF])/g));
+    // 2b. Period split for Devanagari/Q&A content: split on ". " when:
+    //   - preceded by ≥3 non-space/non-period chars (avoids "ई.पू.", "2.8", "1857." etc.)
+    //   - followed by Devanagari, a single/double quote, or emoji (new sentence marker)
+    //   This covers coaching Q&A: "लोहा. 'बिहार...", "है. स्थायी..." etc.
+    out = out.flatMap(s => s.split(/(?<=[^\s.]{3})\.\s+(?=['"\u2018\u201C\u0900-\u097F\uD83C-\uDBFF\u2600-\u27BF])/g));
     // 3. Section-marker split (for any fragment still > ~80 chars).
     out = out.flatMap(s => (s.length > 80 ? s.split(SECTION_MARKERS) : [s]));
     return out.map(s => s.trim()).filter(Boolean);

@@ -156,6 +156,7 @@ import {
   Square,
   GraduationCap,
   Newspaper,
+  Plus,
   PlusCircle,
   Search,
   Users,
@@ -176,6 +177,7 @@ import {
   Flame,
   Lightbulb,
   Pencil,
+  Presentation,
 } from "lucide-react";
 import { speakText, stopSpeech, stripHtml } from "../utils/textToSpeech";
 import { getMistakeBankSync, getMistakeBank, addMistakes, removeMistakeByQuestion, MistakeEntry } from "../utils/mistakeBank";
@@ -187,6 +189,7 @@ import { SubjectSelection } from "./SubjectSelection";
 import { BannerCarousel } from "./BannerCarousel";
 import { MiniPlayer } from "./MiniPlayer"; // Imported for Audio Flow
 import { MistakePracticeView } from "./MistakePracticeView"; // My Mistake home page practice
+import { CoachingHomeworkSection } from "./CoachingHomeworkView"; // Coaching Homework Cards
 import { HistoryPage } from "./HistoryPage";
 import TeacherStore from "./TeacherStore";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -1830,8 +1833,9 @@ export const StudentDashboard: React.FC<Props> = ({
   const [editMode, setEditMode] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [recoveryData, setRecoveryData] = useState({
-    mobile: user.mobile || "",
-    password: user.password || "",
+    mobile: (user as any).mobile || "",
+    password: (user as any).password || "",
+    email: user.email || "",
   });
   const [profileData, setProfileData] = useState({
     classLevel: activeSessionClass || user.classLevel || "10",
@@ -2362,6 +2366,7 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [isLandscapeUiHidden, setIsLandscapeUiHidden] = useState(false);
   const [isInternalImmersive, setIsInternalImmersive] = useState(false);
+  const [coachingNotesReaderOpen, setCoachingNotesReaderOpen] = useState(false);
   useEffect(() => {
     setIsInternalImmersive(contentViewStep === 'PLAYER');
   }, [contentViewStep]);
@@ -2684,7 +2689,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // student returns to exactly where they were when they tap that tab again.
   // Eg: creating an MCQ on Home → tap Profile → tap Home → MCQ creator restores.
   // Reading a homework note → tap GK → tap Homework → same note reopens.
-  type LogicalTab = 'HOME' | 'HOMEWORK' | 'REVISION_V2' | 'GK' | 'VIDEO' | 'PROFILE' | 'APP_STORE' | 'HISTORY';
+  type LogicalTab = 'HOME' | 'HOMEWORK' | 'REVISION_V2' | 'GK' | 'VIDEO' | 'PROFILE' | 'APP_STORE' | 'HISTORY' | 'PROGRESS';
   const [currentLogicalTab, setCurrentLogicalTab] = useState<LogicalTab>('HOME');
 
   // ── MY MISTAKE COUNT (lightweight: synced via storage event + 30s poll) ──
@@ -5403,7 +5408,8 @@ export const StudentDashboard: React.FC<Props> = ({
     }
   };
 
-  const LUCENT_CATEGORIES = [
+  const _customLucentSubjects: { id: string; name: string }[] = ((settings as any)?.customLucentSubjects || []).filter((s: any) => s && s.id && s.name);
+  const LUCENT_CATEGORIES: Subject[] = [
     { id: 'biology', name: 'जीव विज्ञान (Biology)', icon: 'bio', color: 'bg-white text-slate-700' },
     { id: 'chemistry', name: 'रसायन शास्त्र (Chemistry)', icon: 'flask', color: 'bg-white text-slate-700' },
     { id: 'physics', name: 'भौतिकी (Physics)', icon: 'physics', color: 'bg-white text-slate-700' },
@@ -5411,7 +5417,8 @@ export const StudentDashboard: React.FC<Props> = ({
     { id: 'geography', name: 'भूगोल (Geography)', icon: 'geo', color: 'bg-white text-slate-700' },
     { id: 'polity', name: 'राजनीति विज्ञान (Polity)', icon: 'gov', color: 'bg-white text-slate-700' },
     { id: 'history', name: 'इतिहास (History)', icon: 'history', color: 'bg-white text-slate-700' },
-  ] as Subject[];
+    ..._customLucentSubjects.map(s => ({ id: s.id, name: s.name, icon: 'book', color: 'bg-white text-slate-700' })),
+  ];
 
   const renderContentSection = (
     type: "VIDEO" | "PDF" | "MCQ" | "AUDIO" | "GENERIC",
@@ -5947,7 +5954,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                           title="Admin WhiteBoard"
                         >
-                          <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                          <Presentation size={16} />
                         </button>
                       )}
                       {/* Admin Edit (Pencil) — inline HTML editor */}
@@ -6064,7 +6071,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                       title="Admin WhiteBoard"
                     >
-                      <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                      <Presentation size={16} />
                     </button>
                   )}
                   {/* More button — non-write modes */}
@@ -6915,7 +6922,14 @@ export const StudentDashboard: React.FC<Props> = ({
                               <p className="text-sm font-bold text-slate-800 leading-snug flex-1">
                                 <span className="text-indigo-600 font-black">Q{ci + 1}.</span> {mcq.question}
                               </p>
-                              <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (mcq.options||[]).length===4 ? mcq.options as [string,string,string,string] : ([...(mcq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:mcq.question,options:opts,correctAnswer:mcq.correctAnswer,explanation:(mcq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
+                                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                                  title="MCQ Community mein bhejo"
+                                ><Plus size={13} strokeWidth={2.5} /></button>
+                              </div>
                             </div>
                             <div className="space-y-2">
                               {mcq.options.map((opt, oi) => {
@@ -7444,8 +7458,15 @@ export const StudentDashboard: React.FC<Props> = ({
       // Pre-compute lesson counts per subject so we can show badges and block empty navigation
       const _allCompNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
         .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')));
-      const _lucentSubjectCount = (catId: string) =>
-        _allCompNotes.filter(n => n.subject?.toLowerCase().trim() === catId.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent').length;
+      const _customSubjectIds = new Set(_customLucentSubjects.map(s => s.id.toLowerCase()));
+      const _lucentSubjectCount = (catId: string) => {
+        const id = catId.toLowerCase().trim();
+        const isCustom = _customSubjectIds.has(id);
+        return _allCompNotes.filter(n =>
+          n.subject?.toLowerCase().trim() === id &&
+          (isCustom || (n.bookName?.trim() || 'Lucent') === 'Lucent')
+        ).length;
+      };
 
       return (
         <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
@@ -7474,8 +7495,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 };
                 // Admin lessons for this subject under 'Lucent' book — board-filtered
                 const allLucentNotes = (settings?.lucentNotes || []) as LucentNoteEntry[];
+                const _isCustomCat = _customSubjectIds.has(cat.id?.toLowerCase() || '');
                 const subjectEntries = allLucentNotes
-                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (n.bookName?.trim() || 'Lucent') === 'Lucent' && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
+                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (_isCustomCat || (n.bookName?.trim() || 'Lucent') === 'Lucent') && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
                   .sort((a, b) => _minPg(a) - _minPg(b));
 
                 // No lessons yet — don't navigate to a blank page
@@ -7768,7 +7790,7 @@ export const StudentDashboard: React.FC<Props> = ({
     if (activeTab === "HOME") {
       return (
         <PullToRefresh onRefresh={() => window.location.reload()}>
-        <div className="flex flex-col gap-4 pb-4">
+        <div className="flex flex-col gap-2 pb-4">
           {/* RESUME READING — page-wise (chapters + ALL homework notes), sorted by latest activity */}
           <div className="order-1">
           {isHomeSectionVisible('home_continue_reading', settings) && (() => {
@@ -8157,31 +8179,6 @@ export const StudentDashboard: React.FC<Props> = ({
             onToggleVisibility={toggleLayoutVisibility}
           >
 
-            {/* ── CONTENT TYPE FILTER (compact) ── */}
-            <div className="flex justify-center mb-3">
-              <div className="flex items-center gap-1 p-1 rounded-full bg-slate-100">
-                {([
-                  { label: 'All',   val: 'ALL'   },
-                  { label: 'Notes', val: 'PDF'   },
-                  { label: 'MCQ',   val: 'MCQ'   },
-                  { label: 'Video', val: 'VIDEO' },
-                ] as {label:string;val:string}[]).map(f => {
-                  const isActive2 = contentTypePref === f.val || (f.val === 'MCQ' && contentTypePref === 'MCQ');
-                  return (
-                    <button
-                      key={f.val}
-                      onClick={() => { hapticStrong(); setContentTypePref(f.val as any); }}
-                      className="px-3 py-1 rounded-full text-[11px] font-black transition-all"
-                      style={isActive2
-                        ? { background: tierTheme.primary, color: '#fff' }
-                        : { background: 'transparent', color: '#64748b' }}
-                    >
-                      {f.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* ── CLASS 6-12 GRID + QUICK ACTIONS (themed to top-bar color) ── */}
             {(() => {
@@ -8232,6 +8229,8 @@ export const StudentDashboard: React.FC<Props> = ({
               const _masterAll3D = settings?.homeAllCards3D ?? false;
               const _cmp3D   = _masterAll3D || (settings?.homeCompetitionCard3D ?? false);
               const _card3D  = _masterAll3D || (settings?.homeClass612Card3D ?? false);
+              const _scBdr   = settings?.homeSchoolCardBorder  || tierTheme.primary;
+              const _sc3D    = _masterAll3D || (settings?.homeSchoolCard3D ?? false);
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjectCount = getSubjectsList(c, _stream, _board).length;
@@ -8323,16 +8322,26 @@ export const StudentDashboard: React.FC<Props> = ({
                         school={userSchool}
                         onOpen={() => { hapticStrong(); onOpenSchool?.(); }}
                         onChangeSchool={() => { hapticMedium(); onOpenSchool?.(); }}
-                        card3D={settings?.tierOverrides?.card3D ?? false}
+                        themeAccent={_scBdr}
+                        card3D={_sc3D}
                       />
                     </div>
                   )}
 
+                  {/* ── COACHING HOMEWORK CARDS ── */}
+                  <CoachingHomeworkSection tierTheme={tierTheme} isDarkMode={isDarkMode}
+                    card3D={_masterAll3D || (settings?.homeCoachingHomeworkCard3D ?? false)}
+                    settings={settings}
+                    user={user}
+                    onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }}
+                    onNotesReaderOpen={() => setCoachingNotesReaderOpen(true)}
+                    onNotesReaderClose={() => setCoachingNotesReaderOpen(false)} />
+
                   {/* ── REVISION HUB CARD ── */}
                   {(() => {
-                    const _rhBdr = settings?.homeRevisionHubCardBorder || _cmpBdr || tierTheme.primary || '#6366f1';
-                    const _rhBg  = settings?.homeRevisionHubCardBg    || tierTheme.profileCardBg || '#ffffff';
-                    const _rh3D  = _masterAll3D || (settings?.homeRevisionHubCard3D ?? true);
+                    const _rhBdr = settings?.homeRevisionHubCardBorder || tierTheme.primary || _cmpBdr || '#6366f1';
+                    const _rhBg  = settings?.homeRevisionHubCardBg    || tierTheme.profileCardBg || tierTheme.cardBg || '#ffffff';
+                    const _rh3D  = _masterAll3D || (settings?.homeRevisionHubCard3D ?? false);
                     return (
                   <button
                     onClick={() => { hapticMedium(); setShowRevisionHubScreen(true); }}
@@ -8413,6 +8422,7 @@ export const StudentDashboard: React.FC<Props> = ({
         {showMistakePractice && (
           <MistakePracticeView
             mistakes={homeMistakes}
+            user={user}
             onClose={() => setShowMistakePractice(false)}
             onComplete={() => {
               setMistakeCount(getMistakeBankSync().length);
@@ -9550,6 +9560,20 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className="px-4 pt-3 pb-2 flex items-center gap-2" style={{ borderBottom: _pSep }}>
                 <span className="text-sm">🔐</span>
                 <p className={`text-[11px] font-black uppercase tracking-wider flex-1 ${_pTxt}`}>Account Recovery Options</p>
+                <button
+                  onClick={() => {
+                    setRecoveryData({
+                      mobile: (user as any).mobile || '',
+                      password: (user as any).password || '',
+                      email: user.email || '',
+                    });
+                    setShowRecoveryModal(true);
+                  }}
+                  className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black active:opacity-60"
+                  style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                >
+                  ✏️ Edit
+                </button>
               </div>
               {/* Mobile */}
               <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
@@ -9578,20 +9602,6 @@ export const StudentDashboard: React.FC<Props> = ({
                   background: user.email ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
                   color: user.email ? '#16a34a' : '#94a3b8',
                 }}>{user.email ? '✓ Active' : 'Inactive'}</span>
-              </div>
-              {/* Name + Class */}
-              <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: _pSep }}>
-                <span className="text-base">👤</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[10px] font-bold uppercase tracking-wide ${_pTxtSub}`}>Naam + Class</p>
-                  <p className={`text-xs font-bold truncate ${_pTxt}`}>
-                    {user.name} {(user as any).classLevel ? `· Class ${(user as any).classLevel}` : ''}
-                  </p>
-                </div>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full" style={{
-                  background: 'rgba(34,197,94,0.12)',
-                  color: '#16a34a',
-                }}>✓ Active</span>
               </div>
               {/* UID */}
               <div className="flex items-center gap-3 px-4 py-3">
@@ -12004,7 +12014,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const _nb_b = parseInt(_nb_hex.substring(4,6),16);
         return (
           <div
-            className="text-white p-3 mb-4 rounded-xl shadow-md animate-in slide-in-from-top-4 relative mx-2 mt-2 overflow-hidden"
+            className="text-white p-3 mb-1 rounded-xl shadow-md animate-in slide-in-from-top-4 relative mx-2 mt-1 overflow-hidden"
             style={{
               background: `linear-gradient(135deg, rgba(${_nb_r},${_nb_g},${_nb_b},0.85) 0%, rgba(${_nb_r},${_nb_g},${_nb_b},0.65) 100%)`,
               border: `1px solid rgba(${_nb_r},${_nb_g},${_nb_b},0.5)`,
@@ -12509,11 +12519,11 @@ export const StudentDashboard: React.FC<Props> = ({
       )}
 
       {showRecoveryModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl p-6 w-full shadow-xl border-t-4 border-orange-500">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)' }}>
+          <div className="bg-white rounded-2xl p-6 w-full shadow-xl border-t-4 border-orange-500" style={{ maxWidth: 420 }}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <Lock className="text-orange-500" /> Setup Recovery
+                <Lock className="text-orange-500" /> Edit Recovery Info
               </h3>
               <button
                 onClick={() => setShowRecoveryModal(false)}
@@ -12522,10 +12532,6 @@ export const StudentDashboard: React.FC<Props> = ({
                 <X size={20} />
               </button>
             </div>
-            <p className="text-xs font-bold text-slate-600 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100">
-              Set a Mobile Number and Password. If Google Auth fails, you can
-              use these to login via the Recovery option.
-            </p>
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
@@ -12542,6 +12548,23 @@ export const StudentDashboard: React.FC<Props> = ({
                   }
                   className="w-full p-3 rounded-xl border border-slate-200 font-bold"
                   placeholder="10-digit mobile number"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={recoveryData.email}
+                  onChange={(e) =>
+                    setRecoveryData({
+                      ...recoveryData,
+                      email: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 font-bold"
+                  placeholder="your@email.com"
                 />
               </div>
               <div>
@@ -12590,6 +12613,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     ...user,
                     mobile: recoveryData.mobile,
                     password: recoveryData.password,
+                    email: recoveryData.email || user.email,
                   });
                   setShowRecoveryModal(false);
                   showAlert("Recovery details saved successfully!", "SUCCESS");
@@ -13469,7 +13493,22 @@ export const StudentDashboard: React.FC<Props> = ({
 
                         {/* Question Card */}
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                          <p className="text-base font-bold text-slate-800 leading-relaxed mb-5 whitespace-pre-wrap">{current.question}</p>
+                          <div className="flex items-start gap-2 mb-5">
+                            <p className="text-base font-bold text-slate-800 leading-relaxed whitespace-pre-wrap flex-1">{current.question}</p>
+                            <button
+                              onClick={() => {
+                                const opts = current.options.length === 4
+                                  ? current.options as [string,string,string,string]
+                                  : ([...current.options, '', '', '', ''].slice(0, 4) as [string,string,string,string]);
+                                setMcqCommunityDraft({ question: current.question, options: opts, correctAnswer: current.correctAnswer, explanation: '' });
+                                setShowMcqCommunityPopup(true);
+                              }}
+                              className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-all bg-violet-100 text-violet-600"
+                              title="MCQ Community mein bhejo"
+                            >
+                              <Plus size={14} strokeWidth={2.5} />
+                            </button>
+                          </div>
                           <div className="space-y-2.5">
                             {current.options.map((opt, oi) => {
                               const isSelected = compMcqSelected === oi;
@@ -13507,7 +13546,6 @@ export const StudentDashboard: React.FC<Props> = ({
 
                           {/* Feedback */}
                           {compMcqSelected !== null && (
-                            <>
                             <div className={`mt-4 p-3 rounded-xl text-sm font-bold ${
                               compMcqSelected === current.correctAnswer
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
@@ -13517,20 +13555,6 @@ export const StudentDashboard: React.FC<Props> = ({
                                 ? '✅ Correct answer!'
                                 : `❌ Wrong. Correct answer: Option ${String.fromCharCode(65 + current.correctAnswer)}`}
                             </div>
-                            {/* Share this MCQ to community chat */}
-                            <button
-                              onClick={() => {
-                                const opts = current.options.length === 4
-                                  ? current.options as [string,string,string,string]
-                                  : ([...current.options, '', '', '', ''].slice(0, 4) as [string,string,string,string]);
-                                setMcqCommunityDraft({ question: current.question, options: opts, correctAnswer: current.correctAnswer, explanation: '' });
-                                setShowMcqCommunityPopup(true);
-                              }}
-                              className="mt-2 w-full py-2.5 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-violet-100"
-                            >
-                              <Send size={14} /> Share to Community Chat
-                            </button>
-                            </>
                           )}
                         </div>
 
@@ -14653,7 +14677,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* UNIVERSAL CHAT (Global + Support) */}
       {showChat && (
         <div
-          className="fixed inset-0 z-[200]"
+          className="fixed inset-0 z-[400]"
           onClick={() => setShowChat(false)}
         >
           <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
@@ -15006,7 +15030,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* MCQ COMMUNITY POPUP — opens from "+" button on any MCQ card */}
       {showMcqCommunityPopup && mcqCommunityDraft && (
         <div
-          className="fixed inset-0 z-[210]"
+          className="fixed inset-0 z-[400]"
           onClick={() => { setShowMcqCommunityPopup(false); setMcqCommunityDraft(null); }}
         >
           <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
@@ -15088,7 +15112,7 @@ export const StudentDashboard: React.FC<Props> = ({
             : activeTab === "REVISION" || activeTab === "AI_HUB"
               ? ""
               : activeTab === "HOME"
-                ? "px-4 pt-3 pb-20"
+                ? "px-4 pt-1 pb-20"
                 : activeTab === "PROFILE"
                   ? "p-0"
                   : "p-4 pb-20"
@@ -15348,7 +15372,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
         data-iic-bottom-nav=""
-        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer ? "hidden" : ""}`}
+        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
         style={{
           background: tierTheme.navBg,
           borderTop: `1px solid ${(tierTheme as any).navBorderColor || tierTheme.primary + '22'}`,
@@ -15461,6 +15485,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 case 'PROFILE':  return { ...empty, activeTab: 'PROFILE' };
                 case 'APP_STORE':return { ...empty, activeTab: 'APP_STORE' };
                 case 'HISTORY':  return { ...empty, activeTab: 'HISTORY' };
+                case 'PROGRESS': return { ...empty, activeTab: 'HOME' };
                 default:         return empty;
               }
             };
@@ -15483,6 +15508,7 @@ export const StudentDashboard: React.FC<Props> = ({
               PROFILE:   ['PROFILE'],
               APP_STORE: ['APP_STORE'],
               HISTORY:   ['HISTORY'],
+              PROGRESS:  ['HOME'],
             };
 
             const NAV_TAB_INFO: Record<string, {emoji: string; desc: string}> = {
@@ -15493,6 +15519,7 @@ export const StudentDashboard: React.FC<Props> = ({
               APP_STORE:          { emoji: '📱', desc: 'Admin recommended apps' },
               PROFILE:            { emoji: '👤', desc: 'Profile, credits and settings' },
               REVISION_V2:        { emoji: '🔁', desc: 'Spaced revision and weak topics' },
+              PROGRESS:           { emoji: '📊', desc: 'Daily stats, XP, streak aur Revision Hub progress' },
               COMPRE:             { emoji: '📖', desc: 'Full book comparison tool' },
               GK:                 { emoji: '🌍', desc: 'Daily GK and current affairs' },
               VIDEO:              { emoji: '🎬', desc: 'Educational videos' },
@@ -15516,6 +15543,8 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowCompareView(false);
               // Close Revision Hub Screen if open — otherwise it covers all other tabs.
               setShowRevisionHubScreen(false);
+              // Close Progress Dashboard overlay if open — prevents it bleeding into other tabs.
+              setShowProgressDashboard(false);
               // Close the Important Notes overlay if it's open — otherwise the
               // overlay (z-[200]) keeps covering the dashboard even after the
               // user taps Home / Homework / Profile / Revision in bottom nav.
@@ -15635,13 +15664,31 @@ export const StudentDashboard: React.FC<Props> = ({
                   ]
                 : []),
 
+              // Progress Dashboard — student learning report card
+              {
+                id: "PROGRESS" as const,
+                label: "Progress",
+                Icon: BarChart2,
+                filledOnActive: true,
+                isActive: !showStarredPage && !showChat && currentLogicalTab === "PROGRESS" && showProgressDashboard,
+                onClick: () => {
+                  setShowStarredPage(false);
+                  setShowChat(false);
+                  setShowRevisionHubScreen(false);
+                  setShowCompareView(false);
+                  setShowProgressDashboard(true);
+                  currentLogicalTabRef.current = 'PROGRESS';
+                  setCurrentLogicalTab('PROGRESS');
+                },
+              },
+
               // Profile — always visible, pinned to the right of bottom nav
               {
                 id: "PROFILE" as const,
                 label: "Profile",
                 Icon: UserIcon,
                 filledOnActive: false,
-                isActive: !showStarredPage && !showRevisionHubScreen && currentLogicalTab === "PROFILE",
+                isActive: !showStarredPage && !showRevisionHubScreen && !showProgressDashboard && currentLogicalTab === "PROFILE",
                 onClick: () => switchToLogicalTab("PROFILE"),
               },
             ];
@@ -17318,7 +17365,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                         title="Admin WhiteBoard"
                       >
-                        <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                        <Presentation size={16} />
                       </button>
                     )}
                     {/* Admin Edit (Pencil) button — inline editor */}
@@ -17422,7 +17469,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
                       title="Admin WhiteBoard"
                     >
-                      <img src="/splash-logo.png" alt="WB" className="w-5 h-5 object-contain" />
+                      <Presentation size={16} />
                     </button>
                   )}
                   {/* Page counter + controls for non-NOTES tabs */}
@@ -17987,7 +18034,14 @@ RULES:
                                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">Q {qi + 1}</span>
                                 {q.topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{q.topic}</span>}
                               </div>
-                              <p className="text-sm font-black text-slate-800 leading-snug mb-2">{q.question}</p>
+                              <div className="flex items-start gap-2 mb-2">
+                                <p className="text-sm font-black text-slate-800 leading-snug flex-1">{q.question}</p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (q.options||[]).length===4 ? q.options as [string,string,string,string] : ([...(q.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:q.question,options:opts,correctAnswer:q.correctAnswer,explanation:(q as any).explanation||''}); setShowMcqCommunityPopup(true); }}
+                                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                                  title="MCQ Community mein bhejo"
+                                ><Plus size={13} strokeWidth={2.5} /></button>
+                              </div>
                               {q.statements && q.statements.length > 0 && (
                                 <div className="mb-3 pl-3 border-l-2 border-purple-200 space-y-1">
                                   {q.statements.map((stmt, si) => (
@@ -18216,12 +18270,19 @@ RULES:
                             </div>
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <p className="text-sm font-black text-slate-800 leading-snug flex-1">{cq.question}</p>
-                              <McqSpeakButtons
-                                question={cq.question}
-                                options={cq.options || []}
-                                correctAnswer={cq.correctAnswer}
-                                className="shrink-0"
-                              />
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <McqSpeakButtons
+                                  question={cq.question}
+                                  options={cq.options || []}
+                                  correctAnswer={cq.correctAnswer}
+                                  className="shrink-0"
+                                />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (cq.options||[]).length===4 ? cq.options as [string,string,string,string] : ([...(cq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:cq.question,options:opts,correctAnswer:cq.correctAnswer,explanation:(cq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
+                                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                                  title="MCQ Community mein bhejo"
+                                ><Plus size={13} strokeWidth={2.5} /></button>
+                              </div>
                             </div>
                             {cq.statements && cq.statements.length > 0 && (
                               <div className="mb-3 pl-3 border-l-2 border-indigo-200 space-y-1">
@@ -18476,6 +18537,8 @@ RULES:
             setShowRevisionHubScreen(false);
           }}
           onUpdateUser={handleUserUpdate}
+          onMcqAnswer={trackDailyMcqAnswer}
+          onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }}
         />
       )}
 
@@ -22430,7 +22493,11 @@ RULES:
 
       {/* ═══════════ MY PROGRESS DASHBOARD ═══════════ */}
       {showProgressDashboard && (
-        <StudentProgressDashboard user={user} onBack={() => setShowProgressDashboard(false)} />
+        <StudentProgressDashboard user={user} onBack={() => {
+          setShowProgressDashboard(false);
+          currentLogicalTabRef.current = 'HOME';
+          setCurrentLogicalTab('HOME');
+        }} />
       )}
 
       {/* ═══════════ LOGIN HISTORY OVERLAY ═══════════ */}
