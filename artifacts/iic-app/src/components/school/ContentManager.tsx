@@ -20,6 +20,12 @@ function normalizeMcqPaste(raw: string): string {
     const combined = (String(q).trim() + " " + String(rest).trim()).trim();
     return `\n**Question ${n}**\n❓ Question: ${combined}`;
   });
+  // Bare (non-bold) "प्रश्न 18:" / "Question 18:" markers — common when the AI
+  // only bolds the label, not the number, or skips bold entirely. Without this,
+  // numbered statement lines ("1. ...", "2. ...") that follow get mistaken for
+  // new question boundaries by the fallback heuristic below, chopping the
+  // statement-based question apart and dropping its statements.
+  txt = txt.replace(/(?:^|\n)[ \t]*(?:\*\*\s*)?(?:प्रश्न|Question)\s*(\d+)\s*[:.\-]\s*/gi, (_m, n) => `\n**Question ${n}**\n❓ Question: `);
   txt = txt.replace(/\*\*(?:प्रश्न|Question)\s*[:：]?\*\*/gi, "__PRASHNA__");
   txt = txt.replace(/\*\*/g, "");
   let qNum = 0;

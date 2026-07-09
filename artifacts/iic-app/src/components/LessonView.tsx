@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { LessonContent, Subject, ClassLevel, Chapter, MCQItem, ContentType, User, SystemSettings } from '../types';
-import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe, Lightbulb, FileText, BrainCircuit, Grip, CheckSquare, List, Download, BarChart3, RotateCcw, Monitor, CloudOff, MoreVertical, EyeOff, Eye, LayoutGrid, Pencil, Send, Plus } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe, Lightbulb, FileText, BrainCircuit, Grip, CheckSquare, List, Download, BarChart3, RotateCcw, Monitor, CloudOff, MoreVertical, EyeOff, Eye, LayoutGrid, Pencil, Send, Plus, Tv } from 'lucide-react';
 import { CustomConfirm, CustomAlert } from './CustomDialogs';
 import { CustomPlayer } from './CustomPlayer';
 import remarkMath from 'remark-math';
@@ -375,6 +375,13 @@ export const LessonView: React.FC<Props> = ({
   const [mcqSuggestionText, setMcqSuggestionText] = useState<Record<number, string>>({});
   const [mcqSuggestionSent, setMcqSuggestionSent] = useState<Set<number>>(new Set());
 
+  // ── Projector Mode ──
+  const [isProjectorMode, setIsProjectorMode] = useState(false);
+  const [projectorQIndex, setProjectorQIndex] = useState(0);
+  const [projectorReveal, setProjectorReveal] = useState(false);
+  const [projectorSelected, setProjectorSelected] = useState<number | null>(null);
+  const [projectorFocused, setProjectorFocused] = useState(false);
+
   const toggleFullScreen = () => {
       if (!document.fullscreenElement) {
           containerRef.current?.requestFullscreen().then(() => {
@@ -515,6 +522,14 @@ export const LessonView: React.FC<Props> = ({
           >
             {isImmersive ? '↩ Exit Focus' : '🎯 Focus Mode'}
           </button>
+          {displayData && displayData.length > 0 && (
+            <button
+              onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setIsProjectorMode(true); setFabOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '24px', padding: '8px 14px', fontSize: '12px', fontWeight: 900, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              📽️ Projector Mode
+            </button>
+          )}
           {isHtml && (
             <button
               onClick={() => { _modeToggleFn.current?.(notesViewMode === 'readable' ? 'styled' : 'readable'); setFabOpen(false); }}
@@ -1964,6 +1979,100 @@ export const LessonView: React.FC<Props> = ({
                        {rotateToast}
                    </div>
                )}
+               {/* ── Projector Mode Overlay ── */}
+               {isProjectorMode && (() => {
+                   const pq = displayData[projectorQIndex] || null;
+                   if (!pq) return null;
+                   const total = displayData.length;
+                   const optionLetters = ['A','B','C','D','E'];
+                   return createPortal(
+                       <div style={{ position:'fixed', inset:0, zIndex:99999, background:'#ffffff', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+                           {/* Top bar */}
+                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'3px solid #e2e8f0', background:'#1e293b', flexShrink:0 }}>
+                               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                                   <Tv size={28} color="#fbbf24" />
+                                   <span style={{ color:'#fbbf24', fontWeight:900, fontSize:20, letterSpacing:2 }}>PROJECTOR MODE</span>
+                               </div>
+                               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                                   <span style={{ color:'#94a3b8', fontWeight:700, fontSize:18 }}>{projectorQIndex + 1} / {total}</span>
+                                   <button
+                                       onClick={() => setIsProjectorMode(false)}
+                                       style={{ background:'#ef4444', color:'#fff', border:'none', borderRadius:12, padding:'8px 18px', fontSize:16, fontWeight:900, cursor:'pointer' }}
+                                   >✕ Band Karo</button>
+                               </div>
+                           </div>
+
+                           {/* Question */}
+                           <div style={{ flex:1, overflowY:'auto', padding:'40px 48px 24px', display:'flex', flexDirection:'column', gap:28 }}>
+                               <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:20, padding:'32px 36px' }}>
+                                   <div style={{ display:'flex', alignItems:'flex-start', gap:16 }}>
+                                       <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
+                                       <div style={{ fontSize:28, fontWeight:700, color:'#0f172a', lineHeight:1.5 }}
+                                           dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
+                                   </div>
+                               </div>
+
+                               {/* Options */}
+                               <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                                   {(pq.options || []).map((opt, oi) => {
+                                       const isCorrect = oi === pq.correctAnswer;
+                                       const isSelected = projectorSelected === oi;
+                                       const answered = projectorSelected !== null;
+
+                                       let bg = '#f8fafc';
+                                       let border = '3px solid #e2e8f0';
+                                       let textColor = '#1e293b';
+                                       let dotBg = '#3b82f6';
+                                       let icon: React.ReactNode = null;
+
+                                       if (projectorReveal) {
+                                           if (isCorrect) { bg = '#dcfce7'; border = '3px solid #22c55e'; textColor = '#15803d'; dotBg = '#22c55e'; icon = <CheckCircle size={32} color="#22c55e" />; }
+                                       } else if (answered) {
+                                           if (isSelected && isCorrect) { bg = '#dcfce7'; border = '3px solid #22c55e'; textColor = '#15803d'; dotBg = '#22c55e'; icon = <CheckCircle size={32} color="#22c55e" />; }
+                                           else if (isSelected && !isCorrect) { bg = '#fef2f2'; border = '3px solid #ef4444'; textColor = '#991b1b'; dotBg = '#ef4444'; icon = <span style={{ fontSize:28, fontWeight:900, color:'#ef4444' }}>✗</span>; }
+                                           else if (isCorrect) { bg = '#dcfce7'; border = '3px solid #22c55e'; textColor = '#15803d'; dotBg = '#22c55e'; icon = <CheckCircle size={32} color="#22c55e" />; }
+                                       }
+
+                                       return (
+                                           <div key={oi}
+                                               onClick={() => { if (!answered && !projectorReveal) setProjectorSelected(oi); }}
+                                               style={{ display:'flex', alignItems:'center', gap:16, background:bg, border, borderRadius:16, padding:'18px 24px', cursor: (answered || projectorReveal) ? 'default' : 'pointer', transition:'background 0.2s, border 0.2s' }}>
+                                               <span style={{ background: dotBg, color:'#fff', borderRadius:999, width:40, height:40, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:900, flexShrink:0 }}>{optionLetters[oi]}</span>
+                                               <div style={{ fontSize:24, fontWeight:600, color:textColor, lineHeight:1.4, flex:1 }}
+                                                   dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
+                                               {icon}
+                                           </div>
+                                       );
+                                   })}
+                               </div>
+
+                               {/* Explanation after answering */}
+                               {projectorSelected !== null && pq.explanation && (
+                                   <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:16, padding:'20px 24px', fontSize:20, color:'#713f12', lineHeight:1.5 }}>
+                                       💡 <strong>Explanation:</strong> {pq.explanation}
+                                   </div>
+                               )}
+                           </div>
+
+                           {/* Bottom action bar */}
+                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderTop:'3px solid #e2e8f0', background:'#f8fafc', flexShrink:0, gap:16 }}>
+                               <button
+                                   onClick={() => { setProjectorQIndex(i => Math.max(0, i-1)); setProjectorReveal(false); setProjectorSelected(null); }}
+                                   disabled={projectorQIndex === 0}
+                                   style={{ background: projectorQIndex === 0 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex === 0 ? '#94a3b8' : '#fff', border:'none', borderRadius:14, padding:'14px 32px', fontSize:20, fontWeight:900, cursor: projectorQIndex === 0 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:8 }}
+                               ><ChevronLeft size={24} /> Pichla</button>
+
+                               <button
+                                   onClick={() => { setProjectorQIndex(i => Math.min(total-1, i+1)); setProjectorReveal(false); setProjectorSelected(null); }}
+                                   disabled={projectorQIndex === total - 1}
+                                   style={{ background: projectorQIndex === total-1 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex === total-1 ? '#94a3b8' : '#fff', border:'none', borderRadius:14, padding:'14px 32px', fontSize:20, fontWeight:900, cursor: projectorQIndex === total-1 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:8 }}
+                               >Agla <ChevronRight size={24} /></button>
+                           </div>
+                       </div>,
+                       document.body
+                   );
+               })()}
+
                {/* MCQ Top Bar — clean, professional */}
                <div className={`bg-white border-b border-slate-100 px-3 py-2 flex items-center gap-2 sticky top-0 z-10 shadow-sm${isImmersive ? ' hidden' : ''}`}>
                    {/* Back */}
@@ -1998,6 +2107,11 @@ export const LessonView: React.FC<Props> = ({
                        className="shrink-0 flex items-center gap-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 font-black text-[11px] px-2.5 py-1.5 rounded-xl transition-colors">
                        <Grip size={14} />
                        <span className="text-[10px] font-black text-slate-500">{attemptedCount}/{displayData.length}</span>
+                   </button>
+                   {/* Projector Mode button */}
+                   <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelected(null); setIsProjectorMode(true); }}
+                       className="shrink-0 p-2 bg-amber-50 hover:bg-amber-100 rounded-xl text-amber-500 border border-amber-200 transition-colors" title="Projector Mode">
+                       <Tv size={17} />
                    </button>
                    {/* Admin Edit button — only for admin/subadmin */}
                    {isAdmin && onAdminEdit && (
@@ -2045,6 +2159,10 @@ export const LessonView: React.FC<Props> = ({
                                <button onClick={() => { toggleFullScreen(); setShowMoreMenu(false); }}
                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                    <Maximize size={15} className="text-slate-400 shrink-0" /> Fullscreen
+                               </button>
+                               <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setIsProjectorMode(true); setShowMoreMenu(false); }}
+                                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 font-semibold transition-colors">
+                                   <Tv size={15} className="text-amber-500 shrink-0" /> 📽️ Projector Mode
                                </button>
                                {schoolMode && onSchoolModeSwitch && (
                                    <button onClick={() => { onSchoolModeSwitch(); setShowMoreMenu(false); }}

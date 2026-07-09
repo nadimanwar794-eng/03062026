@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { rtdb } from '../firebase';
+import { getCoaching } from '../coaching-firebase';
 import { ChevronRight, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send, Plus } from 'lucide-react';
 import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
@@ -50,15 +51,34 @@ interface Coaching {
   entries?: Record<string, CoachingEntry>;
 }
 
-const CATEGORY_META = {
+const CATEGORY_META: Record<string, { label: string; icon: string; color: string }> = {
   speedyScience:       { label: 'Speedy Science',       icon: '🧪', color: '#10b981' },
   speedySocialScience: { label: 'Speedy Social Science', icon: '🌍', color: '#f59e0b' },
   sarSangrah:          { label: 'Sar Sangrah',           icon: '📕', color: '#ef4444' },
   lucent:              { label: 'Lucent',                icon: '🌟', color: '#8b5cf6' },
   mcq:                 { label: 'MCQ Practice',          icon: '🧠', color: '#3b82f6' },
-} as const;
+  current_affairs:     { label: 'Current Affairs',       icon: '📰', color: '#0ea5e9' },
+};
 
-type CatKey = keyof typeof CATEGORY_META;
+type CatKey = string;
+
+/** Fallback meta for custom book categories not in CATEGORY_META */
+function resolveCatMeta(key: string, customBooks?: Record<string, { label: string; icon: string; color: string }>) {
+  return CATEGORY_META[key] || (customBooks?.[key]
+    ? { label: customBooks[key].label, icon: customBooks[key].icon, color: customBooks[key].color }
+    : { label: key, icon: '📖', color: '#64748b' });
+}
+
+/** Known built-in category keys, in display order — custom book keys are appended dynamically */
+const BUILTIN_CAT_ORDER: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'current_affairs', 'mcq'];
+
+/** All category keys present on an entry, built-ins first (in order) then any custom/unknown keys */
+function entryCatKeys(entry: Record<string, any>): CatKey[] {
+  const keys = Object.keys(entry).filter(k => k !== 'id' && k !== 'date');
+  const known = BUILTIN_CAT_ORDER.filter(k => keys.includes(k));
+  const extra = keys.filter(k => !BUILTIN_CAT_ORDER.includes(k));
+  return [...known, ...extra];
+}
 
 function formatDate(dateStr: string) {
   if (!dateStr) return '';
@@ -398,8 +418,8 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq
   );
 }
 
-function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user, onReaderOpenChange }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any; onReaderOpenChange?: (open: boolean) => void }) {
-  const meta = CATEGORY_META[catKey];
+function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user, onReaderOpenChange, customBooks }: { catKey: CatKey; data: CategoryData; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any; onReaderOpenChange?: (open: boolean) => void; customBooks?: Record<string, { label: string; icon: string; color: string }> }) {
+  const meta = resolveCatMeta(catKey, customBooks);
   const [open, setOpen] = useState(true);
   const notes = data.notes || [];
   const mcqs = data.mcqs || [];
@@ -457,13 +477,20 @@ function CoachingDetailView({
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   const [expandedDate, setExpandedDate] = useState<string | null>(entries[0]?.id || null);
+  const [customBooks, setCustomBooks] = useState<Record<string, { label: string; icon: string; color: string }>>({});
+
+  // Custom book labels/colors are admin-defined per coaching — fetch so their categories render correctly
+  useEffect(() => {
+    const r = ref(rtdb, `coaching_homework/${coaching.id}/customBooks`);
+    const unsub = onValue(r, snap => setCustomBooks(snap.exists() ? snap.val() : {}));
+    return () => off(r, 'value', unsub);
+  }, [coaching.id]);
 
   // Bottom nav is hidden via React state in StudentDashboard (onDetailOpen/onDetailClose props)
 
   const hasContent = (entry: CoachingEntry) => {
-    const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
-    return cats.some(c => {
-      const d = entry[c];
+    return entryCatKeys(entry).some(c => {
+      const d = (entry as any)[c];
       if (!d) return false;
       return (d.notes?.length || 0) + (d.mcqs?.length || 0) + (d.pdfs?.length || 0) > 0;
     });
@@ -495,7 +522,7 @@ function CoachingDetailView({
         ) : entries.map(entry => {
           if (!hasContent(entry)) return null;
           const isOpen = expandedDate === entry.id;
-          const cats: CatKey[] = ['speedyScience', 'speedySocialScience', 'sarSangrah', 'lucent', 'mcq'];
+          const cats: CatKey[] = entryCatKeys(entry);
           return (
             <div key={entry.id} className="rounded-2xl overflow-hidden border" style={{ borderColor: `${accent}30`, background: isDarkMode ? '#1e293b' : '#fff' }}>
               <button
@@ -508,8 +535,8 @@ function CoachingDetailView({
                 <div className="flex-1 text-left">
                   <p className="font-black text-[13px] text-slate-800">{formatDate(entry.date)}</p>
                   <p className="text-[10px] text-slate-400 font-medium">
-                    {cats.filter(c => entry[c] && ((entry[c]?.notes?.length || 0) + (entry[c]?.mcqs?.length || 0) + (entry[c]?.pdfs?.length || 0)) > 0)
-                      .map(c => CATEGORY_META[c].label).join(' · ')}
+                    {cats.filter(c => (entry as any)[c] && (((entry as any)[c]?.notes?.length || 0) + ((entry as any)[c]?.mcqs?.length || 0) + ((entry as any)[c]?.pdfs?.length || 0)) > 0)
+                      .map(c => resolveCatMeta(c, customBooks).label).join(' · ')}
                   </p>
                 </div>
                 {isOpen
@@ -522,7 +549,7 @@ function CoachingDetailView({
                   {cats.map(catKey => {
                     const data = entry[catKey];
                     if (!data) return null;
-                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} user={user} onReaderOpenChange={onReaderOpenChange} />;
+                    return <CategorySection key={catKey} catKey={catKey} data={data} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} user={user} onReaderOpenChange={onReaderOpenChange} customBooks={customBooks} />;
                   })}
                 </div>
               )}
@@ -558,6 +585,9 @@ export function CoachingHomeworkSection({
   const [coachings, setCoachings] = useState<Coaching[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Coaching | null>(null);
+  const [firestoreCoaching, setFirestoreCoaching] = useState<{ id: string; name: string; emoji?: string } | null>(null);
+
+  const userCoachingId: string | undefined = user?.coachingId;
 
   // Cleanup: reset nav state when section unmounts with a reader open
   useEffect(() => {
@@ -570,16 +600,51 @@ export function CoachingHomeworkSection({
       setLoading(false);
       if (!snap.exists()) { setCoachings([]); return; }
       const val = snap.val();
-      const list: Coaching[] = Object.values(val || {}).sort((a: any, b: any) =>
-        (a.createdAt || '').localeCompare(b.createdAt || '')
-      );
+      // Object.entries se key (coachingId) bhi milta hai — id field nahi hoti RTDB mein
+      const list: Coaching[] = Object.entries(val || {})
+        .map(([key, c]: [string, any]) => ({
+          ...c,
+          id: c.id || key,          // RTDB key hi coachingId hai
+          name: c.name || key,      // naam na ho toh key dikhao, Firestore se replace hoga
+        }))
+        .sort((a: any, b: any) => (a.createdAt || '').localeCompare(b.createdAt || ''));
       setCoachings(list);
     });
     return () => off(r, 'value', unsub);
   }, []);
 
+  // Coaching name RTDB mein nahi hoti (CoachingAdminPanel sirf entries likhta hai)
+  // Firestore se naam + emoji fetch karo jab zaroorat ho
+  useEffect(() => {
+    if (!userCoachingId || loading) return;
+    const found = coachings.find(c => c.id === userCoachingId);
+    if (!found) {
+      // RTDB mein bilkul nahi — pure Firestore card dikhao
+      getCoaching(userCoachingId).then(c => {
+        if (c) setFirestoreCoaching({ id: c.id, name: c.name, emoji: c.emoji });
+      }).catch(() => {});
+    } else if (!found.name || found.name === found.id) {
+      // RTDB mein entries hain par naam nahi — Firestore se naam lo aur update karo
+      getCoaching(userCoachingId).then(c => {
+        if (c) {
+          setCoachings(prev => prev.map(co =>
+            co.id === userCoachingId ? { ...co, name: c.name, emoji: c.emoji } : co
+          ));
+        }
+        setFirestoreCoaching(null);
+      }).catch(() => {});
+    } else {
+      setFirestoreCoaching(null);
+    }
+  }, [userCoachingId, coachings, loading]);
+
   const accent = tierTheme?.primary || tierTheme?.border || '#6366f1';
   const card3D = card3DProp ?? false;
+
+  // Only show the coaching the user has joined.
+  const visibleCoachings = userCoachingId
+    ? coachings.filter(c => c.id === userCoachingId)
+    : [];
 
   if (loading) {
     return (
@@ -589,7 +654,37 @@ export function CoachingHomeworkSection({
     );
   }
 
-  if (coachings.length === 0) return null;
+  // Agar RTDB mein nahi hai par Firestore mein hai — empty card dikhao
+  if (visibleCoachings.length === 0 && firestoreCoaching) {
+    const bg = tierTheme?.profileCardBg || tierTheme?.cardBg || '#ffffff';
+    return (
+      <>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="flex-1 h-px" style={{ background: `${accent}30` }} />
+          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: accent }}>Coaching Homework</span>
+          <span className="flex-1 h-px" style={{ background: `${accent}30` }} />
+        </div>
+        <div className="rounded-2xl overflow-hidden text-left"
+          style={card3D
+            ? { background: bg, border: `2px solid ${accent}`, boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${accent}bb, 0 7px 18px ${accent}28`, transform: 'translateY(-1px)' }
+            : { background: bg, border: `2px solid ${accent}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
+          }>
+          <div className="flex items-center gap-3 px-4 py-3.5">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${accent}15` }}>
+              {firestoreCoaching.emoji || '🏫'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-wider mb-0.5" style={{ color: accent }}>Coaching Homework</p>
+              <p className="font-black text-slate-800 text-sm leading-tight truncate">{firestoreCoaching.name}</p>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Abhi koi homework nahi hai</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (visibleCoachings.length === 0) return null;
 
   const getLatestDate = (coaching: Coaching) => {
     const entries = Object.values(coaching.entries || {});
@@ -611,7 +706,7 @@ export function CoachingHomeworkSection({
 
       {/* Coaching cards */}
       <div className="space-y-2">
-        {coachings.map(coaching => {
+        {visibleCoachings.map(coaching => {
           const latestDate = getLatestDate(coaching);
           const entryCount = countEntries(coaching);
           const borderColor = accent;

@@ -33,30 +33,34 @@ interface CoachingEntry {
   sarSangrah?:          CategoryData;
   lucent?:              CategoryData;
   mcq?:                 CategoryData;
+  current_affairs?:     CategoryData;
+  [customKey: string]:  CategoryData | string | undefined; // dynamic custom books
 }
 interface Coaching { id: string; name: string; emoji?: string; createdAt?: string; }
+interface CustomBook { id: string; label: string; icon: string; color: string; }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const EMOJIS = ['🏫','🏛️','📚','✏️','🎓','📝','🌟','⭐','🔥','💡'];
-const CAT_META = {
-  speedyScience:       { label: 'Speedy Science',        icon: '🧪', color: '#10b981', hasContent: ['notes'] },
-  speedySocialScience: { label: 'Speedy Social Science',  icon: '🌍', color: '#f59e0b', hasContent: ['notes'] },
-  sarSangrah:          { label: 'Sar Sangrah',            icon: '📕', color: '#ef4444', hasContent: ['notes'] },
-  lucent:              { label: 'Lucent',                 icon: '🌟', color: '#8b5cf6', hasContent: ['notes','mcqs','pdfs'] },
-  mcq:                 { label: 'MCQ Practice',           icon: '🧠', color: '#3b82f6', hasContent: ['mcqs','pdfs'] },
-} as const;
-type CatKey = keyof typeof CAT_META;
-const ALL_CATS: CatKey[] = ['speedyScience','speedySocialScience','sarSangrah','lucent','mcq'];
+const CAT_META: Record<string, { label: string; icon: string; color: string; hasContent: string[] }> = {
+  speedyScience:       { label: 'Speedy Science',                  icon: '🧪', color: '#10b981', hasContent: ['notes','mcqs','pdfs'] },
+  speedySocialScience: { label: 'Speedy Social Science',           icon: '🌍', color: '#f59e0b', hasContent: ['notes','mcqs','pdfs'] },
+  sarSangrah:          { label: 'Sar Sangrah',                     icon: '📕', color: '#ef4444', hasContent: ['notes','mcqs','pdfs'] },
+  lucent:              { label: 'Lucent',                          icon: '🌟', color: '#8b5cf6', hasContent: ['notes','mcqs','pdfs'] },
+  mcq:                 { label: 'MCQ Practice',                    icon: '🧠', color: '#3b82f6', hasContent: ['mcqs','pdfs'] },
+  current_affairs:     { label: 'Current Affairs',                 icon: '📰', color: '#0ea5e9', hasContent: ['notes','mcqs','pdfs'] },
+};
+type CatKey = string;
+const ALL_CATS: CatKey[] = ['speedyScience','speedySocialScience','sarSangrah','lucent','mcq','current_affairs'];
 
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
-function Btn({ onClick, children, danger=false, small=false, ghost=false, disabled=false }:any) {
+function Btn({ onClick, children, danger=false, small=false, ghost=false, disabled=false, style }:any) {
   const base = `inline-flex items-center gap-1.5 font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 ${small ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'}`;
-  const style = ghost ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+  const cls = ghost ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
     : danger ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
     : 'bg-indigo-600 text-white hover:bg-indigo-700';
-  return <button type="button" disabled={disabled} onClick={onClick} className={`${base} ${style}`}>{children}</button>;
+  return <button type="button" disabled={disabled} onClick={onClick} style={style} className={`${base} ${style ? '' : cls}`}>{children}</button>;
 }
 
 function Input({ label, value, onChange, placeholder='', multiline=false, small=false }:any) {
@@ -72,11 +76,56 @@ function Input({ label, value, onChange, placeholder='', multiline=false, small=
   );
 }
 
+// ─── Unified Bulk Notes parser ─────────────────────────────────────────────────
+// Blocks separated by blank line or ---. Each block:
+//   Title: ...   (or T: ...)
+//   Page: ...    (optional, or P: ...)
+//   Content...   (remaining lines = content, optional)
+// A block with no recognized "Title:"/"Page:" prefix on its first line falls
+// back to treating the first line as the title and the rest as content.
+function parseBulkNotes(text: string): CoachingNote[] {
+  const blocks = text.split(/\n(?:\s*-{3,}\s*|\s*)\n/).map(b => b.trim()).filter(Boolean);
+  const result: CoachingNote[] = [];
+  for (const block of blocks) {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    let title = '';
+    let pageNo = '';
+    const contentLines: string[] = [];
+
+    for (const line of lines) {
+      const titleMatch = line.match(/^(?:Title|T|शीर्षक)[:.]\s*(.+)/i);
+      if (titleMatch) { title = titleMatch[1].trim(); continue; }
+      const pageMatch = line.match(/^(?:Page|Page\s*No\.?|P|पेज)[:.]\s*(.+)/i);
+      if (pageMatch) { pageNo = pageMatch[1].trim(); continue; }
+      if (!title) { title = line; continue; }
+      contentLines.push(line);
+    }
+
+    if (!title) continue;
+    result.push({ id: uid(), title, pageNo, content: contentLines.join('\n') });
+  }
+  return result;
+}
+
 // ─── Note editor ──────────────────────────────────────────────────────────────
 function NotesEditor({ notes, onChange, accent }:{ notes: CoachingNote[]; onChange:(n:CoachingNote[])=>void; accent:string }) {
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkError, setBulkError] = useState('');
+
   const add = () => onChange([...notes, { id: uid(), title: '', content: '', pageNo: '' }]);
   const del = (id:string) => onChange(notes.filter(n=>n.id!==id));
   const upd = (id:string, k:string, v:string) => onChange(notes.map(n=>n.id===id?{...n,[k]:v}:n));
+
+  const handleBulkImport = () => {
+    setBulkError('');
+    const parsed = parseBulkNotes(bulkText);
+    if (parsed.length === 0) { setBulkError('Koi note parse nahi hua — format check karo'); return; }
+    onChange([...notes, ...parsed]);
+    setBulkText('');
+    setShowBulk(false);
+  };
+
   return (
     <div className="space-y-2">
       {notes.map((n,i)=>(
@@ -95,7 +144,41 @@ function NotesEditor({ notes, onChange, accent }:{ notes: CoachingNote[]; onChan
             rows={2} className="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-indigo-400 resize-none" />
         </div>
       ))}
-      <Btn small ghost onClick={add}><Plus size={11}/> Note Add Karo</Btn>
+      <div className="flex gap-2">
+        <Btn small ghost onClick={add}><Plus size={11}/> Note Add Karo</Btn>
+        <Btn small ghost onClick={() => { setShowBulk(s => !s); setBulkError(''); }}
+          style={{ color: accent, borderColor: `${accent}40`, background: `${accent}08` }}>
+          📋 Bulk Upload
+        </Btn>
+      </div>
+
+      {/* Bulk paste panel */}
+      {showBulk && (
+        <div className="border rounded-xl p-3 space-y-2 bg-slate-50" style={{ borderColor: `${accent}30` }}>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk Notes — Format:</p>
+          <pre className="text-[9px] text-slate-400 bg-white border border-slate-200 rounded-lg p-2 leading-relaxed whitespace-pre-wrap font-mono">{`Title: Note ka title
+Page: 12
+Content line 1
+Content line 2 (optional)`}</pre>
+          <p className="text-[9px] text-slate-400">💡 Har note ko blank line se alag karo • Page optional hai</p>
+          <textarea
+            value={bulkText}
+            onChange={e => setBulkText(e.target.value)}
+            placeholder="Yahan Notes paste karo..."
+            rows={10}
+            className="w-full border border-slate-200 rounded-lg px-2 py-2 text-xs outline-none focus:border-indigo-400 resize-y font-mono"
+          />
+          {bulkError && <p className="text-[10px] text-red-500 font-bold">{bulkError}</p>}
+          <div className="flex gap-2">
+            <Btn small onClick={handleBulkImport} style={{ background: accent, color: '#fff', borderColor: accent }}>
+              ✅ Import Karo
+            </Btn>
+            <Btn small ghost onClick={() => { setShowBulk(false); setBulkText(''); setBulkError(''); }}>
+              Cancel
+            </Btn>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -335,26 +418,49 @@ function PdfEditor({ pdfs, onChange, accent }:{ pdfs: CoachingPdf[]; onChange:(p
 }
 
 // ─── Entry form (add/edit entry) ──────────────────────────────────────────────
-function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:string; existing?:CoachingEntry; onDone:()=>void; onCancel:()=>void }) {
+function EntryForm({ coachingId, existing, onDone, onCancel, customBooks }:{ coachingId:string; existing?:CoachingEntry; onDone:()=>void; onCancel:()=>void; customBooks?: CustomBook[] }) {
   const [date, setDate] = useState(existing?.date || new Date().toISOString().slice(0,10));
   const [openCat, setOpenCat] = useState<CatKey|null>('speedyScience');
-  const [cats, setCats] = useState<Record<CatKey,CategoryData>>(()=>{
-    const base: Record<CatKey,CategoryData> = { speedyScience:{notes:[]}, speedySocialScience:{notes:[]}, sarSangrah:{notes:[]}, lucent:{notes:[],mcqs:[],pdfs:[]}, mcq:{notes:[],mcqs:[],pdfs:[]} };
+
+  // Build effective category list: built-in + custom books
+  const effectiveCats: CatKey[] = [
+    ...ALL_CATS,
+    ...((customBooks || []).map(b => b.id)),
+  ];
+
+  const [cats, setCats] = useState<Record<string,CategoryData>>(()=>{
+    const base: Record<string,CategoryData> = {
+      speedyScience:       { notes:[], mcqs:[], pdfs:[] },
+      speedySocialScience: { notes:[], mcqs:[], pdfs:[] },
+      sarSangrah:          { notes:[], mcqs:[], pdfs:[] },
+      lucent:              { notes:[], mcqs:[], pdfs:[] },
+      mcq:                 { notes:[], mcqs:[], pdfs:[] },
+      current_affairs:     { notes:[], mcqs:[], pdfs:[] },
+    };
+    // Add custom book slots
+    (customBooks || []).forEach(b => { base[b.id] = { notes:[], mcqs:[], pdfs:[] }; });
     if (!existing) return base;
-    return {
-      speedyScience:       { notes: existing.speedyScience?.notes || [] },
-      speedySocialScience: { notes: existing.speedySocialScience?.notes || [] },
-      sarSangrah:          { notes: existing.sarSangrah?.notes || [] },
+    // Restore existing values
+    const restored: Record<string,CategoryData> = {
+      speedyScience:       { notes: existing.speedyScience?.notes||[], mcqs: existing.speedyScience?.mcqs||[], pdfs: existing.speedyScience?.pdfs||[] },
+      speedySocialScience: { notes: existing.speedySocialScience?.notes||[], mcqs: existing.speedySocialScience?.mcqs||[], pdfs: existing.speedySocialScience?.pdfs||[] },
+      sarSangrah:          { notes: existing.sarSangrah?.notes||[], mcqs: existing.sarSangrah?.mcqs||[], pdfs: existing.sarSangrah?.pdfs||[] },
       lucent:              { notes: existing.lucent?.notes||[], mcqs: existing.lucent?.mcqs||[], pdfs: existing.lucent?.pdfs||[] },
       mcq:                 { notes: [], mcqs: existing.mcq?.mcqs||[], pdfs: existing.mcq?.pdfs||[] },
+      current_affairs:     { notes: (existing as any).current_affairs?.notes||[], mcqs: (existing as any).current_affairs?.mcqs||[], pdfs: (existing as any).current_affairs?.pdfs||[] },
     };
+    (customBooks || []).forEach(b => {
+      const d = (existing as any)[b.id];
+      restored[b.id] = { notes: d?.notes||[], mcqs: d?.mcqs||[], pdfs: d?.pdfs||[] };
+    });
+    return restored;
   });
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState('');
 
-  const hasAny = () => ALL_CATS.some(c=>{
+  const hasAny = () => effectiveCats.some(c=>{
     const d = cats[c];
-    return (d.notes?.length||0)+(d.mcqs?.length||0)+(d.pdfs?.length||0)>0;
+    return (d?.notes?.length||0)+(d?.mcqs?.length||0)+(d?.pdfs?.length||0)>0;
   });
 
   const save = async () => {
@@ -364,20 +470,19 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
     try {
       const entryId = existing?.id || uid();
       const entryData: any = { id: entryId, date };
-      ALL_CATS.forEach(c => {
-        const d = cats[c];
+      effectiveCats.forEach(c => {
+        const d = cats[c] || {};
         if (c === 'mcq') {
-          const mcqs = (d.mcqs||[]).filter(m=>m.question);
-          const pdfs = (d.pdfs||[]).filter(p=>p.url);
+          // MCQ-only category — no notes
+          const mcqs = (d.mcqs||[]).filter((m: any)=>m.question);
+          const pdfs = (d.pdfs||[]).filter((p: any)=>p.url);
           if (mcqs.length||pdfs.length) entryData[c] = { mcqs, pdfs };
-        } else if (c === 'lucent') {
-          const notes = (d.notes||[]).filter(n=>n.title||n.pageNo||n.content);
-          const mcqs  = (d.mcqs||[]).filter(m=>m.question);
-          const pdfs  = (d.pdfs||[]).filter(p=>p.url);
-          if (notes.length||mcqs.length||pdfs.length) entryData[c] = { notes, mcqs, pdfs };
         } else {
-          const notes = (d.notes||[]).filter(n=>n.title||n.pageNo||n.content);
-          if (notes.length) entryData[c] = { notes };
+          // All other categories (built-in book categories + custom books) support notes + MCQ + PDF
+          const notes = (d.notes||[]).filter((n: any)=>n.title||n.pageNo||n.content);
+          const mcqs  = (d.mcqs||[]).filter((m: any)=>m.question);
+          const pdfs  = (d.pdfs||[]).filter((p: any)=>p.url);
+          if (notes.length||mcqs.length||pdfs.length) entryData[c] = { notes, mcqs, pdfs };
         }
       });
       await set(ref(rtdb, `coaching_homework/${coachingId}/entries/${entryId}`), entryData);
@@ -401,14 +506,20 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
           className="border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 bg-white" />
       </div>
 
-      {/* Category accordion */}
+      {/* Category accordion — built-in + custom books */}
       <div className="space-y-2">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Categories</p>
-        {ALL_CATS.map(catKey => {
-          const meta = CAT_META[catKey];
-          const d = cats[catKey];
+        {effectiveCats.map(catKey => {
+          // Resolve meta: built-in or custom book
+          const customBook = (customBooks||[]).find(b => b.id === catKey);
+          const meta = CAT_META[catKey] || (customBook
+            ? { label: customBook.label, icon: customBook.icon, color: customBook.color, hasContent: ['notes','mcqs','pdfs'] }
+            : { label: catKey, icon: '📖', color: '#64748b', hasContent: ['notes'] });
+          const d = cats[catKey] || { notes:[], mcqs:[], pdfs:[] };
           const total = (d.notes?.length||0)+(d.mcqs?.length||0)+(d.pdfs?.length||0);
           const isOpen = openCat === catKey;
+          // All categories support MCQ + PDF (only the dedicated "mcq" category skips Notes, handled below)
+          const hasRich = true;
           return (
             <div key={catKey} className="border rounded-2xl overflow-hidden" style={{borderColor:`${meta.color}30`}}>
               <button onClick={()=>setOpenCat(isOpen?null:catKey)}
@@ -416,6 +527,7 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
                 style={{background:`${meta.color}08`}}>
                 <span>{meta.icon}</span>
                 <span className="text-[12px] font-black flex-1" style={{color:meta.color}}>{meta.label}</span>
+                {customBook && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Custom</span>}
                 {total>0 && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full" style={{background:`${meta.color}20`,color:meta.color}}>{total} items</span>}
                 {isOpen ? <ChevronUp size={13} style={{color:meta.color}}/> : <ChevronDown size={13} style={{color:meta.color}}/>}
               </button>
@@ -429,8 +541,8 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
                         onChange={notes=>setCats(prev=>({...prev,[catKey]:{...prev[catKey],notes}}))} />
                     </div>
                   )}
-                  {/* MCQ + PDF for Lucent and MCQ block */}
-                  {(catKey==='lucent' || catKey==='mcq') && (
+                  {/* MCQ + PDF for rich categories */}
+                  {hasRich && (
                     <>
                       <div className={catKey==='mcq' ? '' : 'border-t pt-3'}>
                         <p className="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1"><HelpCircle size={10}/> MCQ</p>
@@ -463,12 +575,22 @@ function EntryForm({ coachingId, existing, onDone, onCancel }:{ coachingId:strin
 }
 
 // ─── Coaching entries view ────────────────────────────────────────────────────
+const BOOK_COLORS = ['#6366f1','#ec4899','#f97316','#14b8a6','#84cc16','#a855f7','#f59e0b','#06b6d4'];
+const BOOK_ICONS  = ['📖','📗','📘','📙','📒','📓','📔','📚'];
+
 function CoachingEntriesView({ coaching, onBack }:{ coaching:Coaching; onBack:()=>void }) {
-  const [entries, setEntries] = useState<CoachingEntry[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editEntry, setEditEntry] = useState<CoachingEntry|null>(null);
-  const [deleting, setDeleting] = useState<string|null>(null);
-  const [alert, setAlert] = useState('');
+  const [entries, setEntries]         = useState<CoachingEntry[]>([]);
+  const [customBooks, setCustomBooks] = useState<CustomBook[]>([]);
+  const [showForm, setShowForm]       = useState(false);
+  const [editEntry, setEditEntry]     = useState<CoachingEntry|null>(null);
+  const [deleting, setDeleting]       = useState<string|null>(null);
+  const [alert, setAlert]             = useState('');
+  // Custom book manager UI
+  const [showBookMgr, setShowBookMgr] = useState(false);
+  const [newBookLabel, setNewBookLabel] = useState('');
+  const [newBookIcon, setNewBookIcon]   = useState('📖');
+  const [newBookColor, setNewBookColor] = useState(BOOK_COLORS[0]);
+  const [savingBook, setSavingBook]   = useState(false);
 
   useEffect(()=>{
     const r = ref(rtdb, `coaching_homework/${coaching.id}/entries`);
@@ -479,6 +601,36 @@ function CoachingEntriesView({ coaching, onBack }:{ coaching:Coaching; onBack:()
     });
     return ()=>off(r,'value',unsub);
   },[coaching.id]);
+
+  useEffect(()=>{
+    const r = ref(rtdb, `coaching_homework/${coaching.id}/customBooks`);
+    const unsub = onValue(r, snap=>{
+      if (!snap.exists()) { setCustomBooks([]); return; }
+      const list: CustomBook[] = Object.values(snap.val()||{});
+      setCustomBooks(list);
+    });
+    return ()=>off(r,'value',unsub);
+  },[coaching.id]);
+
+  const addCustomBook = async () => {
+    if (!newBookLabel.trim()) { setAlert('Book ka naam likho'); return; }
+    setSavingBook(true);
+    try {
+      const id = `cb_${Date.now().toString(36)}`;
+      await set(ref(rtdb, `coaching_homework/${coaching.id}/customBooks/${id}`), {
+        id, label: newBookLabel.trim(), icon: newBookIcon, color: newBookColor
+      });
+      setNewBookLabel(''); setNewBookIcon('📖'); setNewBookColor(BOOK_COLORS[0]);
+      setShowBookMgr(false);
+    } catch(e:any){ setAlert(`Error: ${e?.message}`); }
+    setSavingBook(false);
+  };
+
+  const deleteCustomBook = async (bookId: string) => {
+    if (!confirm('Is custom book ko hata dein?')) return;
+    try { await remove(ref(rtdb, `coaching_homework/${coaching.id}/customBooks/${bookId}`)); }
+    catch(e:any){ setAlert(`Delete failed: ${e?.message}`); }
+  };
 
   const deleteEntry = async (id:string) => {
     if (!confirm('Is entry ko delete karo?')) return;
@@ -493,9 +645,21 @@ function CoachingEntriesView({ coaching, onBack }:{ coaching:Coaching; onBack:()
     catch{ return d; }
   };
 
-  const entryTotal = (e:CoachingEntry) => ALL_CATS.reduce((s,c)=>{
-    const d=e[c]; return s+(d?.notes?.length||0)+(d?.mcqs?.length||0)+(d?.pdfs?.length||0);
+  // All category keys for this coaching (built-in + custom)
+  const allCatKeys = [...ALL_CATS, ...customBooks.map(b => b.id)];
+
+  const entryTotal = (e:CoachingEntry) => allCatKeys.reduce((s,c)=>{
+    const d = e[c] as CategoryData | undefined;
+    return s+(d?.notes?.length||0)+(d?.mcqs?.length||0)+(d?.pdfs?.length||0);
   },0);
+
+  // Resolve label for any category key (built-in or custom)
+  const catLabel = (key: string) => {
+    if (CAT_META[key]) return `${CAT_META[key].icon} ${CAT_META[key].label}`;
+    const cb = customBooks.find(b => b.id === key);
+    return cb ? `${cb.icon} ${cb.label}` : key;
+  };
+  const catColor = (key: string) => CAT_META[key]?.color || customBooks.find(b=>b.id===key)?.color || '#64748b';
 
   return (
     <div className="space-y-4">
@@ -507,16 +671,79 @@ function CoachingEntriesView({ coaching, onBack }:{ coaching:Coaching; onBack:()
           <h4 className="font-black text-slate-800">{coaching.name}</h4>
           <p className="text-[10px] text-slate-400">{entries.length} entries</p>
         </div>
+        <Btn small ghost onClick={()=>setShowBookMgr(v=>!v)}>📚 Books</Btn>
         <Btn onClick={()=>{setShowForm(true);setEditEntry(null);}}><Plus size={12}/> Entry Daalo</Btn>
       </div>
 
       {alert && <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-xl flex items-center justify-between"><span>{alert}</span><button onClick={()=>setAlert('')}><X size={12}/></button></div>}
+
+      {/* ─── Custom Books Manager ─── */}
+      {showBookMgr && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-wider">📚 Extra Books / Subjects</p>
+
+          {/* Existing custom books */}
+          {customBooks.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {customBooks.map(b => (
+                <span key={b.id} className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border"
+                  style={{background:`${b.color}12`, borderColor:`${b.color}40`, color:b.color}}>
+                  {b.icon} {b.label}
+                  <button onClick={()=>deleteCustomBook(b.id)} className="text-red-400 hover:text-red-600 ml-0.5"><X size={9}/></button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Add new book form */}
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input value={newBookLabel} onChange={e=>setNewBookLabel(e.target.value)}
+                placeholder="Book ka naam (e.g. Sar Sangrah Hindi, Geography Notes...)"
+                className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-indigo-400 bg-white" />
+            </div>
+            {/* Icon picker */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-black text-slate-400 uppercase">Icon:</span>
+              {BOOK_ICONS.map(ic=>(
+                <button key={ic} onClick={()=>setNewBookIcon(ic)}
+                  className={`text-base w-8 h-8 rounded-lg border-2 transition-all ${newBookIcon===ic?'border-indigo-500 bg-indigo-50 scale-110':'border-slate-200 bg-white'}`}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+            {/* Color picker */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-black text-slate-400 uppercase">Color:</span>
+              {BOOK_COLORS.map(cl=>(
+                <button key={cl} onClick={()=>setNewBookColor(cl)}
+                  className={`w-6 h-6 rounded-full border-2 transition-all ${newBookColor===cl?'border-slate-800 scale-125':'border-white'}`}
+                  style={{background:cl}}/>
+              ))}
+            </div>
+            {/* Preview + save */}
+            <div className="flex items-center gap-2">
+              {newBookLabel && (
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                  style={{background:`${newBookColor}18`, color:newBookColor}}>
+                  {newBookIcon} {newBookLabel}
+                </span>
+              )}
+              <Btn small onClick={addCustomBook} disabled={savingBook}>
+                {savingBook?<Loader2 size={10} className="animate-spin"/>:<Plus size={10}/>} Add Book
+              </Btn>
+              <Btn small ghost onClick={()=>{setShowBookMgr(false);setNewBookLabel('');}}>Close</Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit form */}
       {(showForm || editEntry) && (
         <EntryForm
           coachingId={coaching.id}
           existing={editEntry||undefined}
+          customBooks={customBooks}
           onDone={()=>{setShowForm(false);setEditEntry(null);}}
           onCancel={()=>{setShowForm(false);setEditEntry(null);}}
         />
@@ -539,8 +766,8 @@ function CoachingEntriesView({ coaching, onBack }:{ coaching:Coaching; onBack:()
             <div className="flex-1 min-w-0">
               <p className="font-black text-slate-800 text-sm">{formatDate(entry.date)}</p>
               <p className="text-[10px] text-slate-400">
-                {ALL_CATS.filter(c=>entry[c]&&((entry[c]?.notes?.length||0)+(entry[c]?.mcqs?.length||0)+(entry[c]?.pdfs?.length||0))>0)
-                  .map(c=>CAT_META[c].label).join(' · ')} · {entryTotal(entry)} items
+                {allCatKeys.filter(c=>{const d=entry[c] as CategoryData|undefined; return d&&((d.notes?.length||0)+(d.mcqs?.length||0)+(d.pdfs?.length||0))>0;})
+                  .map(c=>catLabel(c)).join(' · ')} · {entryTotal(entry)} items
               </p>
             </div>
             <div className="flex items-center gap-1.5">
@@ -554,16 +781,16 @@ function CoachingEntriesView({ coaching, onBack }:{ coaching:Coaching; onBack:()
           </div>
           {/* Mini preview per category */}
           <div className="flex gap-1.5 px-4 pb-3 flex-wrap">
-            {ALL_CATS.map(c=>{
-              const d = entry[c];
+            {allCatKeys.map(c=>{
+              const d = entry[c] as CategoryData | undefined;
               if (!d) return null;
               const total = (d.notes?.length||0)+(d.mcqs?.length||0)+(d.pdfs?.length||0);
               if (!total) return null;
-              const meta = CAT_META[c];
+              const color = catColor(c);
               return (
                 <span key={c} className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
-                  style={{background:`${meta.color}15`,color:meta.color}}>
-                  {meta.icon} {meta.label}: {total}
+                  style={{background:`${color}15`, color}}>
+                  {catLabel(c)}: {total}
                 </span>
               );
             })}
@@ -648,7 +875,7 @@ export function AdminCoachingHomework({ onBack }:{ onBack:()=>void }) {
         <ol className="list-decimal ml-4 space-y-0.5 mt-1">
           <li>Pehle coaching ka naam add karo (e.g. "XYZ Coaching")</li>
           <li>Coaching pe click karo → "Entry Daalo" se date-wise content daalo</li>
-          <li>Speedy / Sar Sangrah: sirf notes · Lucent: notes + MCQ + PDF</li>
+          <li>Har category (Speedy, Sar Sangrah, Lucent, etc.) mein notes + MCQ + PDF, dono ke liye Bulk Upload bhi available hai</li>
           <li>Students ke home screen pe coaching cards automatically dikhenge</li>
         </ol>
       </div>

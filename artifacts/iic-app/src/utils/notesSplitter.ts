@@ -5,6 +5,103 @@ export interface NotesTopic {
   isHeading: boolean;
 }
 
+export interface NoteSections {
+  bookText: string;
+  smartNotes: string;
+  explanation: string;
+}
+
+/**
+ * Detects "Suno chunk notes" style input that repeats, per topic, three
+ * labelled sections: 📖 Book Text, 📝 Smart Notes, 💡 आसान समझ (Explanation) —
+ * optionally grouped under a 📌 topic heading. When all three markers are
+ * present, this pulls every occurrence of each section out (across the whole
+ * input, however many topics it contains) and stitches them into three
+ * separate blobs — one per section type — so the reader can show them as
+ * three independent pages instead of one mixed list.
+ *
+ * Returns null when the input doesn't look like this 3-section format (so
+ * callers can fall back to treating the whole content as a single page).
+ */
+// Require the actual labels (not just a stray emoji somewhere) before we
+// treat a note as "Suno 3-section" format, so ordinary single-section notes
+// that merely happen to contain 📖/📝/💡 characters are left untouched.
+const BOOK_LABEL_RE = /📖\s*Book\s*Text\s*:/i;
+const SMART_LABEL_RE = /📝\s*Smart\s*Notes?\s*:/i;
+const EXPLAIN_LABEL_RE = /💡\s*(?:आसान\s*समझ)?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:/i;
+
+// Global variants of the same labels, used to find every occurrence and where
+// its label text ends (so the body segment can start right after the label
+// without a separate strip pass). Anchoring on the full label — not just the
+// bare emoji — means a 📖/📝/💡 that shows up inside normal body text (e.g. as
+// decoration on an unrelated line) is never mistaken for a section boundary.
+const BOOK_LABEL_G = /📖\s*Book\s*Text\s*:\s*/gi;
+const SMART_LABEL_G = /📝\s*Smart\s*Notes?\s*:\s*/gi;
+const EXPLAIN_LABEL_G = /💡\s*(?:आसान\s*समझ)?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:\s*/gi;
+// Heading lines: "📌 <heading text>" up to the end of that line.
+const HEADING_LABEL_G = /📌\s*([^\n]*)/g;
+
+export function splitNoteSections(raw: string): NoteSections | null {
+  if (!raw) return null;
+  if (!BOOK_LABEL_RE.test(raw) || !SMART_LABEL_RE.test(raw) || !EXPLAIN_LABEL_RE.test(raw)) return null;
+
+  // Collect every labelled marker in document order (not a per-block search,
+  // which only ever found the FIRST 📖/📝/💡 inside a block and silently
+  // dropped every repeat after it). Each entry records where its label ends
+  // (`bodyStart`) so the section body can be sliced without a second pass.
+  type Marker = { type: 'heading' | 'book' | 'smart' | 'explain'; start: number; bodyStart: number; headingText?: string };
+  const markers: Marker[] = [];
+  let m: RegExpExecArray | null;
+
+  HEADING_LABEL_G.lastIndex = 0;
+  while ((m = HEADING_LABEL_G.exec(raw)) !== null) {
+    markers.push({ type: 'heading', start: m.index, bodyStart: m.index + m[0].length, headingText: (m[1] || '').trim() });
+  }
+  BOOK_LABEL_G.lastIndex = 0;
+  while ((m = BOOK_LABEL_G.exec(raw)) !== null) {
+    markers.push({ type: 'book', start: m.index, bodyStart: m.index + m[0].length });
+  }
+  SMART_LABEL_G.lastIndex = 0;
+  while ((m = SMART_LABEL_G.exec(raw)) !== null) {
+    markers.push({ type: 'smart', start: m.index, bodyStart: m.index + m[0].length });
+  }
+  EXPLAIN_LABEL_G.lastIndex = 0;
+  while ((m = EXPLAIN_LABEL_G.exec(raw)) !== null) {
+    markers.push({ type: 'explain', start: m.index, bodyStart: m.index + m[0].length });
+  }
+  if (markers.length === 0) return null;
+  markers.sort((a, b) => a.start - b.start);
+
+  const bookParts: string[] = [];
+  const smartParts: string[] = [];
+  const explainParts: string[] = [];
+  let currentHeading = '';
+
+  for (let i = 0; i < markers.length; i++) {
+    const marker = markers[i];
+    if (marker.type === 'heading') {
+      currentHeading = marker.headingText || '';
+      continue;
+    }
+    const end = i + 1 < markers.length ? markers[i + 1].start : raw.length;
+    const segment = raw.slice(marker.bodyStart, end).trim();
+    if (!segment) continue;
+
+    const withHeading = currentHeading ? `### ${currentHeading}\n${segment}` : segment;
+    if (marker.type === 'book') bookParts.push(withHeading);
+    else if (marker.type === 'smart') smartParts.push(withHeading);
+    else explainParts.push(withHeading);
+  }
+
+  if (!bookParts.length && !smartParts.length && !explainParts.length) return null;
+
+  return {
+    bookText: bookParts.join('\n\n'),
+    smartNotes: smartParts.join('\n\n'),
+    explanation: explainParts.join('\n\n'),
+  };
+}
+
 /**
  * Returns true if the string is essentially just ellipsis / dots / placeholders
  * and carries no real content — these lines come from AI truncation artifacts

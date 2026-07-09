@@ -121,6 +121,18 @@ export const getSubjectsList = (classLevel: string, stream: string | null, board
       console.error("Error loading dynamic subjects", e);
   }
 
+  // Load admin-managed Revision Hub subjects from system settings (Firebase-synced)
+  let hiddenDefaultSubjects: string[] = [];
+  let adminRevisionSubjects: Array<{ id: string; name: string; icon: string; classLevels: string[]; streams: string[] }> = [];
+  try {
+      const settingsRaw = localStorage.getItem('nst_system_settings');
+      if (settingsRaw) {
+          const s = JSON.parse(settingsRaw);
+          hiddenDefaultSubjects = Array.isArray(s.hiddenDefaultSubjects) ? s.hiddenDefaultSubjects : [];
+          adminRevisionSubjects = Array.isArray(s.revisionSubjects) ? s.revisionSubjects : [];
+      }
+  } catch (e) { /* ignore */ }
+
   const allKeys = Object.keys(pool);
   const coreKeys = Object.keys(DEFAULT_SUBJECTS);
   const customKeys = allKeys.filter(k => !coreKeys.includes(k));
@@ -200,8 +212,21 @@ export const getSubjectsList = (classLevel: string, stream: string | null, board
       selectedSubjects = selectedSubjects.filter(Boolean);
   }
 
+  // Filter out hidden default subjects (admin-managed via SystemSettings)
+  selectedSubjects = selectedSubjects.filter(s => !hiddenDefaultSubjects.includes(s.id));
+
   customKeys.forEach(key => {
       if (pool[key]) selectedSubjects.push(pool[key]);
+  });
+
+  // Append admin-managed revision subjects (Firebase-backed, match classLevel/stream)
+  adminRevisionSubjects.forEach(sub => {
+      if (!sub.id || !sub.name) return;
+      const levelsMatch = !sub.classLevels?.length || sub.classLevels.includes(classLevel) || sub.classLevels.includes('all');
+      const streamMatch = !sub.streams?.length || sub.streams.includes('all') || !stream || sub.streams.includes(stream);
+      if (levelsMatch && streamMatch) {
+          selectedSubjects.push({ id: sub.id, name: sub.name, icon: sub.icon || 'book', color: 'bg-white text-slate-700' });
+      }
   });
 
   if (board === 'BSEB' || board === 'NCERT_HI') {
