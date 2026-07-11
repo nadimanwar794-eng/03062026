@@ -10,7 +10,7 @@ import { McqReviewHub } from './McqReviewHub';
 import { MonthlyMarksheet } from './MonthlyMarksheet';
 import { PerformanceGraph } from './PerformanceGraph';
 import { getSubjectsList } from '../constants';
-import { subscribeMcqLessons } from '../firebase';
+import { subscribeMcqLessons, saveUserToLive } from '../firebase';
 import { useAppTheme } from '../utils/themeContext';
 import {
   recordAttempt, applyInitialSchedule, bucketKey,
@@ -224,10 +224,18 @@ export const RevisionHubScreen: React.FC<Props> = ({
     const subjectName = mcqSelectedSubject || 'General';
     const chapterTitle = mcqSelectedLesson?.lessonTitle || `Class ${mcqSelectedClass} — ${mcqSelectedSubject}`;
 
+    // Tally totals across all answered questions
+    let totalCorrect = 0;
+    let totalAnswered = 0;
+    sessionMcqs.forEach((q: any, i: number) => {
+      if (sessionAnswers[i] === null || sessionAnswers[i] === undefined) return;
+      totalAnswered++;
+      if (sessionAnswers[i] === q.correctAnswer) totalCorrect++;
+    });
+
     const topicMap: Record<string, { questions: any[]; answers: (number | null)[] }> = {};
     sessionMcqs.forEach((q: any, i: number) => {
       if (sessionAnswers[i] === null || sessionAnswers[i] === undefined) return;
-      // Trim topic name to match recordAttempt's trimming — prevents key mismatch
       const t = (q.topic || 'General').trim();
       if (!topicMap[t]) topicMap[t] = { questions: [], answers: [] };
       topicMap[t].questions.push(q);
@@ -251,6 +259,31 @@ export const RevisionHubScreen: React.FC<Props> = ({
         applyInitialSchedule(bk, accuracy, revCfg);
       } catch (_) {}
     });
+
+    // ── Save to mcqHistory so My Routine + score tracking can see it ──────────
+    if (totalAnswered > 0 && onUpdateUser) {
+      const newEntry = {
+        id: `rhub-${Date.now()}`,
+        testId: `rhub-${Date.now()}`,
+        chapterId,
+        chapterTitle,
+        subjectId,
+        subjectName,
+        userId: user.id,
+        date: new Date().toISOString(),
+        totalQuestions: totalAnswered,
+        correctCount: totalCorrect,
+        wrongCount: totalAnswered - totalCorrect,
+        score: totalCorrect,
+        totalTimeSeconds: 0,
+        averageTimePerQuestion: 0,
+        performanceTag: totalCorrect / totalAnswered >= 0.8 ? 'EXCELLENT' : totalCorrect / totalAnswered >= 0.5 ? 'GOOD' : 'NEEDS_IMPROVEMENT',
+        type: 'REVISION_MCQ',
+      };
+      const updatedUser = { ...user, mcqHistory: [...(user.mcqHistory || []), newEntry] };
+      onUpdateUser(updatedUser);
+      try { saveUserToLive(updatedUser); } catch (_) {}
+    }
   }
 
   function resetSession() {

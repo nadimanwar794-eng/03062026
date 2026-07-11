@@ -65,6 +65,8 @@ import { downloadAsMHTML, downloadAsHTML, downloadElementAsHTML } from "../utils
 import { recordLogin, updateSessionDuration, getLoginHistory, formatDuration, formatLoginTime, type LoginSession } from "../utils/loginHistory";
 import { getNewContentItems, markContentItemSeen, markAllContentItemsSeen, formatContentDate, type ContentNotifItem } from "../utils/contentNotifications";
 import { saveRecentHomework, getRecentHomeworks, removeRecentHomework, getRecentChapters, removeRecentChapter, saveRecentLucent, getRecentLucent, removeRecentLucent, markNoteFullyRead, getFullyReadMap, markReadToday, getReadingStreak, getReadDates, getBestReadingDay, getTodayItemCount, type RecentChapterEntry, type RecentHwEntry, type RecentLucentEntry, type StreakInfo, type BestDay } from "../utils/recentReads";
+import { markRoutinePageRead, markRoutineMcqDone, isRoutinePageRead, isRoutineMcqDone, updateRoutineMcqScore, recordMistake, addPageTime, isLessonAutoComplete, isLessonRewarded, markLessonRewarded, markRoutinePageMcqDone, updateRoutinePageMcqScore, isRoutinePageMcqDone, getRoutinePageMcqScore } from "../utils/routineAutoTrack";
+import { loadRoutineData, saveRoutineData, checkAndResetDaily, generateDailyTask, advanceLessonInCycle, getDiscountFactor, getPageReadReward, LESSON_COMPLETE_REWARD, unlockRevisionLesson } from "../utils/routineStorage";
 import { SubscriptionEngine } from "../utils/engines/subscriptionEngine";
 import { recalculateSubscriptionStatus } from "../utils/subscriptionUtils";
 import { RewardEngine } from "../utils/engines/rewardEngine";
@@ -147,6 +149,7 @@ import {
   Activity,
   Download,
   Calendar,
+  CalendarCheck,
   LogOut,
   Clock,
   ChevronRight,
@@ -216,6 +219,7 @@ import { McqReviewHub } from "./McqReviewHub"; // NEW
 import { UniversalVideoView } from "./UniversalVideoView"; // NEW
 import { RevisionHubV2 } from "./RevisionHubV2"; // NEW: Revision Hub V2 with auto-note search
 import { RevisionHubScreen } from "./RevisionHubScreen"; // NEW: Revision Hub full-screen with top tabs
+import { MyRoutine } from "./MyRoutine"; // My Routine full-screen
 import { CustomBloggerPage } from "./CustomBloggerPage";
 import { ReferralPopup } from "./ReferralPopup";
 import { SpeakButton } from "./SpeakButton";
@@ -2832,6 +2836,9 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [showStarredPage, setShowStarredPage] = useState(false);
   const [showRevisionHubScreen, setShowRevisionHubScreen] = useState(false);
+  const [showMyRoutine, setShowMyRoutine] = useState(false);
+  // Routine gate popup — shown when user tries to open a lesson in a routineApplied subject
+  const [routineGate, setRoutineGate] = useState<{ entry: any; pageIdx: number } | null>(null);
   // 2-category view toggle for the Important Notes pages: 'list' = original
   // flat list, 'bybook' = grouped by source book / page.
   const [importantNotesView, setImportantNotesView] = useState<'list' | 'bybook'>('list');
@@ -2977,6 +2984,42 @@ export const StudentDashboard: React.FC<Props> = ({
   // Reset both tabs + view mode when page or note changes
   // Honours lucentInitialTabRef if set by the content-picker popup
   useEffect(() => {
+    // ── My Routine auto-track: deduct credits (with discount) then mark page read + give reward ──
+    if (lucentNoteViewer?.id) {
+      const _lid = lucentNoteViewer.id;
+      const _pi  = lucentPageIndex;
+      // Track time: record page-enter timestamp so we can compute time-on-page when leaving
+      (window as any).__routinePageEnterTs = Date.now();
+      (window as any).__routinePageLid     = _lid;
+      (window as any).__routinePageIdx     = _pi;
+      if (!isRoutinePageRead(_lid, _pi)) {
+        const BASE_PAGE_COST = 20;
+        const _freshUser  = (window as any).__dashUserRef?.current ?? userRef.current;
+        const _routineData = loadRoutineData(_freshUser.id);
+        const _discount    = _routineData.enabled ? getDiscountFactor(_routineData) : 1.0;
+        const _actualCost  = Math.max(1, Math.floor(BASE_PAGE_COST * _discount));
+        const _total = getTotalCredits(_freshUser);
+        if (_total >= _actualCost) {
+          const _updated = applyDeduction(_freshUser, _actualCost);
+          if (_updated) {
+            // Page-read reward: level÷2 coins if routineApplied, level÷4 if not
+            const _subjectId    = (lucentNoteViewer?.subject || '').toLowerCase().trim();
+            const _subConf      = _routineData.subjects?.find((s: any) => s.id === _subjectId);
+            const _applied      = _routineData.enabled && (_subConf?.routineApplied ?? false);
+            const _level        = getLevelInfo(_freshUser.totalScore || 0).level;
+            const _reward       = getPageReadReward(_level, _applied);
+            const _finalUser    = _reward > 0
+              ? { ..._updated, credits: (_updated.credits || 0) + _reward }
+              : _updated;
+            handleUserUpdate(_finalUser);
+            markRoutinePageRead(_lid, _pi);
+            try { recordCreditTx(_freshUser.id, _actualCost, 'SPEND', `Lucent page read: ${lucentNoteViewer?.lessonTitle || _lid} p${_pi + 1}`, _finalUser.credits); } catch {}
+            if (_reward > 0) try { recordCreditTx(_freshUser.id, _reward, 'EARN', `Routine page reward: ${lucentNoteViewer?.lessonTitle || _lid} p${_pi + 1}`, _finalUser.credits); } catch {}
+          }
+        }
+        // Not enough credits → page stays untracked (gray), no deduction
+      }
+    }
     const page = lucentNoteViewer?.pages?.[lucentPageIndex];
     const hasNotes = !!(page?.chunkNotes?.trim() || page?.htmlNotes?.trim() || page?.content?.trim());
     const initOpts = lucentInitialTabRef.current;
@@ -3001,6 +3044,88 @@ export const StudentDashboard: React.FC<Props> = ({
       return n;
     });
   }, [lucentPageIndex, lucentNoteViewer?.id]);
+
+  // ── My Routine: flush page-reading time when leaving a page ──────────────────
+  const __routineTimeFlushRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    __routineTimeFlushRef.current = () => {
+      const enterTs = (window as any).__routinePageEnterTs;
+      const lid     = (window as any).__routinePageLid;
+      const pi      = (window as any).__routinePageIdx;
+      if (enterTs && lid !== undefined && pi !== undefined) {
+        const secs = Math.min(3600, Math.round((Date.now() - enterTs) / 1000));
+        if (secs > 0) try { addPageTime(lid, pi, secs); } catch {}
+        (window as any).__routinePageEnterTs = null;
+      }
+    };
+  });
+  useEffect(() => {
+    // Flush time when lesson/page changes
+    return () => { try { __routineTimeFlushRef.current(); } catch {} };
+  }, [lucentPageIndex, lucentNoteViewer?.id]);
+
+  // ── My Routine: midnight reset + lesson-complete reward ───────────────────────
+  useEffect(() => {
+    const checkRoutineDaily = () => {
+      try {
+        const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
+        if (!_fu?.id) return;
+        let _rd = loadRoutineData(_fu.id);
+        const _today = new Date().toISOString().split('T')[0];
+
+        // Midnight reset
+        if (_rd.lastResetDate !== _today) {
+          _rd = checkAndResetDaily(_rd);
+          // Generate fresh daily task with real lesson IDs
+          const _lucentNotes = (settings?.lucentNotes || []) as any[];
+          const _newTask = generateDailyTask(_rd, _lucentNotes);
+          _rd = { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: _newTask } };
+          saveRoutineData(_fu.id, _rd);
+        }
+
+        // Lesson-complete detection: check today's task lessons
+        if (_rd.enabled) {
+          const _task = _rd.dailyTasks[_today];
+          if (_task) {
+            const _lucentNotes = (settings?.lucentNotes || []) as any[];
+            const checkLesson = (lessonId: string | undefined) => {
+              if (!lessonId) return;
+              if (isLessonRewarded(lessonId)) return; // already given reward
+              const _note = (_lucentNotes as any[]).find((n: any) => n.id === lessonId);
+              const _totalPages = _note?.pages?.length || 0;
+              if (_totalPages === 0) return;
+              if (isLessonAutoComplete(lessonId, _totalPages)) {
+                // Give 50 coins reward
+                markLessonRewarded(lessonId);
+                // Add coins to routine wallet
+                let _rdNew = { ..._rd, coins: _rd.coins + LESSON_COMPLETE_REWARD };
+                // Unlock Revision Hub for this lesson permanently
+                _rdNew = unlockRevisionLesson(_rdNew, lessonId);
+                // Advance lesson in cycle
+                const _subjectId = (_note?.subject || '').toLowerCase().trim();
+                const _subIdx = _rdNew.subjects.findIndex((s: any) => s.id === _subjectId);
+                if (_subIdx >= 0) {
+                  const _advSubs = [..._rdNew.subjects];
+                  _advSubs[_subIdx] = advanceLessonInCycle(_advSubs[_subIdx]);
+                  _rdNew = { ..._rdNew, subjects: _advSubs };
+                }
+                saveRoutineData(_fu.id, _rdNew);
+                _rd = _rdNew;
+              }
+            };
+            checkLesson(_task.scienceLessonId);
+            checkLesson(_task.socialScienceLessonId);
+          }
+        }
+      } catch {}
+    };
+
+    checkRoutineDaily();
+    const _interval = setInterval(checkRoutineDaily, 60_000); // check every minute for midnight reset
+    return () => clearInterval(_interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.lucentNotes?.length]);
+
   const [hwScrollProgress, setHwScrollProgress] = useState(0);
   const hwScrollContainerRef = useRef<HTMLDivElement>(null);
   const hwScrollSaveTimerRef = useRef<number | null>(null);
@@ -3633,6 +3758,22 @@ export const StudentDashboard: React.FC<Props> = ({
       setLucentPageIndex(pageIdx);
       return;
     }
+
+    // ── My Routine gate ────────────────────────────────────────────────────────
+    // If routine is ON and this lesson belongs to a routineApplied subject,
+    // show the routine popup instead of opening directly.
+    try {
+      const _rg = loadRoutineData(user.id);
+      if (_rg.enabled) {
+        const _subjectId = (entry.subject || '').toLowerCase().trim();
+        const _subConf = (_rg.subjects || []).find((s: any) => s.id === _subjectId);
+        if (_subConf?.routineApplied) {
+          setRoutineGate({ entry, pageIdx });
+          return;
+        }
+      }
+    } catch {}
+    // ────────────────────────────────────────────────────────────────────────────
     const tier: 'FREE' | 'BASIC' | 'ULTRA' = _isUltraUser ? 'ULTRA' : _isBasicUser ? 'BASIC' : 'FREE';
     const lim = getEffectiveDailyLimit('notes', _userLevel, tier, settings);
     const used = parseInt(localStorage.getItem(_cnDailyKey) || '0', 10);
@@ -4218,6 +4359,42 @@ export const StudentDashboard: React.FC<Props> = ({
         topic: hw.title,
       };
       newResults.push(result);
+
+      // ── My Routine: track homework MCQ completion ──
+      // Only track when we find an exact-title match to avoid marking the wrong lesson done.
+      try {
+        const _lucentNotes = settings?.lucentNotes || [];
+        const _hwTitle = (hw.title || '').toLowerCase().trim();
+        // Exact title match only — prevents marking an unrelated lesson as complete
+        const _matchedLesson = (_lucentNotes as any[]).find((n: any) =>
+          (n.lessonTitle || '').toLowerCase().trim() === _hwTitle
+        );
+        if (_matchedLesson?.id) {
+          const _routineLessonId = _matchedLesson.id;
+          markRoutineMcqDone(_routineLessonId);
+          updateRoutineMcqScore(_routineLessonId, correctCount, omr.length);
+          // Record one mistake entry per wrong answer (consistent with Lucent MCQ tracking)
+          for (let _wi = 0; _wi < wrongCount; _wi++) recordMistake(_routineLessonId);
+          // Update routine daily task completion if this lesson matches today's task
+          try {
+            const _freshUser2 = (window as any).__dashUserRef?.current ?? userRef.current;
+            const _rData = loadRoutineData(_freshUser2.id);
+            if (_rData.enabled) {
+              const _today = new Date().toISOString().split('T')[0];
+              const _todayTask = _rData.dailyTasks[_today];
+              if (_todayTask) {
+                let _taskUpdated = { ..._todayTask };
+                if (_todayTask.scienceLessonId === _routineLessonId) _taskUpdated.scienceComplete = true;
+                if (_todayTask.socialScienceLessonId === _routineLessonId) _taskUpdated.socialScienceComplete = true;
+                if (JSON.stringify(_taskUpdated) !== JSON.stringify(_todayTask)) {
+                  saveRoutineData(_freshUser2.id, { ..._rData, dailyTasks: { ..._rData.dailyTasks, [_today]: _taskUpdated } });
+                }
+              }
+            }
+          } catch {}
+        }
+        // No exact match → don't touch routine (prevents false completions)
+      } catch {}
     });
 
     if (newResults.length > 0) {
@@ -8868,7 +9045,7 @@ export const StudentDashboard: React.FC<Props> = ({
           </div>
         );
       }
-      return <AppStore settings={settings} />;
+      return <AppStore settings={settings} user={user} onUserUpdate={handleUserUpdate} />;
     }
     if ((activeTab as string) === "THEME_CUSTOMIZER") {
       // Only admins can access Theme Customizer — all other users are redirected
@@ -15740,7 +15917,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
         data-iic-bottom-nav=""
-        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
+        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen || showMyRoutine ? "hidden" : ""}`}
         style={{
           background: tierTheme.navBg,
           borderTop: `1px solid ${(tierTheme as any).navBorderColor || tierTheme.primary + '22'}`,
@@ -15911,6 +16088,8 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowCompareView(false);
               // Close Revision Hub Screen if open — otherwise it covers all other tabs.
               setShowRevisionHubScreen(false);
+              // Close My Routine screen if open.
+              setShowMyRoutine(false);
               // Close Progress Dashboard overlay if open — prevents it bleeding into other tabs.
               setShowProgressDashboard(false);
               // Close the Important Notes overlay if it's open — otherwise the
@@ -15983,6 +16162,22 @@ export const StudentDashboard: React.FC<Props> = ({
                 },
               },
 
+              // My Routine
+              {
+                id: "MY_ROUTINE" as any,
+                label: "Routine",
+                Icon: CalendarCheck,
+                filledOnActive: true,
+                isActive: showMyRoutine,
+                onClick: () => {
+                  setShowChat(false);
+                  setShowStarredPage(false);
+                  setShowRevisionHubScreen(false);
+                  hapticMedium();
+                  setShowMyRoutine(true);
+                },
+              },
+
               // Community Support
               {
                 id: "COMMUNITY_SUPPORT" as any,
@@ -16019,7 +16214,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 label: "Profile",
                 Icon: UserIcon,
                 filledOnActive: false,
-                isActive: !showStarredPage && !showRevisionHubScreen && !showProgressDashboard && currentLogicalTab === "PROFILE",
+                isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showProgressDashboard && currentLogicalTab === "PROFILE",
                 onClick: () => switchToLogicalTab("PROFILE"),
               },
             ];
@@ -17203,15 +17398,22 @@ export const StudentDashboard: React.FC<Props> = ({
                 const pgNo = pg.pageNo ? `Pg ${pg.pageNo}` : `Page ${idx + 1}`;
                 const topic = (pg.topicName || '').trim();
                 const preview = ((pg as any).chunkNotes || pg.content || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+                const totalMcq = (pg.mcqs?.length || 0);
+                const pageMcqDone = isRoutinePageMcqDone(plEntry.id, idx);
+                const pageMcqScoreData = getRoutinePageMcqScore(plEntry.id, idx);
+                const pageRead = isRoutinePageRead(plEntry.id, idx);
+                // Box color: green = read+mcq done, orange = read only, gray = unread
+                const boxBg = pageMcqDone ? '#d1fae5' : pageRead ? '#fed7aa' : `${tierTheme.primary}20`;
+                const boxColor = pageMcqDone ? '#059669' : pageRead ? '#ea580c' : tierTheme.primary;
                 return (
                   <button
                     key={idx}
                     onClick={() => setContentPickerPopup({ type: 'LUCENT', entry: plEntry, pageIdx: idx })}
                     className="w-full text-left bg-white rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] hover:shadow-md transition-all border"
-                    style={{ borderColor: `${tierTheme.primary}33` }}
+                    style={{ borderColor: pageMcqDone ? '#6ee7b7' : pageRead ? '#fdba74' : `${tierTheme.primary}33` }}
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${tierTheme.primary}20` }}>
-                      <span className="text-[11px] font-black" style={{ color: tierTheme.primary }}>{idx + 1}</span>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: boxBg }}>
+                      <span className="text-[11px] font-black" style={{ color: boxColor }}>{idx + 1}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -17221,10 +17423,19 @@ export const StudentDashboard: React.FC<Props> = ({
                             📌 {topic}
                           </span>
                         )}
-                        {pg.mcqs && pg.mcqs.length > 0 && (
-                          <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
-                            {pg.mcqs.length} MCQ
-                          </span>
+                        {totalMcq > 0 && (
+                          pageMcqDone ? (
+                            <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
+                              ✅ {pageMcqScoreData ? `${pageMcqScoreData.correct}/${pageMcqScoreData.total}` : `${totalMcq}`} MCQ
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                              ⏳ {totalMcq} MCQ
+                            </span>
+                          )
+                        )}
+                        {pageRead && !pageMcqDone && totalMcq === 0 && (
+                          <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">✓ Padha</span>
                         )}
                       </div>
                       {preview && (
@@ -18449,6 +18660,56 @@ RULES:
                         const key = `${pageKey}_${ci}`;
                         const isCorrectAns = oi === cq.correctAnswer;
                         if (!trackDailyMcqAnswer(isCorrectAns)) return;
+                        // ── My Routine: deduct credits (with discount) ONCE per lesson MCQ, then mark done ──
+                        if (!isRoutineMcqDone(entry.id)) {
+                          const BASE_MCQ_COST = 40;
+                          const _freshUser  = (window as any).__dashUserRef?.current ?? userRef.current;
+                          const _rData2     = loadRoutineData(_freshUser.id);
+                          const _discount2  = _rData2.enabled ? getDiscountFactor(_rData2) : 1.0;
+                          const _mcqCost    = Math.max(1, Math.floor(BASE_MCQ_COST * _discount2));
+                          const _total = getTotalCredits(_freshUser);
+                          if (_total >= _mcqCost) {
+                            const _updated = applyDeduction(_freshUser, _mcqCost);
+                            if (_updated) {
+                              handleUserUpdate(_updated);
+                              markRoutineMcqDone(entry.id);
+                              // Mark today's task complete if this lesson matches
+                              try {
+                                const _today2 = new Date().toISOString().split('T')[0];
+                                const _tt = _rData2.dailyTasks[_today2];
+                                if (_tt) {
+                                  let _ttUpd = { ..._tt };
+                                  if (_tt.scienceLessonId === entry.id) _ttUpd.scienceComplete = true;
+                                  if (_tt.socialScienceLessonId === entry.id) _ttUpd.socialScienceComplete = true;
+                                  if (JSON.stringify(_ttUpd) !== JSON.stringify(_tt)) {
+                                    saveRoutineData(_freshUser.id, { ..._rData2, dailyTasks: { ..._rData2.dailyTasks, [_today2]: _ttUpd } });
+                                  }
+                                }
+                              } catch {}
+                              try { recordCreditTx(_freshUser.id, _mcqCost, 'SPEND', `Lucent MCQ: ${entry.lessonTitle || entry.id}`, _updated.credits); } catch {}
+                            }
+                          }
+                          // Not enough credits → MCQ stays untracked (stays orange), no deduction
+                        }
+                        // ── Per-page MCQ tracking (new): mark this specific page's MCQ done ──
+                        // Only mark if lesson credit has been paid (either just now above, or previously).
+                        // This preserves the credit-gated semantics: free pages after first payment.
+                        try {
+                          if (isRoutineMcqDone(entry.id)) {
+                            markRoutinePageMcqDone(entry.id, safeIndex);
+                          }
+                        } catch {}
+                        // ── Track wrong answers for Routine mistakes counter ──
+                        if (!isCorrectAns) {
+                          try { recordMistake(entry.id); } catch {}
+                        }
+                        // ── Update running MCQ score in routine tracker on every answer ──
+                        // `attempted` / `right` reflect questions answered BEFORE this click,
+                        // so we add 1 to each to include the current answer.
+                        try {
+                          updateRoutineMcqScore(entry.id, right + (isCorrectAns ? 1 : 0), attempted + 1);
+                          updateRoutinePageMcqScore(entry.id, safeIndex, right + (isCorrectAns ? 1 : 0), attempted + 1);
+                        } catch {}
                         setLucentMcqAnswers(prev => ({ ...prev, [key]: oi }));
                         setLucentMcqSubmitted(prev => ({ ...prev, [key]: true }));
                         if (!isCorrectAns) {
@@ -18886,6 +19147,155 @@ RULES:
           onUpdateUser={handleUserUpdate}
           onMcqAnswer={trackDailyMcqAnswer}
           onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }}
+        />
+      )}
+
+      {/* ── MY ROUTINE GATE POPUP ──────────────────────────────────────────── */}
+      {routineGate && (() => {
+        const _rg       = loadRoutineData(user.id);
+        const _today    = new Date().toISOString().split('T')[0];
+        const _todayTask = _rg.dailyTasks?.[_today];
+        const _subjectId = (routineGate.entry.subject || '').toLowerCase().trim();
+        const _subConf   = (_rg.subjects || []).find((s: any) => s.id === _subjectId);
+        const _isScience = _subConf?.category === 'SCIENCE';
+        const _todayLessonId = _isScience ? _todayTask?.scienceLessonId : _todayTask?.socialScienceLessonId;
+        const _isToday  = _todayLessonId === routineGate.entry.id;
+        const _disc     = _rg.yesterdayTaskComplete;
+        const _lucentNotes = (settings?.lucentNotes || []) as any[];
+        const _todayLesson = _todayLessonId ? _lucentNotes.find((n: any) => n.id === _todayLessonId) : null;
+
+        const _openWithRoutine = () => {
+          setRoutineGate(null);
+          if (_isToday) {
+            // Today's task lesson — open freely
+            setLucentNoteViewer(routineGate.entry);
+            setLucentPageIndex(routineGate.pageIdx);
+          } else {
+            // Not today's task — locked
+            if (_todayLesson) {
+              showAlert(`🔒 My Routine ON hai! Pehle aaj ka task complete karo:\n"${_todayLesson.lessonTitle}"\nFir ye lesson unlock hoga.`, 'INFO');
+            } else {
+              showAlert('🔒 Routine ON hai. Aaj ka task pehle complete karo.', 'INFO');
+            }
+          }
+        };
+
+        const _openNormal = () => {
+          setRoutineGate(null);
+          // Identical behavior to tryOpenLucentNote — skip only the routine gate, preserve all other access rules
+          const _entry = routineGate.entry;
+          const _pi    = routineGate.pageIdx;
+          const isAdmin = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+          if (isAdmin) { setLucentNoteViewer(_entry); setLucentPageIndex(_pi); return; }
+          const tier: 'FREE' | 'BASIC' | 'ULTRA' = _isUltraUser ? 'ULTRA' : _isBasicUser ? 'BASIC' : 'FREE';
+          const lim  = getEffectiveDailyLimit('notes', _userLevel, tier, settings);
+          const used = parseInt(localStorage.getItem(_cnDailyKey) || '0', 10);
+          if (lim === -1 || used < lim) {
+            try { localStorage.setItem(_cnDailyKey, String(used + 1)); } catch {}
+            setLucentNoteViewer(_entry); setLucentPageIndex(_pi); return;
+          }
+          // Limit reached — FREE tier
+          if (tier === 'FREE') {
+            showAlert(`📖 Today's reading limit reached (${lim} notes). Upgrade to Basic/Ultra or come back tomorrow!`, 'INFO'); return;
+          }
+          // Paid tier: attempt credit deduction for extra read (same as tryOpenLucentNote)
+          const totalCR = getTotalCredits(user);
+          if (totalCR < CN_CREDIT_COST) {
+            showAlert(`📖 Today's reading limit reached (${lim} notes). Low credits (${totalCR} CR). Resets tomorrow!`, 'INFO'); return;
+          }
+          const updatedUser = applyDeduction(user, CN_CREDIT_COST);
+          if (!updatedUser) { showAlert('Credit deduction failed. Please try again.', 'ERROR'); return; }
+          handleUserUpdate(updatedUser);
+          try { localStorage.setItem(_cnDailyKey, String(used + 1)); } catch {}
+          showAlert(`✅ ${CN_CREDIT_COST} CR used — extra note unlocked!`, 'SUCCESS');
+          setLucentNoteViewer(_entry); setLucentPageIndex(_pi);
+        };
+
+        return (
+          <div className="fixed inset-0 z-[350] flex items-end justify-center"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setRoutineGate(null)}>
+            <div className="bg-white rounded-t-3xl w-full max-w-lg animate-in slide-in-from-bottom-10 duration-200 pb-safe"
+              onClick={e => e.stopPropagation()}>
+
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-slate-200" />
+              </div>
+
+              <div className="px-5 pt-2 pb-6">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center text-xl">🎯</div>
+                  <div>
+                    <p className="font-black text-slate-900 text-base">My Routine ON Hai!</p>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {_subConf?.name || routineGate.entry.subject} · {_isToday ? '✅ Aaj ka task' : '🔒 Aaj ka task nahi'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Today task banner */}
+                {_isToday ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 mb-4">
+                    <p className="text-xs font-black text-emerald-700">✅ Yeh aaj ka routine task hai!</p>
+                    <p className="text-[11px] text-emerald-600 mt-0.5">Poora karo → 50🪙 reward + Revision Hub unlock</p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4">
+                    <p className="text-xs font-black text-amber-700">⚠️ Yeh aaj ka task nahi</p>
+                    {_todayLesson && (
+                      <p className="text-[11px] text-amber-600 mt-0.5">Aaj ka task: <span className="font-black">"{_todayLesson.lessonTitle}"</span></p>
+                    )}
+                  </div>
+                )}
+
+                {/* Benefits summary */}
+                <div className="bg-blue-50 rounded-2xl px-4 py-3 mb-4 space-y-1.5">
+                  <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-2">My Routine ke Fayde</p>
+                  {[
+                    '📖 Har page: ' + ((_rg.subjects.find((s:any)=>s.id===_subjectId)?.routineApplied) ? 'level÷2 coins reward' : 'level÷4 coins'),
+                    '🧠 MCQ complete → lesson track hoga',
+                    '🏆 Lesson complete → 50🪙 + Revision Hub unlock',
+                    _disc ? '🎁 50% discount ACTIVE (24h)!' : '🎁 Kal complete karo → 50% OFF milega',
+                    '🔒 Sirf routine lessons accessible (is subject mein)',
+                  ].map((t, i) => (
+                    <p key={i} className="text-[11px] text-blue-700 font-medium flex items-start gap-1.5">
+                      <span className="shrink-0">{t.split(' ')[0]}</span>
+                      <span>{t.split(' ').slice(1).join(' ')}</span>
+                    </p>
+                  ))}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3">
+                  <button onClick={_openNormal}
+                    className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 font-black text-sm active:scale-95 transition">
+                    Normal Mode
+                  </button>
+                  <button onClick={_openWithRoutine}
+                    className={`flex-1 py-3 rounded-2xl font-black text-sm active:scale-95 transition text-white ${
+                      _isToday ? 'bg-blue-600' : 'bg-slate-400'
+                    }`}>
+                    {_isToday ? '🎯 My Routine se Open' : '🔒 Locked'}
+                  </button>
+                </div>
+                <p className="text-center text-[10px] text-slate-400 mt-2 font-medium">
+                  Normal mode mein routine rewards nahi milenge
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MY ROUTINE FULL-SCREEN */}
+      {showMyRoutine && (
+        <MyRoutine
+          user={user}
+          lucentNotes={(settings?.lucentNotes || []) as any[]}
+          onBack={() => setShowMyRoutine(false)}
+          onUserUpdate={handleUserUpdate}
         />
       )}
 

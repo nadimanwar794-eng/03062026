@@ -12,6 +12,12 @@ import { getLevelInfo, getScoreDiscountFromScore, getNextLevelInfo, getLevelProg
 import { SCORE_MULTIPLIERS, getDailyScoreLimit } from '../utils/scoreSystem';
 import { addSubscription } from '../utils/subscriptionUtils';
 import { recordCreditTx } from '../utils/creditHistory';
+import {
+  loadRoutineData, saveRoutineData, checkAndResetDaily,
+  getUserSubTier, ensureTodayClaimEntry, claimAllPendingCoins,
+  getUnclaimedCoins, getDailyClaimAmount, DAILY_CLAIM_PRO, DAILY_CLAIM_MAX_PRO,
+  type UserSubTier,
+} from '../utils/routineStorage';
 
 interface Props {
   user: User;
@@ -167,6 +173,92 @@ function getCreditPrice(planDuration: string, isUltra: boolean): number {
 }
 
 /* ─── Main Store ─── */
+/* ─── Daily Subscription Coin Claim Card ─── */
+function DailyClaimCard({ userId, user: u, onUpdateUser }: { userId: string; user: any; onUpdateUser?: (u: any) => void }) {
+  function getToday() { return new Date().toISOString().split('T')[0]; }
+  const subTier: UserSubTier = getUserSubTier(u ?? {});
+  const [routineData, setRoutineDataRaw] = useState(() => {
+    const d = loadRoutineData(userId);
+    const reset = checkAndResetDaily(d);
+    return ensureTodayClaimEntry(reset, getUserSubTier(u ?? {}));
+  });
+  const unclaimed = getUnclaimedCoins(routineData, subTier);
+  const todayClaimed = routineData.dailyClaims?.[getToday()]?.claimed ?? false;
+  const dailyAmt = getDailyClaimAmount(subTier);
+
+  const handleClaim = () => {
+    const { data: updated, earned } = claimAllPendingCoins(routineData, subTier);
+    setRoutineDataRaw(updated);
+    saveRoutineData(userId, updated);
+    // Add earned coins to main app credits
+    if (earned > 0 && onUpdateUser && u) {
+      const updatedUser = { ...u, credits: (u.credits || 0) + earned };
+      onUpdateUser(updatedUser);
+      try { saveUserToLive(updatedUser); } catch (_) {}
+    }
+  };
+
+  if (subTier === 'NONE') return (
+    <div className="rounded-2xl p-4 mb-5" style={{ background: C.surfaceHigh, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2 mb-1">
+        <Gift size={15} color={C.textMuted} />
+        <p className="text-sm font-black" style={{ color: C.textMuted }}>Daily Coin Reward</p>
+      </div>
+      <p className="text-xs font-medium" style={{ color: C.textDim }}>
+        Pro ya Max Pro lo → roz {DAILY_CLAIM_PRO}–{DAILY_CLAIM_MAX_PRO} 🪙 pao!
+      </p>
+    </div>
+  );
+
+  const isPro = subTier === 'MAX_PRO';
+  const grad = isPro ? 'linear-gradient(135deg,#7c3aed,#a855f7,#e879f9)' : 'linear-gradient(135deg,#0891b2,#22d3ee,#67e8f9)';
+  const borderC = isPro ? C.maxBorder : C.proBorder;
+  const bgC = isPro ? C.maxBg : C.proBg;
+  const labelC = isPro ? C.max : C.pro;
+  const label = isPro ? 'Max Pro' : 'Pro';
+
+  return (
+    <div className="rounded-2xl p-4 mb-5" style={{ background: bgC, border: `1.5px solid ${borderC}` }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: grad }}>
+            <Gift size={15} color="#fff" />
+          </div>
+          <div>
+            <p className="text-xs font-black" style={{ color: C.text }}>{label} Daily Reward</p>
+            <p className="text-[10px] font-medium" style={{ color: C.textMuted }}>Roz {dailyAmt} 🪙 · Kabhi expire nahi</p>
+          </div>
+        </div>
+        <span className="text-xs font-black px-2.5 py-1 rounded-full" style={{ background: C.goldBg, color: C.gold, border: `1px solid ${C.goldBorder}` }}>
+          🪙 {dailyAmt}
+        </span>
+      </div>
+      {unclaimed > 0 ? (
+        <>
+          {unclaimed > dailyAmt && (
+            <div className="rounded-xl px-3 py-2 mb-3 flex items-center gap-2" style={{ background: 'rgba(251,191,36,0.10)', border: `1px solid ${C.goldBorder}` }}>
+              <p className="text-[10px] font-black" style={{ color: C.gold }}>
+                {Math.floor(unclaimed / dailyAmt)} din ka stack = {unclaimed} 🪙!
+              </p>
+            </div>
+          )}
+          <button onClick={handleClaim}
+            className="w-full py-3 rounded-xl font-black text-sm active:scale-[0.98] transition flex items-center justify-center gap-2"
+            style={{ background: grad, color: '#fff', boxShadow: isPro ? '0 4px 14px rgba(168,85,247,0.35)' : '0 4px 14px rgba(34,211,238,0.25)' }}>
+            <Gift size={15} /> Claim {unclaimed} 🪙 Karo
+          </button>
+        </>
+      ) : (
+        <div className="py-2.5 rounded-xl flex items-center justify-center gap-2"
+          style={{ background: 'rgba(52,211,153,0.10)', border: `1px solid ${C.greenBorder}` }}>
+          <Check size={14} color={C.green} />
+          <span className="text-xs font-black" style={{ color: C.green }}>Aaj ka reward claim ho gaya! ✅</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEarnContent, onBack }) => {
   const [tierType, setTierType] = useState<'BASIC' | 'ULTRA' | 'EARN' | 'CREDITS' | 'HISTORY'>('BASIC');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -677,6 +769,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
 
       {/* ══════════ BODY ══════════ */}
       <div className="px-4 pt-5">
+        {/* Daily coin claim — always visible */}
+        <DailyClaimCard userId={user.id} user={user} onUpdateUser={onUserUpdate} />
 
 
         {/* ── HISTORY TAB ── */}

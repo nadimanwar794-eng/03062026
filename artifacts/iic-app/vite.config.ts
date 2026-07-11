@@ -3,15 +3,23 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
-// PORT is only required in the Replit dev/preview environment.
-// For production builds (e.g. Vercel) it is not needed.
 const rawPort = process.env.PORT;
-const port = rawPort ? Number(rawPort) : 3000;
+const isBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
 
-// BASE_PATH defaults to '/' when not set (standard Vercel root deployment).
+if (!rawPort && !isBuild) {
+  throw new Error(
+    "PORT environment variable is required but was not provided.",
+  );
+}
+
+const port = Number(rawPort ?? 3000);
+
+if (rawPort && (Number.isNaN(port) || port <= 0)) {
+  throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
 const basePath = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({
