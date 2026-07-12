@@ -5585,7 +5585,7 @@ export const StudentDashboard: React.FC<Props> = ({
     const _activeBoard = activeSessionBoard || user.board || 'NCERT_EN';
     const adminClassLessons = currentClass !== 'COMPETITION'
       ? _adminLucentNotes
-          .filter(n => String(n.classLevel) === String(currentClass) && String(n.subject) === String(subject.id) && (n.board === _activeBoard || (!n.board && _activeBoard === 'NCERT_EN')))
+          .filter(n => String(n.classLevel) === String(currentClass) && String(n.subject) === String(subject.id) && (n.board === _activeBoard || !n.board))
           .sort((a, b) => (a.lessonTitle || '').localeCompare(b.lessonTitle || ''))
       : [];
     const adminChapters: Chapter[] = adminClassLessons.map(n => ({
@@ -5713,8 +5713,26 @@ export const StudentDashboard: React.FC<Props> = ({
       const { classLevel: cv, subject: sv } = class612SubjectView;
       const _allLucent = (settings?.lucentNotes || []) as LucentNoteEntry[];
       const classLessons = _allLucent
-        .filter(n => String(n.classLevel) === String(cv) && String(n.subject).toLowerCase().trim() === String(sv.id).toLowerCase().trim() && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
+        .filter(n => String(n.classLevel) === String(cv) && String(n.subject).toLowerCase().trim() === String(sv.id).toLowerCase().trim() && (n.board === _curBoard || !n.board))
         .sort((a, b) => (a.lessonTitle || '').localeCompare(b.lessonTitle || ''));
+
+      // ── Routine lock — compute once for this subject ──────────────────────
+      let _routineTodayLessonId: string | undefined;
+      let _routineActive = false;
+      try {
+        const _rg2 = loadRoutineData(user.id);
+        if (_rg2.enabled && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN') {
+          const _subConf2 = (_rg2.subjects || []).find((s: any) => s.id === sv.id);
+          if (_subConf2?.routineApplied) {
+            _routineActive = true;
+            const _todayStr2 = new Date().toISOString().split('T')[0];
+            const _todayTask2 = _rg2.dailyTasks?.[_todayStr2];
+            const _isSci2 = _subConf2.category === 'SCIENCE';
+            _routineTodayLessonId = _isSci2 ? _todayTask2?.scienceLessonId : _todayTask2?.socialScienceLessonId;
+          }
+        }
+      } catch {}
+      // ─────────────────────────────────────────────────────────────────────
 
       return (
         <div className={`flex-1 flex flex-col min-h-0 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
@@ -5750,16 +5768,23 @@ export const StudentDashboard: React.FC<Props> = ({
                 const hasPdf = entry.pages.some(p => !!(p as any).pdfUrl);
                 const hasVideo = entry.pages.some(p => !!(p as any).videoUrl);
                 const _isLocked = _lucentIsLocked(entry);
+                // Routine lock: if routine is active for this subject and this lesson is NOT today's task
+                const _isRoutineLocked = _routineActive && !entry.isSampleLesson && entry.id !== _routineTodayLessonId;
+                const _anyLock = _isLocked || _isRoutineLocked;
                 return (
                   <div
                     key={entry.id}
-                    className={`nst-lesson-card rounded-2xl overflow-hidden border-2 transition-all hover:shadow-md ${_isLocked ? 'opacity-75' : ''}`}
-                    style={{ background: tierTheme.profileCardBg, borderColor: _isLocked ? '#ef4444' : tierTheme.primary }}
+                    className={`nst-lesson-card rounded-2xl overflow-hidden border-2 transition-all hover:shadow-md ${_anyLock ? 'opacity-80' : ''}`}
+                    style={{ background: tierTheme.profileCardBg, borderColor: _isLocked ? '#ef4444' : _isRoutineLocked ? '#f59e0b' : tierTheme.primary }}
                   >
                     <button
                       onClick={() => {
                         if (_isLocked) {
                           showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
+                          return;
+                        }
+                        if (_isRoutineLocked) {
+                          setRoutineGate({ entry, pageIdx: 0 });
                           return;
                         }
                         if (entry.mcqOnly) {
@@ -5772,15 +5797,17 @@ export const StudentDashboard: React.FC<Props> = ({
                       className="w-full p-3 text-left active:scale-[0.98] flex items-center gap-3"
                     >
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${_isLocked ? 'bg-red-100 text-red-500' : ''}`}
-                        style={_isLocked ? {} : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0`}
+                        style={_isLocked ? { background: '#fee2e2', color: '#ef4444' } : _isRoutineLocked ? { background: '#fef3c7', color: '#f59e0b' } : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
                       >
-                        {_isLocked ? <span className="text-xl">🔒</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
+                        {_isLocked ? <span className="text-xl">🔒</span> : _isRoutineLocked ? <span className="text-xl">🔒</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
                         {_isLocked ? (
                           <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
+                        ) : _isRoutineLocked ? (
+                          <p className="text-[11px] text-amber-600 font-black mt-0.5">🔒 Complete Today's Routine to unlock</p>
                         ) : (
                           <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                             {entry.isSampleLesson && <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-700">🆓 FREE</span>}
@@ -5794,7 +5821,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                       <ChevronRight size={18} className={isDarkMode ? 'text-slate-400' : 'text-slate-400'} />
                     </button>
-                    {topicNames.length > 0 && !_isLocked && (
+                    {topicNames.length > 0 && !_anyLock && (
                       <button
                         onClick={() => { setLucentLessonCompare(entry); setLucentLessonCompareTab('topics'); }}
                         className={`w-full border-t px-3 py-2 flex items-center gap-2 active:scale-[0.99] transition-all ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}
@@ -5861,7 +5888,7 @@ export const StudentDashboard: React.FC<Props> = ({
         return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
       };
       const filteredHw = (settings?.homework || [])
-        .filter(hw => hw.targetSubject === homeworkSubjectView && (hw.board === _curBoard || (!hw.board && _curBoard === 'NCERT_EN')))
+        .filter(hw => hw.targetSubject === homeworkSubjectView && (hw.board === _curBoard || !hw.board))
         .sort((a, b) => {
           if (isPageWiseSubject) {
             const pa = _toPage(a), pb = _toPage(b);
@@ -5948,7 +5975,7 @@ export const StudentDashboard: React.FC<Props> = ({
         return m === Infinity ? 99999 : m;
       };
       const subjectLucentLessons = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
+        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (n.board === _curBoard || !n.board))
         .sort((a, b) => _subjLucentMinPg(a) - _subjLucentMinPg(b));
       const showLucentSection = subjectLucentLessons.length > 0
         && hwYear === null && hwMonth === null && hwWeek === null && !hwActiveHwId;
@@ -7635,7 +7662,7 @@ export const StudentDashboard: React.FC<Props> = ({
       };
       // All COMPETITION-level admin notes — filtered by classLevel=COMPETITION + active board
       const competitionNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')));
+        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || !n.board));
       // Unique book names — entries with no bookName fall under 'Lucent'
       const uniqueBooks: string[] = Array.from(
         new Set(competitionNotes.map(n => (n.bookName?.trim()) || 'Lucent'))
@@ -7716,7 +7743,7 @@ export const StudentDashboard: React.FC<Props> = ({
       // STEP 2 — Subject categories (only for 'Lucent' book)
       // Pre-compute lesson counts per subject so we can show badges and block empty navigation
       const _allCompNotes = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')));
+        .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || !n.board));
       const _customSubjectIds = new Set(_customLucentSubjects.map(s => s.id.toLowerCase()));
       const _lucentSubjectCount = (catId: string) => {
         const id = catId.toLowerCase().trim();
@@ -7756,7 +7783,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 const allLucentNotes = (settings?.lucentNotes || []) as LucentNoteEntry[];
                 const _isCustomCat = _customSubjectIds.has(cat.id?.toLowerCase() || '');
                 const subjectEntries = allLucentNotes
-                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (_isCustomCat || (n.bookName?.trim() || 'Lucent') === 'Lucent') && (n.board === _curBoard || (!n.board && _curBoard === 'NCERT_EN')))
+                  .filter(n => (n.classLevel === 'COMPETITION' || !n.classLevel) && n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() && (_isCustomCat || (n.bookName?.trim() || 'Lucent') === 'Lucent') && (n.board === _curBoard || !n.board))
                   .sort((a, b) => _minPg(a) - _minPg(b));
 
                 // No lessons yet — don't navigate to a blank page

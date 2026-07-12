@@ -61,6 +61,7 @@ import {
 } from "../utils/textToSpeech";
 import { checkFeatureAccess } from "../utils/permissionUtils";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
+import { recordCreditTx } from "../utils/creditHistory";
 import { CustomConfirm } from "./CustomDialogs"; // Import CustomConfirm
 import { SpeakButton } from "./SpeakButton";
 import { MarksheetPieChart, MarksheetTopicBarChart } from "./MarksheetCharts";
@@ -643,8 +644,9 @@ export const MarksheetCard: React.FC<Props> = ({
       title: "Unlock Analysis",
       message: `View answers and explanations for ${COST} Coins?`,
       onConfirm: () => {
-        if (onUpdateUser)
-          onUpdateUser(applyDeduction(user, COST) ?? user);
+        const _deducted = applyDeduction(user, COST) ?? user;
+        if (onUpdateUser) onUpdateUser(_deducted);
+        try { recordCreditTx(user.id, -COST, 'SPEND', `MCQ Analysis unlock (${COST} CR)`, _deducted.credits); } catch {}
         setIsAnalysisUnlocked(true);
         setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
       },
@@ -681,6 +683,9 @@ export const MarksheetCard: React.FC<Props> = ({
       );
 
       const baseUser = skipCost ? user : (applyDeduction(user, cost) ?? user);
+      if (!skipCost) {
+        try { recordCreditTx(user.id, -cost, 'SPEND', `MCQ Ultra Analysis (${cost} CR)`, baseUser.credits); } catch {}
+      }
       const updatedUser = {
         ...baseUser,
         mcqHistory: updatedHistory,

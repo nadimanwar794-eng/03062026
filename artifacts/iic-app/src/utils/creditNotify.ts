@@ -1,4 +1,4 @@
-export type CreditNotifyType = 'DEDUCTION' | 'FREE_LIMIT';
+export type CreditNotifyType = 'DEDUCTION' | 'FREE_LIMIT' | 'EARN';
 
 export interface CreditNotifyPayload {
   type: CreditNotifyType;
@@ -6,6 +6,10 @@ export interface CreditNotifyPayload {
   remaining?: number;
   feature?: string;
   message?: string;
+  /** For EARN: where coins came from (reading/writing/mcq) */
+  source?: 'reading' | 'writing' | 'mcq';
+  /** For EARN: how many pts (score points) were earned alongside the coins */
+  pts?: number;
 }
 
 export const fireCreditNotify = (payload: CreditNotifyPayload) => {

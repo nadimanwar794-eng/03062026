@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, UserCustomTheme, SystemSettings, ThemeHistoryEntry } from '../types';
 import { saveUserToLive, saveSystemSettings } from '../firebase';
 import { getTotalCredits, applyDeduction } from '../utils/creditSystem';
+import { recordCreditTx } from '../utils/creditHistory';
 import {
     ArrowLeft, Sparkles, RotateCcw, Eye, Palette,
     Layers, Navigation, Square, Type, Zap, Star,
@@ -791,6 +792,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 return;
             }
             baseUser = { ...deducted };
+            try { recordCreditTx(user.id, -THEME_COST, 'SPEND', `Theme Studio: apply theme (${THEME_COST} CR)`, deducted.credits); } catch {}
         }
 
         const updated: User = {

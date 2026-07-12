@@ -10,6 +10,7 @@ import {
     likePublishedTheme, likePublishedAnimation
 } from '../firebase';
 import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
+import { recordCreditTx } from '../utils/creditHistory';
 import {
     ArrowLeft, Palette, Sparkles, Eye, Check, RotateCcw,
     Layers, Navigation, Square, Type, Zap, Star, Globe,
@@ -399,6 +400,9 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
             await publishTheme({ ...themeObj, publishedName: themeName });
         }
         const deducted = isAdmin ? user : (applyDeduction(user, THEME_COST) ?? user);
+        if (!isAdmin) {
+            try { recordCreditTx(user.id, -THEME_COST, 'SPEND', `Theme Builder: custom theme (${THEME_COST} CR)`, deducted.credits); } catch {}
+        }
         const updatedUser: User = {
             ...deducted,
             customTheme: themeObj,
@@ -437,6 +441,9 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
             await publishAnimation({ ...anim, publishedName: animName });
         }
         const deducted = isAdmin ? user : (applyDeduction(user, ANIMATION_COST) ?? user);
+        if (!isAdmin) {
+            try { recordCreditTx(user.id, -ANIMATION_COST, 'SPEND', `Theme Builder: custom animation (${ANIMATION_COST} CR)`, deducted.credits); } catch {}
+        }
         const updatedUser: User = {
             ...deducted,
             customAnimation: anim,

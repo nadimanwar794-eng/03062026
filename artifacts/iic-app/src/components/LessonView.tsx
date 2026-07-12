@@ -28,6 +28,8 @@ import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayP
 import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
 import { getUserTier, getEffectiveNotesTier, filterHtmlByTier, injectSectionTierTags } from '../utils/permissionUtils';
 import { getLevelFromScore } from '../utils/levelSystem';
+import { fireCreditNotify } from '../utils/creditNotify';
+import { recordCreditTx } from '../utils/creditHistory';
 import { getActiveBoost, tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
 import { ReadingScoreSession, ReadingScoreState } from '../utils/readingScoreEngine';
 import { ReadingScoreHUD } from './ReadingScoreHUD';
@@ -147,13 +149,83 @@ export const LessonView: React.FC<Props> = ({
   const onUpdateUserRef = useRef(onUpdateUser);
   useEffect(() => { onUpdateUserRef.current = onUpdateUser; }, [onUpdateUser]);
 
-  const handleReadingScoreEarned = useCallback((pts: number, _activity: string) => {
+  // ── Coin accumulation: fractional carry-over prevents small events losing coins ──
+  // Reading coins are awarded immediately per interval but fractional amounts
+  // carry forward so even +1 TTS events eventually convert to real coins.
+  // MCQ coins are deferred to session-end (showResults) to avoid per-answer flooding.
+  const mcqSessionPtsRef = useRef(0);
+  // Fractional coin accumulator — carries sub-1 amounts between reading events
+  const coinFracAccumRef = useRef(0);
+
+  const awardMcqSessionCoins = useCallback((
+    totalPts: number,
+  ) => {
+    if (totalPts <= 0) return;
+    const _user = userRef.current;
+    const _onUpdateUser = onUpdateUserRef.current;
+    if (!_user || !_onUpdateUser) return;
+
+    const userLevel = getLevelFromScore(_user.totalScore || 0);
+    const ratio = userLevel >= 5 ? 0.5 : 0.25;
+    const coins = Math.floor(totalPts * ratio);
+    if (coins <= 0) return;
+
+    const newCredits = (_user.credits || 0) + coins;
+    const updatedWithCoins = { ..._user, credits: newCredits };
+    _onUpdateUser(updatedWithCoins);
+    saveUserToLive(updatedWithCoins);
+
+    fireCreditNotify({
+      type: 'EARN',
+      amount: coins,
+      remaining: newCredits,
+      source: 'mcq',
+      pts: totalPts,
+    });
+  }, []);
+
+  const handleReadingScoreEarned = useCallback((pts: number, activity: string) => {
     const _user = userRef.current;
     const _onUpdateUser = onUpdateUserRef.current;
     if (!_user || !_onUpdateUser || pts <= 0) return;
-    const updated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
-    _onUpdateUser(updated);
+
+    // Update totalScore immediately
+    const scoreUpdated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
+
+    // Fractional coin accumulator: add this event's coin-value to running total,
+    // then award only the integer part — remainder carries to the next event.
+    // This preserves parity with the old session-aggregate approach:
+    // e.g. four +1-TTS events at ×0.25 → 0+0+0+1 coin (not 0+0+0+0).
+    const userLevel = getLevelFromScore(_user.totalScore || 0);
+    const ratio = userLevel >= 5 ? 0.5 : 0.25;
+    coinFracAccumRef.current += pts * ratio;
+    const coins = Math.floor(coinFracAccumRef.current);
+    coinFracAccumRef.current -= coins; // keep fractional remainder
+
+    if (coins > 0) {
+      const newCredits = (_user.credits || 0) + coins;
+      const updatedWithCoins = { ...scoreUpdated, credits: newCredits };
+      _onUpdateUser(updatedWithCoins);
+      saveUserToLive(updatedWithCoins);
+      const src = activity.startsWith('WRITE') ? 'writing' : 'reading';
+      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: src, pts });
+    } else {
+      _onUpdateUser(scoreUpdated);
+      saveUserToLive(scoreUpdated);
+    }
   }, []);
+
+  // Award MCQ coins once when results are shown (session over)
+  useEffect(() => {
+    if (showResults && mcqSessionPtsRef.current > 0) {
+      awardMcqSessionCoins(mcqSessionPtsRef.current);
+      mcqSessionPtsRef.current = 0;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showResults]);
+
+  // Lesson label shown in coin/score history: "Physics · Ch 3 Motion"
+  const lessonLabel = [subject?.name, chapter?.title].filter(Boolean).join(' · ') || undefined;
 
   const readingScoreConfig = user?.id ? {
     userId: user.id,
@@ -161,6 +233,7 @@ export const LessonView: React.FC<Props> = ({
     subscriptionLevel: user.subscriptionTier || 'FREE',
     isPremium: !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE')),
     boostPercent: getActiveBoost(user),
+    lessonLabel,
     onScoreEarned: handleReadingScoreEarned,
   } : undefined;
 
@@ -197,6 +270,7 @@ export const LessonView: React.FC<Props> = ({
     }
 
     // Start a new session
+    const _lessonLabel = [subject?.name, chapter?.title].filter(Boolean).join(' · ') || undefined;
     const session = new ReadingScoreSession(
       {
         userId: user.id,
@@ -205,6 +279,7 @@ export const LessonView: React.FC<Props> = ({
         isPremium: !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE')),
         boostPercent: getActiveBoost(user as any),
         mode: isAudioContent ? 'audio' : 'video',
+        lessonLabel: _lessonLabel,
         onScoreEarned: handleReadingScoreEarned,
       },
       (state) => setMediaScoreState(state),
@@ -694,6 +769,7 @@ export const LessonView: React.FC<Props> = ({
                       const updatedUser = applyDeduction(user, HTML_UNLOCK_COST)!;
                       onUpdateUser(updatedUser);
                       saveUserToLive(updatedUser);
+                      try { recordCreditTx(user.id, -HTML_UNLOCK_COST, 'SPEND', `HTML Notes unlock (${HTML_UNLOCK_COST} CR)`, updatedUser.credits); } catch {}
                       try { localStorage.setItem(htmlUnlockKey, '1'); } catch {}
                       setHtmlUnlocked(true);
                       setNotesViewMode('styled');
@@ -1399,9 +1475,10 @@ export const LessonView: React.FC<Props> = ({
               if (isCorrect) {
                   const newStreak = mcqStreak + 1;
                   setMcqStreak(newStreak);
-                  const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'MCQ_CORRECT');
+                  const _mcqLabel = [subject?.name, chapter?.title].filter(Boolean).join(' · ') || undefined;
+                  const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'MCQ_CORRECT', undefined, undefined, _mcqLabel);
                   const bonus = getMcqStreakBonus(newStreak);
-                  const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `MCQ_STREAK_${newStreak}`) : 0;
+                  const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `MCQ_STREAK_${newStreak}`, undefined, undefined, _mcqLabel) : 0;
                   const totalPts = pts + bonusPts;
                   if (totalPts > 0) {
                       const _u = userRef.current;
@@ -1410,6 +1487,8 @@ export const LessonView: React.FC<Props> = ({
                           onUpdateUserRef.current(updated);
                           saveUserToLive(updated);
                       }
+                      // Accumulate MCQ pts for one-time coin award at session end
+                      mcqSessionPtsRef.current += totalPts;
                       showMcqScore(totalPts);
                   }
               } else {
@@ -1608,6 +1687,7 @@ export const LessonView: React.FC<Props> = ({
             onUpdateUser(updatedUser);
             localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
             saveUserToLive(updatedUser);
+            try { recordCreditTx(user.id, -cost, 'SPEND', `Notes download (${cost} CR)`, updatedUser.credits); } catch {}
         }
 
         setIsDownloading(true);

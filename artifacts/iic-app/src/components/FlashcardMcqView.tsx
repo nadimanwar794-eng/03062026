@@ -8,6 +8,7 @@ import { recordFlashcardSession } from '../utils/flashcardHistory';
 import { getLevelFromScore, getEffectiveDailyLimit } from '../utils/levelSystem';
 import { getUserTier } from '../utils/permissionUtils';
 import { applyDeduction } from '../utils/creditSystem';
+import { recordCreditTx } from '../utils/creditHistory';
 import { saveUserToLive, saveSuggestion } from '../firebase';
 import { fireCreditNotify } from '../utils/creditNotify';
 import { useAppTheme } from '../utils/themeContext';
@@ -312,6 +313,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
     localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
     saveUserToLive(updatedUser);
     onUpdateUser(updatedUser);
+    try { recordCreditTx(user.id, -CREDIT_COST, 'SPEND', `Flashcard extra session: ${CREDIT_COST} CR`, updatedUser.credits); } catch {}
     fireCreditNotify({ type: 'DEDUCTION', message: `Flashcard extra session: ${CREDIT_COST} CR` });
     try { localStorage.removeItem(getTodayKey(userId)); } catch {}
     sessionStartRef.current = Date.now();
