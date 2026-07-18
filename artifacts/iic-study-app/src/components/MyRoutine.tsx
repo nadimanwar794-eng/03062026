@@ -1527,7 +1527,21 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     });
     const note = allNotes.find(n => n.id === lessonId);
     import('../utils/sessionNotify').then(({ fireSessionComplete }) => {
-      fireSessionComplete({ type: 'LESSON', subject: (note as any)?.subject || 'Routine', chapter: (note as any)?.lessonTitle || lessonId, timeSecs: 0, coinsEarned: LESSON_COMPLETE_REWARD });
+      const noteContentType = (note as any)?.contentType as string | undefined;
+      const activityType = noteContentType === 'NOTES'
+        ? 'Reading'
+        : noteContentType === 'MCQ'
+          ? 'MCQ'
+          : 'Reading'; // default lesson = Reading
+      fireSessionComplete({
+        type: 'LESSON',
+        subject: (note as any)?.subject || 'Routine',
+        chapter: (note as any)?.lessonTitle || lessonId,
+        timeSecs: 0,
+        coinsEarned: LESSON_COMPLETE_REWARD,
+        activityType,
+        sessionScore: 0, // lessons earn coins only, not pts
+      });
     }).catch(() => {});
   }, [allNotes]);
 
