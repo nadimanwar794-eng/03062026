@@ -469,12 +469,8 @@ const App: React.FC = () => {
       }
     });
 
-    // Banner dikhao — 1 session = single, 2+ = grouped
-    if (queue.length === 1) {
-      setPendingSessionSummary(queue[0]);
-    } else {
-      setGroupedSessions(queue);
-    }
+    // Banner dikhao — merge with any already-displaying sessions
+    applySessionQueue(queue);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
@@ -500,14 +496,10 @@ const App: React.FC = () => {
       sessionScore: earned,
       activityType: mcqActivityTypeRef.current,
     });
-    // Agar user already HOME pe hai to abhi hi consume karo
+    // Agar user already HOME pe hai to abhi hi consume karo + merge
     if (homeTabActiveRef.current) {
       const queue = consumeSessionQueue();
-      if (queue.length === 1) {
-        setPendingSessionSummary(queue[0]);
-      } else if (queue.length > 1) {
-        setGroupedSessions(queue);
-      }
+      applySessionQueue(queue);
     }
     // Agar HOME pe nahi — queue mein rahega, HOME tab pe aane pe dikhega
   };
@@ -589,12 +581,11 @@ const App: React.FC = () => {
       revisionHubOpenRef.current = false;
       if (pendingHomeStatsRef.current) {
         pendingHomeStatsRef.current = false;
-        // Session already queued — agar HOME tab pe hain to abhi consume karo
+        // Session already queued — agar HOME tab pe hain to abhi consume + merge karo
         if (homeTabActiveRef.current) {
           setTimeout(() => {
             const queue = consumeSessionQueue();
-            if (queue.length === 1) { setPendingSessionSummary(queue[0]); }
-            else if (queue.length > 1) { setGroupedSessions(queue); }
+            applySessionQueue(queue);
           }, 300);
         }
       }
@@ -644,14 +635,37 @@ const App: React.FC = () => {
   // Grouped sessions — 2+ activities ek saath HOME pe aane pe
   const [groupedSessions, setGroupedSessions] = useState<SessionCompletePayload[]>([]);
 
+  // Track currently displaying sessions so new ones can be MERGED (not replaced)
+  const displayedSessionsRef = useRef<SessionCompletePayload[]>([]);
+
+  // Safely show sessions — merges with any already-displaying banner
+  const applySessionQueue = useCallback((newQueue: SessionCompletePayload[]) => {
+    if (newQueue.length === 0) return;
+    const merged = [...displayedSessionsRef.current, ...newQueue];
+    displayedSessionsRef.current = merged;
+    if (merged.length === 1) {
+      setPendingSessionSummary(merged[0]);
+      setGroupedSessions([]);
+    } else {
+      setPendingSessionSummary(null);
+      setGroupedSessions(merged);
+    }
+  }, []);
+
   // Listen for lesson-complete events (Reading / Writing) — queue karo, HOME pe dikhao
   useEffect(() => {
     const unsub = onSessionComplete((payload) => {
-      // Immediately show nahi karo — queue mein daalo
+      // Queue mein daalo
       queueSession(payload);
+      // Agar HOME tab pe already hain to turant consume karo
+      if (homeTabActiveRef.current) {
+        const queue = consumeSessionQueue();
+        applySessionQueue(queue);
+      }
     });
     return unsub;
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applySessionQueue]);
   
   // CUSTOM DIALOG STATE (GLOBAL)
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
@@ -3679,19 +3693,19 @@ const App: React.FC = () => {
         <div className="pointer-events-auto">
           <SessionSummaryBanner
             summary={pendingSessionSummary}
-            onDismiss={() => setPendingSessionSummary(null)}
+            onDismiss={() => { setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
           />
         </div>
       </div>
     )}
 
     {/* Grouped banner — 2+ activities ek saath */}
-    {groupedSessions.length > 1 && (
+    {groupedSessions.length >= 2 && (
       <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
         <div className="pointer-events-auto">
           <GroupedSessionBanner
             sessions={groupedSessions}
-            onDismiss={() => setGroupedSessions([])}
+            onDismiss={() => { setGroupedSessions([]); displayedSessionsRef.current = []; }}
           />
         </div>
       </div>

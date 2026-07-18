@@ -59,7 +59,8 @@ export const SessionSummaryBanner: React.FC<SessionSummaryBannerProps> = ({ summ
     pct >= 50 ? 'text-amber-400' :
     'text-red-400';
 
-  const activityKey = summary.activityType || (isMCQ ? 'MCQ' : 'LESSON');
+  // MCQ sessions mein activityType override karo — reading/writing chapter ka MCQ ho to bhi "MCQ" label dikhao
+  const activityKey = isMCQ ? 'MCQ' : (summary.activityType || 'LESSON');
   const activityEmoji = ACTIVITY_EMOJI[activityKey] || '📖';
   const activityLabel = ACTIVITY_LABEL[activityKey] || activityKey;
   const hasPts = (summary.sessionScore ?? 0) > 0;
