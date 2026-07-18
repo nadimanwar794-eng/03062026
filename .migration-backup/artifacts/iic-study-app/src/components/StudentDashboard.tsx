@@ -24105,7 +24105,8 @@ RULES:
         const _lockableModes = hasPageInfo
           ? (pageInfo!.availableModes || []).filter(m => m.isAccessible && !m.isUnlocked && m.cost > 0)
           : [];
-        const _bulkModeCost = _lockableModes.reduce((s, m) => s + Math.max(1, Math.floor(m.cost * discMult)), 0);
+        const _bulkModeCostRaw = _lockableModes.reduce((s, m) => s + Math.max(1, Math.floor(m.cost * discMult)), 0);
+        const _bulkModeCost = Math.floor(_bulkModeCostRaw * 0.8); // 20% bulk discount
         const _hasMultiModes = _lockableModes.length > 1; // more than just the current mode
 
         // ── Active cost/action based on selection ──
@@ -24209,50 +24210,38 @@ RULES:
                     </div>
                   </button>
 
-                  {/* Right card: Sabhi Modes (only shown when >1 accessible modes exist) */}
+                  {/* Right card: All Modes (only shown when >1 accessible modes exist) */}
                   {_hasMultiModes && (
                     <button type="button"
                       onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: true } : null)}
                       className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col relative overflow-hidden min-h-[130px] ${selectedBulk ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
                     >
-                      <div className="absolute top-2 right-2 bg-violet-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full z-10 leading-none">SABHI MODES</div>
+                      <div className="absolute top-2 right-2 bg-violet-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full z-10 leading-none">ALL MODES</div>
                       <div className="flex items-center gap-1.5 mb-2">
                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedBulk ? 'border-violet-500 bg-violet-500' : 'border-slate-300 bg-white'}`}>
                           {selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Is Page ke liye</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">All Modes</p>
                       </div>
-                      {/* All modes list */}
+                      {/* Only unlocked-pending modes list */}
                       <div className="flex-1 space-y-0.5 overflow-y-auto max-h-[72px] mb-1.5 pr-0.5">
-                        {(pageInfo!.availableModes || []).map((m, i) => {
-                          const _alreadyUnlocked = m.isUnlocked && m.cost > 0;
-                          const _subLocked = !m.isAccessible;
-                          const _tierLabel = m.requiredTier === 'ultra' ? 'ULTRA' : m.requiredTier === 'basic' ? 'BASIC' : '';
-                          return (
-                            <div key={i} className="flex items-center justify-between gap-1">
-                              <p className={`text-[9px] font-semibold truncate flex-1 leading-tight ${_subLocked ? 'text-slate-300' : _alreadyUnlocked ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                {m.emoji} {m.label}
-                              </p>
-                              {_alreadyUnlocked ? (
-                                <span className="text-[9px] font-black text-emerald-500 shrink-0">✓</span>
-                              ) : _subLocked ? (
-                                <span className="text-[8px] font-black text-slate-300 shrink-0 bg-slate-100 px-1 py-px rounded">🔒{_tierLabel}</span>
-                              ) : m.cost === 0 ? (
-                                <span className="text-[9px] font-black text-blue-400 shrink-0">Sub ✓</span>
-                              ) : (
-                                <span className="text-[9px] font-black text-slate-400 shrink-0">{Math.max(1, Math.floor(m.cost * discMult))} CR</span>
-                              )}
-                            </div>
-                          );
-                        })}
+                        {_lockableModes.map((m, i) => (
+                          <div key={i} className="flex items-center justify-between gap-1">
+                            <p className="text-[9px] font-semibold truncate flex-1 leading-tight text-slate-600">
+                              {m.emoji} {m.label}
+                            </p>
+                            <span className="text-[9px] font-black text-slate-400 shrink-0">{Math.max(1, Math.floor(m.cost * discMult))} CR</span>
+                          </div>
+                        ))}
                       </div>
-                      {/* Total */}
+                      {/* Total with 20% discount */}
                       <div className="border-t border-slate-200/70 pt-1.5 mt-auto">
                         <div className="flex items-baseline gap-1">
                           <span className="text-[22px] font-black text-violet-700 leading-none">{_bulkModeCost}</span>
                           <span className="text-[11px] font-bold text-violet-400">CR</span>
+                          <span className="text-[10px] text-slate-400 line-through">{_bulkModeCostRaw}</span>
                         </div>
-                        <p className="text-[9px] font-black text-violet-600 leading-none">🔓 Sab accessible modes unlock</p>
+                        <p className="text-[9px] font-black text-emerald-600 leading-none">🎉 20% off · Sab modes unlock</p>
                       </div>
                     </button>
                   )}
