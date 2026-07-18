@@ -24222,11 +24222,12 @@ RULES:
           ? (pageInfo!.availableModes || []).filter(m => m.isAccessible && !m.isUnlocked && m.cost > 0)
           : [];
         const _bulkModeCost = _lockableModes.reduce((s, m) => s + Math.max(1, Math.floor(m.cost * discMult)), 0);
+        const _bulkModeCostDiscounted = Math.floor(_bulkModeCost * 0.8); // 20% off for Sabhi Modes bundle
         const _hasMultiModes = _lockableModes.length > 1; // more than just the current mode
 
         // ── Active cost/action based on selection ──
         const activeCost = hasPageInfo
-          ? (selectedBulk ? _bulkModeCost : cost)
+          ? (selectedBulk ? _bulkModeCostDiscounted : cost)
           : (selectedBulk && bulkOption ? bulkOption.totalCost : cost);
         const activeAction = hasPageInfo
           ? (selectedBulk
@@ -24269,7 +24270,7 @@ RULES:
           >
             {/* ── Header ── */}
             <div className="cg-shimmer relative px-6 pt-7 pb-6 text-center"
-              style={{ background: 'linear-gradient(135deg,#3730a3 0%,#6d28d9 50%,#7c3aed 100%)' }}
+              style={{ background: 'linear-gradient(135deg, var(--nst-btn-start, #4f46e5) 0%, var(--nst-btn-end, #7c3aed) 100%)' }}
             >
               <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle,rgba(255,255,255,0.12),transparent 70%)' }} />
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle,rgba(255,255,255,0.07),transparent 70%)' }} />
@@ -24304,19 +24305,25 @@ RULES:
                   {/* Left card: Sirf Yahi Mode */}
                   <button type="button"
                     onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: false } : null)}
-                    className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col min-h-[130px] ${!selectedBulk ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                    className="flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col min-h-[130px]"
+                    style={!selectedBulk
+                      ? { borderColor: 'var(--nst-color-brand)', background: 'var(--nst-color-brand-5)', boxShadow: '0 2px 8px var(--nst-color-brand-20)' }
+                      : { borderColor: '#e2e8f0', background: '#f8fafc' }}
                   >
                     <div className="flex items-center gap-1.5 mb-2">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${!selectedBulk ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 bg-white'}`}>
+                      <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                        style={!selectedBulk
+                          ? { borderColor: 'var(--nst-color-brand)', background: 'var(--nst-color-brand)' }
+                          : { borderColor: '#cbd5e1', background: 'white' }}>
                         {!selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Yahi Mode</p>
                     </div>
-                    <p className="text-[11px] font-black text-indigo-700 leading-tight mb-1 line-clamp-2">{reason}</p>
+                    <p className="text-[11px] font-black leading-tight mb-1 line-clamp-2" style={{ color: 'var(--nst-color-brand)' }}>{reason}</p>
                     <div className="mt-auto">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-[22px] font-black text-indigo-700 leading-none">{cost}</span>
-                        <span className="text-[11px] font-bold text-indigo-400">CR</span>
+                        <span className="text-[22px] font-black leading-none" style={{ color: 'var(--nst-color-brand)' }}>{cost}</span>
+                        <span className="text-[11px] font-bold" style={{ color: 'var(--nst-color-brand-60, #818cf8)' }}>CR</span>
                         {(isDisc50 || isDisc25) && <span className="text-[10px] text-slate-400 line-through">{originalCost}</span>}
                       </div>
                       {isDisc50 && <p className="text-[8px] font-black text-emerald-600">🎉 50% off</p>}
@@ -24329,11 +24336,19 @@ RULES:
                   {_hasMultiModes && (
                     <button type="button"
                       onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: true } : null)}
-                      className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col relative overflow-hidden min-h-[130px] ${selectedBulk ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                      className="flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col relative overflow-hidden min-h-[130px]"
+                      style={selectedBulk
+                        ? { borderColor: 'var(--nst-color-brand)', background: 'var(--nst-color-brand-5)', boxShadow: '0 2px 8px var(--nst-color-brand-20)' }
+                        : { borderColor: '#e2e8f0', background: '#f8fafc' }}
                     >
-                      <div className="absolute top-2 right-2 bg-violet-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full z-10 leading-none">SABHI MODES</div>
+                      {/* 20% OFF badge */}
+                      <div className="absolute top-2 right-2 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full z-10 leading-none"
+                        style={{ background: 'var(--nst-btn-end, #7c3aed)' }}>20% OFF</div>
                       <div className="flex items-center gap-1.5 mb-2">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedBulk ? 'border-violet-500 bg-violet-500' : 'border-slate-300 bg-white'}`}>
+                        <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                          style={selectedBulk
+                            ? { borderColor: 'var(--nst-color-brand)', background: 'var(--nst-color-brand)' }
+                            : { borderColor: '#cbd5e1', background: 'white' }}>
                           {selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Is Page ke liye</p>
@@ -24362,13 +24377,14 @@ RULES:
                           );
                         })}
                       </div>
-                      {/* Total */}
+                      {/* Total — 20% discounted */}
                       <div className="border-t border-slate-200/70 pt-1.5 mt-auto">
                         <div className="flex items-baseline gap-1">
-                          <span className="text-[22px] font-black text-violet-700 leading-none">{_bulkModeCost}</span>
-                          <span className="text-[11px] font-bold text-violet-400">CR</span>
+                          <span className="text-[22px] font-black leading-none" style={{ color: 'var(--nst-color-brand)' }}>{_bulkModeCostDiscounted}</span>
+                          <span className="text-[11px] font-bold" style={{ color: 'var(--nst-color-brand-60, #818cf8)' }}>CR</span>
+                          <span className="text-[10px] text-slate-400 line-through">{_bulkModeCost}</span>
                         </div>
-                        <p className="text-[9px] font-black text-violet-600 leading-none">🔓 Sab accessible modes unlock</p>
+                        <p className="text-[9px] font-black leading-none" style={{ color: 'var(--nst-color-brand)' }}>🔓 Sab modes unlock — 20% off</p>
                       </div>
                     </button>
                   )}
@@ -24388,7 +24404,7 @@ RULES:
                     {isDisc50 && <span className="inline-block mt-1 text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🎉 50% Routine Discount</span>}
                     {isDisc25 && <span className="inline-block mt-1 text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⚡ 25% Routine Discount</span>}
                   </div>
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 6px 16px -4px rgba(99,102,241,0.5)' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, var(--nst-btn-start, #6366f1), var(--nst-btn-end, #8b5cf6))', boxShadow: '0 6px 16px -4px var(--nst-color-brand-20, rgba(99,102,241,0.5))' }}>
                     <span className="text-2xl">🪙</span>
                   </div>
                 </div>
@@ -24399,19 +24415,25 @@ RULES:
                 <div className="flex gap-2 mb-4">
                   <button type="button"
                     onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: false } : null)}
-                    className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col min-h-[130px] ${!selectedBulk ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                    className="flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col min-h-[130px]"
+                    style={!selectedBulk
+                      ? { borderColor: 'var(--nst-color-brand)', background: 'var(--nst-color-brand-5)', boxShadow: '0 2px 8px var(--nst-color-brand-20)' }
+                      : { borderColor: '#e2e8f0', background: '#f8fafc' }}
                   >
                     <div className="flex items-center gap-1.5 mb-2">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${!selectedBulk ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 bg-white'}`}>
+                      <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                        style={!selectedBulk
+                          ? { borderColor: 'var(--nst-color-brand)', background: 'var(--nst-color-brand)' }
+                          : { borderColor: '#cbd5e1', background: 'white' }}>
                         {!selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Yahi Page</p>
                     </div>
-                    <p className="text-[11px] font-black text-indigo-700 leading-tight mb-1 line-clamp-2">{reason}</p>
+                    <p className="text-[11px] font-black leading-tight mb-1 line-clamp-2" style={{ color: 'var(--nst-color-brand)' }}>{reason}</p>
                     <div className="mt-auto">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-[22px] font-black text-indigo-700 leading-none">{cost}</span>
-                        <span className="text-[11px] font-bold text-indigo-400">CR</span>
+                        <span className="text-[22px] font-black leading-none" style={{ color: 'var(--nst-color-brand)' }}>{cost}</span>
+                        <span className="text-[11px] font-bold" style={{ color: 'var(--nst-color-brand-60, #818cf8)' }}>CR</span>
                         {(isDisc50 || isDisc25) && <span className="text-[10px] text-slate-400 line-through">{originalCost}</span>}
                       </div>
                       {isDisc50 && <p className="text-[8px] font-black text-emerald-600">🎉 50% off</p>}
@@ -24478,8 +24500,8 @@ RULES:
                   disabled={!isFree && !canAfford}
                   className={`cg-shimmer py-4 rounded-2xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${isFree ? 'flex-1' : 'flex-[2]'}`}
                   style={{
-                    background: !isFree && !canAfford ? '#94a3b8' : isFree ? 'linear-gradient(135deg,#10b981,#0891b2)' : 'linear-gradient(135deg,#4f46e5,#7c3aed)',
-                    boxShadow: (isFree || canAfford) ? '0 10px 28px -6px rgba(99,102,241,0.6)' : 'none',
+                    background: !isFree && !canAfford ? '#94a3b8' : isFree ? 'linear-gradient(135deg,#10b981,#0891b2)' : 'linear-gradient(135deg, var(--nst-btn-start, #4f46e5), var(--nst-btn-end, #7c3aed))',
+                    boxShadow: (isFree || canAfford) ? '0 10px 28px -6px var(--nst-color-brand-20, rgba(99,102,241,0.6))' : 'none',
                   }}
                 >
                   <span className="relative z-10">{isFree ? '🎁' : '🪙'}</span>
