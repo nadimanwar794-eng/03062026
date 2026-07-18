@@ -18567,8 +18567,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 </div>
                 {/* 📖 Live session pts — fixed right side of slim bar */}
                 {(() => {
-                  // Cooldown seconds per tab type (approximate, matches score engine intervals)
-                  const _cooldowns: Record<string, number> = { NOTES: 30, QA: 30, PDF: 45, VIDEO: 12, AUDIO: 12, MCQS: 0, FLASHCARD: 0 };
+                  // Cooldown seconds per tab type — matches readingScoreEngine.ts constants exactly
+                  // VIDEO: 6s/+1pt | AUDIO: 30s/+6pts | NOTES(read): 30s/+5pts | QA/PDF: 60s/+credits
+                  const _cooldowns: Record<string, number> = { NOTES: 30, QA: 60, PDF: 60, VIDEO: 6, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
                   const _cooldown = _cooldowns[lucentActiveTab] ?? 30;
                   const _handleOpen = () => {
                     const _tick = () => {
