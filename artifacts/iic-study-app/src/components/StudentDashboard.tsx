@@ -3955,10 +3955,24 @@ export const StudentDashboard: React.FC<Props> = ({
           const _todayTask = _rg.dailyTasks?.[_todayStr];
           // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
           const _otherMatch = (_todayTask?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
-          const _isTodayLesson = _todayTask &&
-            (_todayTask.scienceLessonId === entry.id || _todayTask.socialScienceLessonId === entry.id || _otherMatch);
+          // Also check routineCategories (new system)
+          const _rgAllNotes = (settings?.lucentNotes || []) as any[];
+          const _isCatTodayClick = (_rg.routineCategories || []).some((cat: any) => {
+            const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+            const sub = cat.subjects?.[si];
+            if (!sub) return false;
+            const subNotes = _rgAllNotes.filter((n: any) =>
+              (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+              (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+              (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+            );
+            const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+            return lesson?.id === entry.id;
+          });
+          const _isTodayLesson = _isCatTodayClick || (_todayTask &&
+            (_todayTask.scienceLessonId === entry.id || _todayTask.socialScienceLessonId === entry.id || _otherMatch));
           // No task set for today at all → don't block
-          const _hasAnyTask = !!(_todayTask?.scienceLessonId || _todayTask?.socialScienceLessonId ||
+          const _hasAnyTask = _isCatTodayClick || !!(_todayTask?.scienceLessonId || _todayTask?.socialScienceLessonId ||
             (_todayTask?.otherTasks || []).some((t: any) => t.lessonId));
           if (_hasAnyTask && !_isTodayLesson) {
             // Task is set but this is NOT today's assigned lesson → show routine gate
@@ -5979,6 +5993,21 @@ export const StudentDashboard: React.FC<Props> = ({
                       _tt?.socialScienceLessonId,
                       ...(_tt?.otherTasks || []).map((t: any) => t.lessonId),
                     ].filter(Boolean));
+                    // Also check routineCategories (new system) — today's active lesson per category
+                    const _allNotes = (settings?.lucentNotes || []) as any[];
+                    const _isCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                      const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                      const sub = cat.subjects?.[si];
+                      if (!sub) return false;
+                      const subNotes = _allNotes.filter((n: any) =>
+                        (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                        (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                        (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                      );
+                      const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                      return lesson?.id === entry.id;
+                    });
+                    if (_isCatToday) return false;
                     return !_todayIds.has(entry.id);
                   } catch { return false; }
                 })();
@@ -5996,7 +6025,21 @@ export const StudentDashboard: React.FC<Props> = ({
                       _tt?.socialScienceLessonId,
                       ...(_tt?.otherTasks || []).map((t: any) => t.lessonId),
                     ].filter(Boolean));
-                    return _todayIds.has(entry.id);
+                    // Also check routineCategories (new system)
+                    const _allNotes = (settings?.lucentNotes || []) as any[];
+                    const _isCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                      const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                      const sub = cat.subjects?.[si];
+                      if (!sub) return false;
+                      const subNotes = _allNotes.filter((n: any) =>
+                        (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                        (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                        (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                      );
+                      const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                      return lesson?.id === entry.id;
+                    });
+                    return _todayIds.has(entry.id) || _isCatToday;
                   } catch { return false; }
                 })();
                 const isAdmin = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
@@ -6241,6 +6284,21 @@ export const StudentDashboard: React.FC<Props> = ({
                   const _tt = _rg.dailyTasks?.[_todayStr];
                   // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
                   const _otherMatch = (_tt?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
+                  // Also check routineCategories (new system)
+                  const _eAllNotes = (settings?.lucentNotes || []) as any[];
+                  const _eIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                    const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                    const sub = cat.subjects?.[si];
+                    if (!sub) return false;
+                    const subNotes = _eAllNotes.filter((n: any) =>
+                      (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                      (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                      (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                    );
+                    const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                    return lesson?.id === entry.id;
+                  });
+                  if (_eIsCatToday) return false;
                   return !(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id || _otherMatch);
                 } catch { return false; }
               })();
@@ -6253,7 +6311,21 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (!(_sc?.routineApplied)) return false;
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
-                  return !!(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id);
+                  // Also check routineCategories (new system)
+                  const _etAllNotes = (settings?.lucentNotes || []) as any[];
+                  const _etIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                    const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                    const sub = cat.subjects?.[si];
+                    if (!sub) return false;
+                    const subNotes = _etAllNotes.filter((n: any) =>
+                      (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                      (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                      (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                    );
+                    const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                    return lesson?.id === entry.id;
+                  });
+                  return !!(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id) || _etIsCatToday;
                 } catch { return false; }
               })();
               const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
