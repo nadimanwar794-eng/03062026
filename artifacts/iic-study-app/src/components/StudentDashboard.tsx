@@ -3238,9 +3238,26 @@ export const StudentDashboard: React.FC<Props> = ({
           _rd = checkAndResetDaily(_rd);
           // Generate fresh daily task with real lesson IDs
           const _lucentNotes = (settings?.lucentNotes || []) as any[];
-          const _newTask = generateDailyTask(_rd, _lucentNotes);
-          _rd = { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: _newTask } };
-          saveRoutineData(_fu.id, _rd);
+          // Only save if lucentNotes are loaded — otherwise wait for next tick
+          // to avoid saving an empty task (null lessonIds) that locks everything
+          if (_lucentNotes.length > 0) {
+            const _newTask = generateDailyTask(_rd, _lucentNotes);
+            _rd = { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: _newTask } };
+            saveRoutineData(_fu.id, _rd);
+          }
+        } else {
+          // Same day but task may have been saved with null IDs (lucentNotes not loaded yet)
+          // Re-generate if lucentNotes are now available and IDs are missing
+          const _lucentNotes = (settings?.lucentNotes || []) as any[];
+          const _existingTask = _rd.dailyTasks[_today];
+          const _hasIds = !!(_existingTask?.scienceLessonId || _existingTask?.socialScienceLessonId ||
+            (_existingTask?.otherTasks || []).some((t: any) => t.lessonId));
+          if (_lucentNotes.length > 0 && _existingTask && !_hasIds) {
+            // Task exists but has no lesson IDs — regenerate with real IDs
+            const _fixed = generateDailyTask({ ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: undefined as any } }, _lucentNotes);
+            _rd = { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: _fixed } };
+            saveRoutineData(_fu.id, _rd);
+          }
         }
 
         // Lesson-complete detection: check today's task lessons
@@ -3936,10 +3953,15 @@ export const StudentDashboard: React.FC<Props> = ({
         if (_subConf?.routineApplied && !routineIgnoredEntryIds.has(entry.id)) {
           const _todayStr = new Date().toISOString().split('T')[0];
           const _todayTask = _rg.dailyTasks?.[_todayStr];
+          // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
+          const _otherMatch = (_todayTask?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
           const _isTodayLesson = _todayTask &&
-            (_todayTask.scienceLessonId === entry.id || _todayTask.socialScienceLessonId === entry.id);
-          if (!_isTodayLesson) {
-            // Not today's assigned lesson → show routine gate
+            (_todayTask.scienceLessonId === entry.id || _todayTask.socialScienceLessonId === entry.id || _otherMatch);
+          // No task set for today at all → don't block
+          const _hasAnyTask = !!(_todayTask?.scienceLessonId || _todayTask?.socialScienceLessonId ||
+            (_todayTask?.otherTasks || []).some((t: any) => t.lessonId));
+          if (_hasAnyTask && !_isTodayLesson) {
+            // Task is set but this is NOT today's assigned lesson → show routine gate
             setRoutineGate({ entry, pageIdx });
             return;
           }
@@ -6217,7 +6239,13 @@ export const StudentDashboard: React.FC<Props> = ({
                   // Only show lock if NOT today's assigned lesson
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
-                  return !(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id);
+                  // No task set → no lock
+                  const _hasAnyTask = !!(_tt?.scienceLessonId || _tt?.socialScienceLessonId ||
+                    (_tt?.otherTasks || []).some((t: any) => t.lessonId));
+                  if (!_hasAnyTask) return false;
+                  // Check all buckets including OTHER subjects
+                  const _otherMatch = (_tt?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
+                  return !(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id || _otherMatch);
                 } catch { return false; }
               })();
               const _isEntryTodayRoutine = (() => {
@@ -19697,9 +19725,19 @@ RULES:
         // we show the task even if the subject category doesn't perfectly match.
         const _sciLesson  = _todayTask?.scienceLessonId ? _lucentNotes.find((n: any) => n.id === _todayTask!.scienceLessonId) : null;
         const _socLesson  = _todayTask?.socialScienceLessonId ? _lucentNotes.find((n: any) => n.id === _todayTask!.socialScienceLessonId) : null;
-        const _todayLesson = (_isScience ? (_sciLesson || _socLesson) : (_socLesson || _sciLesson)) ?? null;
+        // Also check otherTasks for custom/OTHER category subjects (Hindi, Sanskrit, etc.)
+        const _otherTaskLesson = (() => {
+          const others = _todayTask?.otherTasks || [];
+          for (const ot of others) {
+            const found = _lucentNotes.find((n: any) => n.id === ot.lessonId);
+            if (found) return found;
+          }
+          return null;
+        })();
+        const _todayLesson = (_isScience ? (_sciLesson || _socLesson) : (_socLesson || _sciLesson)) ?? _otherTaskLesson ?? null;
         // Whether any lesson ID is set at all (regardless of lucentNotes lookup)
-        const _hasAnyTaskId = !!((_todayTask?.scienceLessonId) || (_todayTask?.socialScienceLessonId));
+        const _hasAnyTaskId = !!((_todayTask?.scienceLessonId) || (_todayTask?.socialScienceLessonId) ||
+          (_todayTask?.otherTasks || []).some((t: any) => t.lessonId));
 
         // Yesterday partial completion for discount calculation
         const _yestD = new Date(); _yestD.setDate(_yestD.getDate() - 1);
