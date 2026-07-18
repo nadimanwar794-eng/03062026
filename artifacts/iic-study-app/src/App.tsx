@@ -448,10 +448,13 @@ const App: React.FC = () => {
       };
     }
 
-    // Har session ka credit history record karo
-    queue.forEach(sess => {
+    // Har session ka credit history record karo + bonusPts augment karo
+    const discount = getLevelInfo(user.totalScore || 0).discount;
+    const augmentedQueue = queue.map(sess => {
+      const bonusPts = sess.sessionScore != null && sess.sessionScore > 0
+        ? Math.round(sess.sessionScore * discount / 100)
+        : 0;
       if (sess.sessionScore != null && user.id) {
-        const bonusPts = Math.round(sess.sessionScore * (getLevelInfo(user.totalScore || 0).discount / 100));
         const actLabel = (sess.activityType === 'MCQ' || sess.type === 'MCQ') ? 'MCQ'
           : sess.activityType === 'Writing' ? 'Writing Notes' : 'Reading Notes';
         recordCreditTx(
@@ -467,10 +470,11 @@ const App: React.FC = () => {
           sess.chapter,
         );
       }
+      return { ...sess, bonusPts };
     });
 
     // Banner dikhao — merge with any already-displaying sessions
-    applySessionQueue(queue);
+    applySessionQueue(augmentedQueue);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
@@ -639,17 +643,13 @@ const App: React.FC = () => {
   const displayedSessionsRef = useRef<SessionCompletePayload[]>([]);
 
   // Safely show sessions — merges with any already-displaying banner
+  // Always uses GroupedSessionBanner (works for 1+ sessions)
   const applySessionQueue = useCallback((newQueue: SessionCompletePayload[]) => {
     if (newQueue.length === 0) return;
     const merged = [...displayedSessionsRef.current, ...newQueue];
     displayedSessionsRef.current = merged;
-    if (merged.length === 1) {
-      setPendingSessionSummary(merged[0]);
-      setGroupedSessions([]);
-    } else {
-      setPendingSessionSummary(null);
-      setGroupedSessions(merged);
-    }
+    setPendingSessionSummary(null);
+    setGroupedSessions(merged);
   }, []);
 
   // Listen for lesson-complete events (Reading / Writing) — queue karo, HOME pe dikhao
@@ -3699,13 +3699,13 @@ const App: React.FC = () => {
       </div>
     )}
 
-    {/* Grouped banner — 2+ activities ek saath */}
-    {groupedSessions.length >= 2 && (
+    {/* Session banner — 1+ activities (always uses GroupedSessionBanner) */}
+    {groupedSessions.length >= 1 && (
       <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
         <div className="pointer-events-auto">
           <GroupedSessionBanner
             sessions={groupedSessions}
-            onDismiss={() => { setGroupedSessions([]); displayedSessionsRef.current = []; }}
+            onDismiss={() => { setGroupedSessions([]); setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
           />
         </div>
       </div>

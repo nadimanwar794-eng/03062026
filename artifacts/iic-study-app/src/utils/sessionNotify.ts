@@ -21,6 +21,8 @@ export interface SessionCompletePayload {
   sessionScore?: number;  // pts earned this session (for grouped display)
   // v3 fields — direct credit rewards (not coin conversion from pts)
   creditsEarned?: number; // credits earned directly from engine (writing/pdf/video/qa)
+  // v4 fields — bonus pts from level multiplier (computed at display time)
+  bonusPts?: number;
 }
 
 // ── Event bus (legacy — still used by fireSessionComplete callers) ─────────
