@@ -192,30 +192,45 @@ export const LessonView: React.FC<Props> = ({
     const _onUpdateUser = onUpdateUserRef.current;
     if (!_user || !_onUpdateUser || pts <= 0) return;
 
-    // Update totalScore immediately
+    // Update totalScore immediately — reading/MCQ pts only
     const scoreUpdated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
 
     // Fractional coin accumulator: add this event's coin-value to running total,
     // then award only the integer part — remainder carries to the next event.
-    // This preserves parity with the old session-aggregate approach:
-    // e.g. four +1-TTS events at ×0.25 → 0+0+0+1 coin (not 0+0+0+0).
     const userLevel = getLevelFromScore(_user.totalScore || 0);
     const ratio = userLevel >= 5 ? 0.5 : 0.25;
     coinFracAccumRef.current += pts * ratio;
     const coins = Math.floor(coinFracAccumRef.current);
-    coinFracAccumRef.current -= coins; // keep fractional remainder
+    coinFracAccumRef.current -= coins;
 
     if (coins > 0) {
       const newCredits = (_user.credits || 0) + coins;
       const updatedWithCoins = { ...scoreUpdated, credits: newCredits };
       _onUpdateUser(updatedWithCoins);
       saveUserToLive(updatedWithCoins);
-      const src = activity.startsWith('WRITE') ? 'writing' : 'reading';
-      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: src });
+      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: 'reading' });
     } else {
       _onUpdateUser(scoreUpdated);
       saveUserToLive(scoreUpdated);
     }
+  }, []);
+
+  // Credits earned directly (video 60s, pdf 60s, writing 60s) — does NOT affect pts/totalScore
+  const handleCreditsEarned = useCallback((credits: number, activity: string) => {
+    const _user = userRef.current;
+    const _onUpdateUser = onUpdateUserRef.current;
+    if (!_user || !_onUpdateUser || credits <= 0) return;
+
+    const newCredits = (_user.credits || 0) + credits;
+    const updated = { ..._user, credits: newCredits };
+    _onUpdateUser(updated);
+    saveUserToLive(updated);
+
+    const src = activity.startsWith('VIDEO') ? 'video'
+              : activity.startsWith('PDF')   ? 'pdf'
+              : activity.startsWith('QA')    ? 'qa'
+              : 'writing';
+    fireCreditNotify({ type: 'EARN', amount: credits, remaining: newCredits, source: src });
   }, []);
 
   // Award MCQ coins once when results are shown (session over)
@@ -240,7 +255,13 @@ export const LessonView: React.FC<Props> = ({
     onScoreEarned: handleReadingScoreEarned,
   } : undefined;
 
-  const writingScoreConfig = readingScoreConfig ? { ...readingScoreConfig, mode: 'writing' as const } : undefined;
+  // Writing mode: credits only (no pts), 5% scroll/min required
+  const writingScoreConfig = readingScoreConfig ? {
+    ...readingScoreConfig,
+    mode: 'writing' as const,
+    onScoreEarned: undefined, // writing doesn't earn pts
+    onCreditsEarned: handleCreditsEarned,
+  } : undefined;
 
   // ── Media (Video / Audio) time-based score session ───────────────────────
   const mediaScoreSessionRef = useRef<ReadingScoreSession | null>(null);
@@ -263,7 +284,6 @@ export const LessonView: React.FC<Props> = ({
     const isMediaContent = isVideoContent || isAudioContent;
 
     if (!isMediaContent || !user?.id) {
-      // Stop any running session
       if (mediaScoreSessionRef.current) {
         mediaScoreSessionRef.current.stop();
         mediaScoreSessionRef.current = null;
@@ -272,7 +292,6 @@ export const LessonView: React.FC<Props> = ({
       return;
     }
 
-    // Start a new session
     const _lessonLabel = [subject?.name, chapter?.title].filter(Boolean).join(' · ') || undefined;
     const session = new ReadingScoreSession(
       {
@@ -283,16 +302,44 @@ export const LessonView: React.FC<Props> = ({
         boostPercent: getActiveBoost(user as any),
         mode: isAudioContent ? 'audio' : 'video',
         lessonLabel: _lessonLabel,
+        // Video: 6s → +1 pts; Audio: 30s → pts
         onScoreEarned: handleReadingScoreEarned,
+        // Video: 60s → +10 credits (doesn't affect pts/totalScore)
+        onCreditsEarned: isVideoContent ? handleCreditsEarned : undefined,
       },
       (state) => setMediaScoreState(state),
     );
     mediaScoreSessionRef.current = session;
     session.start();
 
+    // YouTube play/pause detection via postMessage (enablejsapi=1)
+    // playerState: 1=playing, 2=paused, 0=ended, 3=buffering, -1=unstarted
+    const handleYtMessage = (e: MessageEvent) => {
+      if (typeof e.data !== 'string') return;
+      try {
+        const data = JSON.parse(e.data);
+        if (data.event === 'infoDelivery' && data.info?.playerState !== undefined) {
+          const playing = data.info.playerState === 1 || data.info.playerState === 3;
+          mediaScoreSessionRef.current?.setVideoPlaying(playing);
+        }
+        // Also handle onStateChange format
+        if (data.event === 'onStateChange' && data.info !== undefined) {
+          const playing = data.info === 1 || data.info === 3;
+          mediaScoreSessionRef.current?.setVideoPlaying(playing);
+        }
+      } catch {}
+    };
+
+    if (isVideoContent) {
+      window.addEventListener('message', handleYtMessage);
+    }
+
     return () => {
       session.stop();
       mediaScoreSessionRef.current = null;
+      if (isVideoContent) {
+        window.removeEventListener('message', handleYtMessage);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content?.id, content?.type, user?.id]);
@@ -1265,6 +1312,7 @@ export const LessonView: React.FC<Props> = ({
               isPremium={!!(user?.isPremium || (user?.subscriptionTier && user.subscriptionTier !== 'FREE'))}
               boostPercent={getActiveBoost(user as any)}
               onScoreEarned={handleReadingScoreEarned}
+              onCreditsEarned={handleCreditsEarned}
               onNext={onNext}
               nextTitle={nextTitle}
               onSchoolModeSwitch={schoolMode && onSchoolModeSwitch ? onSchoolModeSwitch : undefined}

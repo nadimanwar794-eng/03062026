@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, SystemSettings, MCQItem } from '../types';
 import { X, BookOpen, Zap, CheckCircle, AlertCircle, ChevronRight, Check, RotateCcw, Loader2, Volume2, FileText } from 'lucide-react';
 import { getChapterData, saveUserToLive } from '../firebase';
@@ -8,6 +8,9 @@ import { DEFAULT_SUBJECTS } from '../constants';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { renderMathInHtml } from '../utils/mathUtils';
+import { ReadingScoreSession } from '../utils/readingScoreEngine';
+import { fireCreditNotify } from '../utils/creditNotify';
+import { getLevelFromScore } from '../utils/levelSystem';
 
 interface Props {
     user: User;
@@ -27,6 +30,20 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
     const [loading, setLoading] = useState(true);
     const [notesContent, setNotesContent] = useState<string | null>(null);
     const [mcqData, setMcqData] = useState<MCQItem[]>([]);
+
+    // ── Q&A Review scroll-based credit session ───────────────────────────────
+    const qaScoreSessionRef = useRef(null);
+    const qaScrollContainerRef = useRef(null);
+
+    // Called when the Q&A credit engine awards credits (10% scroll/min required)
+    const handleQaCreditsEarned = useCallback((credits) => {
+        if (!user?.id || credits <= 0) return;
+        const newCredits = (user.credits || 0) + credits;
+        const updated = { ...user, credits: newCredits };
+        onUpdateUser(updated);
+        saveUserToLive(updated);
+        fireCreditNotify({ type: 'EARN', amount: credits, remaining: newCredits, source: 'qa' });
+    }, [user, onUpdateUser]);
 
     // Determine if MCQ is available based on status and time
     // Logic: Week (WEAK) -> 2 days after revision
@@ -94,6 +111,48 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
     // Review screen state
     const [showReview, setShowReview] = useState(false);
     const [sessionResult, setSessionResult] = useState<any>(null);
+
+    // Start Q&A credit session when review screen opens, stop when it closes
+    useEffect(() => {
+        if (!showReview || !user?.id) {
+            qaScoreSessionRef.current?.stop();
+            qaScoreSessionRef.current = null;
+            return;
+        }
+        const session = new ReadingScoreSession(
+            {
+                userId: user.id,
+                userLevel: getLevelFromScore(user.totalScore || 0),
+                subscriptionLevel: user.subscriptionTier || 'FREE',
+                isPremium: !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE')),
+                mode: 'qa',
+                // Q&A: credits only, 0 pts
+                onCreditsEarned: (credits) => handleQaCreditsEarned(credits),
+            },
+            () => {}, // HUD not shown for Q&A review
+        );
+        qaScoreSessionRef.current = session;
+        session.start();
+        return () => {
+            session.stop();
+            qaScoreSessionRef.current = null;
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showReview, user?.id]);
+
+    // Scroll listener: feed scroll % to Q&A session
+    useEffect(() => {
+        const el = qaScrollContainerRef.current;
+        if (!el) return;
+        const onScroll = () => {
+            const scrollable = el.scrollHeight - el.clientHeight;
+            if (scrollable <= 0) return;
+            const pct = Math.round((el.scrollTop / scrollable) * 100);
+            qaScoreSessionRef.current?.updateProgress(pct);
+        };
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [showReview]); // re-bind when review opens
 
     // Extract stable user properties
     const userBoard = user.board || 'CBSE';
@@ -548,8 +607,8 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                         </div>
                     </div>
 
-                    {/* Q&A Review list */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-28">
+                    {/* Q&A Review list — scroll tracked for credit session */}
+                    <div ref={qaScrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 pb-28">
                         {sessionResult.items.map((item: any, idx: number) => (
                             <div key={idx} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${item.isCorrect ? 'border-emerald-200' : 'border-rose-200'}`}>
                                 <div className={`px-4 py-2 flex items-center gap-2 ${item.isCorrect ? 'bg-emerald-50' : 'bg-rose-50'}`}>

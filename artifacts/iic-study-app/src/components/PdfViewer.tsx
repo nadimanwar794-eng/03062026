@@ -33,6 +33,8 @@ interface Props {
   isPremium?: boolean;
   boostPercent?: number;
   onScoreEarned?: (pts: number) => void;
+  /** Called when credits are earned directly (does NOT affect pts/totalScore) */
+  onCreditsEarned?: (credits: number, activity: string) => void;
   /** Next chapter navigation */
   onNext?: () => void;
   nextTitle?: string;
@@ -73,6 +75,7 @@ const MILESTONE_SCORES = [
 export const PdfViewer: React.FC<Props> = ({
   url, title, onBack, sessionKey,
   userId, userLevel = 1, subscriptionLevel, isPremium, boostPercent = 0, onScoreEarned,
+  onCreditsEarned,
   onNext, nextTitle, onSchoolModeSwitch, isAdmin, onAdminBoard,
 }) => {
   const key = sessionKey || btoa(url).replace(/[^a-z0-9]/gi, '').slice(0, 24);
@@ -107,7 +110,7 @@ export const PdfViewer: React.FC<Props> = ({
   const headerHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const jumpInputRef = useRef<HTMLInputElement>(null);
 
-  // ── PDF time-based score session (no scroll tracking possible in iframe) ──
+  // ── PDF time-based score session: 60s/min → +10 credits with ≥5% scroll check ──
   const pdfScoreSessionRef = useRef<ReadingScoreSession | null>(null);
   const [pdfScoreState, setPdfScoreState] = useState<ReadingScoreState | null>(null);
 
@@ -121,7 +124,9 @@ export const PdfViewer: React.FC<Props> = ({
         isPremium,
         boostPercent: boostPercent || 0,
         mode: 'pdf',
-        onScoreEarned: (pts) => onScoreEarned?.(pts),
+        // PDF earns credits only (not pts) — credit earn does NOT affect totalScore
+        onScoreEarned: undefined,
+        onCreditsEarned: (cr, activity) => onCreditsEarned?.(cr, activity),
       },
       (state) => setPdfScoreState(state),
     );
@@ -172,10 +177,14 @@ export const PdfViewer: React.FC<Props> = ({
     }
   };
 
-  // Progress milestones
+  // Progress milestones + scroll % update for credit session
   useEffect(() => {
     if (!userId || totalPages <= 0) return;
     const pct = Math.round((currentPage / totalPages) * 100);
+
+    // Feed scroll % into the credit session so it can check ≥5% scroll/min
+    pdfScoreSessionRef.current?.updateProgress(pct);
+
     for (const ms of MILESTONE_SCORES) {
       if (pct >= ms.pct && !awardedMilestones.has(ms.pct)) {
         const earned = tryEarnScore(userId, ms.base, subscriptionLevel, isPremium, boostPercent, 'PDF_MILESTONE');

@@ -86,9 +86,17 @@ export const ReadingScoreHUD: React.FC<Props> = ({
   const isVideo    = state.mode === 'video';
   const isAudio    = state.mode === 'audio';
   const isPdf      = state.mode === 'pdf';
-  const modeIcon   = isVideo ? '🎬' : isAudio ? '🎧' : isPdf ? '📄' : isReading ? '📖' : '✍️';
-  const rewardBase = isVideo ? 8 : isAudio ? 6 : isPdf ? 5 : isReading ? 5 : 10;
-  const intervalLabel = isVideo || isAudio || isPdf ? '30s' : isReading ? '30s' : '1min';
+  const isQa       = state.mode === 'qa';
+  const modeIcon   = isVideo ? '🎬' : isAudio ? '🎧' : isPdf ? '📄' : isQa ? '💬' : isReading ? '📖' : '✍️';
+  // For credit modes show credits earned; for pts modes show pts
+  const isCreditMode = isVideo || isPdf || state.mode === 'writing' || isQa;
+  const rewardLabel = isVideo ? '+1 pts / 6s · +10cr / 1min'
+                    : isPdf   ? '+10cr / 1min (≥5% scroll)'
+                    : isQa    ? '+10cr / 1min (≥10% scroll)'
+                    : state.mode === 'writing' ? '+10cr / 1min (≥5% scroll)'
+                    : isAudio ? '+6 pts / 30s'
+                    : '+5 pts / 30s';
+  const intervalLabel = isVideo ? '1min' : isAudio ? '30s' : isPdf || isQa || state.mode === 'writing' ? '1min' : isReading ? '30s' : '1min';
   const remaining  = Math.max(0, state.maxWindowSec - state.sessionElapsedSec);
   const remMin     = Math.floor(remaining / 60);
   const remSec     = fmt2(remaining % 60);
@@ -170,15 +178,25 @@ export const ReadingScoreHUD: React.FC<Props> = ({
 
             {/* Next reward + time left */}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, alignItems: 'center' }}>
-              {!state.isPaused ? (
+              {state.isPermanentlyStopped ? (
+                <span style={{ color: '#f87171', fontWeight: 700 }}>⛔ Scroll karo resume ke liye</span>
+              ) : !state.isPaused ? (
                 <span style={{ color: levelColor, fontWeight: 900 }}>
-                  +{rewardBase} in {state.nextRewardInSec}s
+                  {rewardLabel} · in {state.nextRewardInSec}s
                 </span>
               ) : (
                 <span style={{ color: '#f87171', fontWeight: 700 }}>Score paused</span>
               )}
               <span style={{ color: '#64748b', fontSize: 9 }}>{remMin}:{remSec} left</span>
             </div>
+
+            {/* Credits earned this session */}
+            {isCreditMode && state.totalCreditsEarned > 0 && (
+              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #ffffff14', display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                <span style={{ color: '#94a3b8' }}>Credits earned</span>
+                <span style={{ color: '#86efac', fontWeight: 900 }}>+{state.totalCreditsEarned} CR</span>
+              </div>
+            )}
 
             {/* Level badge */}
             {levelLabel && (
@@ -242,21 +260,31 @@ export const ReadingScoreHUD: React.FC<Props> = ({
           <div
             style={{
               ...popupBase,
-              background:  state.isPaused ? 'rgba(69,10,10,0.95)' : 'rgba(67,20,7,0.95)',
-              border:      `1px solid ${state.isPaused ? '#ef444455' : '#f9731655'}`,
+              background:  state.isPermanentlyStopped ? 'rgba(69,10,10,0.97)' : state.isPaused ? 'rgba(69,10,10,0.95)' : 'rgba(67,20,7,0.95)',
+              border:      `1px solid ${state.isPermanentlyStopped ? '#ef444488' : state.isPaused ? '#ef444455' : '#f9731655'}`,
               padding:     '10px 13px',
               minWidth:    182,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ fontSize: 16, lineHeight: 1.3 }}>{state.isPaused ? '⏸️' : '⚠️'}</span>
+              <span style={{ fontSize: 16, lineHeight: 1.3 }}>
+                {state.isPermanentlyStopped ? '🛑' : state.isPaused ? '⏸️' : '⚠️'}
+              </span>
               <div>
                 <div style={{ color: '#fff', fontSize: 11, fontWeight: 900 }}>
-                  {state.isPaused ? 'Score Paused' : 'Progress Required'}
+                  {state.isPermanentlyStopped
+                    ? 'Credits Ruk Gaye'
+                    : state.isPaused
+                    ? 'Score Paused'
+                    : 'Scroll Kam Hai'}
                 </div>
                 <div style={{ color: '#cbd5e1', fontSize: 9, marginTop: 3 }}>
-                  {state.isPaused
+                  {state.isPermanentlyStopped
+                    ? 'Scroll karo — credits resume ho jayenge'
+                    : state.isPaused
                     ? 'Padhna jaari rakho, resume ho jayega'
+                    : isCreditMode
+                    ? `Thoda aur scroll karo (${state.scrollFailStreak}/2 fail)`
                     : '10% reading progress chahiye'}
                 </div>
               </div>
