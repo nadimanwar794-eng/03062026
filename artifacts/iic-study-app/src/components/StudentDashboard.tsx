@@ -18611,7 +18611,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       lucentCountdown > 0 ? `in ${lucentCountdown}s` : 'Milenge ab!';
                     const _showProgress = !['MCQS','FLASHCARD'].includes(lucentActiveTab);
                     return (
-                      <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.2)', borderTop: `2px solid ${_accentColor}`, borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 4px 20px rgba(99,102,241,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260 }}>
+                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.2)', borderTop: `2px solid ${_accentColor}`, borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 200, boxShadow: '0 4px 20px rgba(99,102,241,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260 }}>
                         <span style={{ fontSize: 14, flexShrink: 0 }}>{_modeIcon}</span>
                         <span style={{ fontSize: 10, fontWeight: 900, color: _accentColor, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{_modeLabel}</span>
                         <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
