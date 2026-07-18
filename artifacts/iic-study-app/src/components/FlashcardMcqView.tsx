@@ -489,11 +489,11 @@ export const FlashcardMcqView: React.FC<Props> = ({
           <span
             onClick={() => { setScoreTooltip(true); setTimeout(() => setScoreTooltip(false), 2500); }}
             style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
-            ⭐ +{sessionScore}
+            📖 {sessionScore}
           </span>
           {scoreTooltip && (
             <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-              🃏 Card reveal pe milega!
+              📖 Card reveal pe milega!
             </div>
           )}
         </div>

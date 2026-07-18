@@ -417,7 +417,7 @@ export const PdfViewer: React.FC<Props> = ({
           <span
             onClick={() => { setPdfScoreTooltip(true); setTimeout(() => setPdfScoreTooltip(false), 2500); }}
             style={{ fontSize: '10px', fontWeight: 900, color: '#86efac', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.28)', borderRadius: 99, padding: '2px 7px', whiteSpace: 'nowrap', cursor: 'pointer', display: 'block' }}>
-            📄 {pdfScoreState
+            📖 {pdfScoreState
               ? (pdfScoreState.totalCreditsEarned > 0 ? `+${pdfScoreState.totalCreditsEarned}cr` : `+${pdfScoreState.totalSessionScore}pts`)
               : '+0pts'}
           </span>
@@ -425,7 +425,7 @@ export const PdfViewer: React.FC<Props> = ({
             <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
               {pdfScoreState && pdfScoreState.nextRewardInSec > 0
                 ? `⏱ ${pdfScoreState.nextRewardInSec}s mein milega`
-                : '📄 Padhte raho, milega!'}
+                : '📖 Padhte raho, milega!'}
             </div>
           )}
         </div>

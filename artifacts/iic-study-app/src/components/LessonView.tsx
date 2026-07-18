@@ -1156,13 +1156,13 @@ export const LessonView: React.FC<Props> = ({
                                   <span
                                       onClick={() => { setWritingScoreTooltip(true); setTimeout(() => setWritingScoreTooltip(false), 2500); }}
                                       style={{ fontSize: '10px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
-                                      ✍️ +{writingHtmlScoreState?.totalSessionScore ?? 0}
+                                      📖 {writingHtmlScoreState?.totalSessionScore ?? 0}
                                   </span>
                                   {writingScoreTooltip && (
                                       <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
                                           {writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0
                                               ? `⏱ ${writingHtmlScoreState.nextRewardInSec}s mein milega`
-                                              : '✍️ Likhte raho, milega!'}
+                                              : '📖 Likhte raho, milega!'}
                                       </div>
                                   )}
                               </div>
@@ -1381,13 +1381,13 @@ export const LessonView: React.FC<Props> = ({
                           <span
                             onClick={() => { setVideoScoreTooltip(true); setTimeout(() => setVideoScoreTooltip(false), 2500); }}
                             style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', letterSpacing: '0.02em', cursor: 'pointer', display: 'block' }}>
-                            ⭐ +{mediaScoreState.totalSessionScore}
+                            📖 {mediaScoreState.totalSessionScore}
                           </span>
                           {videoScoreTooltip && (
                             <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
                               {mediaScoreState.nextRewardInSec > 0
                                 ? `⏱ ${mediaScoreState.nextRewardInSec}s mein milega`
-                                : '▶️ Video chalao, milega!'}
+                                : '📖 Video chalao, milega!'}
                             </div>
                           )}
                         </div>
@@ -2415,7 +2415,7 @@ export const LessonView: React.FC<Props> = ({
                            <span
                                onClick={() => { setMcqScoreTooltip(true); setTimeout(() => setMcqScoreTooltip(false), 2500); }}
                                style={{ fontSize: '10px', fontWeight: 900, color: '#818cf8', background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 99, padding: '2px 8px', letterSpacing: '0.02em', cursor: 'pointer', display: 'block' }}>
-                               ⭐ +{mcqLivePts}
+                               📖 {mcqLivePts}
                            </span>
                            {mcqScoreTooltip && (
                                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
