@@ -94,6 +94,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const sessionStartRef = useRef(Date.now());
   const viewedIdxRef = useRef<Set<number>>(new Set([0]));
   const sessionCommittedRef = useRef(false); // prevents double-counting on exit
+  // Track which card positions have already given +1 pts this session (Answer Dekho)
+  const revealedPtsRef = useRef<Set<number>>(new Set());
 
   // ── MCQ Score Popup ────────────────────────────────────────────────────────
   const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
@@ -105,6 +107,22 @@ export const FlashcardMcqView: React.FC<Props> = ({
     setMcqScorePopup(pts);
     setMcqScoreVisible(true);
     mcqPopupTimerRef.current = setTimeout(() => setMcqScoreVisible(false), 1800);
+  };
+
+  /** Called when user taps "Answer Dekho". Gives +1 pts once per card per session. */
+  const handleRevealAnswer = () => {
+    setFlipped(true);
+    // Award +1 pts only the first time this card is revealed this session
+    if (!revealedPtsRef.current.has(pos) && user?.id && !isAdmin && onUpdateUser) {
+      revealedPtsRef.current.add(pos);
+      const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_REVEAL');
+      if (pts > 0) {
+        showMcqScore(pts);
+        const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
+        onUpdateUser(updated);
+        saveUserToLive(updated);
+      }
+    }
   };
 
   const isAdmin = user?.role === 'ADMIN';
@@ -320,6 +338,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
     setHardReviewMode(false);
     setHardReviewPos(0);
     sessionStartRef.current = Date.now();
+    revealedPtsRef.current = new Set(); // reset per-session reveal tracking
     initSession();
   };
 
@@ -592,7 +611,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
 
               <button
                 type="button"
-                onClick={() => setFlipped(true)}
+                onClick={handleRevealAnswer}
                 className="mt-auto w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
                 style={{ background: appTheme.btnGrad }}
               >
