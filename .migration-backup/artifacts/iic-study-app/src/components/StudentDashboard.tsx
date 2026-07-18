@@ -24592,27 +24592,49 @@ RULES:
         </div>
       )}
 
-      {/* CREDIT TOAST — minimal floating pill, no background */}
+      {/* CREDIT TOAST — top-bar-matching overlay, slides in from top */}
       {creditDeductToast?.visible && (() => {
         const isAdd = creditDeductToast.type === 'ADD';
-        const sign = isAdd ? '+' : '−';
+        const sign  = isAdd ? '+' : '−';
+        const deltaColor = isAdd ? '#4ade80' : '#fb923c';
+        const appLabel   = settings?.appShortName || settings?.appName || 'IIC';
         return (
-          <div
-            className="fixed z-[99999] pointer-events-none animate-in slide-in-from-right-4 fade-in duration-200"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)', right: 12 }}
-          >
-            <span
+          <>
+            <style>{`@keyframes nst-credit-bar-in{0%{transform:translateY(-110%);opacity:0}100%{transform:translateY(0);opacity:1}}@keyframes nst-credit-bar-out{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-110%);opacity:0}}`}</style>
+            <div
+              className="fixed left-0 right-0 z-[99999] pointer-events-none"
               style={{
-                color: isAdd ? '#10b981' : '#f97316',
-                fontWeight: 900,
-                fontSize: 15,
-                letterSpacing: '-0.01em',
-                textShadow: '0 1px 4px rgba(0,0,0,0.45)',
+                top: 0,
+                paddingTop: 'env(safe-area-inset-top, 0px)',
+                background: 'var(--nst-top-bar-grad, linear-gradient(135deg,#4f46e5,#7c3aed))',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+                animation: 'nst-credit-bar-in 0.22s cubic-bezier(0.34,1.2,0.64,1) both',
               }}
             >
-              {sign}{creditDeductToast.deducted}🪙
-            </span>
-          </div>
+              <div className="flex items-center justify-between px-4" style={{ paddingTop: 8, paddingBottom: 8 }}>
+                {/* Left: crown + app name */}
+                <div className="flex items-center gap-1.5">
+                  <Crown size={12} style={{ color: 'rgba(255,255,255,0.7)' }} />
+                  <span style={{ color: '#fff', fontWeight: 900, fontSize: 13 }}>{appLabel}</span>
+                </div>
+                {/* Right: previous → delta → new */}
+                <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700 }}>
+                    {creditDeductToast.previous.toLocaleString('en-IN')}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, margin: '0 2px' }}>→</span>
+                  <span style={{ color: deltaColor, fontSize: 15, fontWeight: 900, letterSpacing: '-0.01em' }}>
+                    {sign}{creditDeductToast.deducted.toLocaleString('en-IN')}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, margin: '0 2px' }}>→</span>
+                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 900 }}>
+                    {creditDeductToast.current.toLocaleString('en-IN')}
+                  </span>
+                  <Crown size={9} style={{ color: 'rgba(255,255,255,0.55)', marginLeft: 3 }} />
+                </div>
+              </div>
+            </div>
+          </>
         );
       })()}
 
