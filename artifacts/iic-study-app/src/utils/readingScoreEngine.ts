@@ -2,34 +2,34 @@
  * Reading Score Engine — time-based active reading/writing rewards
  *
  * Reading Mode:
- *   • Every 30 sec of active reading  → +5 pts
+ *   • Every 28 sec of active reading  → +5 pts
  *   • Max reward window by level (L1-L8: 5 min … L15: 10 min)
  *   • Progress validation every 2 min: need ≥10% net forward progress
  *   • TTS topic highlight → +1 pts; Manual topic 10s → +2 pts
  *
  * Writing Mode:
- *   • Every 1 min → +10 credits (NOT pts — credit earns don't affect totalScore)
- *   • Need ≥5% net scroll per minute; warning shown on failure
+ *   • Every 45 sec → +10 credits (NOT pts — credit earns don't affect totalScore)
+ *   • Scroll check: need ≥5% net scroll per 60 sec (independent timer)
  *   • After 2 consecutive failed scroll checks: scoring stops (isPermanentlyStopped)
  *   • Resumes when user scrolls again
  *
  * Video Mode:
- *   • Every 6 sec of active play → +1 pts
+ *   • Every 4 sec of active play → +1 pts
  *   • Every 60 sec of active play → +10 credits
  *   • No reward when paused/stopped (call setVideoPlaying(bool))
  *
  * PDF Mode:
- *   • Every 60 sec → +10 credits (NOT pts)
- *   • Need ≥5% net scroll per minute; stop after 2 consecutive fails
- *   • Resumes when user scrolls again
+ *   • Every 38 sec → +10 credits (NOT pts)
+ *   • Scroll check: need ≥5% net scroll per 60 sec (independent timer)
+ *   • Stop after 2 consecutive fails; resumes when user scrolls again
  *
  * Q&A Mode:
- *   • Every 60 sec → +10 credits (0 pts)
- *   • Need ≥10% net scroll per minute; stop after 2 consecutive fails
- *   • Resumes when user scrolls again
+ *   • Every 55 sec → +10 credits (0 pts)
+ *   • Scroll check: need ≥5% net scroll per 30 sec (independent timer)
+ *   • Stop after 2 consecutive fails; resumes when user scrolls again
  *
  * Audio Mode:
- *   • Every 30 sec → +6 pts (unchanged)
+ *   • Every 22 sec → +6 pts
  */
 
 import { tryEarnScore } from './scoreSystem';
@@ -84,13 +84,16 @@ export interface ReadingScoreConfig {
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const READING_INTERVAL_SEC   = 30;
-const WRITING_INTERVAL_SEC   = 60;
-const VIDEO_PTS_INTERVAL_SEC = 6;    // +1 pts every 6s of playing
-const VIDEO_CR_INTERVAL_SEC  = 60;   // +10 credits every 60s of playing
-const AUDIO_INTERVAL_SEC     = 30;
-const PDF_INTERVAL_SEC       = 60;   // +10 credits every 60s
-const QA_INTERVAL_SEC        = 60;   // +10 credits every 60s
+const READING_INTERVAL_SEC        = 28;   // +5 pts every 28s
+const WRITING_INTERVAL_SEC        = 45;   // +10 credits every 45s
+const WRITING_SCROLL_CHECK_SEC    = 60;   // scroll check every 60s (independent)
+const VIDEO_PTS_INTERVAL_SEC      = 4;    // +1 pts every 4s of playing
+const VIDEO_CR_INTERVAL_SEC       = 60;   // +10 credits every 60s of playing
+const AUDIO_INTERVAL_SEC          = 22;   // +6 pts every 22s
+const PDF_INTERVAL_SEC            = 38;   // +10 credits every 38s
+const PDF_SCROLL_CHECK_SEC        = 60;   // scroll check every 60s (independent)
+const QA_INTERVAL_SEC             = 55;   // +10 credits every 55s
+const QA_SCROLL_CHECK_SEC         = 30;   // scroll check every 30s (independent)
 
 const READING_REWARD_BASE  = 5;
 const WRITING_CREDIT_BASE  = 10;
@@ -147,6 +150,7 @@ export class ReadingScoreSession {
   // Scroll-fail tracking (writing/pdf/qa)
   private scrollFailStreak = 0;
   private isPermanentlyStopped = false;
+  private lastScrollCheckTime = 0;   // separate from credit timer
 
   // TTS rate-limit
   private lastTtsHighlightRewardTime = 0;
@@ -188,6 +192,7 @@ export class ReadingScoreSession {
     this.lastIntervalProgress = 0;
     this.scrollFailStreak = 0;
     this.isPermanentlyStopped = false;
+    this.lastScrollCheckTime = this.startTime;
     this.isVideoPlaying = false;
     this.videoPlayingSecsSinceLastPts = 0;
     this.videoPlayingSecsSinceLastCr  = 0;
@@ -253,6 +258,7 @@ export class ReadingScoreSession {
         this.scrollFailStreak = 0;
         this.lastIntervalProgress = clipped; // reset baseline from here
         this.lastCreditRewardTime = Date.now(); // restart credit timer
+        this.lastScrollCheckTime = Date.now(); // restart scroll check timer
         this.emitState();
       }
     }
@@ -537,46 +543,42 @@ export class ReadingScoreSession {
       return;
     }
 
-    // ── Writing / PDF / Q&A: credits every interval with scroll check ────────
-    // If permanently stopped: skip reward, just emit state
-    if (this.isPermanentlyStopped) {
-      this.emitState();
-      return;
-    }
+    // ── Writing / PDF / Q&A: independent scroll-check + credit-award timers ──
+    const minScrollPct   = this.mode === 'qa' ? QA_MIN_SCROLL_PCT   : WRITING_MIN_SCROLL_PCT;
+    const creditInterval = this.mode === 'qa' ? QA_INTERVAL_SEC     : this.mode === 'writing' ? WRITING_INTERVAL_SEC : PDF_INTERVAL_SEC;
+    const scrollCheckInt = this.mode === 'qa' ? QA_SCROLL_CHECK_SEC : this.mode === 'writing' ? WRITING_SCROLL_CHECK_SEC : PDF_SCROLL_CHECK_SEC;
+    const creditBase     = this.mode === 'qa' ? QA_CREDIT_BASE      : this.mode === 'writing' ? WRITING_CREDIT_BASE    : PDF_CREDIT_BASE;
+    const activityKey    = this.mode === 'qa' ? 'QA_ACTIVE'         : this.mode === 'writing' ? 'WRITE_ACTIVE'         : 'PDF_ACTIVE';
 
-    const minScrollPct = this.mode === 'qa' ? QA_MIN_SCROLL_PCT : WRITING_MIN_SCROLL_PCT;
-    const creditInterval = this.mode === 'qa' ? QA_INTERVAL_SEC : this.mode === 'writing' ? WRITING_INTERVAL_SEC : PDF_INTERVAL_SEC;
-    const creditBase = this.mode === 'qa' ? QA_CREDIT_BASE : this.mode === 'writing' ? WRITING_CREDIT_BASE : PDF_CREDIT_BASE;
-    const activityKey = this.mode === 'qa' ? 'QA_ACTIVE_1MIN' : this.mode === 'writing' ? 'WRITE_ACTIVE_1MIN' : 'PDF_ACTIVE_1MIN';
-
-    const elapsed = (Date.now() - this.lastCreditRewardTime) / 1000;
-    if (elapsed >= creditInterval) {
-      this.lastCreditRewardTime = Date.now();
-
-      // Scroll check: need minScrollPct net progress since last interval
+    // ── Scroll check (independent timer) ────────────────────────────────────
+    const secSinceScrollCheck = (Date.now() - this.lastScrollCheckTime) / 1000;
+    if (secSinceScrollCheck >= scrollCheckInt) {
+      this.lastScrollCheckTime = Date.now();
       const netScroll = this.currentProgress - this.lastIntervalProgress;
       if (netScroll < minScrollPct) {
         // Not enough scroll — increment fail streak
         this.scrollFailStreak = Math.min(this.scrollFailStreak + 1, MAX_SCROLL_FAIL_STREAK);
-        this.lastScoreEarned = 0;
-
         if (this.scrollFailStreak >= MAX_SCROLL_FAIL_STREAK) {
-          // Stop scoring — will resume when user scrolls
           this.isPermanentlyStopped = true;
           this.warningLevel = 3;
         } else {
-          // First fail: warning
           this.warningLevel = 1;
         }
-        this.emitState();
-        return;
+      } else {
+        // Scroll ok — reset streak + baseline
+        this.scrollFailStreak = 0;
+        this.warningLevel = 0;
+        this.lastIntervalProgress = this.currentProgress;
       }
+    }
 
-      // Scroll ok — reset fail streak, award credits
-      this.scrollFailStreak = 0;
-      this.warningLevel = 0;
-      this.lastIntervalProgress = this.currentProgress;
-      this._awardCredits(creditBase, activityKey);
+    // ── Credit award (independent timer) — only if not permanently stopped ──
+    if (!this.isPermanentlyStopped) {
+      const elapsed = (Date.now() - this.lastCreditRewardTime) / 1000;
+      if (elapsed >= creditInterval) {
+        this.lastCreditRewardTime = Date.now();
+        this._awardCredits(creditBase, activityKey);
+      }
     }
 
     this.emitState();

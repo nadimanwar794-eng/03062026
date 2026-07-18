@@ -1810,6 +1810,12 @@ const App: React.FC = () => {
         return;
     }
 
+    // Admin / Sub-Admin → seedha Admin Dashboard pe bhejo
+    if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
+      setState(prev => ({ ...prev, user, view: 'ADMIN_DASHBOARD' }));
+      return;
+    }
+
     setState(prev => ({
       ...prev,
       user,
@@ -1819,10 +1825,6 @@ const App: React.FC = () => {
       selectedStream: user.stream || null,
       language: user.board === 'BSEB' ? 'Hindi' : 'English',
     }));
-
-    if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
-      setTimeout(() => setAlertConfig({ isOpen: true, message: `👋 Welcome, ${user.name || 'Admin'}!\n\nAap Student Dashboard pe hain.\nAdmin Panel ke liye Profile → Admin Panel pe jayein.` }), 600);
-    }
   };
 
   const [logoutPending, setLogoutPending] = useState(false);
