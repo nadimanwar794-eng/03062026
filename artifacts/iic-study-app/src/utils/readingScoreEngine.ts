@@ -157,6 +157,10 @@ export class ReadingScoreSession {
   private touchProtectionStartMs = 0;
   private touchProtectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+  // Page Visibility — pause when tab/app is hidden
+  private isPageVisible = true;
+  private visibilityHandler: (() => void) | null = null;
+
   constructor(config: ReadingScoreConfig, onStateChange?: (state: ReadingScoreState) => void) {
     this.config = config;
     this.mode = config.mode ?? 'reading';
@@ -189,6 +193,24 @@ export class ReadingScoreSession {
     this.videoPlayingSecsSinceLastCr  = 0;
     this._clearTouchProtection();
 
+    // ── Page Visibility: pause timers when user switches apps/tabs ──────────
+    if (typeof document !== 'undefined') {
+      this.isPageVisible = !document.hidden;
+      this.visibilityHandler = () => {
+        const nowVisible = !document.hidden;
+        if (nowVisible && !this.isPageVisible) {
+          // Just became visible — reset all timer anchors so hidden time is NOT counted
+          const now = Date.now();
+          this.lastRewardTime       = now;
+          this.lastPtsRewardTime    = now;
+          this.lastCreditRewardTime = now;
+          this.lastValidationTime   = now;
+        }
+        this.isPageVisible = nowVisible;
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
+
     this.intervalId = setInterval(() => this.tick(), 1000);
     this.emitState();
   }
@@ -197,6 +219,11 @@ export class ReadingScoreSession {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    // Remove visibility listener
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
     }
     this._clearTouchProtection();
   }
@@ -368,6 +395,9 @@ export class ReadingScoreSession {
   }
 
   private tick() {
+    // Skip entirely when page is hidden — no time accumulation, no rewards
+    if (!this.isPageVisible) return;
+
     this.sessionElapsedSec++;
     const maxWindow = getReadingWindowSeconds(this.config.userLevel);
 
