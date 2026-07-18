@@ -18597,10 +18597,18 @@ export const StudentDashboard: React.FC<Props> = ({
                       {lucentScoreTooltip && (
                         <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 10px rgba(0,0,0,0.3)', lineHeight: 1.5 }}>
                           {lucentActiveTab === 'MCQS' || lucentActiveTab === 'FLASHCARD'
-                            ? '✅ Sahi jawab pe milega!'
+                            ? '✅ Sahi jawab pe +pts milega!'
                             : lucentCountdown > 0
-                              ? `⏱ ${lucentCountdown}s mein milega next reward`
-                              : '🎉 Ab milega! Padhte raho!'}
+                              ? lucentActiveTab === 'VIDEO'
+                                ? `⏱ ${lucentCountdown}s mein +1 pt`
+                                : lucentActiveTab === 'AUDIO'
+                                  ? `⏱ ${lucentCountdown}s mein +6 pts`
+                                  : lucentActiveTab === 'NOTES'
+                                    ? `⏱ ${lucentCountdown}s mein +5 pts`
+                                    : `⏱ ${lucentCountdown}s mein +10 🪙 credits`
+                              : lucentActiveTab === 'QA' || lucentActiveTab === 'PDF'
+                                ? '🎉 +10 🪙 credits ab milenge!'
+                                : '🎉 Pts ab milenge! Padhte raho!'}
                         </div>
                       )}
                     </div>
