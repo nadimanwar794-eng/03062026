@@ -5979,8 +5979,6 @@ export const StudentDashboard: React.FC<Props> = ({
                       _tt?.socialScienceLessonId,
                       ...(_tt?.otherTasks || []).map((t: any) => t.lessonId),
                     ].filter(Boolean));
-                    // No task set for today → no lock (nothing to complete yet)
-                    if (_todayIds.size === 0) return false;
                     return !_todayIds.has(entry.id);
                   } catch { return false; }
                 })();
@@ -6241,11 +6239,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   // Only show lock if NOT today's assigned lesson
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
-                  // No task set → no lock
-                  const _hasAnyTask = !!(_tt?.scienceLessonId || _tt?.socialScienceLessonId ||
-                    (_tt?.otherTasks || []).some((t: any) => t.lessonId));
-                  if (!_hasAnyTask) return false;
-                  // Check all buckets including OTHER subjects
+                  // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
                   const _otherMatch = (_tt?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
                   return !(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id || _otherMatch);
                 } catch { return false; }
