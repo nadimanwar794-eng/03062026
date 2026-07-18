@@ -88,15 +88,15 @@ export const ReadingScoreHUD: React.FC<Props> = ({
   const isPdf      = state.mode === 'pdf';
   const isQa       = state.mode === 'qa';
   const modeIcon   = isVideo ? '🎬' : isAudio ? '🎧' : isPdf ? '📄' : isQa ? '💬' : isReading ? '📖' : '✍️';
-  // For credit modes show credits earned; for pts modes show pts
-  const isCreditMode = isVideo || isPdf || state.mode === 'writing' || isQa;
+  // Only Video still earns credits (60s ticker); all others earn pts now
+  const isCreditMode = isVideo;
   const rewardLabel = isVideo ? '+1 pts / 6s · +10cr / 1min'
-                    : isPdf   ? '+10cr / 1min (≥5% scroll)'
-                    : isQa    ? '+10cr / 1min (≥10% scroll)'
-                    : state.mode === 'writing' ? '+10cr / 1min (≥5% scroll)'
-                    : isAudio ? '+6 pts / 30s'
+                    : isPdf   ? '+5 pts / 30s (≥5% scroll/1min)'
+                    : isQa    ? '+5 pts / 30s (≥5% scroll/30s)'
+                    : state.mode === 'writing' ? '+10 pts / 1min (≥5% scroll/1min)'
+                    : isAudio ? '+5 pts / 30s'
                     : '+5 pts / 30s';
-  const intervalLabel = isVideo ? '1min' : isAudio ? '30s' : isPdf || isQa || state.mode === 'writing' ? '1min' : isReading ? '30s' : '1min';
+  const intervalLabel = isVideo ? '1min' : '30s';
   const remaining  = Math.max(0, state.maxWindowSec - state.sessionElapsedSec);
   const remMin     = Math.floor(remaining / 60);
   const remSec     = fmt2(remaining % 60);

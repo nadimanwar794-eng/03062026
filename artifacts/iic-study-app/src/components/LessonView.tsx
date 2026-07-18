@@ -323,12 +323,10 @@ export const LessonView: React.FC<Props> = ({
     onScoreEarned: handleReadingScoreEarned,
   } : undefined;
 
-  // Writing mode: credits only (no pts), 5% scroll/min required
+  // Writing mode: pts via onScoreEarned, 5% scroll/1min required
   const writingScoreConfig = readingScoreConfig ? {
     ...readingScoreConfig,
     mode: 'writing' as const,
-    onScoreEarned: undefined, // writing doesn't earn pts
-    onCreditsEarned: handleCreditsEarned,
   } : undefined;
 
   // ── Media (Video / Audio) time-based score session ───────────────────────

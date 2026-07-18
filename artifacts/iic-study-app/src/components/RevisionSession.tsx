@@ -9,7 +9,6 @@ import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { renderMathInHtml } from '../utils/mathUtils';
 import { ReadingScoreSession } from '../utils/readingScoreEngine';
-import { fireCreditNotify } from '../utils/creditNotify';
 import { getLevelFromScore } from '../utils/levelSystem';
 import { fireSessionComplete } from '../utils/sessionNotify';
 
@@ -40,15 +39,13 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
     const qaSessionCreditsRef = useRef(0);
     const qaSessionStartMsRef = useRef(Date.now());
 
-    // Called when the Q&A credit engine awards credits (10% scroll/min required)
-    const handleQaCreditsEarned = useCallback((credits) => {
-        if (!user?.id || credits <= 0) return;
-        qaSessionCreditsRef.current += credits;
-        const newCredits = (user.credits || 0) + credits;
-        const updated = { ...user, credits: newCredits };
+    // Called when the Q&A pts engine awards pts (5% scroll/30s required)
+    const handleQaScoreEarned = useCallback((pts: number) => {
+        if (!user?.id || pts <= 0) return;
+        qaSessionCreditsRef.current += pts; // tracks session pts total
+        const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
         onUpdateUser(updated);
         saveUserToLive(updated);
-        fireCreditNotify({ type: 'EARN', amount: credits, remaining: newCredits, source: 'qa' });
     }, [user, onUpdateUser]);
 
     /** Fires Q&A session-complete event if any credits were earned this review. */
@@ -61,7 +58,7 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
             chapter: chapterTitle || subTopic || '',
             timeSecs: secs,
             activityType: 'QA',
-            creditsEarned: qaSessionCreditsRef.current,
+            sessionScore: qaSessionCreditsRef.current,
         });
         qaSessionCreditsRef.current = 0;
     }, [subjectName, chapterTitle, subTopic]);
@@ -155,8 +152,8 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                 subscriptionLevel: user.subscriptionTier || 'FREE',
                 isPremium: !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE')),
                 mode: 'qa',
-                // Q&A: credits only, 0 pts
-                onCreditsEarned: (credits) => handleQaCreditsEarned(credits),
+                // Q&A: pts via onScoreEarned, 5% scroll/30s required
+                onScoreEarned: handleQaScoreEarned,
             },
             () => {}, // HUD not shown for Q&A review
         );

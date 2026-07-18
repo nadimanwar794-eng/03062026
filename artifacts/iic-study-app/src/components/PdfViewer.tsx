@@ -133,11 +133,10 @@ export const PdfViewer: React.FC<Props> = ({
         isPremium,
         boostPercent: boostPercent || 0,
         mode: 'pdf',
-        // PDF earns credits only (not pts) — credit earn does NOT affect totalScore
-        onScoreEarned: undefined,
-        onCreditsEarned: (cr, activity) => {
-          pdfSessionCreditsRef.current += cr;
-          onCreditsEarned?.(cr, activity);
+        // PDF earns pts — onScoreEarned updates totalScore
+        onScoreEarned: (pts) => {
+          pdfSessionCreditsRef.current += pts;
+          onScoreEarned?.(pts);
         },
       },
       (state) => setPdfScoreState(state),
@@ -161,7 +160,7 @@ export const PdfViewer: React.FC<Props> = ({
         chapter: title || '',
         timeSecs: secs,
         activityType: 'PDF',
-        creditsEarned: pdfSessionCreditsRef.current,
+        sessionScore: pdfSessionCreditsRef.current,
       });
       pdfSessionCreditsRef.current = 0;
     }
@@ -418,7 +417,7 @@ export const PdfViewer: React.FC<Props> = ({
             onClick={() => { setPdfScoreTooltip(true); setTimeout(() => setPdfScoreTooltip(false), 2500); }}
             style={{ fontSize: '10px', fontWeight: 900, color: '#86efac', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.28)', borderRadius: 99, padding: '2px 7px', whiteSpace: 'nowrap', cursor: 'pointer', display: 'block' }}>
             📖 {pdfScoreState
-              ? (pdfScoreState.totalCreditsEarned > 0 ? `+${pdfScoreState.totalCreditsEarned}cr` : `+${pdfScoreState.totalSessionScore}pts`)
+              ? `+${pdfScoreState.totalSessionScore}pts`
               : '+0pts'}
           </span>
           {pdfScoreTooltip && (
