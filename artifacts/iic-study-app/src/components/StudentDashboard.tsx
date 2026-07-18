@@ -2718,6 +2718,22 @@ export const StudentDashboard: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.totalScore]);
 
+  // Always-running countdown — ticks every second while lesson is open, resets when tab changes or score earned
+  useEffect(() => {
+    if (!lucentNoteViewer) { setLucentCountdown(0); return; }
+    const _cdMap: Record<string, number> = { NOTES: 30, QA: 60, PDF: 60, VIDEO: 6, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
+    const _cd = _cdMap[lucentActiveTab] ?? 30;
+    if (_cd === 0) { setLucentCountdown(0); return; }
+    const _tick = () => {
+      const elapsed = (Date.now() - lucentLastScoreTimeRef.current) / 1000;
+      setLucentCountdown(Math.max(0, Math.ceil(_cd - elapsed)));
+    };
+    _tick();
+    const id = setInterval(_tick, 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lucentNoteViewer?.id, lucentActiveTab, lucentNotesViewMode]);
+
   // Score chip for lesson slim bar — tracks pts earned since this lesson was opened
   const [lucentOpenScore, setLucentOpenScore] = useState(0);
   const [lucentScoreTooltip, setLucentScoreTooltip] = useState(false);
@@ -18566,54 +18582,38 @@ export const StudentDashboard: React.FC<Props> = ({
                   )}
                 </div>
                 {/* 📖 Live session pts — fixed right side of slim bar */}
-                {(() => {
-                  // Cooldown seconds per tab type — matches readingScoreEngine.ts constants exactly
-                  // VIDEO: 6s/+1pt | AUDIO: 30s/+6pts | NOTES(read): 30s/+5pts | QA/PDF: 60s/+credits
-                  const _cooldowns: Record<string, number> = { NOTES: 30, QA: 60, PDF: 60, VIDEO: 6, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
-                  const _cooldown = _cooldowns[lucentActiveTab] ?? 30;
-                  const _handleOpen = () => {
-                    const _tick = () => {
-                      const _elapsed = (Date.now() - lucentLastScoreTimeRef.current) / 1000;
-                      setLucentCountdown(Math.max(0, Math.ceil(_cooldown - _elapsed)));
-                    };
-                    _tick();
-                    setLucentScoreTooltip(true);
-                    if (lucentCountdownTimerRef.current) clearInterval(lucentCountdownTimerRef.current);
-                    if (_cooldown > 0) {
-                      lucentCountdownTimerRef.current = setInterval(_tick, 1000);
-                    }
-                    setTimeout(() => {
-                      setLucentScoreTooltip(false);
-                      if (lucentCountdownTimerRef.current) { clearInterval(lucentCountdownTimerRef.current); lucentCountdownTimerRef.current = null; }
-                    }, 7000);
-                  };
-                  return (
-                    <div className="relative shrink-0 flex items-center px-2 border-l border-slate-100">
-                      <span
-                        onClick={_handleOpen}
-                        style={{ fontSize: '11px', fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '2px 9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        📖 {Math.max(0, (user?.totalScore || 0) - lucentOpenScore)}
-                      </span>
-                      {lucentScoreTooltip && (
-                        <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 10px rgba(0,0,0,0.3)', lineHeight: 1.5 }}>
-                          {lucentActiveTab === 'MCQS' || lucentActiveTab === 'FLASHCARD'
-                            ? '✅ Sahi jawab pe +pts milega!'
-                            : lucentCountdown > 0
-                              ? lucentActiveTab === 'VIDEO'
-                                ? `⏱ ${lucentCountdown}s mein +1 pt`
-                                : lucentActiveTab === 'AUDIO'
-                                  ? `⏱ ${lucentCountdown}s mein +6 pts`
-                                  : lucentActiveTab === 'NOTES'
-                                    ? `⏱ ${lucentCountdown}s mein +5 pts`
-                                    : `⏱ ${lucentCountdown}s mein +10 🪙 credits`
-                              : lucentActiveTab === 'QA' || lucentActiveTab === 'PDF'
-                                ? '🎉 +10 🪙 credits ab milenge!'
-                                : '🎉 Pts ab milenge! Padhte raho!'}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+                <div className="relative shrink-0 flex items-center px-2 border-l border-slate-100">
+                  <span
+                    onClick={() => { setLucentScoreTooltip(true); setTimeout(() => setLucentScoreTooltip(false), 3000); }}
+                    style={{ fontSize: '11px', fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '2px 9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    📖 {Math.max(0, (user?.totalScore || 0) - lucentOpenScore)}
+                  </span>
+                  {lucentScoreTooltip && (() => {
+                    const _isWrite = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
+                    const _isRead  = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk';
+                    const _rewardLine =
+                      lucentActiveTab === 'MCQS' || lucentActiveTab === 'FLASHCARD' ? '✅ Sahi jawab pe +pts milega!' :
+                      lucentCountdown > 0 ? (
+                        lucentActiveTab === 'VIDEO'  ? `⏱ ${lucentCountdown}s → +1 pt` :
+                        lucentActiveTab === 'AUDIO'  ? `⏱ ${lucentCountdown}s → +6 pts` :
+                        _isRead                      ? `⏱ ${lucentCountdown}s → +5 pts` :
+                        _isWrite                     ? `⏱ ${lucentCountdown}s → +10 🪙` :
+                                                       `⏱ ${lucentCountdown}s → +10 🪙`
+                      ) : (
+                        lucentActiveTab === 'QA' || lucentActiveTab === 'PDF' || _isWrite
+                          ? '🎉 +10 🪙 milenge ab!' : '🎉 +pts milenge ab!'
+                      );
+                    const _protLine =
+                      (_isWrite || lucentActiveTab === 'PDF') ? '📜 Scroll 5% zaroori har 1 min' :
+                      lucentActiveTab === 'QA'               ? '📜 Scroll 5% zaroori har 30s'   : null;
+                    return (
+                      <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: '11px', fontWeight: 700, zIndex: 100, boxShadow: '0 2px 10px rgba(0,0,0,0.3)', lineHeight: 1.6, minWidth: 180 }}>
+                        <div>{_rewardLine}</div>
+                        {_protLine && <div style={{ fontSize: '9.5px', opacity: 0.75, marginTop: 2 }}>{_protLine}</div>}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
             {/* Notes scroll area */}
