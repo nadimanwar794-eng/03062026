@@ -19,6 +19,7 @@ import { tryEarnScore } from '../utils/scoreSystem';
 import { ReadingScoreSession, ReadingScoreState } from '../utils/readingScoreEngine';
 import { ReadingScoreHUD } from './ReadingScoreHUD';
 import { PaginatedPdfViewer, PaginatedPdfHandle } from './PaginatedPdfViewer';
+import { fireSessionComplete } from '../utils/sessionNotify';
 
 interface Props {
   url: string;
@@ -114,8 +115,14 @@ export const PdfViewer: React.FC<Props> = ({
   const pdfScoreSessionRef = useRef<ReadingScoreSession | null>(null);
   const [pdfScoreState, setPdfScoreState] = useState<ReadingScoreState | null>(null);
 
+  // Track credits earned this PDF session so we can queue a session-complete event on exit
+  const pdfSessionCreditsRef = useRef(0);
+  const pdfSessionStartMsRef = useRef(Date.now());
+
   useEffect(() => {
     if (!userId) return;
+    pdfSessionStartMsRef.current = Date.now();
+    pdfSessionCreditsRef.current = 0;
     const session = new ReadingScoreSession(
       {
         userId,
@@ -126,7 +133,10 @@ export const PdfViewer: React.FC<Props> = ({
         mode: 'pdf',
         // PDF earns credits only (not pts) — credit earn does NOT affect totalScore
         onScoreEarned: undefined,
-        onCreditsEarned: (cr, activity) => onCreditsEarned?.(cr, activity),
+        onCreditsEarned: (cr, activity) => {
+          pdfSessionCreditsRef.current += cr;
+          onCreditsEarned?.(cr, activity);
+        },
       },
       (state) => setPdfScoreState(state),
     );
@@ -138,6 +148,23 @@ export const PdfViewer: React.FC<Props> = ({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, url]);
+
+  /** Back handler — fires session-complete event then calls onBack. */
+  const handleBack = useCallback(() => {
+    if (pdfSessionCreditsRef.current > 0) {
+      const secs = Math.round((Date.now() - pdfSessionStartMsRef.current) / 1000);
+      fireSessionComplete({
+        type: 'LESSON',
+        subject: '',
+        chapter: title || '',
+        timeSecs: secs,
+        activityType: 'PDF',
+        creditsEarned: pdfSessionCreditsRef.current,
+      });
+      pdfSessionCreditsRef.current = 0;
+    }
+    onBack();
+  }, [onBack, title]);
 
   const showToast = useCallback((msg: string, ms = 2000) => {
     setToast(msg);
@@ -365,7 +392,7 @@ export const PdfViewer: React.FC<Props> = ({
         }`}
       >
         {/* Back */}
-        <button onClick={onBack} className="p-2 bg-white/10 rounded-xl active:bg-white/20 transition shrink-0">
+        <button onClick={handleBack} className="p-2 bg-white/10 rounded-xl active:bg-white/20 transition shrink-0">
           <ArrowLeft size={18} />
         </button>
 

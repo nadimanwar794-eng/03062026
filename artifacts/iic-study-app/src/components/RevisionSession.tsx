@@ -11,6 +11,7 @@ import { renderMathInHtml } from '../utils/mathUtils';
 import { ReadingScoreSession } from '../utils/readingScoreEngine';
 import { fireCreditNotify } from '../utils/creditNotify';
 import { getLevelFromScore } from '../utils/levelSystem';
+import { fireSessionComplete } from '../utils/sessionNotify';
 
 interface Props {
     user: User;
@@ -35,15 +36,43 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
     const qaScoreSessionRef = useRef(null);
     const qaScrollContainerRef = useRef(null);
 
+    // Accumulate Q&A credits for session-complete event on exit
+    const qaSessionCreditsRef = useRef(0);
+    const qaSessionStartMsRef = useRef(Date.now());
+
     // Called when the Q&A credit engine awards credits (10% scroll/min required)
     const handleQaCreditsEarned = useCallback((credits) => {
         if (!user?.id || credits <= 0) return;
+        qaSessionCreditsRef.current += credits;
         const newCredits = (user.credits || 0) + credits;
         const updated = { ...user, credits: newCredits };
         onUpdateUser(updated);
         saveUserToLive(updated);
         fireCreditNotify({ type: 'EARN', amount: credits, remaining: newCredits, source: 'qa' });
     }, [user, onUpdateUser]);
+
+    /** Fires Q&A session-complete event if any credits were earned this review. */
+    const flushQaSession = useCallback(() => {
+        if (qaSessionCreditsRef.current <= 0) return;
+        const secs = Math.round((Date.now() - qaSessionStartMsRef.current) / 1000);
+        fireSessionComplete({
+            type: 'LESSON',
+            subject: subjectName || '',
+            chapter: chapterTitle || subTopic || '',
+            timeSecs: secs,
+            activityType: 'QA',
+            creditsEarned: qaSessionCreditsRef.current,
+        });
+        qaSessionCreditsRef.current = 0;
+    }, [subjectName, chapterTitle, subTopic]);
+
+    // Reset Q&A session start time when review opens
+    useEffect(() => {
+        if (showReview) {
+            qaSessionStartMsRef.current = Date.now();
+            qaSessionCreditsRef.current = 0;
+        }
+    }, [showReview]);
 
     // Determine if MCQ is available based on status and time
     // Logic: Week (WEAK) -> 2 days after revision
@@ -342,7 +371,7 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                     <h2 className="text-lg font-black text-slate-800 leading-tight">{subTopic}</h2>
                     <p className="text-xs text-slate-600 font-bold">{chapterTitle} • Revision Mode</p>
                 </div>
-                <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">
+                <button onClick={() => { flushQaSession(); onClose(); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">
                     <X size={20} />
                 </button>
             </div>
@@ -653,7 +682,7 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                     {/* Footer — Close */}
                     <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 z-10">
                         <button
-                            onClick={onClose}
+                            onClick={() => { flushQaSession(); onClose(); }}
                             className="w-full py-4 bg-slate-100 text-slate-700 font-black rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2"
                         >
                             ✅ Saved — Close

@@ -13,6 +13,7 @@ import { fireCreditNotify } from '../utils/creditNotify';
 import { useAppTheme } from '../utils/themeContext';
 import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
+import { fireSessionComplete } from '../utils/sessionNotify';
 
 interface Props {
   questions: MCQItem[];
@@ -96,6 +97,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const sessionCommittedRef = useRef(false); // prevents double-counting on exit
   // Track which card positions have already given +1 pts this session (Answer Dekho)
   const revealedPtsRef = useRef<Set<number>>(new Set());
+  // Total pts earned via Answer Dekho reveals this session (for session-complete event)
+  const sessionRevealPtsRef = useRef(0);
 
   // ── MCQ Score Popup ────────────────────────────────────────────────────────
   const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
@@ -117,12 +120,30 @@ export const FlashcardMcqView: React.FC<Props> = ({
       revealedPtsRef.current.add(pos);
       const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_REVEAL');
       if (pts > 0) {
+        sessionRevealPtsRef.current += pts;
         showMcqScore(pts);
         const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
         onUpdateUser(updated);
         saveUserToLive(updated);
       }
     }
+  };
+
+  /** Back handler — fires flashcard session-complete then calls onBack. */
+  const handleBack = () => {
+    if (sessionRevealPtsRef.current > 0 && user?.id) {
+      const secs = Math.round((Date.now() - sessionStartRef.current) / 1000);
+      fireSessionComplete({
+        type: 'LESSON',
+        subject: subject || '',
+        chapter: title || '',
+        timeSecs: secs,
+        activityType: 'Flashcard',
+        sessionScore: sessionRevealPtsRef.current,
+      });
+      sessionRevealPtsRef.current = 0;
+    }
+    onBack();
   };
 
   const isAdmin = user?.role === 'ADMIN';
@@ -365,7 +386,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
       <div className="fixed inset-0 z-[200] flex flex-col h-[100dvh]" style={tierBgStyle}>
         {tabBar}
         <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={onBack} className="bg-white/10 text-white p-2 rounded-full active:scale-95">
+          <button onClick={handleBack} className="bg-white/10 text-white p-2 rounded-full active:scale-95">
             <ArrowLeft size={18} />
           </button>
           <h2 className="text-base font-black text-white">Flashcards</h2>

@@ -31,13 +31,23 @@ const ACTIVITY_EMOJI: Record<string, string> = {
   Reading: '📖',
   Writing: '✍️',
   LESSON: '📚',
+  PDF: '📄',
+  Video: '🎬',
+  Audio: '🎧',
+  QA: '💬',
+  Flashcard: '🃏',
 };
 
 const ACTIVITY_LABEL: Record<string, string> = {
-  MCQ: 'MCQ',
+  MCQ: 'MCQ Practice',
   Reading: 'Reading Notes',
   Writing: 'Writing Notes',
   LESSON: 'Lesson',
+  PDF: 'PDF Reading',
+  Video: 'Video Lecture',
+  Audio: 'Audio / Podcast',
+  QA: 'Q&A Review',
+  Flashcard: 'Flashcards',
 };
 
 function getActivityKey(session: SessionCompletePayload): string {
@@ -60,8 +70,11 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
   // Totals
   const totalPts = sessions.reduce((s, sess) => s + (sess.sessionScore ?? 0), 0);
   const totalCoins = sessions.reduce((s, sess) => s + (sess.coinsEarned ?? 0), 0);
+  const totalCredits = sessions.reduce((s, sess) => s + (sess.creditsEarned ?? 0), 0);
   const totalSecs = sessions.reduce((s, sess) => s + (sess.timeSecs ?? 0), 0);
   const count = sessions.length;
+  // Combined credit display: coins (from pts conversion) + direct credits
+  const totalCreditDisplay = totalCoins + totalCredits;
 
   return (
     <div
@@ -143,9 +156,9 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
               <span className="text-[9px] font-semibold uppercase tracking-wider">Coins Mile</span>
             </div>
             <span className="text-base font-black text-amber-400">
-              {totalCoins > 0 ? `+${totalCoins}` : '—'}
+              {totalCreditDisplay > 0 ? `+${totalCreditDisplay}` : '—'}
             </span>
-            <p className="text-[9px] text-slate-500 leading-none">coins earned</p>
+            <p className="text-[9px] text-slate-500 leading-none">credits earned</p>
           </div>
 
           {/* Total Time */}
@@ -208,15 +221,15 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
                     )}
                   </div>
                   {/* Mini stats */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                     {(sess.sessionScore ?? 0) > 0 && (
                       <span className="text-[10px] font-bold text-yellow-400">
                         +{sess.sessionScore}⭐
                       </span>
                     )}
-                    {(sess.coinsEarned ?? 0) > 0 && (
+                    {((sess.coinsEarned ?? 0) + (sess.creditsEarned ?? 0)) > 0 && (
                       <span className="text-[10px] font-bold text-amber-400">
-                        +{sess.coinsEarned}🪙
+                        +{(sess.coinsEarned ?? 0) + (sess.creditsEarned ?? 0)}🪙
                       </span>
                     )}
                     {sess.timeSecs > 0 && (

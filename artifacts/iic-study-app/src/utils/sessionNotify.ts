@@ -17,8 +17,10 @@ export interface SessionCompletePayload {
   timeSecs: number;
   coinsEarned?: number; // filled later by home-tab coin sync
   // v2 fields
-  activityType?: string;  // 'MCQ' | 'Reading' | 'Writing' — display label
+  activityType?: string;  // 'MCQ' | 'Reading' | 'Writing' | 'PDF' | 'Video' | 'Audio' | 'QA' | 'Flashcard'
   sessionScore?: number;  // pts earned this session (for grouped display)
+  // v3 fields — direct credit rewards (not coin conversion from pts)
+  creditsEarned?: number; // credits earned directly from engine (writing/pdf/video/qa)
 }
 
 // ── Event bus (legacy — still used by fireSessionComplete callers) ─────────

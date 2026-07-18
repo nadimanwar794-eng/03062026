@@ -34,6 +34,7 @@ import { fireCreditNotify } from '../utils/creditNotify';
 import { ReadingScoreSession, ReadingScoreState } from '../utils/readingScoreEngine';
 import { ReadingScoreHUD } from './ReadingScoreHUD';
 import { PdfViewer } from './PdfViewer';
+import { fireSessionComplete } from '../utils/sessionNotify';
 
 
 interface Props {
@@ -150,8 +151,55 @@ export const LessonView: React.FC<Props> = ({
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
+  // ── Session-complete accumulation (pts + credits per mode) ──────────────────
+  // Keyed by mode: reading pts, writing credits, video pts, video credits, audio pts
+  const sessionReadingPtsRef   = useRef(0);
+  const sessionWritingCrRef    = useRef(0);
+  const sessionVideoPtsRef     = useRef(0);
+  const sessionVideoCrRef      = useRef(0);
+  const sessionAudioPtsRef     = useRef(0);
+  const sessionStartMsRef      = useRef(Date.now());
+
+  /** Fire per-mode session-complete events and reset accumulators. */
+  const flushSessionEvents = useCallback(() => {
+    const secs = Math.round((Date.now() - sessionStartMsRef.current) / 1000);
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    const chapter = [chapter?.title].filter(Boolean).join(' · ') || '';
+    const subj = subject?.name || '';
+
+    if (sessionReadingPtsRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.5),
+        activityType: 'Reading', sessionScore: sessionReadingPtsRef.current });
+      sessionReadingPtsRef.current = 0;
+    }
+    if (sessionWritingCrRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.3),
+        activityType: 'Writing', creditsEarned: sessionWritingCrRef.current });
+      sessionWritingCrRef.current = 0;
+    }
+    if (sessionVideoPtsRef.current > 0 || sessionVideoCrRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.8),
+        activityType: 'Video', sessionScore: sessionVideoPtsRef.current || undefined,
+        creditsEarned: sessionVideoCrRef.current || undefined });
+      sessionVideoPtsRef.current = 0; sessionVideoCrRef.current = 0;
+    }
+    if (sessionAudioPtsRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.8),
+        activityType: 'Audio', sessionScore: sessionAudioPtsRef.current });
+      sessionAudioPtsRef.current = 0;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapter?.title, subject?.name]);
+
   const onUpdateUserRef = useRef(onUpdateUser);
   useEffect(() => { onUpdateUserRef.current = onUpdateUser; }, [onUpdateUser]);
+
+  /** Back button handler — flushes session events then calls onBack. */
+  const handleBack = useCallback(() => {
+    flushSessionEvents();
+    onBack();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flushSessionEvents, onBack]);
 
   // ── Coin accumulation: fractional carry-over prevents small events losing coins ──
   // Reading coins are awarded immediately per interval but fractional amounts
@@ -191,6 +239,10 @@ export const LessonView: React.FC<Props> = ({
     const _user = userRef.current;
     const _onUpdateUser = onUpdateUserRef.current;
     if (!_user || !_onUpdateUser || pts <= 0) return;
+    // Accumulate per mode for session-complete breakdown
+    if (activity?.startsWith('VIDEO') || activity?.startsWith('video')) sessionVideoPtsRef.current += pts;
+    else if (activity?.startsWith('AUDIO') || activity?.startsWith('audio')) sessionAudioPtsRef.current += pts;
+    else sessionReadingPtsRef.current += pts;
 
     // Update totalScore immediately — reading/MCQ pts only
     const scoreUpdated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
@@ -220,6 +272,10 @@ export const LessonView: React.FC<Props> = ({
     const _user = userRef.current;
     const _onUpdateUser = onUpdateUserRef.current;
     if (!_user || !_onUpdateUser || credits <= 0) return;
+
+    // Accumulate per mode for session-complete breakdown
+    if (activity?.startsWith('VIDEO') || activity?.startsWith('video')) sessionVideoCrRef.current += credits;
+    else sessionWritingCrRef.current += credits;
 
     const newCredits = (_user.credits || 0) + credits;
     const updated = { ..._user, credits: newCredits };
@@ -1060,7 +1116,7 @@ export const LessonView: React.FC<Props> = ({
                   {/* Header — write mode bar */}
                   <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 flex-shrink-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
                       <div className="flex items-center gap-2">
-                          <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
+                          <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
                           <div className="min-w-0 flex-1">
                               <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                           </div>
@@ -1115,7 +1171,7 @@ export const LessonView: React.FC<Props> = ({
                                   )}
                               </div>
                           )}
-                          <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
+                          <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
                       </div>
                   </header>
 
@@ -1215,13 +1271,13 @@ export const LessonView: React.FC<Props> = ({
               <div className="fixed inset-0 z-50 bg-[#111] flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
                   <header className={`bg-black/90 backdrop-blur-md text-white p-4 absolute top-0 left-0 right-0 z-10 flex items-center justify-between border-b border-white/10${isImmersive ? ' hidden' : ''}`} style={{ top: 'env(safe-area-inset-top)' }}>
                       <div className="flex items-center gap-3"><button onClick={toggleFullScreen} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200" title="Toggle Fullscreen"><Maximize size={20} /></button>
-                          <button onClick={onBack} className="p-2 bg-white/10 rounded-full"><ArrowLeft size={20} /></button>
+                          <button onClick={handleBack} className="p-2 bg-white/10 rounded-full"><ArrowLeft size={20} /></button>
                           <div>
                               <h2 className="text-sm font-bold text-white/90">{content.title}</h2>
                               <p className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">Image Notes</p>
                           </div>
                       </div>
-                      <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors backdrop-blur-md"><X size={20} /></button>
+                      <button onClick={handleBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors backdrop-blur-md"><X size={20} /></button>
                   </header>
                   <div className="flex-1 min-h-0 overflow-auto pt-16 flex items-center justify-center" onContextMenu={preventMenu}>
                       <img
@@ -1262,7 +1318,7 @@ export const LessonView: React.FC<Props> = ({
                   >
                     <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                       <button
-                        onClick={onBack}
+                        onClick={handleBack}
                         className="p-2 rounded-full active:scale-90 transition-transform"
                         style={{ background: 'rgba(255,255,255,0.12)' }}
                       >
@@ -1273,7 +1329,7 @@ export const LessonView: React.FC<Props> = ({
                         <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.38)' }}>Tap screen to hide controls</p>
                       </div>
                       <button
-                        onClick={onBack}
+                        onClick={handleBack}
                         className="p-2 rounded-full active:scale-90 transition-transform"
                         style={{ background: 'rgba(255,255,255,0.12)' }}
                       >
@@ -1334,7 +1390,7 @@ export const LessonView: React.FC<Props> = ({
               {/* Header — write mode bar */}
               <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 sticky top-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
                   <div className="flex items-center gap-2">
-                      <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
+                      <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
                       <div className="min-w-0 flex-1">
                           <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                       </div>
@@ -1396,7 +1452,7 @@ export const LessonView: React.FC<Props> = ({
                               )}
                           </div>
                       )}
-                      <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
+                      <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
                   </div>
               </header>
               <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white">
@@ -1455,7 +1511,7 @@ export const LessonView: React.FC<Props> = ({
                 <div>📖 <b>{chapter?.title || content.title}</b></div>
                 {content.subjectName && <div className="text-slate-500 mt-0.5">📚 {content.subjectName}</div>}
               </div>
-              <button onClick={onBack} className="px-6 py-2.5 rounded-xl bg-slate-700 text-white font-bold text-sm hover:bg-slate-800 active:scale-95 transition shadow-md">
+              <button onClick={handleBack} className="px-6 py-2.5 rounded-xl bg-slate-700 text-white font-bold text-sm hover:bg-slate-800 active:scale-95 transition shadow-md">
                   Go Back
               </button>
           </div>
@@ -2277,7 +2333,7 @@ export const LessonView: React.FC<Props> = ({
                {/* MCQ Top Bar — clean, professional */}
                <div className={`bg-white border-b border-slate-100 px-3 py-2 flex items-center gap-2 sticky top-0 z-10 shadow-sm${isImmersive ? ' hidden' : ''}`}>
                    {/* Back */}
-                   <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
+                   <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
                        <ArrowLeft size={18} />
                    </button>
                    {/* Title block — flex-1, center */}
@@ -3204,7 +3260,7 @@ export const LessonView: React.FC<Props> = ({
 
                    {showResults && !hasMore && (
                        <button 
-                           onClick={onBack}
+                           onClick={handleBack}
                            className="flex-[2] py-3 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg"
                        >
                            Finish Review <ArrowLeft size={20} />
@@ -3222,7 +3278,7 @@ export const LessonView: React.FC<Props> = ({
           <p className="text-slate-600 max-w-xs mx-auto mb-6">
               There is no content available for this lesson.
           </p>
-          <button onClick={onBack} className="mt-8 text-slate-500 font-bold hover:text-slate-600">
+          <button onClick={handleBack} className="mt-8 text-slate-500 font-bold hover:text-slate-600">
               Go Back
           </button>
       </div>
