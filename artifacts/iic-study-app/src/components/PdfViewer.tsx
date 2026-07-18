@@ -410,6 +410,13 @@ export const PdfViewer: React.FC<Props> = ({
         {/* Title */}
         <h2 className="flex-1 font-bold text-sm truncate min-w-0">{title}</h2>
 
+        {/* Live PDF score chip */}
+        {pdfScoreState && (pdfScoreState.totalCreditsEarned > 0 || pdfScoreState.totalSessionScore > 0) && (
+          <span style={{ fontSize: '10px', fontWeight: 900, color: '#86efac', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.28)', borderRadius: 99, padding: '2px 7px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            📄 {pdfScoreState.totalCreditsEarned > 0 ? `+${pdfScoreState.totalCreditsEarned}cr` : `+${pdfScoreState.totalSessionScore}pts`}
+          </span>
+        )}
+
         {/* Page counter */}
         <button
           onClick={() => { setShowJump(true); setTimeout(() => jumpInputRef.current?.focus(), 80); }}

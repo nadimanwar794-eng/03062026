@@ -206,6 +206,8 @@ export const LessonView: React.FC<Props> = ({
   // carry forward so even +1 TTS events eventually convert to real coins.
   // MCQ coins are deferred to session-end (showResults) to avoid per-answer flooding.
   const mcqSessionPtsRef = useRef(0);
+  // Live MCQ pts accumulated this session (shown in MCQ top bar)
+  const [mcqLivePts, setMcqLivePts] = useState(0);
   // Fractional coin accumulator — carries sub-1 amounts between reading events
   const coinFracAccumRef = useRef(0);
 
@@ -323,6 +325,10 @@ export const LessonView: React.FC<Props> = ({
   const mediaScoreSessionRef = useRef<ReadingScoreSession | null>(null);
   const [mediaScoreState, setMediaScoreState] = useState<ReadingScoreState | null>(null);
 
+  // ── Writing HTML (Notes Maker styled mode) score session ─────────────────
+  const writingHtmlScoreSessionRef = useRef<ReadingScoreSession | null>(null);
+  const [writingHtmlScoreState, setWritingHtmlScoreState] = useState<ReadingScoreState | null>(null);
+
   useEffect(() => {
     // Detect if current content is video or audio
     const isVideoContent = content?.type === 'VIDEO_LECTURE' || (
@@ -399,6 +405,26 @@ export const LessonView: React.FC<Props> = ({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content?.id, content?.type, user?.id]);
+
+  // Writing HTML (Notes Maker styled mode) score session — starts when user switches to styled mode
+  useEffect(() => {
+    if (notesViewMode !== 'styled' || !writingScoreConfig) {
+      if (writingHtmlScoreSessionRef.current) {
+        writingHtmlScoreSessionRef.current.stop();
+        writingHtmlScoreSessionRef.current = null;
+        setWritingHtmlScoreState(null);
+      }
+      return;
+    }
+    const session = new ReadingScoreSession(writingScoreConfig, setWritingHtmlScoreState);
+    writingHtmlScoreSessionRef.current = session;
+    session.start();
+    return () => {
+      session.stop();
+      writingHtmlScoreSessionRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesViewMode, writingScoreConfig?.userId]);
 
   // On mount: always re-apply stored desktop mode preference to the viewport
   useEffect(() => {
@@ -1120,6 +1146,12 @@ export const LessonView: React.FC<Props> = ({
                           <div className="min-w-0 flex-1">
                               <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                           </div>
+                          {/* Live score chip — Notes Maker styled mode */}
+                          {notesViewMode === 'styled' && writingHtmlScoreState && writingHtmlScoreState.totalSessionScore > 0 && (
+                              <span style={{ fontSize: '10px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}>
+                                  ✍️ +{writingHtmlScoreState.totalSessionScore}
+                              </span>
+                          )}
                           {/* Language pill */}
                           {!schoolMode && (
                               <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
@@ -1328,6 +1360,12 @@ export const LessonView: React.FC<Props> = ({
                         <h2 className="font-bold text-white text-[13px] leading-snug truncate">{content.title}</h2>
                         <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.38)' }}>Tap screen to hide controls</p>
                       </div>
+                      {/* Live session score chip */}
+                      {mediaScoreState && mediaScoreState.totalSessionScore > 0 && (
+                        <span style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', flexShrink: 0, letterSpacing: '0.02em' }}>
+                          ⭐ +{mediaScoreState.totalSessionScore}
+                        </span>
+                      )}
                       <button
                         onClick={handleBack}
                         className="p-2 rounded-full active:scale-90 transition-transform"
@@ -1581,6 +1619,7 @@ export const LessonView: React.FC<Props> = ({
           setShowResumePrompt(false);
           setAnalysisUnlocked(false);
           setShowResults(false);
+          setMcqLivePts(0);
       };
 
       const handleRecreate = () => {
@@ -1655,6 +1694,7 @@ export const LessonView: React.FC<Props> = ({
                       }
                       // Accumulate MCQ pts for one-time coin award at session end
                       mcqSessionPtsRef.current += totalPts;
+                      setMcqLivePts(prev => prev + totalPts);
                       showMcqScore(totalPts);
                   }
               } else {
@@ -2343,6 +2383,12 @@ export const LessonView: React.FC<Props> = ({
                            📝 MCQ {subject?.name ? `· ${subject.name}` : ''}
                        </p>
                    </div>
+                   {/* Live MCQ session score chip */}
+                   {!showResults && mcqLivePts > 0 && (
+                       <span style={{ fontSize: '10px', fontWeight: 900, color: '#818cf8', background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 99, padding: '2px 8px', flexShrink: 0, letterSpacing: '0.02em' }}>
+                           ⭐ +{mcqLivePts}
+                       </span>
+                   )}
                    {/* Compact timer pill */}
                    <div className="shrink-0 flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
                        <div className="flex flex-col items-center">

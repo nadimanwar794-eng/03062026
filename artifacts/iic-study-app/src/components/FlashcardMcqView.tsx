@@ -99,6 +99,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const revealedPtsRef = useRef<Set<number>>(new Set());
   // Total pts earned via Answer Dekho reveals this session (for session-complete event)
   const sessionRevealPtsRef = useRef(0);
+  // Live session score shown in top bar (updates on each reveal)
+  const [sessionScore, setSessionScore] = useState(0);
 
   // ── MCQ Score Popup ────────────────────────────────────────────────────────
   const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
@@ -121,6 +123,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
       const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_REVEAL');
       if (pts > 0) {
         sessionRevealPtsRef.current += pts;
+        setSessionScore(prev => prev + pts);
         showMcqScore(pts);
         const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
         onUpdateUser(updated);
@@ -479,6 +482,12 @@ export const FlashcardMcqView: React.FC<Props> = ({
             </>
           )}
         </div>
+        {/* Live session score chip */}
+        {sessionScore > 0 && (
+          <span style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}>
+            ⭐ +{sessionScore}
+          </span>
+        )}
         <div className="bg-white/10 px-2.5 py-1 rounded-full shrink-0">
           <span className="text-[10px] font-black text-white/70">
             {getTodayCount(userId)}/{isAdmin ? '∞' : dailyLimit}
