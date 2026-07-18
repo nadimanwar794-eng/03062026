@@ -208,6 +208,10 @@ export const LessonView: React.FC<Props> = ({
   const mcqSessionPtsRef = useRef(0);
   // Live MCQ pts accumulated this session (shown in MCQ top bar)
   const [mcqLivePts, setMcqLivePts] = useState(0);
+  // Score chip tooltip visibility
+  const [writingScoreTooltip, setWritingScoreTooltip] = useState(false);
+  const [videoScoreTooltip, setVideoScoreTooltip] = useState(false);
+  const [mcqScoreTooltip, setMcqScoreTooltip] = useState(false);
   // Fractional coin accumulator — carries sub-1 amounts between reading events
   const coinFracAccumRef = useRef(0);
 
@@ -1147,10 +1151,21 @@ export const LessonView: React.FC<Props> = ({
                               <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                           </div>
                           {/* Live score chip — Notes Maker styled mode */}
-                          {notesViewMode === 'styled' && writingHtmlScoreState && writingHtmlScoreState.totalSessionScore > 0 && (
-                              <span style={{ fontSize: '10px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}>
-                                  ✍️ +{writingHtmlScoreState.totalSessionScore}
-                              </span>
+                          {notesViewMode === 'styled' && (
+                              <div className="relative shrink-0" style={{ zIndex: 50 }}>
+                                  <span
+                                      onClick={() => { setWritingScoreTooltip(true); setTimeout(() => setWritingScoreTooltip(false), 2500); }}
+                                      style={{ fontSize: '10px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
+                                      ✍️ +{writingHtmlScoreState?.totalSessionScore ?? 0}
+                                  </span>
+                                  {writingScoreTooltip && (
+                                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+                                          {writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0
+                                              ? `⏱ ${writingHtmlScoreState.nextRewardInSec}s mein milega`
+                                              : '✍️ Likhte raho, milega!'}
+                                      </div>
+                                  )}
+                              </div>
                           )}
                           {/* Language pill */}
                           {!schoolMode && (
@@ -1361,10 +1376,21 @@ export const LessonView: React.FC<Props> = ({
                         <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.38)' }}>Tap screen to hide controls</p>
                       </div>
                       {/* Live session score chip */}
-                      {mediaScoreState && mediaScoreState.totalSessionScore > 0 && (
-                        <span style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', flexShrink: 0, letterSpacing: '0.02em' }}>
-                          ⭐ +{mediaScoreState.totalSessionScore}
-                        </span>
+                      {mediaScoreState && (
+                        <div className="relative shrink-0" style={{ zIndex: 50 }}>
+                          <span
+                            onClick={() => { setVideoScoreTooltip(true); setTimeout(() => setVideoScoreTooltip(false), 2500); }}
+                            style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', letterSpacing: '0.02em', cursor: 'pointer', display: 'block' }}>
+                            ⭐ +{mediaScoreState.totalSessionScore}
+                          </span>
+                          {videoScoreTooltip && (
+                            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+                              {mediaScoreState.nextRewardInSec > 0
+                                ? `⏱ ${mediaScoreState.nextRewardInSec}s mein milega`
+                                : '▶️ Video chalao, milega!'}
+                            </div>
+                          )}
+                        </div>
                       )}
                       <button
                         onClick={handleBack}
@@ -2384,10 +2410,19 @@ export const LessonView: React.FC<Props> = ({
                        </p>
                    </div>
                    {/* Live MCQ session score chip */}
-                   {!showResults && mcqLivePts > 0 && (
-                       <span style={{ fontSize: '10px', fontWeight: 900, color: '#818cf8', background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 99, padding: '2px 8px', flexShrink: 0, letterSpacing: '0.02em' }}>
-                           ⭐ +{mcqLivePts}
-                       </span>
+                   {!showResults && (
+                       <div className="relative shrink-0" style={{ zIndex: 50 }}>
+                           <span
+                               onClick={() => { setMcqScoreTooltip(true); setTimeout(() => setMcqScoreTooltip(false), 2500); }}
+                               style={{ fontSize: '10px', fontWeight: 900, color: '#818cf8', background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 99, padding: '2px 8px', letterSpacing: '0.02em', cursor: 'pointer', display: 'block' }}>
+                               ⭐ +{mcqLivePts}
+                           </span>
+                           {mcqScoreTooltip && (
+                               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+                                   ✅ Sahi jawab pe milega!
+                               </div>
+                           )}
+                       </div>
                    )}
                    {/* Compact timer pill */}
                    <div className="shrink-0 flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">

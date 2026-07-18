@@ -115,6 +115,8 @@ export const PdfViewer: React.FC<Props> = ({
   const pdfScoreSessionRef = useRef<ReadingScoreSession | null>(null);
   const [pdfScoreState, setPdfScoreState] = useState<ReadingScoreState | null>(null);
 
+  // Score chip tooltip
+  const [pdfScoreTooltip, setPdfScoreTooltip] = useState(false);
   // Track credits earned this PDF session so we can queue a session-complete event on exit
   const pdfSessionCreditsRef = useRef(0);
   const pdfSessionStartMsRef = useRef(Date.now());
@@ -410,12 +412,23 @@ export const PdfViewer: React.FC<Props> = ({
         {/* Title */}
         <h2 className="flex-1 font-bold text-sm truncate min-w-0">{title}</h2>
 
-        {/* Live PDF score chip */}
-        {pdfScoreState && (pdfScoreState.totalCreditsEarned > 0 || pdfScoreState.totalSessionScore > 0) && (
-          <span style={{ fontSize: '10px', fontWeight: 900, color: '#86efac', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.28)', borderRadius: 99, padding: '2px 7px', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            📄 {pdfScoreState.totalCreditsEarned > 0 ? `+${pdfScoreState.totalCreditsEarned}cr` : `+${pdfScoreState.totalSessionScore}pts`}
+        {/* Live PDF score chip — always visible */}
+        <div className="relative shrink-0" style={{ zIndex: 50 }}>
+          <span
+            onClick={() => { setPdfScoreTooltip(true); setTimeout(() => setPdfScoreTooltip(false), 2500); }}
+            style={{ fontSize: '10px', fontWeight: 900, color: '#86efac', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.28)', borderRadius: 99, padding: '2px 7px', whiteSpace: 'nowrap', cursor: 'pointer', display: 'block' }}>
+            📄 {pdfScoreState
+              ? (pdfScoreState.totalCreditsEarned > 0 ? `+${pdfScoreState.totalCreditsEarned}cr` : `+${pdfScoreState.totalSessionScore}pts`)
+              : '+0pts'}
           </span>
-        )}
+          {pdfScoreTooltip && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+              {pdfScoreState && pdfScoreState.nextRewardInSec > 0
+                ? `⏱ ${pdfScoreState.nextRewardInSec}s mein milega`
+                : '📄 Padhte raho, milega!'}
+            </div>
+          )}
+        </div>
 
         {/* Page counter */}
         <button

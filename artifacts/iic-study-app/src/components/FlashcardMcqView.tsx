@@ -101,6 +101,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const sessionRevealPtsRef = useRef(0);
   // Live session score shown in top bar (updates on each reveal)
   const [sessionScore, setSessionScore] = useState(0);
+  // Score chip tooltip
+  const [scoreTooltip, setScoreTooltip] = useState(false);
 
   // ── MCQ Score Popup ────────────────────────────────────────────────────────
   const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
@@ -482,12 +484,19 @@ export const FlashcardMcqView: React.FC<Props> = ({
             </>
           )}
         </div>
-        {/* Live session score chip */}
-        {sessionScore > 0 && (
-          <span style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', flexShrink: 0 }}>
+        {/* Live session score chip — always visible */}
+        <div className="relative shrink-0" style={{ zIndex: 50 }}>
+          <span
+            onClick={() => { setScoreTooltip(true); setTimeout(() => setScoreTooltip(false), 2500); }}
+            style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
             ⭐ +{sessionScore}
           </span>
-        )}
+          {scoreTooltip && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+              🃏 Card reveal pe milega!
+            </div>
+          )}
+        </div>
         <div className="bg-white/10 px-2.5 py-1 rounded-full shrink-0">
           <span className="text-[10px] font-black text-white/70">
             {getTodayCount(userId)}/{isAdmin ? '∞' : dailyLimit}
