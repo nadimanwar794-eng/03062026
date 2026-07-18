@@ -603,7 +603,7 @@ export const ALL_FEATURES: Feature[] = [
         label: 'Coaching Centres',
         group: 'CORE',
         surfaceLevel: 3,
-        adminVisible: true,
+        adminVisible: false, // Pulled out to the header bar (next to School System) instead of the category grid
         adminTab: 'COACHING_CENTRES',
         requiresSuperAdmin: true,
         icon: 'Building2',

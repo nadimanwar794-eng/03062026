@@ -183,13 +183,22 @@ Content line 2 (optional)`}</pre>
   );
 }
 
-// ─── Unified Bulk MCQ parser — accepts BOTH formats ───────────────────────────
+// ─── Unified Bulk MCQ parser — accepts BOTH formats + WhatsApp/Telegram bold ──
 // FORMAT 1 (star style):        FORMAT 2 (exam style):
 //   Q: Question?                  Q1. Question?
 //   A: Option A                   A) Option A
 //   *B: Correct option ← star     *B) Correct option ← star
 //   C: Option C                   C) Option C
 //   Exp: Explanation              Ans: B) option   Explanation: text
+//
+// FORMAT 3 (WhatsApp/Telegram bold — auto-strips ** markdown):
+//   **प्रश्न 1:** [⚡] Question?
+//   A) Option A
+//   B) Option B
+//   C) Option C
+//   D) Option D
+//   **सही उत्तर:** B) Correct option
+//
 // Blocks separated by blank line or ---
 function parseBulkMcq(text: string): CoachingMcq[] {
   const blocks = text.split(/\n(?:\s*-{3,}\s*|\s*)\n/).map(b => b.trim()).filter(Boolean);
@@ -202,21 +211,30 @@ function parseBulkMcq(text: string): CoachingMcq[] {
     let explanation = '';
     let ansLetter = ''; // from Ans: B) style
     let collectingExp = false;
+    let optionsStarted = false; // true once the first A-D option line is seen
 
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      // Strip markdown bold (**) — handles WhatsApp/Telegram/AI-formatted MCQs
+      const line = rawLine.replace(/\*\*/g, '').trim();
+      if (!line) continue;
+
       // Question: Q: / Q1. / Q1) / प्रश्न 1:
-      const qMatch = line.match(/^(?:\*?\s*)?(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.])\s*(.+)/i);
-      if (qMatch) { question = qMatch[1].trim(); collectingExp = false; continue; }
+      const qMatch = line.match(/^(?:\*?\s*)?(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.]\s*)\s*(.+)/i);
+      if (qMatch) {
+        // Strip leading [tag] emoji markers like [⚡] [🔥] [★] etc.
+        question = qMatch[1].trim().replace(/^\[[^\]]*\]\s*/, '');
+        collectingExp = false; continue;
+      }
 
       // Explanation / Exp:
       const expMatch = line.match(/^(?:Exp|Explanation|व्याख्या)[:.]\s*(.*)/i);
       if (expMatch) { explanation = expMatch[1].trim(); collectingExp = true; continue; }
-      if (collectingExp && !/^[*]?[A-Da-d][:.)]/.test(line) && !/^(?:Ans|Answer)/i.test(line)) {
+      if (collectingExp && !/^[*]?[A-Da-d][:.)]/.test(line) && !/^(?:Ans|Answer|सही)/i.test(line)) {
         explanation += (explanation ? ' ' : '') + line; continue;
       }
 
-      // Ans: / Answer: B or B) or B) text
-      const ansMatch = line.match(/^(?:Ans|Answer|सही\s*उत्तर)[:.]\s*\*?\s*([A-Da-d])/i);
+      // Ans: / Answer: / सही उत्तर: B or B) or B) text
+      const ansMatch = line.match(/^(?:Ans|Answer|सही\s*उत्तर)\s*[:.]\s*\*?\s*([A-Da-d])/i);
       if (ansMatch) { ansLetter = ansMatch[1].toUpperCase(); collectingExp = false; continue; }
 
       // Options: *A: text OR *A) text OR A: text OR A) text
@@ -228,12 +246,20 @@ function parseBulkMcq(text: string): CoachingMcq[] {
           options[idx] = optMatch[3].trim();
           if (isCorrect) correctAnswers.push(idx);
         }
+        optionsStarted = true;
         collectingExp = false;
         continue;
       }
 
-      // First unrecognized line = question fallback
-      if (!question) { question = line; }
+      // First unrecognized line = question fallback.
+      if (!question) { question = line; continue; }
+
+      // Continuation lines of a multi-line/statement-based question (common in
+      // "consider the following statements" style MCQs) — append them to the
+      // question as long as options haven't started yet and we're not mid-explanation.
+      if (!optionsStarted && !collectingExp) {
+        question += (/[:?]$/.test(question) ? '\n' : ' ') + line;
+      }
     }
 
     // Apply Ans: style if star style wasn't used
@@ -362,15 +388,22 @@ function McqEditor({ mcqs, onChange, accent }:{ mcqs: CoachingMcq[]; onChange:(m
       {/* Bulk paste panel */}
       {showBulk && (
         <div className="border rounded-xl p-3 space-y-2 bg-slate-50" style={{ borderColor: `${accent}30` }}>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ — Dono Format Supported:</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ — Teen Format Supported:</p>
           <pre className="text-[9px] text-slate-400 bg-white border border-slate-200 rounded-lg p-2 leading-relaxed whitespace-pre-wrap font-mono">{`Style 1 (star):          Style 2 (exam):
 Q: Question text?        Q1. Question text?
 A: Option 1              A) Option 1
 *B: Sahi jawab ← star   *B) Sahi jawab ← star
 C: Option 3              C) Option 3
 Exp: Explanation         Ans: B) Option 2
-                         Explanation: text`}</pre>
-          <p className="text-[9px] text-slate-400">💡 Sahi option ke aage <b>*</b> lagao (ya Ans: B) likhein) • Blank line se alag karo</p>
+
+Style 3 (WhatsApp/AI bold — ** auto strip):
+**प्रश्न 1:** [⚡] Question text?
+A) Option 1
+B) Sahi jawab
+C) Option 3
+D) Option 4
+**सही उत्तर:** B) Sahi jawab`}</pre>
+          <p className="text-[9px] text-slate-400">💡 Style 3 mein <b>**</b> aur <b>[⚡]</b> tags automatically hata diye jaate hain • "Consider the following statements" jaise multi-line questions bhi supported hain • Blank line se alag karo</p>
           <textarea
             value={bulkText}
             onChange={e => setBulkText(e.target.value)}

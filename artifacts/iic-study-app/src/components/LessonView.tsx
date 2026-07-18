@@ -117,6 +117,7 @@ export const LessonView: React.FC<Props> = ({
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [language, setLanguage] = useState<'English' | 'Hindi'>('English');
   const [notesViewMode, setNotesViewMode] = useState<'readable' | 'styled'>('readable');
+  const writeControlsRef = useRef<(() => void) | null>(null);
   const _modeToggleFn = useRef<((mode: 'readable' | 'styled') => void) | null>(null);
   const [pendingModeSwitch, setPendingModeSwitch] = useState<'readable' | 'styled' | null>(null);
   const _applyModeSwitchFn = useRef<((mode: 'readable' | 'styled') => void) | null>(null);
@@ -599,7 +600,7 @@ export const LessonView: React.FC<Props> = ({
           >
             {isImmersive ? '↩ Exit Focus' : '🎯 Focus Mode'}
           </button>
-          {displayData && displayData.length > 0 && (
+          {isAdmin && displayData && displayData.length > 0 && (
             <button
               onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setIsProjectorMode(true); setFabOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '24px', padding: '8px 14px', fontSize: '12px', fontWeight: 900, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', cursor: 'pointer', whiteSpace: 'nowrap' }}
@@ -1009,19 +1010,13 @@ export const LessonView: React.FC<Props> = ({
                           {rotateToast}
                       </div>
                   )}
-                  {/* Header — 2-row write mode bar */}
+                  {/* Header — write mode bar */}
                   <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 flex-shrink-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
-                      {/* Row 1: Back + Title + WRITE badge + Close */}
                       <div className="flex items-center gap-2">
                           <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
                           <div className="min-w-0 flex-1">
                               <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                           </div>
-                          <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-indigo-400/70 select-none whitespace-nowrap">✏️ WRITE</span>
-                          <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
-                      </div>
-                      {/* Row 2: Controls */}
-                      <div className="flex items-center gap-2 mt-1.5">
                           {/* Language pill */}
                           {!schoolMode && (
                               <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
@@ -1035,9 +1030,9 @@ export const LessonView: React.FC<Props> = ({
                                   <Pencil size={17} />
                               </button>
                           )}
-                          {/* ⋮ More menu — pushed to the right */}
+                          {/* ⋮ More menu */}
                           {!schoolMode && (
-                              <div className="relative shrink-0 ml-auto">
+                              <div className="relative shrink-0">
                                   {showMoreMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />}
                                   <button onClick={() => setShowMoreMenu(s => !s)}
                                       className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
@@ -1045,6 +1040,11 @@ export const LessonView: React.FC<Props> = ({
                                   </button>
                                   {showMoreMenu && (
                                       <div className="absolute right-0 top-11 z-50 bg-white border border-slate-100 rounded-2xl shadow-2xl w-56 py-2 overflow-hidden">
+                                          <button onClick={() => { writeControlsRef.current?.(); setShowMoreMenu(false); }}
+                                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                              <LayoutGrid size={15} className="text-slate-400 shrink-0" /> Controls
+                                          </button>
+                                          <div className="my-1.5 border-t border-slate-100" />
                                           <button onClick={() => { handleRotate(); setShowMoreMenu(false); }}
                                               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                               <RotateCcw size={15} className="text-slate-400 shrink-0" /> Screen Rotate
@@ -1068,6 +1068,7 @@ export const LessonView: React.FC<Props> = ({
                                   )}
                               </div>
                           )}
+                          <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
                       </div>
                   </header>
 
@@ -1282,26 +1283,13 @@ export const LessonView: React.FC<Props> = ({
                       {rotateToast}
                   </div>
               )}
-              {/* Header — 2-row write mode bar */}
+              {/* Header — write mode bar */}
               <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 sticky top-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
-                  {/* Row 1: Back + Title + WRITE badge + Close */}
                   <div className="flex items-center gap-2">
                       <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
                       <div className="min-w-0 flex-1">
                           <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                       </div>
-                      <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.18em] text-indigo-400/70 select-none whitespace-nowrap">✏️ WRITE</span>
-                      <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
-                  </div>
-                  {/* Row 2: Controls */}
-                  <div className="flex items-center gap-2 mt-1.5">
-                      {/* Language pill */}
-                      {!schoolMode && (
-                          <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
-                              className="shrink-0 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 flex items-center gap-1 transition-all">
-                              <Globe size={11} /> {language === 'English' ? 'हि' : 'EN'}
-                          </button>
-                      )}
                       {/* School mode controls */}
                       {schoolMode && onSchoolModeSwitch && (
                           <button onClick={onSchoolModeSwitch} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><LayoutGrid size={17} /></button>
@@ -1309,15 +1297,22 @@ export const LessonView: React.FC<Props> = ({
                       {schoolMode && (
                           <button onClick={() => schoolControlsRef?.current?.()} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><MoreVertical size={17} /></button>
                       )}
+                      {/* Language pill */}
+                      {!schoolMode && (
+                          <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
+                              className="shrink-0 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 flex items-center gap-1 transition-all">
+                              <Globe size={11} /> {language === 'English' ? 'हि' : 'EN'}
+                          </button>
+                      )}
                       {/* Admin Edit button */}
                       {isAdmin && onAdminEdit && (
                           <button onClick={onAdminEdit} className="shrink-0 p-2 bg-orange-50 hover:bg-orange-100 rounded-xl text-orange-600 border border-orange-200 transition-colors" title="Edit / Delete Notes (Admin)">
                               <Pencil size={17} />
                           </button>
                       )}
-                      {/* ⋮ More menu — pushed to the right */}
+                      {/* ⋮ More menu */}
                       {!schoolMode && (
-                          <div className="relative shrink-0 ml-auto">
+                          <div className="relative shrink-0">
                               {showMoreMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />}
                               <button onClick={() => setShowMoreMenu(s => !s)}
                                   className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
@@ -1325,6 +1320,11 @@ export const LessonView: React.FC<Props> = ({
                               </button>
                               {showMoreMenu && (
                                   <div className="absolute right-0 top-11 z-50 bg-white border border-slate-100 rounded-2xl shadow-2xl w-56 py-2 overflow-hidden">
+                                      <button onClick={() => { writeControlsRef.current?.(); setShowMoreMenu(false); }}
+                                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
+                                          <LayoutGrid size={15} className="text-slate-400 shrink-0" /> Controls
+                                      </button>
+                                      <div className="my-1.5 border-t border-slate-100" />
                                       <button onClick={() => { handleRotate(); setShowMoreMenu(false); }}
                                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                           <RotateCcw size={15} className="text-slate-400 shrink-0" /> Screen Rotate
@@ -1348,6 +1348,7 @@ export const LessonView: React.FC<Props> = ({
                               )}
                           </div>
                       )}
+                      <button onClick={onBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
                   </div>
               </header>
               <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white">
@@ -1355,16 +1356,15 @@ export const LessonView: React.FC<Props> = ({
                       <ChunkedNotesReader
                           content={content.content || ''}
                           language={language === 'Hindi' ? 'hi-IN' : 'en-US'}
-                          topBarLabel={content.title}
                           noteKey={noteKey}
                           isStarred={isTopicStarred}
                           onStarToggle={isAdmin ? toggleTopicStar : undefined}
                           preferChunkMode
-                          hideTopBar={isImmersive}
+                          hideTopBar={schoolMode ? isImmersive : true}
                           hideFix={schoolMode}
                           hideDesktopToggle={schoolMode}
                           suppressStickyControls={schoolMode}
-                          triggerControlsRef={schoolControlsRef}
+                          triggerControlsRef={schoolMode ? schoolControlsRef : writeControlsRef}
                           onMoreOptions={schoolMode && onSchoolModeSwitch ? onSchoolModeSwitch : undefined}
                           onDesktopModeChange={setIsDesktopMode}
                           readingScoreConfig={writingScoreConfig}
@@ -1685,6 +1685,7 @@ export const LessonView: React.FC<Props> = ({
             saveUserHistory(user.id, historyItem);
             saveTestResult(user.id, historyItem);
         }
+
     };
 
     // Keep submitRef updated for Anti-Cheat
@@ -2128,19 +2129,30 @@ export const LessonView: React.FC<Props> = ({
                    const optionLetters = ['A','B','C','D','E'];
                    return createPortal(
                        <div style={{ position:'fixed', inset:0, zIndex:99999, background:'#ffffff', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-                           {/* Top bar */}
-                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'3px solid #e2e8f0', background:'#1e293b', flexShrink:0 }}>
-                               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                                   <Tv size={28} color="#fbbf24" />
-                                   <span style={{ color:'#fbbf24', fontWeight:900, fontSize:20, letterSpacing:2 }}>PROJECTOR MODE</span>
+                           {/* Top bar — clean, matches MCQ Practice bar style */}
+                           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderBottom:'1px solid #f1f5f9', background:'#ffffff', flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+                               {/* Close */}
+                               <button
+                                   onClick={() => setIsProjectorMode(false)}
+                                   style={{ flexShrink:0, padding:'8px', background:'#f8fafc', border:'none', borderRadius:12, color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center' }}
+                               ><X size={18} /></button>
+                               {/* Title block */}
+                               <div style={{ flex:1, minWidth:0 }}>
+                                   <div style={{ fontSize:13, fontWeight:900, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.2 }}>{chapter.title}</div>
+                                   <div style={{ fontSize:10, fontWeight:700, color:'#d97706', textTransform:'uppercase', letterSpacing:'0.05em', lineHeight:1.2, display:'flex', alignItems:'center', gap:4 }}>
+                                       <Tv size={10} /> PROJECTOR MODE
+                                   </div>
                                </div>
-                               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                                   <span style={{ color:'#94a3b8', fontWeight:700, fontSize:18 }}>{projectorQIndex + 1} / {total}</span>
-                                   <button
-                                       onClick={() => setIsProjectorMode(false)}
-                                       style={{ background:'#ef4444', color:'#fff', border:'none', borderRadius:12, padding:'8px 18px', fontSize:16, fontWeight:900, cursor:'pointer' }}
-                                   >✕ Band Karo</button>
+                               {/* Q counter pill */}
+                               <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, padding:'6px 10px' }}>
+                                   <span style={{ fontSize:11, fontWeight:900, color:'#1e293b' }}>{projectorQIndex + 1}</span>
+                                   <span style={{ fontSize:10, color:'#94a3b8', fontWeight:700 }}>/ {total}</span>
                                </div>
+                               {/* Reveal answer toggle */}
+                               <button
+                                   onClick={() => setProjectorReveal(r => !r)}
+                                   style={{ flexShrink:0, padding:'7px 10px', background: projectorReveal ? '#dcfce7' : '#f8fafc', border: projectorReveal ? '1px solid #86efac' : '1px solid #e2e8f0', borderRadius:12, color: projectorReveal ? '#16a34a' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
+                               ><Eye size={13} /> {projectorReveal ? 'Hide Ans' : 'Show Ans'}</button>
                            </div>
 
                            {/* Question */}
@@ -2249,10 +2261,17 @@ export const LessonView: React.FC<Props> = ({
                        <Grip size={14} />
                        <span className="text-[10px] font-black text-slate-500">{attemptedCount}/{displayData.length}</span>
                    </button>
-                   {/* Projector Mode button */}
+                   {/* Projector Mode button — admin/subadmin only */}
+                   {isAdmin && (
                    <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelected(null); setIsProjectorMode(true); }}
                        className="shrink-0 p-2 bg-amber-50 hover:bg-amber-100 rounded-xl text-amber-500 border border-amber-200 transition-colors" title="Projector Mode">
                        <Tv size={17} />
+                   </button>
+                   )}
+                   {/* Rotate button — real screen rotation */}
+                   <button onClick={handleRotate}
+                       className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 border border-slate-200 transition-colors active:scale-90" title="Screen Rotate">
+                       <RotateCcw size={17} />
                    </button>
                    {/* Admin Edit button — only for admin/subadmin */}
                    {isAdmin && onAdminEdit && (
@@ -2301,10 +2320,12 @@ export const LessonView: React.FC<Props> = ({
                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-semibold transition-colors">
                                    <Maximize size={15} className="text-slate-400 shrink-0" /> Fullscreen
                                </button>
+                               {isAdmin && (
                                <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setIsProjectorMode(true); setShowMoreMenu(false); }}
                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 font-semibold transition-colors">
                                    <Tv size={15} className="text-amber-500 shrink-0" /> 📽️ Projector Mode
                                </button>
+                               )}
                                {schoolMode && onSchoolModeSwitch && (
                                    <button onClick={() => { onSchoolModeSwitch(); setShowMoreMenu(false); }}
                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-indigo-600 hover:bg-indigo-50 font-semibold transition-colors">

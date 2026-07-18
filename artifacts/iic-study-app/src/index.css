@@ -68,6 +68,12 @@
 
 /* LIGHT MODE */
 :root {
+  /* Default status-bar / bottom-nav colors, overridden at runtime by
+     StudentDashboard's theme-color effect. Keep in sync with the
+     theme-color meta tag in index.html and the manifest in vite.config.ts. */
+  --app-bar-color: #ffffff;
+  --nst-nav-bg: #ffffff;
+
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
 
@@ -300,6 +306,24 @@
  * Even without handling focused or not, this is six possible combinations that
  * need to be distinguished from eachother visually.
  */
+/* Safe-area utilities for notches / gesture bars / 3-button nav insets.
+   Used widely (bottom nav, sheets, sticky footers) so system UI never
+   overlaps app content and — for the OS 3-button navigation bar — the
+   reserved strip is padded with the app's own background instead of
+   being left uncovered. */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility pt-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility pb-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 @layer utilities {
 
   /* Hide ugly search cancel button in Chrome until we can style it properly */
@@ -390,4 +414,14 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+/* ── HomeStatsToast animations ── */
+@keyframes shimmer-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes credit-toast-bar {
+  from { width: 100%; }
+  to   { width: 0%;   }
 }

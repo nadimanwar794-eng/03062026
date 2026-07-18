@@ -6,6 +6,8 @@ import { FULL_SYLLABUS } from './utils/full_syllabus_data';
 // import { COMPETITION_DATA } from './competition_syllabus';
 
 export const APP_VERSION = "1.0.1";
+export const BUILD_NUMBER = "20260716.01";
+export const SUPPORT_PHONE = "8227070298"; // Admin support number — update here instead of in code
 export const ADMIN_EMAIL = "nadiman0636indo@gmail.com";
 export const SUPPORT_EMAIL = "nadiman0636indo@gmail.com";
 
@@ -107,6 +109,62 @@ export const DEFAULT_SUBJECTS = {
   mcq: { id: 'mcq', name: 'MCQ Practice', icon: 'mcq', color: 'bg-white text-slate-700' },
   science: { id: 'science', name: 'Science', icon: 'science', color: 'bg-white text-slate-700' },
   sst: { id: 'sst', name: 'Social Science', icon: 'geo', color: 'bg-white text-slate-700' }
+};
+
+// Lucent GK subject categories (Competition mode) — the single source of truth
+// shared by Book Notes Manager (AdminDashboard) and Revision Hub's Class MCQ
+// Manager (AdminClassMcqManager), so both always show the same subject set.
+export const LUCENT_SUBJECT_OPTIONS_BASE: { id: string; name: string }[] = [
+  { id: 'ancient_india', name: 'प्राचीन भारत' },
+  { id: 'medieval_india', name: 'मध्यकालीन भारत' },
+  { id: 'modern_india', name: 'आधुनिक भारत' },
+  { id: 'world_history', name: 'विश्व इतिहास' },
+  { id: 'world_geography', name: 'विश्व का भूगोल' },
+  { id: 'india_geography', name: 'भारत का भूगोल' },
+  { id: 'environment_ecology', name: 'पर्यावरण एवं पारिस्थितिकी' },
+  { id: 'indian_economy', name: 'भारतीय अर्थव्यवस्था' },
+  { id: 'indian_constitution', name: 'भारतीय संविधान' },
+  { id: 'physics', name: 'भौतिक विज्ञान' },
+  { id: 'chemistry', name: 'रसायन विज्ञान' },
+  { id: 'biology', name: 'जीव विज्ञान' },
+  { id: 'science_technology', name: 'विज्ञान एवं प्रौद्योगिकी' },
+  { id: 'computer', name: 'कंप्यूटर' },
+  { id: 'art_culture', name: 'कला एवं संस्कृति' },
+  { id: 'sports', name: 'खेल-कूद' },
+  { id: 'miscellaneous', name: 'विविध' },
+];
+
+// Competition subject options = built-in Lucent subjects (minus admin-hidden ones)
+// plus any admin-defined custom subjects. Mirrors AdminDashboard's derivation so
+// Revision Hub's Class MCQ Manager always matches Book Notes Manager exactly.
+export const getLucentSubjectOptions = (settings: any): { id: string; name: string }[] => {
+  const hiddenIds: Set<string> = new Set((settings?.hiddenLucentSubjectIds || []) as string[]);
+  const customSubjects: { id: string; name: string }[] = (settings?.customLucentSubjects || []).filter(
+    (s: any) => s && s.id && s.name,
+  );
+  return [
+    ...LUCENT_SUBJECT_OPTIONS_BASE.filter(s => !hiddenIds.has(s.id)),
+    ...customSubjects,
+  ];
+};
+
+// Class 6-12 subject options for a given class — union of subjects across all
+// streams (Science/Commerce/Arts/none), deduped by id. Mirrors the derivation
+// used by Class 6-12 Notes Manager so every class-level subject picker in the
+// admin (including Revision Hub's Class MCQ Manager) shows identical subjects.
+export const getClassSubjectOptions = (classLevel: string): { id: string; name: string }[] => {
+  try {
+    const seen = new Set<string>();
+    const results: { id: string; name: string }[] = [];
+    ([`Science`, `Commerce`, `Arts`, null] as (string | null)[]).forEach(stream => {
+      getSubjectsList(classLevel, stream).forEach(s => {
+        if (!seen.has(s.id)) { seen.add(s.id); results.push({ id: s.id, name: s.name }); }
+      });
+    });
+    return results.length > 0 ? results : [{ id: 'science', name: 'Science' }];
+  } catch {
+    return [{ id: 'science', name: 'Science' }];
+  }
 };
 
 export const getSubjectsList = (classLevel: string, stream: string | null, board?: string): Subject[] => {

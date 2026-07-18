@@ -50,12 +50,19 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 };
 const ALL_CATS = Object.keys(CAT_META);
 
-/** Parse bulk-pasted MCQs. Supports two styles:
- *  Style 1 (star):   Q: ...  A: ...  *B: ...(correct)  C: ...  Exp: ...
- *  Style 2 (exam):    Q1. ... A) ... *B) ...(correct)  Ans: B) ...  Explanation: ...
- *  Blocks separated by blank lines. */
+/** Parse bulk-pasted MCQs. Supports THREE styles:
+ *  Style 1 (star):     Q: ...  A: ...  *B: ...(correct)  C: ...  Exp: ...
+ *  Style 2 (exam):      Q1. ... A) ... *B) ...(correct)  Ans: B) ...  Explanation: ...
+ *  Style 3 (WhatsApp/Telegram bold, Hindi — auto-strips ** markdown):
+ *    **प्रश्न 1:** [⚡] Question text?
+ *    A) Option 1
+ *    B) Option 2
+ *    **सही उत्तर:** B) Option 2
+ *  Multi-line/statement-based questions ("consider the following statements")
+ *  are supported — continuation lines before the options are appended to the question.
+ *  Blocks separated by blank lines or a `---` divider. */
 function parseBulkMcq(text: string): CoachingMcq[] {
-  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  const blocks = text.split(/\n(?:\s*-{3,}\s*|\s*)\n/).map(b => b.trim()).filter(Boolean);
   const out: CoachingMcq[] = [];
   for (const block of blocks) {
     const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
@@ -64,28 +71,86 @@ function parseBulkMcq(text: string): CoachingMcq[] {
     let optionCount = 0;
     let explanation = "";
     let ansLetter = "";
-    for (const line of lines) {
-      const qMatch = line.match(/^Q\d*[.:]\s*(.*)$/i);
-      const optMatch = line.match(/^(\*?)([A-D])[.):]\s*(.*)$/i);
-      const ansMatch = line.match(/^Ans(?:wer)?[.:]\s*([A-D])[.)]?\s*.*$/i);
-      const expMatch = line.match(/^Exp(?:lanation)?[.:]\s*(.*)$/i);
-      if (qMatch) { question = qMatch[1]; continue; }
-      if (optMatch) {
-        const letterIdx = "ABCD".indexOf(optMatch[2].toUpperCase());
-        options[letterIdx] = optMatch[3];
-        optionCount++;
-        if (optMatch[1] === "*") ansLetter = optMatch[2].toUpperCase();
+    let collectingExp = false;
+    let optionsStarted = false;
+
+    for (const rawLine of lines) {
+      // Strip markdown bold (**) — handles WhatsApp/Telegram/AI-formatted MCQs
+      const line = rawLine.replace(/\*\*/g, "").trim();
+      if (!line) continue;
+
+      // Question: Q: / Q1. / Q1) / प्रश्न 1:
+      const qMatch = line.match(/^(?:\*?\s*)?(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.]\s*)\s*(.+)/i);
+      if (qMatch) {
+        question = qMatch[1].trim().replace(/^\[[^\]]*\]\s*/, "");
+        collectingExp = false;
         continue;
       }
-      if (ansMatch) { ansLetter = ansMatch[1].toUpperCase(); continue; }
-      if (expMatch) { explanation = expMatch[1]; continue; }
+
+      // Explanation / Exp: / व्याख्या:
+      const expMatch = line.match(/^(?:Exp|Explanation|व्याख्या)[:.]\s*(.*)/i);
+      if (expMatch) { explanation = expMatch[1].trim(); collectingExp = true; continue; }
+      if (collectingExp && !/^[*]?[A-Da-d][:.)]/.test(line) && !/^(?:Ans|Answer|सही)/i.test(line)) {
+        explanation += (explanation ? " " : "") + line;
+        continue;
+      }
+
+      // Ans: / Answer: / सही उत्तर: B or B) or B) text
+      const ansMatch = line.match(/^(?:Ans|Answer|सही\s*उत्तर)\s*[:.]\s*\*?\s*([A-Da-d])/i);
+      if (ansMatch) { ansLetter = ansMatch[1].toUpperCase(); collectingExp = false; continue; }
+
+      // Options: *A: text OR *A) text OR A: text OR A) text
+      const optMatch = line.match(/^(\*?)\s*([A-Da-d])[:.)\s]\s*(.+)/);
+      if (optMatch) {
+        const letterIdx = "ABCD".indexOf(optMatch[2].toUpperCase());
+        if (letterIdx >= 0) {
+          options[letterIdx] = optMatch[3].trim();
+          optionCount++;
+          if (optMatch[1] === "*") ansLetter = optMatch[2].toUpperCase();
+        }
+        optionsStarted = true;
+        collectingExp = false;
+        continue;
+      }
+
+      // First unrecognized line = question fallback.
+      if (!question) { question = line; continue; }
+
+      // Continuation lines of a multi-line/statement-based question — append
+      // them to the question as long as options haven't started yet.
+      if (!optionsStarted && !collectingExp) {
+        question += (/[:?]$/.test(question) ? "\n" : " ") + line;
+      }
     }
     const correctAnswer = ansLetter ? Math.max(0, "ABCD".indexOf(ansLetter)) : 0;
     if (question && optionCount >= 2) {
-      out.push({ id: uidGen(), question, options, correctAnswer, explanation: explanation || undefined });
+      // NOTE: never write `explanation: undefined` — Firebase RTDB's set() throws
+      // on any undefined property, which silently breaks "Save Entry" once MCQs
+      // (parsed without an explanation) are added to the entry.
+      const mcq: CoachingMcq = { id: uidGen(), question, options, correctAnswer };
+      if (explanation) mcq.explanation = explanation;
+      out.push(mcq);
     }
   }
   return out;
+}
+
+/** Recursively strip `undefined` values — Firebase RTDB's set()/update() throw
+ * if any nested property is undefined, which otherwise fails silently (the
+ * save promise rejects and the UI just looks like nothing happened). */
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return (value.map(stripUndefined) as unknown) as T;
+  }
+  if (value && typeof value === "object") {
+    const out: any = {};
+    for (const [k, v] of Object.entries(value as any)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out;
+  }
+  return value;
 }
 
 const uidGen = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -463,12 +528,23 @@ function HomeworkTab({ coachingId, entries, customBooks, disabledCats, hwLoading
     setShowForm(true);
   };
 
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const handleSave = async () => {
-    const entryId = editEntry?.id || uidGen();
-    const data: any = { id: entryId, date };
-    allCats.forEach(k => { if (catData[k]) data[k] = catData[k]; });
-    await set(ref(rtdb, `coaching_homework/${coachingId}/entries/${entryId}`), data);
-    setShowForm(false);
+    setSaveError("");
+    setSaving(true);
+    try {
+      const entryId = editEntry?.id || uidGen();
+      const data: any = { id: entryId, date };
+      allCats.forEach(k => { if (catData[k]) data[k] = catData[k]; });
+      await set(ref(rtdb, `coaching_homework/${coachingId}/entries/${entryId}`), stripUndefined(data));
+      setShowForm(false);
+    } catch (err: any) {
+      setSaveError(err?.message || "Save fail hua — dobara try karein");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -604,15 +680,23 @@ function HomeworkTab({ coachingId, entries, customBooks, disabledCats, hwLoading
                       </div>
                       {bulkOpen[k] && (
                         <div className="border rounded-xl p-3 space-y-2 bg-slate-50 mb-2" style={{ borderColor: `${meta.color}30` }}>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ — Dono Format Supported:</p>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">📋 Bulk MCQ — Teen Format Supported:</p>
                           <pre className="text-[9px] text-slate-400 bg-white border border-slate-200 rounded-lg p-2 leading-relaxed whitespace-pre-wrap font-mono">{`Style 1 (star):          Style 2 (exam):
 Q: Question text?        Q1. Question text?
 A: Option 1              A) Option 1
 *B: Sahi jawab ← star   *B) Sahi jawab ← star
 C: Option 3              C) Option 3
 Exp: Explanation         Ans: B) Option 2
-                         Explanation: text`}</pre>
-                          <p className="text-[9px] text-slate-400">💡 Sahi option ke aage <b>*</b> lagao (ya Ans: B) likhein) • Blank line se alag karo</p>
+                         Explanation: text
+
+Style 3 (WhatsApp/AI bold — ** auto strip):
+**प्रश्न 1:** [⚡] Question text?
+A) Option 1
+B) Sahi jawab
+C) Option 3
+D) Option 4
+**सही उत्तर:** B) Sahi jawab`}</pre>
+                          <p className="text-[9px] text-slate-400">💡 Style 3 mein <b>**</b> aur <b>[⚡]</b> tags automatically hata diye jaate hain • "Consider the following statements" jaise multi-line questions bhi supported hain • Sahi option ke aage <b>*</b> lagao (ya Ans: B) likhein) • Blank line se alag karo</p>
                           <textarea
                             value={bulkText[k] || ""}
                             onChange={e => setBulkText(p => ({ ...p, [k]: e.target.value }))}
@@ -685,10 +769,13 @@ Exp: Explanation         Ans: B) Option 2
           })}
         </div>
 
+        {saveError && (
+          <p className="text-[11px] text-red-500 font-bold text-center -mt-1">⚠️ {saveError}</p>
+        )}
         <div className="flex gap-3">
           <button onClick={() => setShowForm(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl text-sm">Cancel</button>
-          <button onClick={handleSave} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2">
-            <Save size={14} /> Save Entry
+          <button onClick={handleSave} disabled={saving} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {saving ? "Saving..." : "Save Entry"}
           </button>
         </div>
       </div>

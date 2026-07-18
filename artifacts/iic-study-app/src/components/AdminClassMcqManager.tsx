@@ -4,19 +4,20 @@ import { Save, Trash2, ChevronRight, ArrowLeft, Plus, BookOpen, Edit2, X, ArrowR
 import { parseMCQText } from '../utils/mcqParser';
 import { saveTopicNotes } from '../utils/revisionTrackerV2';
 import { saveMcqLesson, deleteMcqLesson, subscribeMcqLessons } from '../firebase';
+import { getClassSubjectOptions, getLucentSubjectOptions } from '../constants';
 
 const CLASSES = ['6', '7', '8', '9', '10', '11', '12', 'COMPETITION'];
 
-const SUBJECTS_BY_CLASS: Record<string, string[]> = {
-  '6':  ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Sanskrit'],
-  '7':  ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Sanskrit'],
-  '8':  ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Sanskrit'],
-  '9':  ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English', 'Hindi'],
-  '10': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English', 'Hindi'],
-  '11': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Economics', 'History', 'Political Science'],
-  '12': ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Economics', 'History', 'Political Science'],
-  'COMPETITION': ['Physics', 'Chemistry', 'Biology', 'History', 'Geography', 'Political Science', 'Economics'],
-};
+// Subject lists are NOT hardcoded here — they come from the same source as
+// Book Notes Manager / Class 6-12 Notes Manager (constants.ts), so all three
+// admin screens (and Revision Hub's student-facing subject picker, which
+// derives from real saved lessons) always agree on which subjects exist.
+function subjectsForClass(classLevel: string, settings: any): string[] {
+  if (classLevel === 'COMPETITION') {
+    return getLucentSubjectOptions(settings).map(s => s.name);
+  }
+  return getClassSubjectOptions(classLevel).map(s => s.name);
+}
 
 function normalizeMcqPaste(raw: string): string {
   let txt = raw;
@@ -237,7 +238,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
   const openMoveCopy = (lesson: any, mode: 'move' | 'copy') => {
     const defaultClass = CLASSES.filter(c => c !== lesson.classLevel)[0] || '6';
     setMcTargetClass(defaultClass);
-    setMcTargetSubject((SUBJECTS_BY_CLASS[defaultClass] || [])[0] || '');
+    setMcTargetSubject(subjectsForClass(defaultClass, settings)[0] || '');
     setMcTargetBoard(lesson.board || '');
     setMoveCopyModal({ lesson, mode });
   };
@@ -326,7 +327,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
         <ArrowLeft size={14} /> Back to Classes
       </button>
       <p className="text-xs font-bold text-slate-500 uppercase mb-2">Class {selectedClass} — Subject Choose Karein</p>
-      {(SUBJECTS_BY_CLASS[selectedClass!] || []).map(sub => {
+      {subjectsForClass(selectedClass!, settings).map(sub => {
         const cnt = lessonCountForSubject(selectedClass!, sub);
         return (
           <button key={sub} onClick={() => { setSelectedSubject(sub); setScreen('LESSON_LIST'); }}
@@ -446,7 +447,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
                     key={c}
                     onClick={() => {
                       setMcTargetClass(c);
-                      setMcTargetSubject((SUBJECTS_BY_CLASS[c] || [])[0] || '');
+                      setMcTargetSubject(subjectsForClass(c, settings)[0] || '');
                     }}
                     className={`py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${
                       mcTargetClass === c
@@ -460,7 +461,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
                 <button
                   onClick={() => {
                     setMcTargetClass('COMPETITION');
-                    setMcTargetSubject((SUBJECTS_BY_CLASS['COMPETITION'] || [])[0] || '');
+                    setMcTargetSubject(subjectsForClass('COMPETITION', settings)[0] || '');
                   }}
                   className={`col-span-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95 ${
                     mcTargetClass === 'COMPETITION'
@@ -480,7 +481,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
                 onChange={e => setMcTargetSubject(e.target.value)}
                 className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-400 bg-white"
               >
-                {(SUBJECTS_BY_CLASS[mcTargetClass] || []).map(sub => (
+                {subjectsForClass(mcTargetClass, settings).map(sub => (
                   <option key={sub} value={sub}>{sub}</option>
                 ))}
               </select>

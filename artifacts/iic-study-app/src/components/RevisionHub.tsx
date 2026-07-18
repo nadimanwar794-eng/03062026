@@ -10,6 +10,7 @@ import { CustomAlert } from './CustomDialogs';
 import { RevisionSession } from './RevisionSession';
 import { TodayRevisionView } from './TodayRevisionView';
 import { TodayMcqSession } from './TodayMcqSession';
+import { setMcqNotifSuppressed } from '../utils/creditNotify';
 import { TopicChart } from './TopicChart';
 import { RevisionDonutChart } from './RevisionDonutChart';
 import { WeakAverageNotesView } from './WeakAverageNotesView';
@@ -71,6 +72,21 @@ const RevisionHubComponent: React.FC<Props> = ({ user, onTabChange, settings, on
     const [showReport, setShowReport] = useState(false);
     const [showTodayRevisionSession, setShowTodayRevisionSession] = useState(false);
     const [showTodayMcqSession, setShowTodayMcqSession] = useState(false);
+    const mcqChapterRef = useRef<{name: string; subject: string}>({ name: '', subject: '' });
+
+    // MCQ session chalne ke dauran sab notifications mute karo
+    useEffect(() => {
+        setMcqNotifSuppressed(showTodayMcqSession);
+        window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+            detail: {
+                active: showTodayMcqSession,
+                chapterName: mcqChapterRef.current.name,
+                subjectName: mcqChapterRef.current.subject,
+                activityType: 'MCQ',
+            }
+        }));
+        return () => { if (showTodayMcqSession) { setMcqNotifSuppressed(false); window.dispatchEvent(new CustomEvent('iic-mcq-session', { detail: { active: false, activityType: 'MCQ' } })); } };
+    }, [showTodayMcqSession]);
     const [sessionResult, setSessionResult] = useState<any>(null); // For Marksheet
     const [showCompletedHistory, setShowCompletedHistory] = useState(false);
     const [showYesterdayHistory, setShowYesterdayHistory] = useState(false);
@@ -1302,6 +1318,10 @@ const RevisionHubComponent: React.FC<Props> = ({ user, onTabChange, settings, on
                                                 if (user.subscriptionLevel === 'BASIC' && now.getDay() !== 0) {
                                                     setAlertConfig({isOpen: true, type: 'INFO', title: 'Sunday Only', message: 'Basic Plan allows revision sessions only on Sundays.'});
                                                 } else {
+                                                    mcqChapterRef.current = {
+                                                        name: pendingMcqs[0]?.chapterName || pendingMcqs[0]?.name || 'MCQ Session',
+                                                        subject: pendingMcqs[0]?.subjectName || '',
+                                                    };
                                                     setShowTodayMcqSession(true);
                                                 }
                                             }}

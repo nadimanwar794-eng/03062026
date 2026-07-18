@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { 
   ClassLevel, Subject, Chapter, AppState, Board, Stream, User, ContentType, SystemSettings, ActivityLogEntry, WeeklyTest, LessonContent, ActiveSubscription, InboxMessage
 } from './types';
@@ -11,7 +11,9 @@ import { doc as fsDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { storage } from './utils/storage';
 import { recalculateSubscriptionStatus, addSubscription } from './utils/subscriptionUtils';
 import { getLevelInfo, getLevelLimitBonus } from './utils/levelSystem';
-import { fireCreditNotify } from './utils/creditNotify';
+import { fireCreditNotify, setHomeTabActive } from './utils/creditNotify';
+import { onSessionComplete, SessionCompletePayload } from './utils/sessionNotify';
+import { SessionSummaryBanner } from './components/SessionSummaryBanner';
 import { loadRoutineData } from './utils/routineStorage';
 import { applyDeduction, getTotalCredits } from './utils/creditSystem';
 import { signInAnonymously } from 'firebase/auth';
@@ -48,6 +50,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { logErrorToFirebase, setErrorLoggerUser } from './utils/errorLogger';
 import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
+import { HomeStatsToast } from './components/HomeStatsToast';
+import { recordCreditTx } from './utils/creditHistory';
 import { generateDailyChallengeQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
@@ -424,7 +428,16 @@ const App: React.FC = () => {
     const updatedUser = { ...user, credits: newCredits };
     setState(prev => ({ ...prev, user: updatedUser }));
     saveUserToLive(updatedUser);
-    fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: 'reading' });
+
+    if (pendingSessionRef.current) {
+      // Pending session summary exists — put coins into the big home banner
+      // instead of firing the small CreditToast.
+      setPendingSessionSummary(prev =>
+        prev ? { ...prev, coinsEarned: (prev.coinsEarned ?? 0) + coins } : null
+      );
+    } else {
+      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: 'reading' });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
@@ -433,8 +446,154 @@ const App: React.FC = () => {
   }, [studentTab]);
   const [streakLoginPopup, setStreakLoginPopup] = useState<{newStreak: number; prevStreak: number; isNewRecord: boolean} | null>(null);
   const [levelUpNotif, setLevelUpNotif] = useState<{level: number; label: string; emoji: string; color: string} | null>(null);
+
+  // ── HomeStatsToast — state.user update ke baad dikhao; 1.5s fallback ──────────
+  const [homeStatsVisible, setHomeStatsVisible] = useState(false);
+  const [mcqJustEnded, setMcqJustEnded] = useState(false);
+  const mcqFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!mcqJustEnded) return;
+    // Fallback: agar state.user 1.5s mein update na ho tab bhi dikhao (score refs se lo)
+    const snapScore = userTotalScoreRef.current;
+    const snapCredits = userCreditsRef.current;
+    const snapStart = scoreAtSessionStartRef.current;
+    const snapStartC = creditsAtSessionStartRef.current;
+    mcqFallbackTimerRef.current = setTimeout(() => {
+      if (!awaitingPostMcqDataRef.current) return; // score-effect ne handle kar liya
+      awaitingPostMcqDataRef.current = false;
+      const earned = Math.max(0, snapScore - snapStart);
+      const earnedC = Math.max(0, snapCredits - snapStartC);
+      setMcqSessionScore(earned);
+      setMcqSessionCredits(earnedC);
+      setMcqJustEnded(false);
+      if (revisionHubOpenRef.current) { pendingHomeStatsRef.current = true; } else { setHomeStatsVisible(true); }
+    }, 1500);
+    return () => { if (mcqFallbackTimerRef.current) clearTimeout(mcqFallbackTimerRef.current); };
+  }, [mcqJustEnded]);
+
+  // Session khatam hone pe credit history mein save karo (session card format)
+  const prevHomeStatsVisibleRef = useRef(false);
+  useEffect(() => {
+    if (homeStatsVisible && !prevHomeStatsVisibleRef.current && state.user?.id) {
+      const bonusPts = Math.round(mcqSessionScore * (getLevelInfo(state.user.totalScore || 0).discount / 100));
+      const actLabel = mcqActivityType === 'MCQ' ? 'MCQ' : mcqActivityType === 'Writing' ? 'Writing Notes' : 'Reading Notes';
+      const desc = [actLabel, mcqChapterName].filter(Boolean).join(' · ');
+      recordCreditTx(
+        state.user.id,
+        mcqSessionCredits,
+        `EARN_SESSION_${mcqActivityType.toUpperCase()}`,
+        desc || 'Study Session',
+        state.user.credits,
+        // Extra session fields stored inline via type extension
+        mcqSessionScore,
+        bonusPts,
+        mcqSessionSeconds,
+        mcqActivityType,
+        mcqChapterName,
+      );
+    }
+    prevHomeStatsVisibleRef.current = homeStatsVisible;
+  }, [homeStatsVisible]);
+
+  // ── MCQ session active flag + full session tracking ──────────────────────────
+  const [inMcqSession, setInMcqSession] = useState(false);
+  const [mcqSessionScore, setMcqSessionScore] = useState(0);
+  const [mcqSessionCredits, setMcqSessionCredits] = useState(0);
+  const [mcqSessionSeconds, setMcqSessionSeconds] = useState(0); // is session ki duration
+  const [mcqChapterName, setMcqChapterName] = useState('');
+  const [mcqActivityType, setMcqActivityType] = useState('MCQ');
+  const scoreAtSessionStartRef = useRef(0);
+  const creditsAtSessionStartRef = useRef(0);
+  const sessionStartTimeRef = useRef(0); // session shuru hone ka timestamp
+  const userTotalScoreRef = useRef(0);
+  const userCreditsRef = useRef(0);
+  // awaitingPostMcqDataRef: true jab MCQ khatam hua lekin score abhi state mein aana baaki hai
+  const awaitingPostMcqDataRef = useRef(false);
+  // sessionEndProcessedRef: double-fire guard (sessionStartTimeRef pe depend mat karo)
+  const sessionEndProcessedRef = useRef(false);
+  // RevisionHub open hone pe HomeStatsToast defer karo — close hone pe dikhao
+  const revisionHubOpenRef = useRef(false);
+  const pendingHomeStatsRef = useRef(false);
+  useEffect(() => { userTotalScoreRef.current = state.user?.totalScore || 0; }, [state.user?.totalScore]);
+  useEffect(() => { userCreditsRef.current = state.user?.credits || 0; }, [state.user?.credits]);
+
+  // MCQ ke BAAD state.user update hone par earned score/credits capture karo aur toast dikhao
+  useEffect(() => {
+    if (!awaitingPostMcqDataRef.current) return;
+    awaitingPostMcqDataRef.current = false;
+    // Fallback timer cancel karo — hum yahan se dikhayenge
+    if (mcqFallbackTimerRef.current) { clearTimeout(mcqFallbackTimerRef.current); mcqFallbackTimerRef.current = null; }
+    const earned = Math.max(0, (state.user?.totalScore || 0) - scoreAtSessionStartRef.current);
+    const earnedC = Math.max(0, (state.user?.credits || 0) - creditsAtSessionStartRef.current);
+    setMcqSessionScore(earned);
+    setMcqSessionCredits(earnedC);
+    setMcqJustEnded(false);
+    // RevisionHub open hai to home pe jane pe dikhao
+    if (revisionHubOpenRef.current) { pendingHomeStatsRef.current = true; } else { setHomeStatsVisible(true); }
+  }, [state.user?.totalScore, state.user?.credits]);
+
+  // RevisionHub open/close track karo — toast defer karo jab tak hub band na ho
+  useEffect(() => {
+    const openHandler = () => { revisionHubOpenRef.current = true; };
+    const closeHandler = () => {
+      revisionHubOpenRef.current = false;
+      if (pendingHomeStatsRef.current) {
+        pendingHomeStatsRef.current = false;
+        setTimeout(() => setHomeStatsVisible(true), 300);
+      }
+    };
+    window.addEventListener('iic-revision-hub-opened', openHandler);
+    window.addEventListener('iic-revision-hub-closed', closeHandler);
+    return () => {
+      window.removeEventListener('iic-revision-hub-opened', openHandler);
+      window.removeEventListener('iic-revision-hub-closed', closeHandler);
+    };
+  }, []);
+
+  // HOME tab pe EARN notifications suppress karo (HomeStatsToast mein dikhega)
+  useEffect(() => { setHomeTabActive(studentTab === 'HOME'); }, [studentTab]);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<any>).detail;
+      const { active, chapterName, subjectName, activityType } = detail;
+      setInMcqSession(active);
+      if (active) {
+        // Session shuru — scores + time snapshot lo, end-guard reset karo
+        scoreAtSessionStartRef.current = userTotalScoreRef.current;
+        creditsAtSessionStartRef.current = userCreditsRef.current;
+        sessionStartTimeRef.current = Date.now();
+        sessionEndProcessedRef.current = false;
+        if (chapterName) setMcqChapterName([chapterName, subjectName].filter(Boolean).join(' · '));
+        if (activityType) setMcqActivityType(activityType);
+      } else {
+        // Guard 1: koi active session shuru nahi hua (mount-time false fire block)
+        if (sessionStartTimeRef.current === 0) return;
+        // Guard 2: is session ka end already process ho chuka (double-fire block)
+        if (sessionEndProcessedRef.current) return;
+        sessionEndProcessedRef.current = true;
+        const elapsedSec = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+        setMcqSessionSeconds(elapsedSec);
+        sessionStartTimeRef.current = 0;
+        awaitingPostMcqDataRef.current = true;
+        setMcqJustEnded(true);
+      }
+    };
+    window.addEventListener('iic-mcq-session', handler);
+    return () => window.removeEventListener('iic-mcq-session', handler);
+  }, []);
   const [lastTestResult, setLastTestResult] = useState<MCQResult | null>(null);
   const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null); // NEW: For granular analysis
+  const [pendingSessionSummary, setPendingSessionSummary] = useState<SessionCompletePayload | null>(null);
+  const pendingSessionRef = useRef<SessionCompletePayload | null>(null);
+  useEffect(() => { pendingSessionRef.current = pendingSessionSummary; }, [pendingSessionSummary]);
+
+  // Listen for lesson-complete events fired from MyRoutine
+  useEffect(() => {
+    const unsub = onSessionComplete((payload) => {
+      setPendingSessionSummary(payload);
+    });
+    return unsub;
+  }, []);
   
   // CUSTOM DIALOG STATE (GLOBAL)
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
@@ -706,7 +865,7 @@ const App: React.FC = () => {
           }
           updatedUser.inbox = [inboxMsg, ...existingInbox];
           hasUpdates = true;
-          setTimeout(() => setAlertConfig({ isOpen: true, message: `🎁 ${reward.label} received! Go to Mail → Rewards to claim.` }), 1000);
+          setTimeout(() => fireCreditNotify({ type: 'REWARD', message: `${reward.label} received! Mail → Rewards se claim karo.` }), 1000);
       };
 
       if (hasUpdates || newReward) {
@@ -887,6 +1046,24 @@ const App: React.FC = () => {
                       // PRESERVE TEACHER ROLE (if code was applied during signup but slow sync)
                       if (prev.user.role === 'TEACHER' && cloudUser.role !== 'TEACHER') {
                           mergedUser.role = 'TEACHER';
+                      }
+
+                      // Naya mail/message aaya to slim top-bar notification dikhao (same style as coin earn)
+                      const prevInbox = prev.user.inbox || [];
+                      const nextInbox = mergedUser.inbox || [];
+                      if (nextInbox.length > prevInbox.length) {
+                          const prevIds = new Set(prevInbox.map((m: any) => m.id));
+                          const newMsgs = nextInbox.filter((m: any) => !prevIds.has(m.id));
+                          // REWARD messages already fire their own toast via pushRewardToInbox / activeReward flow
+                          const newMailMsgs = newMsgs.filter((m: any) => m.type !== 'REWARD');
+                          if (newMailMsgs.length > 0) {
+                              const first = newMailMsgs[0];
+                              const msgPreview = (first.text || 'Naya message aaya!').slice(0, 60);
+                              setTimeout(() => fireCreditNotify({
+                                  type: 'MAIL',
+                                  message: newMailMsgs.length > 1 ? `${newMailMsgs.length} naye messages aaye! ${msgPreview}` : msgPreview,
+                              }), 300);
+                          }
                       }
 
                       if (JSON.stringify(prev.user) !== JSON.stringify(mergedUser)) {
@@ -1192,9 +1369,16 @@ const App: React.FC = () => {
         // permission-denied — causing blank content pages.
         // We call signInAnonymously here so Firebase Auth is always active when
         // the user is already "logged in" via our custom session.
-        auth.currentUser === null && signInAnonymously(auth).catch(e =>
-            console.warn('[IIC] Background Firebase Auth restore failed:', e)
-        );
+        // NOTE: We never force-logout on failure — nst_current_user is the source of
+        // truth for our custom session. Firebase Auth will restore itself via
+        // onAuthStateChanged (browserLocalPersistence). Logging out here on every
+        // HMR reload or anonymous-auth-disabled project caused spurious logouts.
+        if (auth.currentUser === null) {
+            signInAnonymously(auth).catch(e => {
+                console.warn('[IIC] Background Firebase Auth restore skipped:', e.code || e.message);
+                // Do NOT clear session or reload — the custom session is still valid.
+            });
+        }
 
         // MIGRATION & RECALCULATION ON LOAD
         if (user.role !== 'ADMIN') {
@@ -1396,7 +1580,7 @@ const App: React.FC = () => {
                 saveUserToLive(updatedUser);
             }
             setState(prev => ({ ...prev, user: updatedUser }));
-            setAlertConfig({ isOpen: true, message: `🎁 ${activeReward.label} received! Go to Mail → Rewards to claim.` });
+            fireCreditNotify({ type: 'REWARD', message: `${activeReward.label} received! Mail → Rewards se claim karo.` });
         }
 
         // Clear activeReward after processing
@@ -1508,6 +1692,12 @@ const App: React.FC = () => {
   ];
 
   const handleLogin = async (user: User) => {
+    // ── Login pe session tracking reset — spurious home toast na aaye ────
+    awaitingPostMcqDataRef.current = false;
+    sessionStartTimeRef.current = 0;
+    sessionEndProcessedRef.current = false;
+    setMcqJustEnded(false);
+    setHomeStatsVisible(false);
     if (!state.originalAdmin) {
         localStorage.setItem('nst_current_user', JSON.stringify(user));
     }
@@ -1659,6 +1849,17 @@ const App: React.FC = () => {
 
     setLastTestResult(result);
     setLastTestQuestions(displayData); // Pass for Marksheet Granular View
+
+    // Set pending session summary — coins will be filled when user returns HOME
+    setPendingSessionSummary({
+      type: 'MCQ',
+      subject: state.selectedSubject?.title || '',
+      chapter: state.selectedChapter.title,
+      score,
+      total: displayData.length,
+      timeSecs: timeTaken,
+      coinsEarned: undefined,
+    });
     
     // UPDATE USER HISTORY & PROGRESS
     let updatedUser = { ...state.user };
@@ -2672,7 +2873,7 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ background: state.settings?.appBackground || '#ffffff' }}>
+    <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})` }}>
       {/* SKIP TO CONTENT — keyboard/screen-reader accessibility */}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
@@ -2776,10 +2977,10 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* STATUS BAR BACKGROUND */}
-      <div className="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top,24px)] z-[100]"></div>
-      {/* BOTTOM SAFE AREA BACKGROUND */}
-      <div className="fixed bottom-0 left-0 right-0 h-[env(safe-area-inset-bottom,32px)] bg-slate-900 z-[100]"></div>
+      {/* BOTTOM SAFE AREA BACKGROUND — matches the bottom nav bar's own
+          background (--nst-nav-bg) so the OS 3-button navigation strip blends
+          into the app's bottom bar instead of showing as a separate band. */}
+      <div className="fixed bottom-0 left-0 right-0 h-[env(safe-area-inset-bottom,32px)] z-[100]" style={{ background: 'var(--nst-nav-bg, #ffffff)' }}></div>
 
       {/* GLOBAL WATERMARK LAYER (FIXED: Single Logo, Configurable Position, Z-Index Low) */}
       {/* User Requirement: "app ka logo full screen pe dikhega nahi chhota sa... background me hi logo hoga" */}
@@ -3202,8 +3403,8 @@ const App: React.FC = () => {
       )}
       
 
-      {/* LOGIN STREAK POPUP */}
-      {streakLoginPopup && state.user && (
+      {/* LOGIN STREAK POPUP — MCQ session mein nahi dikhega */}
+      {streakLoginPopup && state.user && !inMcqSession && (
         <StreakLoginPopup
           newStreak={streakLoginPopup.newStreak}
           prevStreak={streakLoginPopup.prevStreak}
@@ -3213,8 +3414,8 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* LEVEL-UP NOTIFICATION */}
-      {levelUpNotif && (
+      {/* LEVEL-UP NOTIFICATION — MCQ session mein nahi dikhega */}
+      {levelUpNotif && !inMcqSession && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
           <div
             className="pointer-events-auto mx-4 rounded-3xl p-6 text-center shadow-2xl animate-in zoom-in-95 fade-in duration-500"
@@ -3408,7 +3609,33 @@ const App: React.FC = () => {
           </div>
       )}
     </div>
-    <CreditToast />
+    {/* CreditToast hataya — HomeStatsToast se replace kiya */}
+    {/* Home page pe aate hi stats toast — pts, bonus, credits, time */}
+    {state.user && (
+      <HomeStatsToast
+        sessionScore={mcqSessionScore}
+        creditsEarned={mcqSessionCredits}
+        bonusPts={Math.round(mcqSessionScore * (getLevelInfo(state.user.totalScore || 0).discount / 100))}
+        sessionSeconds={mcqSessionSeconds}
+        chapterName={mcqChapterName}
+        activityType={mcqActivityType}
+        totalScore={state.user.totalScore || 0}
+        credits={state.user.credits || 0}
+        visible={homeStatsVisible}
+        onDismiss={() => { setHomeStatsVisible(false); setMcqSessionScore(0); setMcqSessionCredits(0); setMcqSessionSeconds(0); }}
+      />
+    )}
+    {/* Session summary banner — MCQ/Lesson khatam hote hi immediately dikhta hai */}
+    {pendingSessionSummary && (
+      <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
+        <div className="pointer-events-auto">
+          <SessionSummaryBanner
+            summary={pendingSessionSummary}
+            onDismiss={() => setPendingSessionSummary(null)}
+          />
+        </div>
+      </div>
+    )}
     </ErrorBoundary>
   );
 };

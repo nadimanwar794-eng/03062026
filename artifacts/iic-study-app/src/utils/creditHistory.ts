@@ -8,6 +8,12 @@ export interface CreditTxEntry {
   description: string;
   balanceAfter?: number;
   at: string;
+  // Session summary fields (set when entry comes from HomeStatsToast)
+  sessionScore?: number;
+  bonusPts?: number;
+  sessionSeconds?: number;
+  activityType?: string;
+  chapterName?: string;
 }
 
 export const recordCreditTx = (
@@ -16,6 +22,11 @@ export const recordCreditTx = (
   type: string,
   description: string,
   balanceAfter?: number,
+  sessionScore?: number,
+  bonusPts?: number,
+  sessionSeconds?: number,
+  activityType?: string,
+  chapterName?: string,
 ): void => {
   if (!userId) return;
   try {
@@ -28,6 +39,11 @@ export const recordCreditTx = (
       description,
       balanceAfter,
       at: new Date().toISOString(),
+      ...(sessionScore !== undefined && { sessionScore }),
+      ...(bonusPts !== undefined && { bonusPts }),
+      ...(sessionSeconds !== undefined && { sessionSeconds }),
+      ...(activityType !== undefined && { activityType }),
+      ...(chapterName !== undefined && { chapterName }),
     };
     const updated = [entry, ...existing].slice(0, MAX_ENTRIES);
     localStorage.setItem(KEY(userId), JSON.stringify(updated));

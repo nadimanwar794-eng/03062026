@@ -787,27 +787,97 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {visibleTx.map((tx, i) => (
-                            <div key={tx.id || i} className={`rounded-2xl p-3.5 border flex items-center gap-3 ${
-                                i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'
-                            }`} style={{ borderColor: '#e2e8f0' }}>
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm shrink-0 ${
-                                    tx.isEarn ? 'bg-emerald-100' : 'bg-rose-100'
-                                }`}>
-                                    {tx.typeIcon}
+                        {visibleTx.map((tx, i) => {
+                            const isSession = tx.sessionScore !== undefined || tx.sessionSeconds !== undefined;
+                            if (isSession) {
+                                // ── Toast-style session card ──────────────────
+                                const actLabel =
+                                    tx.activityType === 'MCQ' ? '📝 MCQ' :
+                                    tx.activityType === 'Writing' ? '✍️ Writing Notes' :
+                                    tx.activityType === 'Reading' ? '📖 Reading Notes' :
+                                    `📝 ${tx.activityType || 'Session'}`;
+                                const formatTime = (s: number) => {
+                                    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+                                    if (h > 0) return `${h}h ${m}m`;
+                                    if (m > 0) return `${m}m ${sec}s`;
+                                    return `${sec}s`;
+                                };
+                                return (
+                                    <div key={tx.id || i} className="rounded-2xl bg-white shadow-sm overflow-hidden border border-slate-100">
+                                        {/* Header */}
+                                        <div className="px-3 py-1.5 flex items-center gap-2" style={{ background: `linear-gradient(90deg, ${levelColor}20, ${levelColor}08)` }}>
+                                            <span className="text-[10px] font-bold tracking-wide" style={{ color: levelColor }}>{actLabel}</span>
+                                            {tx.chapterName && (
+                                                <>
+                                                    <span className="text-[10px] text-slate-300">·</span>
+                                                    <span className="text-[10px] font-semibold text-slate-600 truncate flex-1">{tx.chapterName}</span>
+                                                </>
+                                            )}
+                                            <span className="text-[10px] text-slate-400 ml-auto shrink-0">{tx.dateStr}</span>
+                                        </div>
+                                        {/* Stats row */}
+                                        <div className="flex items-stretch divide-x divide-slate-100">
+                                            <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5" style={{ background: (tx.sessionScore || 0) > 0 ? `${levelColor}08` : undefined }}>
+                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Score Mila</span>
+                                                <span className="text-[13px] font-black leading-none" style={{ color: (tx.sessionScore || 0) > 0 ? levelColor : '#94a3b8' }}>
+                                                    {(tx.sessionScore || 0) > 0 ? `+${tx.sessionScore}` : '—'}
+                                                </span>
+                                                <span className="text-[8px] text-slate-400">⭐ pts</span>
+                                            </div>
+                                            <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5">
+                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Earn Credit</span>
+                                                <span className="text-[13px] font-black text-amber-500 leading-none">
+                                                    {tx.amount > 0 ? `+${tx.amount}` : tx.amount < 0 ? `${tx.amount}` : '—'}
+                                                </span>
+                                                <span className="text-[8px] text-slate-400">🪙 coins</span>
+                                            </div>
+                                            <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5">
+                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Bonus</span>
+                                                <span className="text-[13px] font-black leading-none" style={{ color: (tx.bonusPts || 0) > 0 ? levelColor : '#94a3b8' }}>
+                                                    {(tx.bonusPts || 0) > 0 ? `+${tx.bonusPts}` : '—'}
+                                                </span>
+                                                <span className="text-[8px] text-slate-400">⭐ bonus pts</span>
+                                            </div>
+                                            <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5">
+                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Time</span>
+                                                <span className="text-[13px] font-black text-emerald-600 leading-none">
+                                                    {(tx.sessionSeconds || 0) > 0 ? formatTime(tx.sessionSeconds!) : '—'}
+                                                </span>
+                                                <span className="text-[8px] text-slate-400">⏱ session</span>
+                                            </div>
+                                        </div>
+                                        {/* Balance footer */}
+                                        {tx.balanceAfter !== undefined && (
+                                            <div className="px-3 py-1 text-center" style={{ background: `${levelColor}06` }}>
+                                                <span className="text-[9px] text-slate-400">Balance: <span className="font-bold text-slate-600">{tx.balanceAfter}</span> coins</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
+                            // ── Normal credit row ─────────────────────────────
+                            return (
+                                <div key={tx.id || i} className={`rounded-2xl p-3.5 border flex items-center gap-3 ${
+                                    i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'
+                                }`} style={{ borderColor: '#e2e8f0' }}>
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm shrink-0 ${
+                                        tx.isEarn ? 'bg-emerald-100' : 'bg-rose-100'
+                                    }`}>
+                                        {tx.typeIcon}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-slate-800 truncate">{tx.description}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">{tx.dateStr}</p>
+                                        {tx.balanceAfter !== undefined && (
+                                            <p className="text-[10px] text-slate-400">Balance: {tx.balanceAfter} CR</p>
+                                        )}
+                                    </div>
+                                    <div className={`text-sm font-black shrink-0 ${tx.isEarn ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {tx.isEarn ? '+' : ''}{tx.amount} CR
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-slate-800 truncate">{tx.description}</p>
-                                    <p className="text-[10px] text-slate-400 mt-0.5">{tx.dateStr}</p>
-                                    {tx.balanceAfter !== undefined && (
-                                        <p className="text-[10px] text-slate-400">Balance: {tx.balanceAfter} CR</p>
-                                    )}
-                                </div>
-                                <div className={`text-sm font-black shrink-0 ${tx.isEarn ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                    {tx.isEarn ? '+' : ''}{tx.amount} CR
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {hasMore && (
                             <button
                                 onClick={() => setCreditHistoryPage(p => p + 30)}

@@ -18,6 +18,7 @@ import {
   subscribeToCoachingMembers,
   removeCoachingUser,
 } from "../../coaching-firebase";
+import { CoachingAdminPanel } from "./CoachingAdminPanel";
 import type { CoachingCentre, CoachingSubscription, CoachingSubscriptionTier } from "../../coaching-types";
 import { COACHING_SUBSCRIPTION_PLANS } from "../../coaching-types";
 import {
@@ -75,6 +76,7 @@ function CoachingCard({
   onManageAdmin,
   onMarkPaid,
   onSuspend,
+  onControl,
 }: {
   coaching: CoachingCentre;
   onEdit: () => void;
@@ -83,6 +85,7 @@ function CoachingCard({
   onManageAdmin: () => void;
   onMarkPaid: () => void;
   onSuspend: () => void;
+  onControl: () => void;
 }) {
   const sub = coaching.subscription;
   const paidUntil = sub.paidUntil ? new Date(sub.paidUntil) : null;
@@ -152,6 +155,14 @@ function CoachingCard({
             <p className="text-[10px] text-slate-400 italic">{sub.paymentNotes}</p>
           )}
         </div>
+
+        {/* Control — super admin opens this coaching's own batches/homework/fees panel directly */}
+        <button
+          onClick={onControl}
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-xs font-black hover:from-indigo-500 hover:to-violet-500 active:scale-95 transition-all shadow-sm"
+        >
+          <Eye size={13} /> Coaching Control Kholo
+        </button>
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-2">
@@ -235,10 +246,20 @@ export const CoachingSuperAdminPanel: React.FC<Props> = ({ adminUid, onBack }) =
   const [adminRole, setAdminRole] = useState<"COACHING_ADMIN" | "COACHING_SUB_ADMIN">("COACHING_ADMIN");
   const [adminSaving, setAdminSaving] = useState(false);
 
+  // Coaching Control — super admin opens a coaching's own batches/homework/fees panel directly
+  const [controlCoaching, setControlCoaching] = useState<CoachingCentre | null>(null);
+
   useEffect(() => {
     const unsub = subscribeToAllCoachings(
       list => {
-        setCoachings(list.sort((a, b) => a.name.localeCompare(b.name)));
+        // Defensive: legacy/malformed docs may be missing `name` or
+        // `subscription` — never let a bad doc crash this whole panel.
+        const safeList = (list || []).map(c => ({
+          ...c,
+          name: c?.name || 'Unnamed',
+          subscription: c?.subscription || defaultSub(),
+        }));
+        setCoachings(safeList.sort((a, b) => a.name.localeCompare(b.name)));
         setLoading(false);
         setPermError(false);
       },
@@ -371,6 +392,21 @@ export const CoachingSuperAdminPanel: React.FC<Props> = ({ adminUid, onBack }) =
     }, 0),
   };
 
+  // Coaching Control — super admin drops straight into that coaching's own
+  // batches/homework/fees panel (same one COACHING_ADMIN uses), acting as
+  // an ad-hoc admin so nothing needs to be pre-assigned first.
+  if (controlCoaching) {
+    return (
+      <CoachingAdminPanel
+        coachingId={controlCoaching.id}
+        adminUid={adminUid}
+        adminName="Super Admin"
+        role="COACHING_ADMIN"
+        onBack={() => setControlCoaching(null)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 to-indigo-50">
       {/* Header */}
@@ -473,6 +509,7 @@ service cloud.firestore {
                   onManageAdmin={() => setAdminModal({ coaching: c })}
                   onMarkPaid={() => setPaidModal({ coaching: c })}
                   onSuspend={() => handleSuspend(c)}
+                  onControl={() => setControlCoaching(c)}
                 />
               ))
             )}

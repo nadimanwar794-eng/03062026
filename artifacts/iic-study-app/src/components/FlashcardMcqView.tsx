@@ -12,6 +12,7 @@ import { saveUserToLive, saveSuggestion } from '../firebase';
 import { fireCreditNotify } from '../utils/creditNotify';
 import { useAppTheme } from '../utils/themeContext';
 import { tryEarnScore } from '../utils/scoreSystem';
+import { rotateScreen } from '../utils/displayPrefs';
 
 interface Props {
   questions: MCQItem[];
@@ -28,6 +29,8 @@ interface Props {
   sourceKey?: string;
   /** If true, component opens directly in Projector Mode (TV button shortcut) */
   startInProjectorMode?: boolean;
+  /** Lesson tab bar rendered at the very top (Reading Mode | Writing Mode | MCQ Practice | Projector) */
+  tabBar?: React.ReactNode;
 }
 
 const CREDIT_COST = 5;
@@ -55,7 +58,7 @@ const addTodayCount = (userId: string, n: number) => {
 };
 
 export const FlashcardMcqView: React.FC<Props> = ({
-  questions, title, subtitle, subject, onBack, user, settings, onUpdateUser, sourceMeta, sourceKey, startInProjectorMode
+  questions, title, subtitle, subject, onBack, user, settings, onUpdateUser, sourceMeta, sourceKey, startInProjectorMode, tabBar
 }) => {
   const isMountedRef = useRef(true);
   const [pickedIndices, setPickedIndices] = useState<number[]>([]);
@@ -136,6 +139,20 @@ export const FlashcardMcqView: React.FC<Props> = ({
     sessionStartRef.current = Date.now();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions]);
+
+  // When parent switches startInProjectorMode (e.g. via overlay tab bar), sync projector mode
+  useEffect(() => {
+    if (startInProjectorMode) {
+      setIsProjectorMode(true);
+      setProjectorQIndex(0);
+      setProjectorReveal(false);
+      setProjectorFocused(false);
+      setProjectorSelected(null);
+    } else if (startInProjectorMode === false) {
+      setIsProjectorMode(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startInProjectorMode]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -327,6 +344,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
     const canPay = !!(user?.subscriptionLevel && (user.credits ?? 0) >= CREDIT_COST);
     return (
       <div className="fixed inset-0 z-[200] flex flex-col h-[100dvh]" style={tierBgStyle}>
+        {tabBar}
         <div className="px-4 py-3 flex items-center gap-3">
           <button onClick={onBack} className="bg-white/10 text-white p-2 rounded-full active:scale-95">
             <ArrowLeft size={18} />
@@ -360,10 +378,12 @@ export const FlashcardMcqView: React.FC<Props> = ({
   }
 
   if (!currentQ) {
+    // If questions exist but pickedIndices is still empty, initSession is running — return null to avoid flash
+    if (questions.length > 0) return null;
     return (
       <div className="fixed inset-0 z-[200] flex flex-col h-[100dvh]" style={tierBgStyle}>
+        {tabBar}
         <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={onBack} className="bg-white/10 text-white p-2 rounded-full"><ArrowLeft size={18}/></button>
           <h2 className="text-base font-black text-white">Flashcards</h2>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
@@ -379,6 +399,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
   return (
     <>
     <div className="fixed inset-0 z-[200] flex flex-col h-[100dvh]" style={tierBgStyle}>
+      {tabBar}
       {/* MCQ Score Popup */}
       {mcqScorePopup !== null && (
         <div style={{
@@ -397,12 +418,6 @@ export const FlashcardMcqView: React.FC<Props> = ({
       )}
       {/* Top Bar */}
       <div className="shrink-0 px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full active:scale-95 transition"
-        >
-          <ArrowLeft size={18} />
-        </button>
         <div className="min-w-0 flex-1">
           {hardReviewMode ? (
             <>
@@ -825,83 +840,72 @@ export const FlashcardMcqView: React.FC<Props> = ({
         const total = questions.length;
         const optionLetters = ['A','B','C','D','E'];
 
-        // CSS-rotation trick: rotate the fixed overlay 90° to force landscape layout
-        // without relying on screen.orientation.lock (requires fullscreen + permissions)
-        const overlayStyle: React.CSSProperties = projectorRotated
-          ? {
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              width: '100vh',
-              height: '100vw',
-              transform: 'translate(-50%, -50%) rotate(90deg)',
-              transformOrigin: 'center center',
-              zIndex: 99999,
-              background: '#ffffff',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }
-          : {
-              position: 'fixed',
-              inset: 0,
-              zIndex: 99999,
-              background: '#ffffff',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            };
+        const overlayStyle: React.CSSProperties = {
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          background: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        };
 
         return createPortal(
           <div style={overlayStyle}>
+            {tabBar}
             {/* Header — hidden in focus mode */}
             {!projectorFocused && (
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', borderBottom:'3px solid #e2e8f0', background:'#1e293b', flexShrink:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <Tv size={22} color="#fbbf24" />
-                  <span style={{ color:'#fbbf24', fontWeight:900, fontSize:15, letterSpacing:2 }}>PROJECTOR MODE</span>
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderBottom:'1px solid #f1f5f9', background:'#ffffff', flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+                {/* Close */}
+                <button onClick={async () => {
+                    setIsProjectorMode(false); setProjectorRotated(false); setProjectorFocused(false);
+                    try { await (screen as any).orientation?.lock?.('portrait'); } catch { /* ignore */ }
+                  }}
+                  title="Band Karo"
+                  style={{ flexShrink:0, padding:'8px', background:'#f8fafc', border:'none', borderRadius:12, color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center' }}>
+                  <X size={18} />
+                </button>
+                {/* Title block */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:900, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.2 }}>
+                    {sourceMeta?.lessonTitle || title || 'MCQ Practice'}
+                  </div>
+                  <div style={{ fontSize:10, fontWeight:700, color:'#d97706', textTransform:'uppercase', letterSpacing:'0.05em', lineHeight:1.2, display:'flex', alignItems:'center', gap:4 }}>
+                    <Tv size={10} /> PROJECTOR MODE
+                  </div>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ color:'#94a3b8', fontWeight:700, fontSize:13 }}>{projectorQIndex + 1}/{total}</span>
-                  {/* Score pill */}
-                  {(projectorCorrect > 0 || projectorWrong > 0) && (
-                    <span style={{ background:'#0f172a', borderRadius:20, padding:'3px 8px', fontSize:12, fontWeight:800, display:'flex', alignItems:'center', gap:5 }}>
-                      <span style={{ color:'#4ade80' }}>✓{projectorCorrect}</span>
-                      <span style={{ color:'#94a3b8' }}>·</span>
-                      <span style={{ color:'#f87171' }}>✗{projectorWrong}</span>
-                    </span>
-                  )}
-                  {/* Focus Mode — icon only, ghost */}
-                  <button
-                    onClick={() => setProjectorFocused(true)}
-                    title="Focus Mode"
-                    style={{ background:'transparent', color:'#a3e635', border:'none', borderRadius:8, padding:'6px', cursor:'pointer', display:'flex', alignItems:'center' }}>
-                    <Maximize2 size={18} />
-                  </button>
-                  {/* Rotate button */}
-                  <button
-                    onClick={() => setProjectorRotated(v => !v)}
-                    title={projectorRotated ? 'Portrait' : 'Landscape'}
-                    style={{ background: projectorRotated ? '#6366f1' : '#334155', color:'#fff', border:'none', borderRadius:8, padding:'6px 10px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
-                    <RotateCw size={14} />
-                    {projectorRotated ? 'Portrait' : 'Landscape'}
-                  </button>
-                  {/* Close — icon only */}
-                  <button onClick={() => { setIsProjectorMode(false); setProjectorRotated(false); setProjectorFocused(false); }}
-                    title="Band Karo"
-                    style={{ background:'#ef4444', color:'#fff', border:'none', borderRadius:8, padding:'6px 8px', fontSize:14, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center' }}>
-                    <X size={16} />
-                  </button>
+                {/* Q counter pill */}
+                <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, padding:'6px 10px' }}>
+                  <span style={{ fontSize:11, fontWeight:900, color:'#1e293b' }}>{projectorQIndex + 1}</span>
+                  <span style={{ fontSize:10, color:'#94a3b8', fontWeight:700 }}>/ {total}</span>
                 </div>
+                {/* Focus Mode */}
+                <button
+                  onClick={() => setProjectorFocused(true)}
+                  title="Focus Mode"
+                  style={{ flexShrink:0, padding:'8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:12, color:'#16a34a', cursor:'pointer', display:'flex', alignItems:'center' }}>
+                  <Maximize2 size={16} />
+                </button>
+                {/* Rotate button */}
+                <button
+                  onClick={async () => {
+                    const result = await rotateScreen();
+                    if (result !== null) { setProjectorRotated(result === 'landscape'); }
+                    else { alert('📱 Phone ko physically rotate karein — landscape ke liye sideways, portrait ke liye seedha.'); }
+                  }}
+                  title={projectorRotated ? 'Portrait mode' : 'Landscape mode'}
+                  style={{ flexShrink:0, padding:'7px 10px', background: projectorRotated ? '#ede9fe' : '#f8fafc', border: projectorRotated ? '1px solid #c4b5fd' : '1px solid #e2e8f0', borderRadius:12, color: projectorRotated ? '#7c3aed' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+                  <RotateCw size={13} />
+                  {projectorRotated ? 'Portrait' : 'Landscape'}
+                </button>
               </div>
             )}
             {/* Focus mode exit button — floating top-right */}
             {projectorFocused && (
               <button
                 onClick={() => setProjectorFocused(false)}
-                style={{ position:'absolute', top:12, right:12, zIndex:10, background:'rgba(15,23,42,0.85)', color:'#a3e635', border:'2px solid #4ade80', borderRadius:10, padding:'8px 16px', fontSize:14, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:6, backdropFilter:'blur(4px)' }}>
+                style={{ position:'absolute', top:12, right:12, zIndex:10, background:'rgba(15,23,42,0.85)', color:'#a3e635', border:'2px solid #4ade80', borderRadius:10, padding:'8px', cursor:'pointer', display:'flex', alignItems:'center', backdropFilter:'blur(4px)' }}>
                 <Minimize2 size={15} />
-                Focus Band Karo
               </button>
             )}
             {/* Scrollable content — flex:1 + overflowY:auto keeps bottom bar always visible */}
@@ -997,8 +1001,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 </button>
                 <button
                   onClick={() => setProjectorFocused(false)}
-                  style={{ background:'rgba(239,68,68,0.9)', color:'#fff', border:'2px solid #fca5a5', borderRadius:10, padding:'10px 20px', fontSize:15, fontWeight:900, cursor:'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', gap:6 }}>
-                  <Minimize2 size={16} /> Focus Band Karo
+                  style={{ background:'rgba(239,68,68,0.9)', color:'#fff', border:'2px solid #fca5a5', borderRadius:10, padding:'10px 14px', fontSize:15, fontWeight:900, cursor:'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center' }}>
+                  <Minimize2 size={16} />
                 </button>
                 <button
                   onClick={() => { setProjectorQIndex(i => Math.min(total-1,i+1)); setProjectorReveal(false); setProjectorSelected(null); }}

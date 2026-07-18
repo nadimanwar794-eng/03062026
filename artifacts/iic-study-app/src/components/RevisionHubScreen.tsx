@@ -9,7 +9,6 @@ import { RevisionHubV2 } from './RevisionHubV2';
 import { McqReviewHub } from './McqReviewHub';
 import { MonthlyMarksheet } from './MonthlyMarksheet';
 import { PerformanceGraph } from './PerformanceGraph';
-import { getSubjectsList } from '../constants';
 import { subscribeMcqLessons, saveUserToLive } from '../firebase';
 import { useAppTheme } from '../utils/themeContext';
 import {
@@ -104,20 +103,22 @@ export const RevisionHubScreen: React.FC<Props> = ({
     return unsub;
   }, []);
 
-  const mcqSubjects = mcqSelectedClass
-    ? mcqSelectedClass === 'COMPETITION'
-      ? [
-          { id: 'physics',   name: 'Physics' },
-          { id: 'chemistry', name: 'Chemistry' },
-          { id: 'biology',   name: 'Biology' },
-          { id: 'history',   name: 'History' },
-          { id: 'geography', name: 'Geography' },
-          { id: 'polity',    name: 'Political Science' },
-          { id: 'economics', name: 'Economics' },
-          ...((settings as any)?.customLucentSubjects || []).filter((s: any) => s && s.id && s.name && !s.bookId),
-        ]
-      : getSubjectsList(mcqSelectedClass, user?.stream || null, user?.board || 'CBSE')
-    : [];
+  // Subjects are derived purely from lessons that actually exist in Firebase
+  // for the selected class — no hardcoded subject list, so a subject only
+  // ever shows up once real notes/MCQ content has been added for it.
+  const mcqSubjects = useMemo(() => {
+    if (!mcqSelectedClass) return [];
+    const names = Array.from(
+      new Set(
+        allLessons
+          .filter(l => l.classLevel === mcqSelectedClass && l.subject)
+          .map(l => l.subject as string),
+      ),
+    );
+    return names
+      .sort((a, b) => a.localeCompare(b))
+      .map(name => ({ id: name, name }));
+  }, [mcqSelectedClass, allLessons]);
 
   // Lessons available for current class + subject
   const subjectLessons = allLessons.filter(
@@ -153,6 +154,11 @@ export const RevisionHubScreen: React.FC<Props> = ({
   const LESSON_OPEN_COST = 100;
 
   function doStartSession() {
+    // ── Session tracking: App.tsx ko batao session shuru hua ─────────────
+    const _chapterName = mcqSelectedLesson?.lessonTitle || `Class ${mcqSelectedClass} — ${mcqSelectedSubject}`;
+    window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+      detail: { active: true, chapterName: _chapterName, subjectName: mcqSelectedSubject || 'General', activityType: 'MCQ' }
+    }));
     // Group questions by topic, shuffle within each group, then round-robin interleave
     const topicBuckets: Record<string, any[]> = {};
     classMcqs.forEach((q: any) => {
@@ -249,6 +255,10 @@ export const RevisionHubScreen: React.FC<Props> = ({
   function finishSession() {
     setSessionActive(false);
     setSessionDone(true);
+    // ── Session tracking: App.tsx ko batao session khatam hua ────────────
+    window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+      detail: { active: false, activityType: 'MCQ' }
+    }));
 
     const lessonId = mcqSelectedLesson?.id || `${mcqSelectedClass}_${mcqSelectedSubject}`;
     const chapterId = lessonId;
@@ -312,7 +322,13 @@ export const RevisionHubScreen: React.FC<Props> = ({
         performanceTag: totalCorrect / totalAnswered >= 0.8 ? 'EXCELLENT' : totalCorrect / totalAnswered >= 0.5 ? 'GOOD' : 'NEEDS_IMPROVEMENT',
         type: 'REVISION_MCQ',
       };
-      const updatedUser = { ...user, mcqHistory: [...(user.mcqHistory || []), newEntry] };
+      // ── Pts: +2 sahi jawab, +1 galat jawab ──────────────────────────────
+      const ptsEarned = (totalCorrect * 2) + ((totalAnswered - totalCorrect) * 1);
+      const updatedUser = {
+        ...user,
+        mcqHistory: [...(user.mcqHistory || []), newEntry],
+        totalScore: (user.totalScore || 0) + ptsEarned,
+      };
       onUpdateUser(updatedUser);
       try { saveUserToLive(updatedUser); } catch (_) {}
     }
@@ -673,8 +689,9 @@ export const RevisionHubScreen: React.FC<Props> = ({
               };
 
               const ClassBtn = ({ c }: { c: string }) => {
-                const subjList = getSubjectsList(c, user?.stream || null, user?.board || 'NCERT_EN');
-                const subjCount = subjList.length;
+                const subjCount = new Set(
+                  allLessons.filter(l => l.classLevel === c && l.subject).map(l => l.subject as string),
+                ).size;
                 const isBoard = boardClasses.includes(c);
                 return (
                   <button

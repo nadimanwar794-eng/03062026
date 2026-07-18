@@ -10,6 +10,7 @@ import { ScoreHistoryDashboard } from "./ScoreHistoryDashboard";
 import { StudentProgressDashboard } from "./StudentProgressDashboard";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { applyDeduction, getTotalCredits } from "../utils/creditSystem";
+import { fireCreditNotify } from "../utils/creditNotify";
 import { LevelLeaderboard } from "./LevelLeaderboard";
 import {
   User,
@@ -56,12 +57,14 @@ import {
   APP_VERSION,
   STATIC_SYLLABUS,
   DEFAULT_SUBJECTS,
+  SUPPORT_PHONE,
 } from "../constants";
 import { ALL_FEATURES } from "../utils/featureRegistry";
 import { useAppLang, tApp } from "../utils/appLang";
 import { isHomeSectionVisible } from "../utils/homeSections";
 import { checkFeatureAccess } from "../utils/permissionUtils";
 import { downloadAsMHTML, downloadAsHTML, downloadElementAsHTML } from "../utils/downloadUtils";
+import { renderMathInHtml } from "../utils/mathUtils";
 import { recordLogin, updateSessionDuration, getLoginHistory, formatDuration, formatLoginTime, type LoginSession } from "../utils/loginHistory";
 import { getNewContentItems, markContentItemSeen, markAllContentItemsSeen, formatContentDate, type ContentNotifItem } from "../utils/contentNotifications";
 import { saveRecentHomework, getRecentHomeworks, removeRecentHomework, getRecentChapters, removeRecentChapter, saveRecentLucent, getRecentLucent, removeRecentLucent, markNoteFullyRead, getFullyReadMap, markReadToday, getReadingStreak, getReadDates, getBestReadingDay, getTodayItemCount, type RecentChapterEntry, type RecentHwEntry, type RecentLucentEntry, type StreakInfo, type BestDay } from "../utils/recentReads";
@@ -96,6 +99,7 @@ import {
   Play,
   Pause,
   RotateCcw,
+  Shuffle,
   ExternalLink,
   MessageCircle,
   Gamepad2,
@@ -451,8 +455,10 @@ function formatVideoEmbed(url: string): string {
 const processHtmlForWriteMode = (html: string) => {
     if (!html) return '';
     try {
+      // Apply KaTeX math rendering first
+      const mathRendered = renderMathInHtml(html);
       const tmp = document.createElement('div');
-      tmp.innerHTML = html;
+      tmp.innerHTML = mathRendered;
       tmp.querySelectorAll('table').forEach(tbl => {
         const parent = tbl.parentElement;
         if (!parent) return;
@@ -465,7 +471,7 @@ const processHtmlForWriteMode = (html: string) => {
       });
       return tmp.innerHTML;
     } catch {
-      return html;
+      return renderMathInHtml(html);
     }
   };
 
@@ -802,6 +808,10 @@ export const StudentDashboard: React.FC<Props> = ({
       : (_statusBarOverride || _topBarStartColor);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', color);
+    // Keep the fixed status-bar/nav-bar safe-area strips (see App.tsx) in sync
+    // so there's no color seam between the OS status bar and the app header —
+    // this is what makes website-to-APK/TWA wrappers look "native".
+    document.documentElement.style.setProperty('--app-bar-color', color);
   }, [activeTab, tierTheme.primary, tierTheme.topBarGrad, user.isPremium, user.subscriptionLevel, user.subscriptionEndDate, settings?.statusBarColor]);
 
   // ── HTML Write-Mode Daily Quota (ALL tiers) ──────────────────────────────
@@ -882,7 +892,21 @@ export const StudentDashboard: React.FC<Props> = ({
   };
 
   // Show the full-screen coin gate popup
-  const showCoinGate = (baseCost: number, reason: string, action: () => void, onCancel?: () => void) => {
+  const showCoinGate = (
+    baseCost: number,
+    reason: string,
+    action: () => void,
+    onCancel?: () => void,
+    bulkOpt?: { count: number; action: () => void; pages?: Array<{ name: string; cost: number }> },
+    pageInfo?: {
+      pageLabel: string;
+      availableModes: Array<{
+        mode: string; label: string; emoji: string; cost: number;
+        isUnlocked: boolean; isAccessible: boolean; requiredTier: 'free' | 'basic' | 'ultra';
+        unlockAction?: () => void;
+      }>;
+    }
+  ) => {
     const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
     if (_isAdm) { action(); return; }
     const { cost, discountPct } = _getCoinCost(baseCost);
@@ -892,7 +916,14 @@ export const StudentDashboard: React.FC<Props> = ({
       onCancel?.();
       return;
     }
-    setCoinGate({ cost, originalCost: baseCost, discountPct, reason, action, onCancel });
+    const _bulkOption = (bulkOpt && bulkOpt.count >= 2) ? {
+      count: bulkOpt.count,
+      originalTotal: bulkOpt.count * cost,
+      totalCost: Math.floor(bulkOpt.count * cost * 0.8),
+      action: bulkOpt.action,
+      pages: (bulkOpt.pages || []).map(p => ({ name: p.name, cost: p.cost })),
+    } : undefined;
+    setCoinGate({ cost, originalCost: baseCost, discountPct, reason, action, onCancel, bulkOption: _bulkOption, pageInfo });
   };
 
   // Per-page / per-session unlock localStorage helpers
@@ -906,9 +937,23 @@ export const StudentDashboard: React.FC<Props> = ({
   const isMcqSessUnlocked  = (lid: string) => { try { return localStorage.getItem(_mcqSessUnlockKey(lid)) === '1'; } catch { return false; } };
   const markMcqSessUnlocked = (lid: string) => { try { localStorage.setItem(_mcqSessUnlockKey(lid), '1'); } catch {} };
 
+  // Per-page per-tab unlock keys (one-time 20 coins each — Notes already handled by _pgReadUnlockKey)
+  const _mcqPageUnlockKey   = (lid: string, pi: number) => `nst_mcq_p_${user.id}_${lid}_${pi}`;
+  const _fcPageUnlockKey    = (lid: string, pi: number) => `nst_fc_p_${user.id}_${lid}_${pi}`;
+  const _qaPageUnlockKey    = (lid: string, pi: number) => `nst_qa_p_${user.id}_${lid}_${pi}`;
+  const isMcqPageUnlocked   = (lid: string, pi: number) => { try { return localStorage.getItem(_mcqPageUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const markMcqPageUnlocked  = (lid: string, pi: number) => { try { localStorage.setItem(_mcqPageUnlockKey(lid, pi), '1'); } catch {} };
+  const isFcPageUnlocked    = (lid: string, pi: number) => { try { return localStorage.getItem(_fcPageUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const markFcPageUnlocked   = (lid: string, pi: number) => { try { localStorage.setItem(_fcPageUnlockKey(lid, pi), '1'); } catch {} };
+  const _qaLessonUnlockKey  = (lid: string) => `nst_qa_l_${user.id}_${lid}`;
+  // Q&A is per-LESSON unlock — ek baar kisi bhi page/tab se pay karo, poore lesson ke liye unlock.
+  // Old per-page keys bhi check karta hai backward compatibility ke liye.
+  const isQaPageUnlocked    = (lid: string, pi: number) => { try { return localStorage.getItem(_qaLessonUnlockKey(lid)) === '1' || localStorage.getItem(_qaPageUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const markQaPageUnlocked   = (lid: string, _pi: number) => { try { localStorage.setItem(_qaLessonUnlockKey(lid), '1'); } catch {} };
+
   // ── WRITE MODE GATE: now uses coin gate popup (20 coins per page, once) ──
   const _wmAutoSkipKey = `nst_wm_autoskip_${user.id}`;
-  const handleWriteModeGate = (action: () => void) => {
+  const handleWriteModeGate = (action: () => void, pgInfo?: Parameters<typeof showCoinGate>[5]) => {
     const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
     if (_isAdm) { action(); return; }
     // Determine current page's write-unlock key (lucentNoteViewer + lucentPageIndex captured at call time)
@@ -918,7 +963,7 @@ export const StudentDashboard: React.FC<Props> = ({
     showCoinGate(20, 'Writing Mode', () => {
       if (_lid) markPgWriteUnlocked(_lid, _pi);
       action();
-    });
+    }, undefined, undefined, pgInfo);
   };
 
   // ── NEW CONTENT NOTIFICATIONS (Lucent / Competition pages) ───────────────
@@ -1202,7 +1247,7 @@ export const StudentDashboard: React.FC<Props> = ({
           _subValid && freshUser.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
         const mcqLimGate = getEffectiveDailyLimit('mcq', getLevelInfo(freshUser.totalScore || 0).level, _tier, settings);
         if (mcqLimGate < UNLIMITED && prevTotal >= mcqLimGate) {
-          showAlert(`🚫 Daily MCQ limit reached! (${prevTotal}/${mcqLimGate}) — Resets tomorrow.`, 'INFO');
+          fireCreditNotify({ type: 'FREE_LIMIT', message: `🚫 Daily MCQ limit reached! (${prevTotal}/${mcqLimGate}) — Resets tomorrow.` });
           return false;
         }
       }
@@ -1232,9 +1277,9 @@ export const StudentDashboard: React.FC<Props> = ({
         if (mcqLim < UNLIMITED) {
           const left = Math.max(0, mcqLim - total);
           if (left <= 10 && left > 0) {
-            showAlert(`📊 Daily MCQ Limit: ${total}/${mcqLim} — ${left} remaining`, 'INFO');
+            fireCreditNotify({ type: 'FREE_LIMIT', message: `📊 Daily MCQ Limit: ${total}/${mcqLim} — ${left} remaining` });
           } else if (left === 0) {
-            showAlert(`🚫 Daily MCQ limit reached! (${mcqLim}/${mcqLim}) — Resets tomorrow.`, 'INFO');
+            fireCreditNotify({ type: 'FREE_LIMIT', message: `🚫 Daily MCQ limit reached! (${mcqLim}/${mcqLim}) — Resets tomorrow.` });
           }
         }
       }
@@ -1268,7 +1313,7 @@ export const StudentDashboard: React.FC<Props> = ({
           totalBonus += tryEarnScore(freshUser.id, 5, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_STREAK_3', limitBoost, limitBoostExpiry);
           bonusMsg = `🔥 ${newStreak} Streak! +5 Bonus Score!`;
         }
-        if (bonusMsg) showAlert(bonusMsg, 'SUCCESS');
+        // MCQ ke andar notifications suppress hain — score HomeStatsToast mein dikhega
         const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', limitBoost, limitBoostExpiry);
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
@@ -1301,7 +1346,7 @@ export const StudentDashboard: React.FC<Props> = ({
           : { type: 'SUBSCRIPTION', subTier: applicableRule.rewardSubTier, subLevel: applicableRule.rewardSubLevel, durationHours: applicableRule.rewardDurationHours },
       };
       handleUserUpdate({ ...freshUser, inbox: [rewardMsg, ...(freshUser.inbox || [])] });
-      showAlert(`🎯 MCQ Prize! ${applicableRule.label}`, 'SUCCESS', 'Daily MCQ Reward!');
+      fireCreditNotify({ type: 'REWARD', message: `🎯 MCQ Prize! ${applicableRule.label}` });
     } catch (err) { console.warn('MCQ tracking failed:', err); }
     return true;
   };
@@ -1627,6 +1672,22 @@ export const StudentDashboard: React.FC<Props> = ({
     reason: string;       // e.g. 'Reading Mode', 'Writing Mode', 'MCQ Session'
     action: () => void;
     onCancel?: () => void;
+    selectedBulk?: boolean;
+    bulkOption?: { count: number; totalCost: number; originalTotal: number; action: () => void; pages: Array<{ name: string; cost: number }> };
+    // New: page-mode panel (shows all modes for current page with tier locks)
+    pageInfo?: {
+      pageLabel: string;
+      availableModes: Array<{
+        mode: string;
+        label: string;
+        emoji: string;
+        cost: number;           // coin cost per page (0 = subscription-only, no coin gate)
+        isUnlocked: boolean;    // already unlocked for this page
+        isAccessible: boolean;  // user's subscription allows this mode
+        requiredTier: 'free' | 'basic' | 'ultra';
+        unlockAction?: () => void; // marks mode as unlocked (no navigation)
+      }>;
+    };
   } | null>(null);
 
   // CUSTOM ALERT STATE
@@ -1945,13 +2006,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showDotsMenu, setShowDotsMenu] = useState(false);
   const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
   const [showScorePanel, setShowScorePanel] = useState(false);
-  const [topBarBtnGlow, setTopBarBtnGlow] = useState(false);
-  React.useEffect(() => {
-    if (activeTab !== 'HOME') return;
-    setTopBarBtnGlow(true);
-    const t = setTimeout(() => setTopBarBtnGlow(false), 1000);
-    return () => clearTimeout(t);
-  }, [activeTab]);
+  const topBarBtnGlow = false; // effect hataya — home pe aate hi glow nahi chahiye
   const [scorePanelTab, setScorePanelTab] = useState<'LEVEL' | 'DAILY' | 'FEATURES' | 'LEADERBOARD'>('LEVEL');
   const [scoreDailyTier, setScoreDailyTier] = useState<'FREE' | 'BASIC' | 'ULTRA' | null>(null);
   const [viewedLevelIdx, setViewedLevelIdx] = useState<number>(0);
@@ -2464,6 +2519,10 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentNoteViewer, setLucentNoteViewer] = useState<LucentNoteEntry | null>(null);
   const [lucentPageIndex, setLucentPageIndex] = useState(0);
   const [lucentPageListViewer, setLucentPageListViewer] = useState<LucentNoteEntry | null>(null);
+  // Lesson IDs the student chose "Ignore Routine and Start" for — the My Routine
+  // gate is skipped for these for the rest of the session, but the normal
+  // per-page coin gate (full price, no routine discount) still applies.
+  const [routineIgnoredEntryIds, setRoutineIgnoredEntryIds] = useState<Set<string>>(new Set());
   // Content-picker popup: shows when student taps a page in Lucent, Competition, OR a Class 6-12 chapter
   const [contentPickerPopup, setContentPickerPopup] = useState<
     | { type: 'LUCENT'; entry: LucentNoteEntry; pageIdx: number }
@@ -2576,6 +2635,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const lucentMilestoneSessionRef = useRef<string | null>(null);
   const lucentControlsRef = useRef<(() => void) | null>(null);
   const hwControlsRef = useRef<(() => void) | null>(null);
+  const lucentTabBarRef = useRef<HTMLDivElement>(null);
+  const hwTabBarRef = useRef<HTMLDivElement>(null);
   // Back-navigation refs for the homework viewer — populated during render
   const hwFilteredRef = useRef<any[]>([]);
   const hwGoToRef = useRef<((hw: any) => void) | null>(null);
@@ -2651,7 +2712,7 @@ export const StudentDashboard: React.FC<Props> = ({
   }, [lucentNoteViewer?.id]);
 
   // -- Declared here (before scoring useEffect) to avoid TDZ error in production build --
-  const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
+  const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
   // 'html' = styled HTML view (write mode), 'chunk' = ChunkedNotesReader tappable lines (read mode)
   const [lucentNotesViewMode, setLucentNotesViewMode] = useState<'html' | 'chunk'>('chunk');
 
@@ -2714,6 +2775,38 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentNoteViewer?.id, lucentPageIndex, lucentActiveTab, lucentNotesViewMode]);
+  // ── HomeStatsToast — Reading/Writing session tracking ─────────────────────
+  // Fire iic-mcq-session event when Lucent viewer opens/closes so HomeStatsToast
+  // knows about Reading Notes and Writing Notes sessions too (not just MCQ).
+  const lucentActivityTypeRef = React.useRef<'Reading' | 'Writing'>('Reading');
+  // Keep ref in sync as user switches tabs / modes inside the viewer
+  React.useEffect(() => {
+    if (!lucentNoteViewer) return;
+    const isWrite = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
+    lucentActivityTypeRef.current = isWrite ? 'Writing' : 'Reading';
+  }, [lucentNoteViewer, lucentActiveTab, lucentNotesViewMode]);
+  // Fire open/close events
+  React.useEffect(() => {
+    if (lucentNoteViewer) {
+      const isWrite = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
+      const actType = isWrite ? 'Writing' : 'Reading';
+      lucentActivityTypeRef.current = actType;
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: {
+          active: true,
+          activityType: actType,
+          chapterName: lucentNoteViewer.lessonTitle || lucentNoteViewer.subject || '',
+          subjectName: lucentNoteViewer.subject || '',
+        },
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: { active: false, activityType: lucentActivityTypeRef.current },
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lucentNoteViewer]);
+
   // Local Auto-Read & Sync state for the Lucent viewer (mirrors LessonView pattern).
   // Initialised from settings.isAutoTtsEnabled but stays local to this view.
   const [lucentAutoSync, setLucentAutoSync] = useState<boolean>(!!settings?.isAutoTtsEnabled);
@@ -2803,7 +2896,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [generatedContentCode, setGeneratedContentCode] = useState<string | null>(null);
   // Notes/MCQ split view: 'choose' shows a chooser overlay, 'notes' shows notes (with optional MCQ switch button),
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
-  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose'>('notes');
+  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard'>('notes');
   const [hwImmersive, setHwImmersive] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
@@ -2886,8 +2979,18 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showStarredPage, setShowStarredPage] = useState(false);
   const [showRevisionHubScreen, setShowRevisionHubScreen] = useState(false);
   const [showMyRoutine, setShowMyRoutine] = useState(false);
+  // Lesson whose routine completion earned a one-time 50% OFF Revision Hub session.
+  const [routineRevisionDiscountLessonId, setRoutineRevisionDiscountLessonId] = useState<string | null>(null);
   // Routine gate popup — shown when user tries to open a lesson in a routineApplied subject
   const [routineGate, setRoutineGate] = useState<{ entry: any; pageIdx: number } | null>(null);
+  // Fire window events when RevisionHub opens/closes so App.tsx can defer HomeStatsToast
+  const _prevRevHubRef = React.useRef(false);
+  useEffect(() => {
+    const wasOpen = _prevRevHubRef.current;
+    _prevRevHubRef.current = showRevisionHubScreen;
+    if (!wasOpen && showRevisionHubScreen) window.dispatchEvent(new CustomEvent('iic-revision-hub-opened'));
+    if (wasOpen && !showRevisionHubScreen) window.dispatchEvent(new CustomEvent('iic-revision-hub-closed'));
+  }, [showRevisionHubScreen]);
   // 2-category view toggle for the Important Notes pages: 'list' = original
   // flat list, 'bybook' = grouped by source book / page.
   const [importantNotesView, setImportantNotesView] = useState<'list' | 'bybook'>('list');
@@ -2961,8 +3064,9 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'reveal' = direct-answer "show answer" flow; 'interactive' = build-answer quiz flow.
   const [lucentMcqMode, setLucentMcqMode] = useState<Record<string, 'reveal' | 'interactive'>>({});
   // Flashcard launcher (Lucent + Homework MCQs share this single overlay)
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean } | null>(null);
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean } } | null>(null);
   const [hwMcqMode, setHwMcqMode] = useState<Record<string, 'interactive' | 'reveal'>>({});
+  const [hwQaRevealed, setHwQaRevealed] = useState<Record<string, boolean>>({});
   const [hwMcqCurrentIdx, setHwMcqCurrentIdx] = useState<Record<string, number>>({});
   const [hwShowAnalysis, setHwShowAnalysis] = useState<string | null>(null);
   // Per-question selected option for Lucent interactive-mode MCQs (key = `${pageKey}_${qi}`)
@@ -2974,10 +3078,14 @@ export const StudentDashboard: React.FC<Props> = ({
   // Show review/result screen (per pageKey) — triggered by "Submit & Review" button
   const [lucentMcqShowReview, setLucentMcqShowReview] = useState<Record<string, boolean>>({});
   const lucentAutoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [lucentMcqAutoTts, setLucentMcqAutoTts] = useState(false);
   // lucentNotesViewMode declared earlier (before scoring useEffect) to avoid TDZ — see above
   // Tracks htmlViewMode inside ChunkedNotesReader (for download sync without unmounting reader)
   const [lucentChunkHtmlMode, setLucentChunkHtmlMode] = useState<'chunk' | 'html'>('chunk');
+  const [lucentQaRevealed, setLucentQaRevealed] = useState<Record<string, boolean>>({});
+  const [lucentFcInlineState, setLucentFcInlineState] = useState<Record<string, any>>({});
   const [lucentSaved, setLucentSaved] = useState(false);
+  const [lucentIsReading, setLucentIsReading] = useState(false);
   const [lucentWriteMenuOpen, setLucentWriteMenuOpen] = useState(false);
   const [hwWriteMenuOpen, setHwWriteMenuOpen] = useState(false);
   const [hwSaved, setHwSaved] = useState(false);
@@ -3051,14 +3159,22 @@ export const StudentDashboard: React.FC<Props> = ({
     lucentInitialTabRef.current = null;
     const lessonChanged = lucentNoteViewer?.id !== lucentPrevLessonIdRef.current;
     lucentPrevLessonIdRef.current = lucentNoteViewer?.id || null;
-    setLucentActiveTab(initOpts?.tab || (hasNotes ? 'NOTES' : 'MCQS'));
+    // Restore last-used tab from localStorage when opening a new lesson (no explicit intent)
+    const _savedTab = (!initOpts && lessonChanged && lucentNoteViewer?.id)
+      ? (localStorage.getItem(`iic_tab_${lucentNoteViewer.id}`) as any)
+      : null;
+    const _savedVm = (!initOpts && lessonChanged && lucentNoteViewer?.id)
+      ? (localStorage.getItem(`iic_tabvm_${lucentNoteViewer.id}`) as any)
+      : null;
+    const _validSavedTab = (_savedTab && _savedTab !== 'QA' && _savedTab !== 'FLASHCARD') ? _savedTab : null;
+    setLucentActiveTab(initOpts?.tab || _validSavedTab || (hasNotes ? 'NOTES' : 'MCQS'));
     // Preserve viewMode when navigating pages within the same lesson.
     // Only reset to 'chunk' (read mode) when a different lesson is opened,
     // or when the caller explicitly requests a viewMode via lucentInitialTabRef.
     if (initOpts?.viewMode) {
       setLucentNotesViewMode(initOpts.viewMode);
     } else if (lessonChanged) {
-      setLucentNotesViewMode('chunk');
+      setLucentNotesViewMode(_savedVm || 'chunk');
     }
     // else: same lesson, different page — keep current viewMode (write or read)
     setLucentChunkHtmlMode('chunk');
@@ -3069,6 +3185,25 @@ export const StudentDashboard: React.FC<Props> = ({
       return n;
     });
   }, [lucentPageIndex, lucentNoteViewer?.id]);
+
+  // Auto-scroll active tab to center in tab bar when active tab changes
+  useEffect(() => {
+    const bar = lucentTabBarRef.current;
+    if (!bar) return;
+    const active = bar.querySelector('[data-tab-active="true"]') as HTMLElement | null;
+    if (!active) return;
+    const offset = active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2;
+    bar.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
+  }, [lucentActiveTab, lucentNotesViewMode]);
+
+  useEffect(() => {
+    const bar = hwTabBarRef.current;
+    if (!bar) return;
+    const active = bar.querySelector('[data-tab-active="true"]') as HTMLElement | null;
+    if (!active) return;
+    const offset = active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2;
+    bar.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
+  }, [hwViewMode, hwNotesViewMode]);
 
   // ── My Routine: flush page-reading time when leaving a page ──────────────────
   const __routineTimeFlushRef = useRef<() => void>(() => {});
@@ -3798,7 +3933,7 @@ export const StudentDashboard: React.FC<Props> = ({
       if (_rg.enabled) {
         const _subjectId = (entry.subject || '').toLowerCase().trim();
         const _subConf = (_rg.subjects || []).find((s: any) => s.id === _subjectId);
-        if (_subConf?.routineApplied) {
+        if (_subConf?.routineApplied && !routineIgnoredEntryIds.has(entry.id)) {
           const _todayStr = new Date().toISOString().split('T')[0];
           const _todayTask = _rg.dailyTasks?.[_todayStr];
           const _isTodayLesson = _todayTask &&
@@ -3819,11 +3954,46 @@ export const StudentDashboard: React.FC<Props> = ({
     const doOpen = () => { setLucentNoteViewer(entry); setLucentPageIndex(pageIdx); };
 
     if (_isMcqIntent) {
-      if (isMcqSessUnlocked(entry.id)) { doOpen(); return; }
-      showCoinGate(40, 'MCQ Session', () => { markMcqSessUnlocked(entry.id); doOpen(); });
+      if (isMcqPageUnlocked(entry.id, pageIdx)) { doOpen(); return; }
+      showCoinGate(20, 'MCQ Practice', () => { markMcqPageUnlocked(entry.id, pageIdx); doOpen(); });
     } else {
       if (isPgReadUnlocked(entry.id, pageIdx)) { doOpen(); return; }
-      showCoinGate(20, 'Reading Mode', () => { markPgReadUnlocked(entry.id, pageIdx); doOpen(); });
+      const _allPgs = (entry.pages || []);
+      const _pgLabelOpen = (_allPgs[pageIdx]?.topicName || '').trim() || `Page ${pageIdx + 1}`;
+      const _hasMcqOpen = ((_allPgs[pageIdx] as any)?.mcqs?.length ?? 0) > 0;
+      const _hasPdfOpen = !!(_allPgs[pageIdx] as any)?.pdfUrl;
+      const _hasVidOpen = !!(_allPgs[pageIdx] as any)?.videoUrl;
+      const _hasAudOpen = !!(_allPgs[pageIdx] as any)?.audioUrl;
+      const _openPgInfo = {
+        pageLabel: _pgLabelOpen,
+        availableModes: [
+          { mode: 'READING',  label: 'Reading Mode',  emoji: '📖', cost: 20,
+            isUnlocked: false, isAccessible: true, requiredTier: 'free'  as const, unlockAction: () => markPgReadUnlocked(entry.id, pageIdx) },
+          { mode: 'WRITING',  label: 'Writing Mode',  emoji: '✍️', cost: 20,
+            isUnlocked: isPgWriteUnlocked(entry.id, pageIdx), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markPgWriteUnlocked(entry.id, pageIdx) },
+          ...(_hasMcqOpen ? [
+            { mode: 'MCQ', label: 'MCQ Practice', emoji: '🧠', cost: 20,
+              isUnlocked: isMcqPageUnlocked(entry.id, pageIdx), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markMcqPageUnlocked(entry.id, pageIdx) },
+            { mode: 'QA', label: 'Q&A Mode', emoji: '💬', cost: 20,
+              isUnlocked: isQaPageUnlocked(entry.id, pageIdx), isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: () => markQaPageUnlocked(entry.id, pageIdx) },
+            { mode: 'FLASHCARD', label: 'Flashcard', emoji: '🃏', cost: 20,
+              isUnlocked: isFcPageUnlocked(entry.id, pageIdx), isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: () => markFcPageUnlocked(entry.id, pageIdx) },
+          ] : []),
+          ...(_hasPdfOpen ? [{ mode: 'PDF',   label: 'PDF',   emoji: '📄', cost: 0, isUnlocked: true, isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: undefined }] : []),
+          ...(_hasVidOpen ? [{ mode: 'VIDEO', label: 'Video', emoji: '🎬', cost: 0, isUnlocked: true, isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: undefined }] : []),
+          ...(_hasAudOpen ? [{ mode: 'AUDIO', label: 'Audio', emoji: '🎵', cost: 0, isUnlocked: true, isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: undefined }] : []),
+        ],
+      };
+      const _lockedPgIdxs: number[] = [];
+      for (let _pi = pageIdx; _pi < _allPgs.length; _pi++) {
+        if (!isPgReadUnlocked(entry.id, _pi)) _lockedPgIdxs.push(_pi);
+      }
+      showCoinGate(20, 'Reading Mode',
+        () => { markPgReadUnlocked(entry.id, pageIdx); doOpen(); },
+        undefined,
+        undefined,
+        _openPgInfo
+      );
     }
   };
 
@@ -4477,7 +4647,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [dailyTargetSeconds, setDailyTargetSeconds] = useState(3 * 3600);
   const REWARD_AMOUNT = settings?.dailyReward || 3;
   const adminPhones = settings?.adminPhones || [
-    { id: "default", number: "8227070298", name: "Admin" },
+    { id: "default", number: SUPPORT_PHONE, name: "Admin" },
   ];
   const defaultPhoneId =
     adminPhones.find((p) => p.isDefault)?.id || adminPhones[0]?.id || "default";
@@ -4635,7 +4805,7 @@ export const StudentDashboard: React.FC<Props> = ({
     const phone = adminPhones.find(
       (p) => p.id === (phoneId || selectedPhoneId),
     );
-    return phone ? phone.number : "8227070298";
+    return phone ? phone.number : SUPPORT_PHONE;
   };
 
   useEffect(() => {
@@ -4922,7 +5092,7 @@ export const StudentDashboard: React.FC<Props> = ({
       }
     }
     handleUserUpdate(updatedUser);
-    showAlert(successMsg, "SUCCESS", "Rewards Claimed");
+    addAppNotification("Rewards Claimed 🎁", successMsg, "SUCCESS");
   };
 
   const userRef = React.useRef(user);
@@ -5672,14 +5842,23 @@ export const StudentDashboard: React.FC<Props> = ({
   const _customLucentSubjects: { id: string; name: string }[] = ((settings as any)?.customLucentSubjects || []).filter((s: any) => s && s.id && s.name && !(s as any).bookId);
   const _hiddenLucentSubjectIds = new Set(((settings as any)?.hiddenLucentSubjectIds || []) as string[]);
   const LUCENT_CATEGORIES: Subject[] = [
-    { id: 'biology', name: 'जीव विज्ञान (Biology)', icon: 'bio', color: 'bg-white text-slate-700' },
-    { id: 'chemistry', name: 'रसायन शास्त्र (Chemistry)', icon: 'flask', color: 'bg-white text-slate-700' },
-    { id: 'physics', name: 'भौतिकी (Physics)', icon: 'physics', color: 'bg-white text-slate-700' },
-    { id: 'economics', name: 'अर्थशास्त्र (Economics)', icon: 'social', color: 'bg-white text-slate-700' },
-    { id: 'geography', name: 'भूगोल (Geography)', icon: 'geo', color: 'bg-white text-slate-700' },
-    { id: 'polity', name: 'राजनीति विज्ञान (Polity)', icon: 'gov', color: 'bg-white text-slate-700' },
-    { id: 'history', name: 'इतिहास (History)', icon: 'history', color: 'bg-white text-slate-700' },
-    { id: 'current_affairs', name: '📰 करेंट अफेयर्स (Current Affairs)', icon: 'news', color: 'bg-white text-slate-700' },
+    { id: 'ancient_india', name: 'प्राचीन भारत', icon: 'history', color: 'bg-white text-slate-700' },
+    { id: 'medieval_india', name: 'मध्यकालीन भारत', icon: 'history', color: 'bg-white text-slate-700' },
+    { id: 'modern_india', name: 'आधुनिक भारत', icon: 'history', color: 'bg-white text-slate-700' },
+    { id: 'world_history', name: 'विश्व इतिहास', icon: 'history', color: 'bg-white text-slate-700' },
+    { id: 'world_geography', name: 'विश्व का भूगोल', icon: 'geo', color: 'bg-white text-slate-700' },
+    { id: 'india_geography', name: 'भारत का भूगोल', icon: 'geo', color: 'bg-white text-slate-700' },
+    { id: 'environment_ecology', name: 'पर्यावरण एवं पारिस्थितिकी', icon: 'active', color: 'bg-white text-slate-700' },
+    { id: 'indian_economy', name: 'भारतीय अर्थव्यवस्था', icon: 'accounts', color: 'bg-white text-slate-700' },
+    { id: 'indian_constitution', name: 'भारतीय संविधान', icon: 'gov', color: 'bg-white text-slate-700' },
+    { id: 'physics', name: 'भौतिक विज्ञान', icon: 'physics', color: 'bg-white text-slate-700' },
+    { id: 'chemistry', name: 'रसायन विज्ञान', icon: 'flask', color: 'bg-white text-slate-700' },
+    { id: 'biology', name: 'जीव विज्ञान', icon: 'bio', color: 'bg-white text-slate-700' },
+    { id: 'science_technology', name: 'विज्ञान एवं प्रौद्योगिकी', icon: 'science', color: 'bg-white text-slate-700' },
+    { id: 'computer', name: 'कंप्यूटर', icon: 'computer', color: 'bg-white text-slate-700' },
+    { id: 'art_culture', name: 'कला एवं संस्कृति', icon: 'ppl', color: 'bg-white text-slate-700' },
+    { id: 'sports', name: 'खेल-कूद', icon: 'active', color: 'bg-white text-slate-700' },
+    { id: 'miscellaneous', name: 'विविध', icon: 'book', color: 'bg-white text-slate-700' },
   ].filter(c => !_hiddenLucentSubjectIds.has(c.id)).concat(
     _customLucentSubjects.map(s => ({ id: s.id, name: s.name, icon: 'book', color: 'bg-white text-slate-700' }))
   );
@@ -6024,7 +6203,7 @@ export const StudentDashboard: React.FC<Props> = ({
         return m === Infinity ? 99999 : m;
       };
       const subjectLucentLessons = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (n.board === _curBoard || !n.board))
+        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || !n.board))
         .sort((a, b) => _subjLucentMinPg(a) - _subjLucentMinPg(b));
       const showLucentSection = subjectLucentLessons.length > 0
         && hwYear === null && hwMonth === null && hwWeek === null && !hwActiveHwId;
@@ -6224,11 +6403,13 @@ export const StudentDashboard: React.FC<Props> = ({
         const hasMcq = !!(activeHw.parsedMcqs && activeHw.parsedMcqs.length > 0);
         const hasAudio = !!activeHw.audioUrl;
         const hasVideo = !!activeHw.videoUrl;
+        const hasPdf = !!((activeHw as any).pdfUrl);
         const hasMedia = hasAudio || hasVideo;
         // Effective view mode — guard against stale state if content lacks the requested mode.
-        const effectiveMode: 'notes' | 'mcq' | 'audio' | 'video' | 'choose' =
+        const effectiveMode: 'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard' =
           hwViewMode === 'audio' && !hasAudio ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
           : hwViewMode === 'video' && !hasVideo ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
+          : (hwViewMode === 'qa' || hwViewMode === 'flashcard') && !hasMcq ? (hasNotes ? 'notes' : 'notes')
           : hwViewMode === 'choose' && (!hasNotes || !hasMcq)
             ? (hasMcq && !hasNotes ? 'mcq' : 'notes')
             : (hwViewMode === 'mcq' && !hasMcq ? 'notes'
@@ -6403,14 +6584,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           <Download size={14} />
                         </button>
                       )}
-                      {/* More Options */}
-                      <button
-                        onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 text-white transition-all active:scale-90 shrink-0 ml-auto"
-                        title="More Options"
-                      >
-                        <LayoutGrid size={14} />
-                      </button>
                     </div>
                   )}
                 </div>
@@ -6441,24 +6614,14 @@ export const StudentDashboard: React.FC<Props> = ({
                       <Presentation size={16} />
                     </button>
                   )}
-                  {/* Projector Mode button — MCQ tab only */}
-                  {effectiveMode === 'mcq' && (activeHw?.parsedMcqs?.length ?? 0) > 0 && (
+                  {/* Rotate button — MCQ tab */}
+                  {effectiveMode === 'mcq' && (
                     <button
-                      onClick={() => setFlashcardMcqs({ items: activeHw.parsedMcqs as any[], title: activeHw.title || 'MCQs', subtitle: `${activeHw.parsedMcqs!.length} Questions`, subject: (activeHw as any).targetSubject || (activeHw as any).subject || '' })}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-500/30 border border-amber-400/50 text-amber-300 active:scale-90 transition-all shrink-0"
-                      title="📽️ Projector Mode"
+                      onClick={handleRotate}
+                      className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                      title="Screen Rotate"
                     >
-                      <Tv size={14} />
-                    </button>
-                  )}
-                  {/* More button — non-write modes */}
-                  {effectiveMode !== 'choose' && (
-                    <button
-                      onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                      title="More — Switch Content"
-                    >
-                      <LayoutGrid size={14} />
+                      <RotateCcw size={14} />
                     </button>
                   )}
                   {/* Rotate — video only */}
@@ -6478,60 +6641,78 @@ export const StudentDashboard: React.FC<Props> = ({
               )}
             </div>
 
-            {/* CHOOSER OVERLAY — appears when both notes and MCQ exist and user hasn't picked yet */}
-            {effectiveMode === 'choose' && (
-              <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-white to-slate-50">
-                <div className="w-full max-w-md">
-                  {/* App logo + name + developer + version */}
-                  <div className="flex flex-col items-center mb-8">
-                    {settings?.appLogo ? (
-                      <img
-                        src={settings.appLogo}
-                        alt="App logo"
-                        className="w-24 h-24 rounded-3xl object-cover shadow-md"
-                      />
-                    ) : (
-                      <img
-                        src="/pwa-192x192.png"
-                        alt="App logo"
-                        className="w-24 h-24 rounded-3xl object-cover shadow-md"
-                      />
-                    )}
-                    <h2 className="mt-4 text-xl font-black text-slate-800 tracking-tight text-center">
-                      {settings?.appName || 'IIC'}
-                    </h2>
-                    {settings?.showFooter !== false && (
-                      <p className="mt-1 text-[11px] text-slate-500 font-semibold">
-                        Developed by {settings?.developerName?.trim() || 'Nadim Anwar'}
-                      </p>
-                    )}
-                    <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                      v{APP_VERSION}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setHwViewMode('notes')}
-                      className={`bg-white border-2 ${theme.border} rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:shadow-md active:scale-[0.98] transition-all`}
-                    >
-                      <div className={`w-14 h-14 rounded-2xl ${theme.bgSoft} ${theme.text} flex items-center justify-center`}>
-                        <BookOpen size={26} />
-                      </div>
-                      <p className={`font-black text-base ${theme.textDeep}`}>Notes</p>
+            {/* ── COMPETITION STICKY MODE TAB BAR — upar (pehle) ── */}
+            {/* Access: Free=Reading+Writing+MCQ | Basic+=Q&A+PDF+Video+Audio | Ultra+=Flashcard | Admin=+Projector */}
+            {!hwImmersive && !isLandscapeUiHidden && effectiveMode !== 'flashcard' && (() => {
+              const _hwTabCls = (active: boolean, activeBg: string, activeText: string) =>
+                `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
+                ` ${active ? `${activeBg} ${activeText}` : 'bg-white text-slate-500 active:bg-slate-50'}`;
+              const _hwTabStyle = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
+              const _isReadActive = effectiveMode === 'notes' && hwNotesViewMode === 'chunk';
+              const _isWriteActive = effectiveMode === 'notes' && hwNotesViewMode === 'html';
+              const _hwSave = (tab: string, vm?: string) => { try { if (activeHw?.id) { localStorage.setItem(`iic_hw_tab_${activeHw.id}`, tab); if (vm) localStorage.setItem(`iic_hw_tabvm_${activeHw.id}`, vm); } } catch {} };
+              // Tier access flags
+              const _canQa        = _isAdminUser || _isUltraUser || _isBasicUser;
+              const _canFlashcard = _isAdminUser || _isUltraUser;
+              const _canMedia     = _isAdminUser || _isUltraUser || _isBasicUser; // PDF, Video, Audio
+              const _canProjector = _isAdminUser;
+              return (
+                <div ref={hwTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none' } as any}>
+                  <div className="flex min-w-max">
+                    {/* Free+ */}
+                    <button data-tab-active={String(_isReadActive)} onClick={() => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); }} style={_hwTabStyle} className={_hwTabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
+                      Reading Mode
                     </button>
-                    <button
-                      onClick={() => setHwViewMode('mcq')}
-                      className="bg-white border-2 border-emerald-200 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 hover:shadow-md active:scale-[0.98] transition-all"
-                    >
-                      <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                        <CheckSquare size={26} />
-                      </div>
-                      <p className="font-black text-base text-emerald-800">MCQ</p>
+                    <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); })} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
+                      Writing Mode
                     </button>
+                    {hasMcq && (
+                      <button data-tab-active={String(effectiveMode === 'mcq')} onClick={() => { setHwViewMode('mcq'); _hwSave('mcq'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}>
+                        MCQ Practice
+                      </button>
+                    )}
+                    {/* Admin only — Projector */}
+                    {hasMcq && _canProjector && (() => {
+                      const _hwMcqs = (activeHw.parsedMcqs || []) as any[];
+                      return (
+                        <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
+                          onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector' } }); }}>
+                          📽️ Projector
+                        </button>
+                      );
+                    })()}
+                    {/* Basic+ — Q&A */}
+                    {hasMcq && _canQa && (
+                      <button data-tab-active={String(effectiveMode === 'qa')} onClick={() => { setHwViewMode('qa'); _hwSave('qa'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'qa', 'bg-indigo-600', 'text-white')}>
+                        💬 Q&amp;A
+                      </button>
+                    )}
+                    {/* Ultra only — Flashcard */}
+                    {hasMcq && _canFlashcard && (
+                      <button data-tab-active={String(effectiveMode === 'flashcard')} onClick={() => { setHwViewMode('flashcard'); _hwSave('flashcard'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'flashcard', 'bg-amber-500', 'text-white')}>
+                        🃏 Flashcard
+                      </button>
+                    )}
+                    {/* Basic+ — PDF, Video, Audio */}
+                    {hasPdf && _canMedia && (
+                      <button data-tab-active="false" onClick={() => window.open((activeHw as any).pdfUrl, '_blank')} style={_hwTabStyle} className={_hwTabCls(false, 'bg-blue-600', 'text-white')}>
+                        PDF
+                      </button>
+                    )}
+                    {hasVideo && _canMedia && (
+                      <button data-tab-active={String(effectiveMode === 'video')} onClick={() => { setHwViewMode('video'); _hwSave('video'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'video', 'bg-rose-600', 'text-white')}>
+                        Video
+                      </button>
+                    )}
+                    {hasAudio && _canMedia && (
+                      <button data-tab-active={String(effectiveMode === 'audio')} onClick={() => { setHwViewMode('audio'); _hwSave('audio'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'audio', 'bg-violet-600', 'text-white')}>
+                        Audio
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
 
             {/* VIDEO PAGE */}
@@ -6707,7 +6888,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           } catch { showAlert('Save failed. Please try again.', 'ERROR'); }
                         }}
                         isSavedOffline={hwSaved}
-                        onMoreOptions={() => setContentPickerPopup({ type: 'COMPETITION', hw: activeHw })}
+                        onMoreOptions={undefined}
                         isUltraUser={_isUltraUser}
                         ultraHtmlRemaining={_isUltraUser ? ultraHtmlRemaining : undefined}
                         isBasicUser={_isBasicUser}
@@ -7152,12 +7333,6 @@ export const StudentDashboard: React.FC<Props> = ({
                                 }}
                                 className={`flex-1 text-[13px] font-black ${theme.text} ${theme.bgSoft} py-3 rounded-2xl active:scale-95 transition-all`}
                               >🔄 Try Again</button>
-                              {effectiveNextHw && (
-                                <button
-                                  onClick={() => goToHw(effectiveNextHw)}
-                                  className={`flex-1 text-[13px] font-black text-white ${theme.btn} py-3 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-1`}
-                                >Next Topic <ChevronRight size={14} /></button>
-                              )}
                             </div>
                           </div>
                         );
@@ -7224,12 +7399,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   }}
                                   className={`flex-1 text-[13px] font-black ${theme.text} ${theme.bgSoft} py-3 rounded-2xl active:scale-95 transition-all`}
                                 >🔄 Try Again</button>
-                                {effectiveNextHw && (
-                                  <button
-                                    onClick={() => goToHw(effectiveNextHw)}
-                                    className={`flex-1 text-[13px] font-black text-white ${theme.btn} py-3 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-1`}
-                                  >Next Topic <ChevronRight size={14} /></button>
-                                )}
+
                               </div>
                             </div>
                           </div>
@@ -7375,6 +7545,59 @@ export const StudentDashboard: React.FC<Props> = ({
                 </div>
               )}
 
+              {/* Q&A MODE */}
+              {effectiveMode === 'qa' && hasMcq && (
+                <div className="p-4 space-y-3 pb-[72px]">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Q&amp;A Mode — Jawab dekhne ke liye tap karo</p>
+                  {(activeHw.parsedMcqs || []).map((mcq: any, qi: number) => {
+                    const _qKey = `${hwKey}_qa_${qi}`;
+                    const _revealed = hwQaRevealed[_qKey];
+                    return (
+                      <div key={qi} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                        <div className="p-4">
+                          <div className="flex items-start gap-2">
+                            <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black mt-0.5">{qi + 1}</span>
+                            <p className="text-sm font-bold text-slate-800 leading-snug">{mcq.question || ''}</p>
+                          </div>
+                        </div>
+                        {_revealed ? (
+                          <div className="bg-emerald-50 border-t border-emerald-100 px-4 py-3">
+                            <p className="text-sm font-black text-emerald-700">✅ {mcq.options?.[mcq.correctAnswer] || ''}</p>
+                            {mcq.explanation && <p className="text-[11px] text-slate-500 mt-1 leading-snug">{mcq.explanation}</p>}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setHwQaRevealed(prev => ({ ...prev, [_qKey]: true }))}
+                            className="w-full py-3 bg-slate-50 border-t border-slate-100 text-xs font-black text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-[0.99]"
+                          >
+                            👆 Jawab dekhne ke liye tap karo
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* FLASHCARD MODE */}
+              {effectiveMode === 'flashcard' && (
+                <div className="flex items-center justify-center min-h-[400px] p-8 bg-gradient-to-br from-pink-50 to-purple-50">
+                  <div className="text-center">
+                    <span className="text-5xl">🃏</span>
+                    <p className="text-base font-black text-slate-700 mt-3">Flashcard Mode</p>
+                    <p className="text-xs text-slate-400 mt-1">{(activeHw.parsedMcqs || []).length} questions available</p>
+                    {hasMcq && (
+                      <button
+                        onClick={() => setFlashcardMcqs({ items: activeHw.parsedMcqs as any[], title: activeHw.title || 'MCQs', subtitle: `${activeHw.parsedMcqs!.length} Questions`, subject: (activeHw as any).targetSubject || '' })}
+                        className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all"
+                      >
+                        🚀 Launch Flashcards
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {!effectiveNextHw && (
                 <p className="text-center text-xs text-slate-400 font-bold py-6">🎉 All notes complete!</p>
               )}
@@ -7403,25 +7626,7 @@ export const StudentDashboard: React.FC<Props> = ({
               )}
             </button>}
 
-            {/* Fixed bottom nav — always at screen bottom, hidden only in immersive/chooser/landscape */}
-            {effectiveMode !== 'choose' && !hwImmersive && !isLandscape && (
-            <div className="fixed bottom-0 left-0 right-0 z-[160] border-t border-slate-100 bg-white px-4 py-3 flex items-center gap-3">
-              <button
-                disabled={!prevHw}
-                onClick={() => prevHw && goToHw(prevHw)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all ${prevHw ? `border-2 ${theme.border} ${theme.text} hover:${theme.bgSoft} active:scale-95` : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-              >
-                <ChevronRight size={16} className="rotate-180" /> Prev
-              </button>
-              <button
-                disabled={!effectiveNextHw}
-                onClick={() => effectiveNextHw && goToHw(effectiveNextHw)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all ${effectiveNextHw ? `${theme.btn} ${theme.btnHover} text-white shadow-md active:scale-95` : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-              >
-                Next Topic <ChevronRight size={16} />
-              </button>
-            </div>
-            )}
+
           </div>
         );
       }
@@ -7673,8 +7878,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={hw.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => setContentPickerPopup({ type: 'COMPETITION', hw })}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setContentPickerPopup({ type: 'COMPETITION', hw }); }}
+                        onClick={() => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); if (hw?.id) setHwActiveHwId(hw.id); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setHwViewMode('notes'); setHwNotesViewMode('chunk'); if (hw?.id) setHwActiveHwId(hw.id); } }}
                         className={`w-full border rounded-xl p-2 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-2.5 cursor-pointer`}
                         style={{ background: tierTheme.profileCardBg, borderColor: tierTheme.primary }}
                       >
@@ -11250,7 +11455,7 @@ export const StudentDashboard: React.FC<Props> = ({
       <div
         id="top-banner-container"
         className={`sticky top-0 z-[100] w-full flex flex-col transition-all duration-150 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE' || activeTab === 'UNIVERSAL_VIDEO') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
-        style={{ background: tierTheme.topBarGrad, paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ background: tierTheme.topBarGrad }}
       >
         {/* Main Header Row */}
         <div className="flex items-center justify-between w-full px-3 pt-1.5 pb-1">
@@ -11374,8 +11579,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       onClick={() => setShowEventDrawer(true)}
                       className="relative inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-black shrink-0 active:scale-90 transition-all"
                       style={hasEndingEvent
-                        ? { background: 'rgba(239,68,68,0.22)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.55)', boxShadow: '0 0 8px rgba(239,68,68,0.45)' }
-                        : { background: 'rgba(245,158,11,0.25)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.5)' }}
+                        ? { color: '#fca5a5', border: '1px solid rgba(239,68,68,0.55)', boxShadow: '0 0 8px rgba(239,68,68,0.45)' }
+                        : { color: '#fcd34d', border: '1px solid rgba(245,158,11,0.5)' }}
                       title={hasEndingEvent ? 'An event is ending soon!' : `${activeEvents.length} event(s) active`}
                     >
                       <span className="text-[11px] leading-none">⚡</span>
@@ -11387,7 +11592,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     <button
                       onClick={() => setShowEventDrawer(true)}
                       className="relative inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-black shrink-0 active:scale-90 transition-all"
-                      style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)' }}
+                      style={{ color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)' }}
                       title={`Upcoming event: ${upcomingEvents[0].label}`}
                     >
                       <span className="text-[11px] leading-none">📅</span>
@@ -16262,7 +16467,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 // When the Important Notes overlay is open, Home should NOT
                 // appear active — only ONE bottom-nav tab can be active at a
                 // time. Same rule applies to all sibling tabs below.
-                isActive: !showStarredPage && !showChat && currentLogicalTab === "HOME",
+                isActive: !showStarredPage && !showChat && !showRevisionHubScreen && !showMyRoutine && !showProgressDashboard && currentLogicalTab === "HOME",
                 onClick: () => switchToLogicalTab("HOME"),
               },
 
@@ -16338,7 +16543,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       label: "Apps",
                       Icon: ShoppingBag,
                       filledOnActive: true,
-                      isActive: !showStarredPage && currentLogicalTab === "APP_STORE",
+                      isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showProgressDashboard && !showChat && currentLogicalTab === "APP_STORE",
                       onClick: () => switchToLogicalTab("APP_STORE"),
                     },
                   ]
@@ -17544,7 +17749,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 return (
                   <button
                     key={idx}
-                    onClick={() => setContentPickerPopup({ type: 'LUCENT', entry: plEntry, pageIdx: idx })}
+                    onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
                     className="w-full text-left bg-white rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] hover:shadow-md transition-all border"
                     style={{ borderColor: pageMcqDone ? '#6ee7b7' : pageRead ? '#fdba74' : `${tierTheme.primary}33` }}
                   >
@@ -17587,259 +17792,6 @@ export const StudentDashboard: React.FC<Props> = ({
         );
       })()}
 
-      {/* ── CONTENT PICKER POPUP ─────────────────────────────────────────── */}
-      {contentPickerPopup && (() => {
-        const cpp = contentPickerPopup;
-        const isCourse = cpp.type === 'COURSE';
-        const isLucent = cpp.type === 'LUCENT';
-        const hw    = (!isLucent && !isCourse) ? (cpp as any).hw : null;
-        const entry = isLucent ? (cpp as any).entry as LucentNoteEntry : null;
-        const pageIdx = isLucent ? (cpp as any).pageIdx as number : 0;
-        const page  = isLucent ? entry?.pages?.[pageIdx] : null;
-        const courseChapter = isCourse ? (cpp as any).chapter as Chapter : null;
-
-        // Availability checks — read mode and write mode tracked separately
-        const hasReadNotes = isCourse
-          ? (courseAvailability?.readNotes ?? true)  // null = loading → optimistic true
-          : isLucent
-            ? !!(page?.content || page?.chunkNotes)
-            : !!(hw?.chunkNotes || hw?.notes);
-        const hasWriteNotes = isCourse
-          ? (courseAvailability?.writeNotes ?? true)
-          : isLucent
-            ? !!(page?.htmlNotes || page?.content || page?.chunkNotes)
-            : !!(hw?.htmlNotes);
-        const hasNotes = hasReadNotes || hasWriteNotes;
-        const hasMcq = isCourse
-          ? (courseAvailability?.mcq ?? true)
-          : isLucent
-            ? (!!(page?.mcqs && page.mcqs.length > 0) || !!(lucentMcqsByPage[`${entry?.id}_${pageIdx}`]?.length))
-            : !!(hw?.parsedMcqs && hw.parsedMcqs.length > 0);
-        const hasPdf  = isCourse ? (courseAvailability?.pdf ?? false) : isLucent ? !!(page as any)?.pdfUrl  : !!hw?.pdfUrl;
-        const hasVideo = isCourse ? (courseAvailability?.video ?? true) : isLucent ? !!(page as any)?.videoUrl : !!hw?.videoUrl;
-        const hasAudio = isCourse ? (courseAvailability?.audio ?? true) : isLucent ? !!(page as any)?.audioUrl : !!hw?.audioUrl;
-
-        const dismiss = () => setContentPickerPopup(null);
-
-        // Is the Lucent viewer already open for this exact entry?
-        // If yes, switching tab/mode must set state directly — the useEffect
-        // [lucentPageIndex, lucentNoteViewer?.id] won't re-fire for same id.
-        const _lucentAlreadyOpen = isLucent && lucentNoteViewer?.id === entry?.id;
-
-        const openReadingNotes = () => {
-          dismiss();
-          if (isCourse) {
-            return;
-          } else if (isLucent) {
-            if (_lucentAlreadyOpen) {
-              stopSpeech();
-              setLucentActiveTab('NOTES');
-              setLucentNotesViewMode('chunk');
-              setLucentPageIndex(pageIdx);
-            } else {
-              lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' };
-              tryOpenLucentNote(entry, pageIdx);
-            }
-          } else {
-            // hw viewer: ensure notes view is active, switch sub-mode to read
-            setHwViewMode('notes');
-            setHwNotesViewMode('chunk');
-            if (hw?.id) setHwActiveHwId(hw.id);
-          }
-        };
-        const openMakingNotes = () => {
-          dismiss();
-          if (isCourse) {
-            return;
-          } else if (isLucent) {
-            const doOpen = () => {
-              if (_lucentAlreadyOpen) {
-                stopSpeech();
-                setLucentActiveTab('NOTES');
-                setLucentNotesViewMode('html');
-                setLucentPageIndex(pageIdx);
-              } else {
-                lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'html' };
-                tryOpenLucentNote(entry, pageIdx);
-              }
-            };
-            handleWriteModeGate(doOpen);
-          } else {
-            // hw viewer: ensure notes view is active, switch sub-mode to write
-            handleWriteModeGate(() => {
-              setHwViewMode('notes');
-              setHwNotesViewMode('html');
-              if (hw?.id) setHwActiveHwId(hw.id);
-            });
-          }
-        };
-        const openMcq = () => {
-          dismiss();
-          if (isCourse) {
-            return;
-          } else if (isLucent) {
-            if (_lucentAlreadyOpen) {
-              // Already open — gate MCQ tab switch: 40 coins per lesson session
-              const _isAdmMcq = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-              if (_isAdmMcq || isMcqSessUnlocked(entry.id)) {
-                stopSpeech(); setLucentActiveTab('MCQS');
-              } else {
-                showCoinGate(40, 'MCQ Session', () => { markMcqSessUnlocked(entry.id); stopSpeech(); setLucentActiveTab('MCQS'); });
-              }
-            } else {
-              lucentInitialTabRef.current = { tab: 'MCQS' };
-              tryOpenLucentNote(entry, pageIdx);
-            }
-          } else {
-            setHwViewMode('mcq');
-            if (hw?.id) setHwActiveHwId(hw.id);
-          }
-        };
-        const openPdf = () => {
-          dismiss();
-          if (isCourse) {
-            return;
-          } else if (isLucent) {
-            if (_lucentAlreadyOpen) {
-              stopSpeech();
-              setLucentActiveTab('PDF');
-            } else {
-              lucentInitialTabRef.current = { tab: 'PDF' };
-              tryOpenLucentNote(entry, pageIdx);
-            }
-          } else {
-            const url = hw?.pdfUrl;
-            if (url) window.open(url, '_blank', 'noopener,noreferrer');
-          }
-        };
-        const openVideo = () => {
-          dismiss();
-          if (isCourse) {
-            return;
-          } else if (isLucent) {
-            if (_lucentAlreadyOpen) {
-              stopSpeech();
-              setLucentActiveTab('VIDEO');
-            } else {
-              lucentInitialTabRef.current = { tab: 'VIDEO' };
-              tryOpenLucentNote(entry, pageIdx);
-            }
-          } else {
-            // If reader already open with this hw → directly switch mode
-            if (hwActiveHwId === hw?.id) {
-              setHwViewMode('video');
-            } else {
-              hwAutoOpenRef.current = 'video';
-              if (hw?.id) setHwActiveHwId(hw.id);
-            }
-          }
-        };
-        const openAudio = () => {
-          dismiss();
-          if (isCourse) {
-            return;
-          } else if (isLucent) {
-            if (_lucentAlreadyOpen) {
-              stopSpeech();
-              setLucentActiveTab('AUDIO');
-            } else {
-              lucentInitialTabRef.current = { tab: 'AUDIO' };
-              tryOpenLucentNote(entry, pageIdx);
-            }
-          } else {
-            // If reader already open with this hw → directly switch mode
-            if (hwActiveHwId === hw?.id) {
-              setHwViewMode('audio');
-            } else {
-              hwAutoOpenRef.current = 'audio';
-              if (hw?.id) setHwActiveHwId(hw.id);
-            }
-          }
-        };
-
-        const title = isCourse
-          ? (courseChapter?.title || '')
-          : isLucent
-            ? (page?.pageNo ? `Page ${page.pageNo}` : `Page ${pageIdx + 1}`) + (page?.topicName ? ` — ${page.topicName}` : '')
-            : hw?.title || `Page ${(hw as any)?.pageNo || ''}`;
-
-        const headerLabel = isCourse
-          ? `📚 Class ${activeSessionClass || user.classLevel || ''} — ${selectedSubject?.name || 'Courses'}`
-          : isLucent
-            ? '📘 Lucent Book — ' + (entry?.lessonTitle || '')
-            : '📚 Competition Mode';
-
-        type Option = { id: string; icon: string; label: string; sub: string; color: string; bg: string; enabled: boolean; onClick: () => void };
-        const options: Option[] = [
-          { id: 'read',  icon: '📖', label: 'Reading Notes', sub: 'Read Mode — TTS',    color: '#f59e0b', bg: 'rgba(245,158,11,0.13)',  enabled: isCourse ? true : hasReadNotes,  onClick: openReadingNotes },
-          { id: 'write', icon: '✏️', label: 'Writing Page',  sub: 'Write Mode — HTML',  color: '#14b8a6', bg: 'rgba(20,184,166,0.13)',  enabled: isCourse ? true : hasWriteNotes,  onClick: openMakingNotes  },
-          { id: 'mcq',   icon: '🎯', label: 'MCQ Practice',  sub: 'Practice questions', color: '#8b5cf6', bg: 'rgba(139,92,246,0.13)', enabled: isCourse ? true : !!hasMcq,  onClick: openMcq          },
-          { id: 'pdf',   icon: '📄', label: 'PDF',           sub: 'PDF Document',       color: '#3b82f6', bg: 'rgba(59,130,246,0.13)', enabled: isCourse ? true : hasPdf, onClick: openPdf },
-          { id: 'video', icon: '🎬', label: 'Video',         sub: 'Video lecture',      color: '#ef4444', bg: 'rgba(239,68,68,0.13)',   enabled: isCourse ? true : hasVideo,  onClick: openVideo        },
-          { id: 'audio', icon: '🎧', label: 'Audio',         sub: 'Audio lecture',      color: '#a855f7', bg: 'rgba(168,85,247,0.13)',  enabled: isCourse ? true : hasAudio,  onClick: openAudio        },
-        ];
-
-        return (
-          <div
-            className="fixed inset-0 z-[250] flex items-center justify-center p-5"
-            style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}
-            onClick={dismiss}
-          >
-            <div
-              className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
-              style={{ background: '#0d0f1a' }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* top spacing */}
-              <div className="pt-4" />
-              {/* Header */}
-              <div className="px-5 pt-2 pb-3 border-b border-white/10">
-                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                  {headerLabel}
-                </p>
-                <p className="text-[15px] font-black text-white leading-tight mt-0.5 truncate">{title}</p>
-              </div>
-              {/* Loading indicator for COURSE while fetching availability */}
-              {isCourse && courseAvailability === null && (
-                <div className="px-4 pt-2 pb-2 flex items-center justify-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-3 h-3 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-3 h-3 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '300ms' }} />
-                  <span className="text-[10px] text-white/30 font-bold ml-1">Loading…</span>
-                </div>
-              )}
-              {/* Options grid 3×2 */}
-              <div className="px-4 pt-3 pb-8">
-                <div className="grid grid-cols-3 gap-2.5">
-                  {options.map(opt => (
-                    <button
-                      key={opt.id}
-                      onClick={opt.enabled ? opt.onClick : undefined}
-                      disabled={!opt.enabled}
-                      className="flex flex-col items-center gap-2 py-4 px-2 rounded-2xl active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                      style={{
-                        background: opt.enabled ? opt.bg : 'rgba(255,255,255,0.04)',
-                        border: `1.5px solid ${opt.enabled ? opt.color + '50' : 'rgba(255,255,255,0.07)'}`,
-                      }}
-                    >
-                      <span className="text-2xl leading-none">{opt.icon}</span>
-                      <div className="text-center">
-                        <p className="text-[11px] font-black leading-tight" style={{ color: opt.enabled ? '#fff' : 'rgba(255,255,255,0.35)' }}>
-                          {opt.label}
-                        </p>
-                        <p className="text-[9px] mt-0.5 leading-tight" style={{ color: opt.enabled ? opt.color : 'rgba(255,255,255,0.2)' }}>
-                          {opt.sub}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* LUCENT PAGE-WISE NOTES VIEWER */}
       {lucentNoteViewer && (() => {
         const entry = lucentNoteViewer;
@@ -17857,7 +17809,7 @@ export const StudentDashboard: React.FC<Props> = ({
           return m === Infinity ? 99999 : m;
         };
         const lucentSiblings = ((settings?.lucentNotes || []) as any[])
-          .filter(l => l.subject === entry.subject)
+          .filter(l => l.subject === entry.subject && l.classLevel === entry.classLevel && (l.board || '') === ((entry as any).board || ''))
           .sort((a, b) => {
             // Page number wise sort: lesson covering lowest page first.
             const pa = _siblingMinPg(a);
@@ -17890,7 +17842,19 @@ export const StudentDashboard: React.FC<Props> = ({
             if (_isAdm2 || isPgReadUnlocked(entry.id, _nextIdx)) {
               setLucentPageIndex(_nextIdx);
             } else {
-              showCoinGate(20, 'Next Page', () => { markPgReadUnlocked(entry.id, _nextIdx); setLucentPageIndex(_nextIdx); });
+              const _lockedNxtIdxs: number[] = [];
+              for (let _pi = _nextIdx; _pi < totalPages; _pi++) {
+                if (!isPgReadUnlocked(entry.id, _pi)) _lockedNxtIdxs.push(_pi);
+              }
+              showCoinGate(20, 'Next Page',
+                () => { markPgReadUnlocked(entry.id, _nextIdx); setLucentPageIndex(_nextIdx); },
+                undefined,
+                _lockedNxtIdxs.length >= 2 ? {
+                  count: _lockedNxtIdxs.length,
+                  pages: _lockedNxtIdxs.map(pi => ({ name: ((entry.pages || [])[pi]?.topicName || '').trim() || `Page ${pi + 1}`, cost: 20 })),
+                  action: () => { _lockedNxtIdxs.forEach(pi => markPgReadUnlocked(entry.id, pi)); setLucentPageIndex(_nextIdx); },
+                } : undefined
+              );
             }
           } else if (nextLesson) {
             if (_isAdm2 || isPgReadUnlocked(nextLesson.id, 0)) {
@@ -18016,7 +17980,7 @@ export const StudentDashboard: React.FC<Props> = ({
               </button>
             )}
             {/* Header */}
-            <div className={`text-white shrink-0 ${(isLandscapeUiHidden || lucentImmersive || (isLandscape && !(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html')) || (lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk')) ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
+            <div className="hidden" style={{ background: tierTheme.topBarGrad }}>
               {(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html') ? (
                 /* ── WRITE MODE: 2-row layout ── */
                 <div className="px-3 py-2 flex flex-col gap-1.5">
@@ -18123,14 +18087,6 @@ export const StudentDashboard: React.FC<Props> = ({
                         <Download size={14} />
                       </button>
                     )}
-                    {/* More Options — directly in row 2, ml-auto pushes to right */}
-                    <button
-                      onClick={() => setContentPickerPopup({ type: 'LUCENT', entry, pageIdx: safeIndex })}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 text-white transition-all active:scale-90 shrink-0 ml-auto"
-                      title="More Options"
-                    >
-                      <LayoutGrid size={14} />
-                    </button>
                   </div>}
                 </div>
               ) : (
@@ -18152,8 +18108,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     </p>
                     <p className="font-black text-sm leading-tight truncate">{entry.lessonTitle}</p>
                   </div>
-                  {/* Admin WhiteBoard trigger */}
-                  {_isAdminUser && (
+                  {/* Admin WhiteBoard trigger — hidden for MCQ and Q&A tabs */}
+                  {_isAdminUser && lucentActiveTab !== 'MCQS' && lucentActiveTab !== 'QA' && (
                     <button
                       onClick={() => setShowAdminBoard(true)}
                       className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 border border-white/30 active:scale-90 transition-all shrink-0"
@@ -18168,9 +18124,9 @@ export const StudentDashboard: React.FC<Props> = ({
                       {lucentActiveTab === 'PDF' && (
                         <>
                           <button
-                            onClick={() => setLucentPdfRotated(r => !r)}
+                            onClick={async () => { const r = await rotateScreen(); if (r !== null) { setLucentPdfRotated(r === 'landscape'); } else { alert('📱 Phone ko sideways karein — landscape ke liye'); } }}
                             className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${lucentPdfRotated ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
-                            title="Rotate PDF"
+                            title="Screen Rotate"
                           >
                             <RotateCcw size={14} />
                           </button>
@@ -18188,37 +18144,16 @@ export const StudentDashboard: React.FC<Props> = ({
                           >
                             {lucentImmersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                           </button>
-                          <button
-                            onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
-                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                            title="Switch Content"
-                          >
-                            <LayoutGrid size={14} />
-                          </button>
                         </>
                       )}
-                      {/* Projector Mode button — MCQ tab only */}
-                      {lucentActiveTab === 'MCQS' && (() => {
-                        const _pKey = `${entry.id}_${safeIndex}`;
-                        const _adminMcqs = (currentPage?.mcqs || []) as MCQItem[];
-                        const _mcqs = _adminMcqs.length > 0 ? _adminMcqs : (lucentMcqsByPage[_pKey] || []);
-                        return _mcqs.length > 0 ? (
-                          <button
-                            onClick={() => setFlashcardMcqs({ items: _mcqs as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqs.length} Questions`, subject: entry.subject || '', startInProjectorMode: true })}
-                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-500/30 border border-amber-400/50 text-amber-300 active:scale-90 transition-all shrink-0"
-                            title="📽️ Projector Mode"
-                          >
-                            <Tv size={14} />
-                          </button>
-                        ) : null;
-                      })()}
-                      {lucentActiveTab !== 'PDF' && (
+                      {/* Rotate button — MCQ and Q&A tabs */}
+                      {(lucentActiveTab === 'MCQS' || lucentActiveTab === 'QA') && (
                         <button
-                          onClick={() => lucentNoteViewer && setContentPickerPopup({ type: 'LUCENT', entry: lucentNoteViewer, pageIdx: lucentPageIndex })}
-                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/15 border border-white/25 text-white active:scale-90 transition-all shrink-0"
-                          title="More — Switch Content"
+                          onClick={handleRotate}
+                          className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all active:scale-90 shrink-0 ${isLandscape ? 'bg-emerald-500/30 border-emerald-400/50 text-emerald-300' : 'bg-white/15 border-white/25 text-white'}`}
+                          title="Screen Rotate"
                         >
-                          <LayoutGrid size={14} />
+                          <RotateCcw size={14} />
                         </button>
                       )}
                       {lucentActiveTab === 'VIDEO' && (
@@ -18238,11 +18173,304 @@ export const StudentDashboard: React.FC<Props> = ({
                 </div>
               )}
             </div>
-            {/* Smart Search bar */}
+            {/* ── STICKY MODE TAB BAR — upar (pehle) ── */}
+            {!lucentImmersive && !isLandscapeUiHidden && lucentActiveTab !== 'FLASHCARD' && (() => {
+              const _tbKey = `${entry.id}_${safeIndex}`;
+              const _adminMcqsTb = (currentPage?.mcqs || []) as MCQItem[];
+              const _mcqItemsTb = _adminMcqsTb.length > 0 ? _adminMcqsTb : (lucentMcqsByPage[_tbKey] || []);
+              const _hasMcqTb = _mcqItemsTb.length > 0;
+              const _hasPdfTb = !!(currentPage as any)?.pdfUrl;
+              const _hasVideoTb = !!(currentPage as any)?.videoUrl;
+              const _hasAudioTb = !!(currentPage as any)?.audioUrl;
+              const _isReadActive = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk';
+              const _isWriteActive = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
+              const _tabCls = (active: boolean, activeBg: string, activeText: string) =>
+                `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
+                ` ${active ? `${activeBg} ${activeText}` : 'bg-white text-slate-500 active:bg-slate-50'}`;
+              const _tabStyle = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
+              const _save = (tab: string, vm?: string) => { try { localStorage.setItem(`iic_tab_${entry.id}`, tab); if (vm) localStorage.setItem(`iic_tabvm_${entry.id}`, vm); } catch {} };
+              const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+
+              // ── Build all-modes info for the new coin-gate right panel ──
+              const _pgLabel = (currentPage?.topicName || '').trim() || `Page ${safeIndex + 1}`;
+              const _pgModes = [
+                { mode: 'READING',  label: 'Reading Mode',  emoji: '📖', cost: 20,
+                  isUnlocked: isPgReadUnlocked(entry.id, safeIndex),  isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markPgReadUnlocked(entry.id, safeIndex) },
+                { mode: 'WRITING',  label: 'Writing Mode',  emoji: '✍️', cost: 20,
+                  isUnlocked: isPgWriteUnlocked(entry.id, safeIndex), isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markPgWriteUnlocked(entry.id, safeIndex) },
+                ...(_hasMcqTb ? [
+                  { mode: 'MCQ',      label: 'MCQ Practice',  emoji: '🧠', cost: 20,
+                    isUnlocked: isMcqPageUnlocked(entry.id, safeIndex), isAccessible: true,                       requiredTier: 'free'  as const, unlockAction: () => markMcqPageUnlocked(entry.id, safeIndex) },
+                  { mode: 'QA',       label: 'Q&A Mode',      emoji: '💬', cost: 20,
+                    isUnlocked: isQaPageUnlocked(entry.id, safeIndex),  isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: () => markQaPageUnlocked(entry.id, safeIndex) },
+                  { mode: 'FLASHCARD',label: 'Flashcard',     emoji: '🃏', cost: 20,
+                    isUnlocked: isFcPageUnlocked(entry.id, safeIndex),  isAccessible: _isUltraUser,               requiredTier: 'ultra' as const, unlockAction: () => markFcPageUnlocked(entry.id, safeIndex) },
+                ] : []),
+                ...(_hasPdfTb ? [
+                  { mode: 'PDF',   label: 'PDF',   emoji: '📄', cost: 0,
+                    isUnlocked: true, isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: undefined },
+                ] : []),
+                ...(_hasVideoTb ? [
+                  { mode: 'VIDEO', label: 'Video', emoji: '🎬', cost: 0,
+                    isUnlocked: true, isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: undefined },
+                ] : []),
+                ...(_hasAudioTb ? [
+                  { mode: 'AUDIO', label: 'Audio', emoji: '🎵', cost: 0,
+                    isUnlocked: true, isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: undefined },
+                ] : []),
+              ];
+              const _pgInfo = { pageLabel: _pgLabel, availableModes: _pgModes };
+
+              const _switchMcq = (tab: 'MCQS' | 'QA' | 'FLASHCARD') => {
+                const _doSwitch = () => {
+                  stopSpeech();
+                  if (tab === 'FLASHCARD') {
+                    setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'flashcard' } });
+                    setLucentActiveTab('FLASHCARD');
+                  } else {
+                    setLucentActiveTab(tab);
+                  }
+                  _save(tab);
+                };
+                if (_isAdm) { _doSwitch(); return; }
+                if (tab === 'MCQS') {
+                  if (isMcqPageUnlocked(entry.id, safeIndex)) { _doSwitch(); return; }
+                  showCoinGate(20, 'MCQ Practice', () => { markMcqPageUnlocked(entry.id, safeIndex); _doSwitch(); }, undefined, undefined, _pgInfo);
+                } else if (tab === 'QA') {
+                  // Tier gate: Q&A requires BASIC or ULTRA subscription
+                  if (!_isBasicUser && !_isUltraUser) {
+                    showAlert('🔒 Q&A Mode ke liye BASIC subscription chahiye! Store se upgrade karein.', 'INFO');
+                    return;
+                  }
+                  if (isQaPageUnlocked(entry.id, safeIndex)) { _doSwitch(); return; }
+                  showCoinGate(20, 'Q&A Mode', () => { markQaPageUnlocked(entry.id, safeIndex); _doSwitch(); }, undefined, undefined, _pgInfo);
+                } else if (tab === 'FLASHCARD') {
+                  // Tier gate: Flashcard requires ULTRA subscription
+                  if (!_isUltraUser) {
+                    showAlert('🔒 Flashcard ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO');
+                    return;
+                  }
+                  if (isFcPageUnlocked(entry.id, safeIndex)) { _doSwitch(); return; }
+                  showCoinGate(20, 'Flashcard', () => { markFcPageUnlocked(entry.id, safeIndex); _doSwitch(); }, undefined, undefined, _pgInfo);
+                }
+              };
+              return (
+                <div ref={lucentTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
+                  <div className="flex min-w-max">
+                    <button data-tab-active={String(_isReadActive)} onClick={() => { stopSpeech(); setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); _save('NOTES', 'chunk'); }} style={_tabStyle} className={_tabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
+                      Reading Mode
+                    </button>
+                    <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setLucentActiveTab('NOTES'); setLucentNotesViewMode('html'); _save('NOTES', 'html'); }, _pgInfo)} style={_tabStyle} className={_tabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
+                      Writing Mode
+                    </button>
+                    {_hasMcqTb && (
+                      <button data-tab-active={String(lucentActiveTab === 'MCQS')} onClick={() => _switchMcq('MCQS')} style={_tabStyle} className={_tabCls(lucentActiveTab === 'MCQS', 'bg-purple-600', 'text-white')}>
+                        MCQ Practice
+                      </button>
+                    )}
+                    {_hasMcqTb && _isAdm && (
+                      <button
+                        style={_tabStyle}
+                        className={_tabCls(false, 'bg-amber-500', 'text-white')}
+                        onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb } }); }}
+                      >
+                        📽️ Projector
+                      </button>
+                    )}
+                    {_hasMcqTb && (() => {
+                      const _fcLocked = !_isAdm && !_isUltraUser;
+                      return (
+                        <button data-tab-active={String(lucentActiveTab === 'FLASHCARD')} onClick={() => _switchMcq('FLASHCARD')} style={_tabStyle} className={_tabCls(lucentActiveTab === 'FLASHCARD', 'bg-amber-500', 'text-white') + (_fcLocked ? ' opacity-60' : '')}>
+                          {_fcLocked ? '🔒' : '🃏'} Flashcard{_fcLocked ? ' · ULTRA' : ''}
+                        </button>
+                      );
+                    })()}
+                    {_hasMcqTb && (() => {
+                      const _qaLocked = !_isAdm && !_isBasicUser && !_isUltraUser;
+                      return (
+                        <button data-tab-active={String(lucentActiveTab === 'QA')} onClick={() => _switchMcq('QA')} style={_tabStyle} className={_tabCls(lucentActiveTab === 'QA', 'bg-indigo-600', 'text-white') + (_qaLocked ? ' opacity-60' : '')}>
+                          {_qaLocked ? '🔒' : '💬'} Q&amp;A{_qaLocked ? ' · BASIC' : ''}
+                        </button>
+                      );
+                    })()}
+                    {_hasPdfTb && (() => {
+                      const _pdfLocked = !_isAdm && !_isBasicUser && !_isUltraUser;
+                      return (
+                        <button
+                          data-tab-active={String(lucentActiveTab === 'PDF')}
+                          onClick={() => {
+                            if (_pdfLocked) { showAlert('🔒 PDF ke liye BASIC subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                            stopSpeech(); setLucentActiveTab('PDF'); _save('PDF');
+                          }}
+                          style={_tabStyle}
+                          className={_tabCls(lucentActiveTab === 'PDF', 'bg-blue-600', 'text-white') + (_pdfLocked ? ' opacity-60' : '')}
+                        >
+                          {_pdfLocked ? '🔒 ' : ''}PDF{_pdfLocked ? ' · BASIC' : ''}
+                        </button>
+                      );
+                    })()}
+                    {_hasVideoTb && (() => {
+                      const _vidLocked = !_isAdm && !_isUltraUser;
+                      return (
+                        <button
+                          data-tab-active={String(lucentActiveTab === 'VIDEO')}
+                          onClick={() => {
+                            if (_vidLocked) { showAlert('🔒 Video ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                            stopSpeech(); setLucentActiveTab('VIDEO'); _save('VIDEO');
+                          }}
+                          style={_tabStyle}
+                          className={_tabCls(lucentActiveTab === 'VIDEO', 'bg-rose-600', 'text-white') + (_vidLocked ? ' opacity-60' : '')}
+                        >
+                          {_vidLocked ? '🔒 ' : ''}Video{_vidLocked ? ' · ULTRA' : ''}
+                        </button>
+                      );
+                    })()}
+                    {_hasAudioTb && (() => {
+                      const _audLocked = !_isAdm && !_isUltraUser;
+                      return (
+                        <button
+                          data-tab-active={String(lucentActiveTab === 'AUDIO')}
+                          onClick={() => {
+                            if (_audLocked) { showAlert('🔒 Audio ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                            stopSpeech(); setLucentActiveTab('AUDIO'); _save('AUDIO');
+                          }}
+                          style={_tabStyle}
+                          className={_tabCls(lucentActiveTab === 'AUDIO', 'bg-violet-600', 'text-white') + (_audLocked ? ' opacity-60' : '')}
+                        >
+                          {_audLocked ? '🔒 ' : ''}Audio{_audLocked ? ' · ULTRA' : ''}
+                        </button>
+                      );
+                    })()}
+                  </div>
+                </div>
+              );
+            })()}
+            {/* ── UNIFIED SLIM BAR — tab bar ke neeche (Reading/chunk mode mein hidden — ChunkedNotesReader ka slim bar leta hai jagah) ── */}
+            {!lucentImmersive && !isLandscapeUiHidden && lucentActiveTab !== 'FLASHCARD' && !(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk') && (
+              <div className="bg-white border-b border-slate-100 shrink-0 flex items-center" style={{ minHeight: 36 }}>
+                {/* Back */}
+                <button onClick={closeLucentViewer} className="w-8 h-8 flex items-center justify-center text-slate-600 active:scale-90 transition shrink-0 border-r border-slate-100" title="Back">
+                  <ChevronRight size={16} className="rotate-180" />
+                </button>
+                {/* Title + Write mode buttons (scrollable, left side) */}
+                <div className="flex-1 flex items-center gap-1.5 overflow-x-auto px-2 py-1 min-w-0" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+                  {/* Title + page counter */}
+                  <span className="text-[11px] font-black text-slate-700 whitespace-nowrap shrink-0">
+                    {entry.lessonTitle || 'Notes'}
+                    {currentPage ? ` · Pg ${currentPage.pageNo}` : ''}
+                    {totalPages > 1 && <span className="text-slate-400 font-bold"> ({safeIndex + 1}/{totalPages})</span>}
+                  </span>
+
+                  {/* ── WRITE MODE badges & buttons (stay in scrollable strip) ── */}
+                  {lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html' && (
+                    <>
+                      <span className="text-[9px] font-black text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">✏️ WRITE</span>
+                      {_isAdminUser && (
+                        <button onClick={() => { const src = (currentPage as any)?.htmlNotes || (currentPage as any)?.content || ''; setInlineEditContent(src); setInlineEditPoints(splitHtmlIntoBlocks(src)); setInlineEditPointIdx(null); setInlineEditPointDraft(''); setInlineEditModal({ type: 'lucent_html', entryId: entry.id, pageIndex: safeIndex, title: `${entry.lessonTitle} · Page ${currentPage?.pageNo ?? safeIndex + 1}`, originalEntry: entry }); setLucentWriteMenuOpen(false); }} className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-500 active:scale-90 transition shrink-0" title="Edit HTML"><Pencil size={12} /></button>
+                      )}
+                      {_isAdminUser && (
+                        <button onClick={() => setShowAdminBoard(true)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-500 active:scale-90 transition shrink-0" title="Whiteboard"><Presentation size={12} /></button>
+                      )}
+                      <div className="flex items-center rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
+                        <button onClick={zoomOut} className="w-6 h-7 flex items-center justify-center text-slate-600 text-[10px] font-black active:scale-90 transition hover:bg-slate-100">A−</button>
+                        <span className="px-1 text-slate-500 text-[9px] font-bold tabular-nums border-x border-slate-200">{Math.round(noteZoom * 100)}%</span>
+                        <button onClick={zoomIn} className="w-6 h-7 flex items-center justify-center text-slate-600 text-[10px] font-black active:scale-90 transition hover:bg-slate-100">A+</button>
+                      </div>
+                      <button onClick={handleRotate} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isLandscape ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
+                      <button onClick={() => handleLucentSaveOffline(true)} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${lucentSaved ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title={lucentSaved ? 'Saved ✓' : 'Save Offline'}><WifiOff size={12} /></button>
+                      {(currentPage?.htmlNotes || currentPage?.content) && (
+                        <button onClick={async () => { try { const pageLabel = `Page ${currentPage?.pageNo || safeIndex + 1}`; const safeTitle = `${entry.lessonTitle || 'Lucent'} · ${pageLabel}`.replace(/[^a-z0-9_\- ·]/gi, '_').slice(0, 60); const _dlOk = await checkAndDoDownload(async () => { await downloadAsMHTML('lucent-html-download', safeTitle, { appName: settings?.appShortName || settings?.appName || 'IIC', pageTitle: `${entry.lessonTitle || 'Lucent'} · ${pageLabel}`, subtitle: 'Write Mode Notes' }); }); if (_dlOk) showAlert('📥 Saved!', 'SUCCESS'); } catch { showAlert('Download failed.', 'ERROR'); } }} className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-500 active:scale-90 transition shrink-0" title="Download"><Download size={12} /></button>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* ── RIGHT SIDE buttons (fixed, not scrollable) ── */}
+                <div className="flex items-center gap-1 px-1.5 shrink-0 border-l border-slate-100">
+                  {/* MCQ MODE */}
+                  {lucentActiveTab === 'MCQS' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const next = !lucentMcqAutoTts;
+                          setLucentMcqAutoTts(next);
+                          if (next) {
+                            const _pk = `${entry.id}_${safeIndex}`;
+                            const _adminMcqsTts = (currentPage?.mcqs || []) as MCQItem[];
+                            const _mcqsTts = _adminMcqsTts.length > 0 ? _adminMcqsTts : (lucentMcqsByPage[_pk] || []);
+                            const _ciTts = lucentMcqCurrentIdx[_pk] ?? 0;
+                            const _cqTts = _mcqsTts[_ciTts];
+                            if (_cqTts) {
+                              stopSpeech();
+                              const _optsTts = (_cqTts.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
+                              speakText(`Question ${_ciTts + 1}: ${_cqTts.question}. Options: ${_optsTts}.`, null, 1.0, 'hi-IN', () => {}, () => {});
+                            }
+                          } else {
+                            stopSpeech();
+                          }
+                        }}
+                        className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${lucentMcqAutoTts ? 'bg-indigo-100 border-indigo-400 text-indigo-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                        title={lucentMcqAutoTts ? 'Auto TTS On — tap to off' : 'Auto TTS: Question + Options suno'}
+                      >
+                        <Volume2 size={12} />
+                      </button>
+                      <button onClick={handleRotate} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isLandscape ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
+                    </>
+                  )}
+
+                  {/* PDF MODE */}
+                  {lucentActiveTab === 'PDF' && (
+                    <>
+                      <button onClick={async () => { const r = await rotateScreen(); if (r !== null) { setLucentPdfRotated(r === 'landscape'); } else { alert('📱 Phone ko sideways karein'); } }} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${lucentPdfRotated ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
+                      <button onClick={() => setLucentPdfNight(m => m === 'normal' ? 'night' : m === 'night' ? 'sepia' : 'normal')} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 text-sm ${lucentPdfNight !== 'normal' ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-100 border-slate-200'}`} title="Night/Sepia">{lucentPdfNight === 'night' ? '🌙' : lucentPdfNight === 'sepia' ? '📜' : '☀️'}</button>
+                      <button onClick={() => setLucentImmersive(v => !v)} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${lucentImmersive ? 'bg-indigo-50 border-indigo-300 text-indigo-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Focus">{lucentImmersive ? <Minimize2 size={12} /> : <Maximize2 size={12} />}</button>
+                    </>
+                  )}
+
+                  {/* VIDEO MODE */}
+                  {lucentActiveTab === 'VIDEO' && (
+                    <button onClick={handleRotate} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isLandscape ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
+                  )}
+
+                  {/* Q&A MODE — Reveal All / Hide All */}
+                  {lucentActiveTab === 'QA' && (() => {
+                    const _slimQaKey = `${entry.id}_${safeIndex}`;
+                    const _slimAdminMcqs = (currentPage?.mcqs || []) as MCQItem[];
+                    const _slimQaItems = (_slimAdminMcqs.length > 0 ? _slimAdminMcqs : (lucentMcqsByPage[_slimQaKey] || []))
+                      .filter((q: any) => !q.statements || q.statements.length === 0);
+                    if (_slimQaItems.length === 0) return null;
+                    const _slimAllRevealed = _slimQaItems.every((_, i) => lucentQaRevealed[`${_slimQaKey}_${i}`]);
+                    return (
+                      <button
+                        onClick={() => {
+                          if (_slimAllRevealed) {
+                            const reset: Record<string, boolean> = { ...lucentQaRevealed };
+                            _slimQaItems.forEach((_, i) => { delete reset[`${_slimQaKey}_${i}`]; });
+                            setLucentQaRevealed(reset);
+                          } else {
+                            const all = { ...lucentQaRevealed };
+                            _slimQaItems.forEach((_, i) => { all[`${_slimQaKey}_${i}`] = true; });
+                            setLucentQaRevealed(all);
+                          }
+                        }}
+                        className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 active:scale-95 transition-all shrink-0"
+                      >
+                        {_slimAllRevealed ? 'Hide All' : 'Reveal All'}
+                      </button>
+                    );
+                  })()}
+
+                  {/* Admin Whiteboard (PDF/Video/Audio tabs) */}
+                  {lucentActiveTab !== 'NOTES' && lucentActiveTab !== 'MCQS' && lucentActiveTab !== 'QA' && _isAdminUser && (
+                    <button onClick={() => setShowAdminBoard(true)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-500 active:scale-90 transition shrink-0" title="Whiteboard"><Presentation size={12} /></button>
+                  )}
+                </div>
+              </div>
+            )}
             {/* Notes scroll area */}
             <div
               ref={lucentScrollContainerRef}
-              className={`flex-1 overflow-y-auto ${lucentActiveTab === 'NOTES' ? '' : 'hidden'} ${!isLandscapeUiHidden && !lucentImmersive && !isLandscape ? 'pb-[72px]' : ''}`}
+              className={`flex-1 overflow-y-auto ${lucentActiveTab === 'NOTES' ? '' : 'hidden'}`}
               onScroll={(e) => {
                 const t = e.currentTarget;
                 const max = t.scrollHeight - t.clientHeight;
@@ -18281,7 +18509,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     key={`lucent-reader-${entry.id}-${safeIndex}-${autoSyncOn ? 'auto' : 'manual'}-chunk`}
                     onBack={closeLucentViewer}
                     triggerControlsRef={lucentControlsRef}
-                    onMoreOptions={() => setContentPickerPopup({ type: 'LUCENT', entry, pageIdx: safeIndex })}
+                    onMoreOptions={undefined}
                     onSaveOffline={() => handleLucentSaveOffline(false)}
                     isSavedOffline={lucentSaved}
                     isUltraUser={_isUltraUser || !!(lucentNoteViewer as any)?.isSampleLesson}
@@ -18302,7 +18530,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       if (chunkSrc?.trim() && htmlSrc?.trim()) return htmlSrc.trim();
                       return undefined;
                     })()}
-                    content={`Page ${currentPage.pageNo}.\n\n${(() => {
+                    content={`${(() => {
                       const chunkSrc = (currentPage as any).chunkNotes;
                       const htmlSrc = (currentPage as any).htmlNotes;
                       if (chunkSrc?.trim()) return chunkSrc.trim();
@@ -18315,8 +18543,9 @@ export const StudentDashboard: React.FC<Props> = ({
                         .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/[ \t]+/g, ' ')
                         .replace(/\n{3,}/g, '\n\n').trim();
                     })()}`}
-                    topBarLabel={`Page ${currentPage.pageNo}`}
+                    topBarLabel={`${entry.lessonTitle || 'Notes'} · Page ${currentPage.pageNo}${totalPages > 1 ? ` (${safeIndex + 1}/${totalPages})` : ''}`}
                     hideTopBar={lucentImmersive}
+                    onReadingActive={setLucentIsReading}
                     suppressStickyControls={lucentImmersive}
                     preferChunkMode={true}
                     isAdmin={user.role === 'ADMIN' || user.role === 'SUB_ADMIN'}
@@ -18586,52 +18815,9 @@ RULES:
               return (
                 <div className="flex-1 overflow-y-auto bg-slate-50">
                   <div className="px-4 py-4 space-y-3">
-                    {/* Header / actions */}
-                    <div className="bg-white border border-purple-100 rounded-2xl p-3 flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${usingAdminMcqs ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-100 text-purple-600'}`}>
-                        <BrainCircuit size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-slate-800 flex items-center gap-1.5">
-                          Page MCQs
-                          {usingAdminMcqs && (
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-wider">Admin</span>
-                          )}
-                        </p>
-                        <p className="text-[10px] font-bold text-slate-500">
-                          {usingAdminMcqs
-                            ? `Page ${currentPage?.pageNo} ke admin-curated questions`
-                            : `Page ${currentPage?.pageNo} ke points se AI banayega`}
-                        </p>
-                      </div>
-                      {/* Download all MCQs of this Lucent page as a portable
-                          MHTML/HTML file — same convenience the Competition
-                          MCQ Hub already offers. */}
-                      {mcqs.length > 0 && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const safeTitle = `${entry.lessonTitle || 'Lucent'}_pg${currentPage?.pageNo || safeIndex + 1}_MCQs`
-                                .replace(/[^a-z0-9_\- ]/gi, '_').slice(0, 60);
-                              const _dlOkMcq = await checkAndDoDownload(async () => {
-                                await downloadAsMHTML('lucent-mcq-printable', `${safeTitle}_${new Date().toISOString().slice(0,10)}`, {
-                                  appName: settings?.appShortName || settings?.appName || 'IIC',
-                                  pageTitle: `${entry.lessonTitle || 'Lucent'} · Page ${currentPage?.pageNo || safeIndex + 1} MCQs`,
-                                  subtitle: `Lucent MCQs · ${mcqs.length} questions`,
-                                });
-                              });
-                              if (_dlOkMcq) showAlert(`📥 ${mcqs.length} MCQs saved offline!`, 'SUCCESS');
-                            } catch (e) {
-                              showAlert('Download failed. Please try again.', 'ERROR');
-                            }
-                          }}
-                          className="text-[11px] font-black px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition flex items-center gap-1"
-                          title="Save these MCQs offline"
-                        >
-                          <Download size={12} /> Save
-                        </button>
-                      )}
-                      {!usingAdminMcqs && mcqs.length > 0 && (
+                    {/* Re-generate button for AI MCQs only */}
+                    {!usingAdminMcqs && mcqs.length > 0 && (
+                      <div className="flex justify-end">
                         <button
                           onClick={generateMcqs}
                           disabled={lucentMcqLoading}
@@ -18640,52 +18826,9 @@ RULES:
                         >
                           {lucentMcqLoading ? '...' : '↻ Re-make'}
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
-                    {/* T2/T4: Mode selector — Sidha Answer · Khud Banao · Flashcard.
-                        Same MCQ set, three different study experiences. */}
-                    {mcqs.length > 0 && (() => {
-                      const mode = lucentMcqMode[pageKey] || 'reveal';
-                      return (
-                        <div className="bg-white border border-purple-100 rounded-2xl p-1.5 grid grid-cols-3 gap-1 shadow-sm">
-                          <button
-                            onClick={() => setLucentMcqMode(prev => ({ ...prev, [pageKey]: 'reveal' }))}
-                            className={`text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all ${
-                              mode === 'reveal'
-                                ? 'bg-purple-600 text-white shadow-sm'
-                                : 'bg-transparent text-slate-500 hover:bg-slate-50'
-                            }`}
-                          >
-                            💬 Q&amp;A
-                          </button>
-                          <button
-                            onClick={() => setLucentMcqMode(prev => ({ ...prev, [pageKey]: 'interactive' }))}
-                            className={`text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all ${
-                              mode === 'interactive'
-                                ? 'bg-indigo-600 text-white shadow-sm'
-                                : 'bg-transparent text-slate-500 hover:bg-slate-50'
-                            }`}
-                          >
-                            📝 MCQ
-                          </button>
-                          <button
-                            onClick={() => {
-                              setFlashcardMcqs({
-                                items: mcqs as any,
-                                title: entry.lessonTitle || 'Lucent MCQs',
-                                subtitle: `Page ${currentPage?.pageNo || ''} · Flashcards`,
-                                subject: entry.subject || 'Lucent',
-                                sourceKey: `lucent_${entry.id}_p${safeIndex}`,
-                              });
-                            }}
-                            className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95"
-                          >
-                            🃏 Flashcard
-                          </button>
-                        </div>
-                      );
-                    })()}
 
                     {/* Empty / loading / generate state — only when no admin MCQs are present */}
                     {!usingAdminMcqs && mcqs.length === 0 && (
@@ -18715,7 +18858,7 @@ RULES:
 
                     {/* Q&A: "Show All Answers" lifted to TOP of the MCQ list
                         so users don't have to scroll down to find it. */}
-                    {mcqs.length > 0 && (lucentMcqMode[pageKey] || 'reveal') === 'reveal' && revealedCount < mcqs.length && (
+                    {mcqs.length > 0 && (lucentMcqMode[pageKey] || 'interactive') === 'reveal' && revealedCount < mcqs.length && (
                       <button
                         onClick={() => setLucentMcqRevealed(prev => ({ ...prev, [pageKey]: mcqs.length }))}
                         className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-xs active:scale-95 transition shadow-md flex items-center justify-center gap-2"
@@ -18726,7 +18869,7 @@ RULES:
 
                     {/* MCQ cards — 'reveal' = all at once, 'interactive' = one-at-a-time */}
                     {(() => {
-                      const mode = lucentMcqMode[pageKey] || 'reveal';
+                      const mode = lucentMcqMode[pageKey] || 'interactive';
 
                       // ── REVEAL (Q&A) MODE — question + answer only, no options ──
                       if (mode === 'reveal') {
@@ -18868,7 +19011,14 @@ RULES:
                         if (!showReview && ci < totalQ - 1) {
                           if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current);
                           lucentAutoNextTimerRef.current = setTimeout(() => {
-                            setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: ci + 1 }));
+                            const _nextCi = ci + 1;
+                            setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nextCi }));
+                            if (lucentMcqAutoTts && mcqs[_nextCi]) {
+                              const _nq = mcqs[_nextCi];
+                              stopSpeech();
+                              const _nopts = (_nq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
+                              speakText(`Question ${_nextCi + 1}: ${_nq.question}. Options: ${_nopts}.`, null, 1.0, 'hi-IN', () => {}, () => {});
+                            }
                           }, 400);
                         }
                       };
@@ -18958,26 +19108,6 @@ RULES:
 
                       return (
                         <div>
-                          {/* Stats bar */}
-                          <div className="grid grid-cols-4 gap-1.5 mb-3">
-                            <div className="bg-slate-100 rounded-xl py-2 text-center">
-                              <div className="text-[9px] font-bold text-slate-500 uppercase">Tried</div>
-                              <div className="text-sm font-black text-slate-800">{attempted}</div>
-                            </div>
-                            <div className="bg-emerald-50 rounded-xl py-2 text-center">
-                              <div className="text-[9px] font-bold text-emerald-600 uppercase">✅ Correct</div>
-                              <div className="text-sm font-black text-emerald-700">{attempted > 0 ? right : '?'}</div>
-                            </div>
-                            <div className="bg-rose-50 rounded-xl py-2 text-center">
-                              <div className="text-[9px] font-bold text-rose-600 uppercase">❌ Wrong</div>
-                              <div className="text-sm font-black text-rose-700">{attempted > 0 ? wrong : '?'}</div>
-                            </div>
-                            <div className="bg-indigo-50 rounded-xl py-2 text-center">
-                              <div className="text-[9px] font-bold text-indigo-600 uppercase">🏆 Score</div>
-                              <div className="text-sm font-black text-indigo-700">{attempted > 0 ? `${right}/${attempted}` : '?'}</div>
-                            </div>
-                          </div>
-
                           {/* Progress */}
                           <div className="flex items-center gap-2 mb-3">
                             <span className="text-[11px] font-black text-slate-600 shrink-0">
@@ -19014,19 +19144,11 @@ RULES:
                             </div>
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <p className="text-sm font-black text-slate-800 leading-snug flex-1">{cq.question}</p>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <McqSpeakButtons
-                                  question={cq.question}
-                                  options={cq.options || []}
-                                  correctAnswer={cq.correctAnswer}
-                                  className="shrink-0"
-                                />
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (cq.options||[]).length===4 ? cq.options as [string,string,string,string] : ([...(cq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:cq.question,options:opts,correctAnswer:cq.correctAnswer,explanation:(cq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
-                                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
-                                  title="MCQ Community mein bhejo"
-                                ><Plus size={13} strokeWidth={2.5} /></button>
-                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (cq.options||[]).length===4 ? cq.options as [string,string,string,string] : ([...(cq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:cq.question,options:opts,correctAnswer:cq.correctAnswer,explanation:(cq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
+                                className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                                title="MCQ Community mein bhejo"
+                              ><Plus size={13} strokeWidth={2.5} /></button>
                             </div>
                             {cq.statements && cq.statements.length > 0 && (
                               <div className="mb-3 pl-3 border-l-2 border-indigo-200 space-y-1">
@@ -19064,11 +19186,11 @@ RULES:
                             {/* No explanation during quiz — shown only in Review screen */}
                           </div>
 
-                          {/* Navigation: Prev | Next */}
+                          {/* Navigation: Prev | Skip | Next */}
                           <div className="mt-3 flex gap-2">
                             {ci > 0 ? (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: ci - 1 })); }}
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _pci = ci - 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _pci })); if (lucentMcqAutoTts && mcqs[_pci]) { const _pq = mcqs[_pci]; stopSpeech(); const _popts = (_pq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_pci + 1}: ${_pq.question}. Options: ${_popts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
                                 className="py-3 px-4 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-1 active:scale-95 transition"
                               >
                                 <ChevronLeft size={15} /> Prev
@@ -19078,9 +19200,18 @@ RULES:
                                 <ChevronLeft size={15} /> Prev
                               </div>
                             )}
+                            {/* Skip — only when not answered and not last question */}
+                            {!isAnswered && ci < totalQ - 1 && (
+                              <button
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _sci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _sci })); if (lucentMcqAutoTts && mcqs[_sci]) { const _sq = mcqs[_sci]; stopSpeech(); const _sopts = (_sq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_sci + 1}: ${_sq.question}. Options: ${_sopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
+                                className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition"
+                              >
+                                Skip <ChevronRight size={13} />
+                              </button>
+                            )}
                             {ci < totalQ - 1 ? (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: ci + 1 })); }}
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _nci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nci })); if (lucentMcqAutoTts && mcqs[_nci]) { const _nq = mcqs[_nci]; stopSpeech(); const _nopts = (_nq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_nci + 1}: ${_nq.question}. Options: ${_nopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
                                 disabled={!isAnswered}
                                 className={`flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow-md ${isAnswered ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
                               >
@@ -19100,6 +19231,291 @@ RULES:
                       );
                     })()}
 
+                  </div>
+                </div>
+              );
+            })()}
+
+
+            {/* Q&A TAB CONTENT */}
+            {lucentActiveTab === 'QA' && (() => {
+              const _qaKey = `${entry.id}_${safeIndex}`;
+              const _adminMcqsQa = (currentPage?.mcqs || []) as MCQItem[];
+              const _qaItems = (_adminMcqsQa.length > 0 ? _adminMcqsQa : (lucentMcqsByPage[_qaKey] || []))
+                .filter((q: any) => !q.statements || q.statements.length === 0);
+              if (_qaItems.length === 0) {
+                return (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
+                    <span className="text-4xl">💬</span>
+                    <p className="text-sm font-black text-slate-600">Is page ke liye MCQs nahi hain</p>
+                    <p className="text-xs text-slate-400 text-center">MCQ Practice tab mein jaake generate karo, phir Q&amp;A mode mein aao</p>
+                    <button
+                      onClick={() => setLucentActiveTab('MCQS')}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-sm active:scale-95 transition-all"
+                    >
+                      MCQ Practice tab kholein
+                    </button>
+                  </div>
+                );
+              }
+              const allRevealed = _qaItems.every((_, i) => lucentQaRevealed[`${_qaKey}_${i}`]);
+              return (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="px-4 pt-3 pb-4 space-y-3">
+                    {_qaItems.map((mcq: any, qi: number) => {
+                      const _key = `${_qaKey}_${qi}`;
+                      const _revealed = !!lucentQaRevealed[_key];
+                      return (
+                        <div key={qi} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                          <div className="p-4">
+                            <div className="flex items-start gap-2">
+                              <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black mt-0.5">{qi + 1}</span>
+                              <p className="text-sm font-bold text-slate-800 leading-snug">{mcq.question || ''}</p>
+                            </div>
+                          </div>
+                          {_revealed ? (
+                            <div className="bg-emerald-50 border-t border-emerald-100 px-4 py-3">
+                              <p className="text-sm font-black text-emerald-700">✅ {mcq.options?.[mcq.correctAnswer] || ''}</p>
+                              {mcq.explanation && <p className="text-[11px] text-slate-500 mt-1 leading-snug">{mcq.explanation}</p>}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setLucentQaRevealed(prev => ({ ...prev, [_key]: true }))}
+                              className="w-full py-3 bg-slate-50 border-t border-slate-100 text-xs font-black text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-[0.99]"
+                            >
+                              👆 Jawab dekhne ke liye tap karo
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* FLASHCARD TAB CONTENT — inline flip-card UI */}
+            {lucentActiveTab === 'FLASHCARD' && (() => {
+              const _fcKey = `${entry.id}_${safeIndex}`;
+              const _adminMcqsFc = (currentPage?.mcqs || []) as MCQItem[];
+              const _fcAllItems = (_adminMcqsFc.length > 0 ? _adminMcqsFc : (lucentMcqsByPage[_fcKey] || []))
+                .filter((q: any) => !q.statements || q.statements.length === 0);
+
+              if (_fcAllItems.length === 0) {
+                return (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4 bg-gradient-to-br from-pink-50 to-purple-50">
+                    <span className="text-5xl">🃏</span>
+                    <p className="text-sm font-black text-slate-600">Is page ke liye MCQs nahi hain</p>
+                    <p className="text-xs text-slate-400 text-center">Pehle MCQ Practice tab mein jaake generate karo</p>
+                    <button onClick={() => setLucentActiveTab('MCQS')} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl font-black text-sm active:scale-95 transition-all">
+                      MCQ Practice kholein
+                    </button>
+                  </div>
+                );
+              }
+
+              // Inline flashcard state — stored in a ref per page to avoid re-renders
+              const _fcStateKey = `fc_inline_${_fcKey}`;
+              // We use lucentFcInlineState map for per-page state
+              const _st = (lucentFcInlineState as any)[_fcStateKey] || { pos: 0, flipped: false, conf: {} as Record<number,string>, shuffled: _fcAllItems.map((_:any,i:number)=>i) };
+              const _setFcSt = (patch: Partial<typeof _st>) => setLucentFcInlineState((prev:any) => ({ ...prev, [_fcStateKey]: { ..._st, ...patch } }));
+
+              const _items = _st.shuffled.map((i: number) => _fcAllItems[i]).filter(Boolean);
+              const _total = _items.length;
+              const _pos = Math.min(_st.pos, _total - 1);
+              const _card = _items[_pos] as any;
+              const _flipped = _st.flipped;
+              const _conf = _st.conf as Record<number, string>;
+
+              const _goNext = () => {
+                if (_flipped) {
+                  _setFcSt({ flipped: false });
+                  setTimeout(() => setLucentFcInlineState((prev: any) => {
+                    const cur = prev[_fcStateKey] || _st;
+                    return { ...prev, [_fcStateKey]: { ...cur, pos: Math.min(cur.pos + 1, _total - 1), flipped: false } };
+                  }), 320);
+                } else {
+                  _setFcSt({ pos: Math.min(_pos + 1, _total - 1) });
+                }
+              };
+              const _goPrev = () => {
+                if (_flipped) {
+                  _setFcSt({ flipped: false });
+                  setTimeout(() => setLucentFcInlineState((prev: any) => {
+                    const cur = prev[_fcStateKey] || _st;
+                    return { ...prev, [_fcStateKey]: { ...cur, pos: Math.max(cur.pos - 1, 0), flipped: false } };
+                  }), 320);
+                } else {
+                  _setFcSt({ pos: Math.max(_pos - 1, 0) });
+                }
+              };
+              const _shuffle = () => {
+                const arr = _fcAllItems.map((_: any, i: number) => i);
+                for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+                _setFcSt({ shuffled: arr, pos: 0, flipped: false, conf: {} });
+              };
+              const _restart = () => _setFcSt({ pos: 0, flipped: false, conf: {} });
+              const _handleConf = (level: string) => {
+                _setFcSt({ conf: { ..._conf, [_pos]: level } });
+                setTimeout(() => setLucentFcInlineState((prev: any) => {
+                  const cur = prev[_fcStateKey] || _st;
+                  return { ...prev, [_fcStateKey]: { ...cur, pos: Math.min(cur.pos + 1, _total - 1), flipped: false } };
+                }), 420);
+              };
+
+              return (
+                <div className="flex-1 flex flex-col overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#a21caf 100%)' }}>
+
+                  {/* Top strip — progress + action buttons */}
+                  <div className="shrink-0 px-4 pt-3 pb-2 flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2">
+                      <span className="text-[11px] font-black text-white/80">
+                        <span className="text-white text-sm">{_pos + 1}</span>/{_total}
+                      </span>
+                      <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div className="h-full bg-white/80 rounded-full transition-all duration-300"
+                          style={{ width: `${((_pos + 1) / _total) * 100}%` }} />
+                      </div>
+                    </div>
+                    {/* Confidence badge */}
+                    {_conf[_pos] && (
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        _conf[_pos] === 'easy' ? 'bg-emerald-500/40 text-emerald-200' :
+                        _conf[_pos] === 'medium' ? 'bg-amber-500/40 text-amber-200' :
+                        'bg-red-500/40 text-red-200'}`}>
+                        {_conf[_pos] === 'easy' ? '✅ Easy' : _conf[_pos] === 'medium' ? '🟡 Med' : '🔴 Hard'}
+                      </span>
+                    )}
+                    {/* Shuffle */}
+                    <button onClick={_shuffle} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center active:scale-90 transition" title="Shuffle">
+                      <Shuffle size={14} />
+                    </button>
+                    {/* Restart */}
+                    <button onClick={_restart} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center active:scale-90 transition" title="Restart">
+                      <RotateCcw size={14} />
+                    </button>
+                  </div>
+
+                  {/* Mode switch buttons */}
+                  <div className="shrink-0 px-4 pb-3">
+                    <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-1 grid grid-cols-3 gap-1">
+                      <button onClick={() => setLucentActiveTab('MCQS')}
+                        className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-transparent text-white/70 hover:bg-white/15 active:scale-95">
+                        📝 MCQ
+                      </button>
+                      <button onClick={() => setLucentActiveTab('QA')}
+                        className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-transparent text-white/70 hover:bg-white/15 active:scale-95">
+                        💬 Q&amp;A
+                      </button>
+                      <button
+                        className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-white text-purple-700 shadow-sm">
+                        🃏 Flashcard
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Flip card area */}
+                  <div className="flex-1 px-4 flex flex-col justify-center gap-4 overflow-y-auto py-2">
+                    <div className="w-full max-w-md mx-auto" style={{ perspective: '1200px' }}>
+                      <div
+                        className="relative w-full transition-transform duration-500"
+                        style={{ transformStyle: 'preserve-3d', transform: _flipped ? 'rotateY(180deg)' : 'rotateY(0deg)', minHeight: '260px' }}
+                      >
+                        {/* FRONT — Question */}
+                        <div className="absolute inset-0 bg-white rounded-3xl shadow-2xl p-5 flex flex-col"
+                          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                              Q {_pos + 1}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">{_total} cards</span>
+                          </div>
+                          <p className="text-base font-black text-slate-800 leading-snug flex-1 mb-4">
+                            {_card?.question || ''}
+                          </p>
+                          <button
+                            onClick={() => _setFcSt({ flipped: true })}
+                            className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
+                            style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)' }}
+                          >
+                            Answer Dekho <ChevronRight size={16} />
+                          </button>
+                        </div>
+
+                        {/* BACK — Answer */}
+                        <div className="absolute inset-0 bg-emerald-50 border-2 border-emerald-300 rounded-3xl shadow-2xl p-5 flex flex-col overflow-y-auto"
+                          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                              Sahi Jawab
+                            </span>
+                            <button onClick={() => _setFcSt({ flipped: false })}
+                              className="bg-white border border-slate-200 text-slate-600 text-[10px] font-black px-2.5 py-1.5 rounded-lg active:scale-95">
+                              ← Question
+                            </button>
+                          </div>
+                          <div className="bg-white border-2 border-emerald-300 rounded-2xl p-4 mb-3">
+                            <p className="text-base font-black text-emerald-900 leading-snug">
+                              {_card?.options?.[_card?.correctAnswer] || '—'}
+                            </p>
+                          </div>
+                          {_card?.explanation && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-2">
+                              <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider mb-1">Explanation</p>
+                              <p className="text-sm text-blue-900 leading-relaxed">{_card.explanation}</p>
+                            </div>
+                          )}
+                          {/* Confidence buttons */}
+                          <div className="mt-3 pt-3 border-t border-emerald-200">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
+                              Kitna mushkil laga?
+                            </p>
+                            {_conf[_pos] ? (
+                              <div className={`text-center py-2 rounded-xl font-black text-sm ${
+                                _conf[_pos] === 'easy' ? 'bg-emerald-100 text-emerald-700' :
+                                _conf[_pos] === 'medium' ? 'bg-amber-100 text-amber-700' :
+                                'bg-red-100 text-red-700'}`}>
+                                {_conf[_pos] === 'easy' ? '✅ Easy — Aage badho!' :
+                                 _conf[_pos] === 'medium' ? '🟡 Medium — Thoda aur practice' :
+                                 '🔴 Hard — Dobara aana padega!'}
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-3 gap-2">
+                                <button onClick={() => _handleConf('easy')}
+                                  className="py-2.5 rounded-xl bg-emerald-500 text-white font-black text-xs active:scale-95 transition shadow-md flex flex-col items-center gap-0.5">
+                                  <span className="text-base">✅</span><span>Easy</span>
+                                </button>
+                                <button onClick={() => _handleConf('medium')}
+                                  className="py-2.5 rounded-xl bg-amber-500 text-white font-black text-xs active:scale-95 transition shadow-md flex flex-col items-center gap-0.5">
+                                  <span className="text-base">🟡</span><span>Medium</span>
+                                </button>
+                                <button onClick={() => _handleConf('hard')}
+                                  className="py-2.5 rounded-xl bg-red-500 text-white font-black text-xs active:scale-95 transition shadow-md flex flex-col items-center gap-0.5">
+                                  <span className="text-base">🔴</span><span>Hard</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Navigation buttons */}
+                    <div className="flex items-center gap-3 w-full max-w-md mx-auto">
+                      <button
+                        disabled={_pos === 0}
+                        onClick={_goPrev}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all ${
+                          _pos === 0 ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-white/20 text-white hover:bg-white/30 active:scale-95'}`}>
+                        <ChevronRight size={16} className="rotate-180" /> Back
+                      </button>
+                      <button
+                        onClick={_pos >= _total - 1 ? _restart : _goNext}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-black text-sm active:scale-95 transition shadow-lg bg-white text-indigo-900 hover:bg-white/90">
+                        {_pos >= _total - 1 ? (<><RotateCcw size={14} /> Restart</>) : (<>Next <ChevronRight size={16} /></>)}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -19126,7 +19542,7 @@ RULES:
 
             {/* AUDIO TAB CONTENT */}
             {lucentActiveTab === 'AUDIO' && (currentPage as any)?.audioUrl && (
-              <div className="flex-1 overflow-y-auto pb-[72px] px-4 pt-6 flex flex-col gap-4">
+              <div className="flex-1 overflow-y-auto px-4 pt-6 flex flex-col gap-4">
                 <div className="rounded-2xl bg-purple-50 border border-purple-200 p-5 flex flex-col items-center gap-4 shadow-sm">
                   <div className="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center shadow-lg">
                     <span className="text-2xl">🎵</span>
@@ -19176,7 +19592,7 @@ RULES:
 
             {/* PDF TAB CONTENT */}
             {lucentActiveTab === 'PDF' && (currentPage as any)?.pdfUrl && (
-              <div className={`flex-1 overflow-hidden flex flex-col ${(lucentImmersive || isLandscape) ? '' : 'pb-[72px] pt-2 px-3 gap-2'}`}>
+              <div className={`flex-1 overflow-hidden flex flex-col ${(lucentImmersive || isLandscape) ? '' : 'pt-2 px-3 gap-2'}`}>
                 <div className={`flex-1 overflow-hidden bg-white relative ${lucentImmersive ? '' : 'rounded-2xl border border-blue-200 shadow-lg'}`}>
                   <div
                     style={{
@@ -19185,17 +19601,7 @@ RULES:
                         : lucentPdfNight === 'sepia'
                         ? 'sepia(0.8) brightness(0.9) contrast(0.9)'
                         : 'none',
-                      ...(lucentPdfRotated
-                        ? {
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            width: '100vh',
-                            height: '100vw',
-                            transform: 'translate(-50%, -50%) rotate(90deg)',
-                            transformOrigin: 'center center',
-                          }
-                        : { position: 'absolute', inset: 0, width: '100%', height: '100%' }),
+                      position: 'absolute', inset: 0, width: '100%', height: '100%',
                     }}
                   >
                     <iframe
@@ -19222,35 +19628,13 @@ RULES:
               </div>
             )}
 
-            {/* Fixed bottom nav — at first/last page, Prev/Next jump to
-                previous / next Lucent lesson automatically. */}
-            <div className={`fixed bottom-0 left-0 right-0 z-[210] pb-safe border-t border-slate-100 bg-white px-4 py-3 flex items-center gap-3 ${(isLandscapeUiHidden || lucentImmersive || isLandscape) ? 'hidden' : ''}`}>
-              <button onClick={() => { stopSpeech(); goPrev(); }} disabled={!canGoPrev}
-                title={safeIndex <= 0 && prevLesson ? `Previous lesson: ${prevLesson.lessonTitle}` : 'Previous page'}
-                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                <ChevronRight size={16} className="rotate-180" />
-                {safeIndex <= 0 && prevLesson ? 'Prev Lesson' : 'Prev'}
-              </button>
-              <select value={safeIndex} onChange={e => { stopSpeech(); setLucentPageIndex(parseInt(e.target.value, 10)); }}
-                className="px-3 py-3 border-2 border-slate-200 rounded-2xl text-sm font-bold bg-white outline-none focus:border-indigo-400">
-                {entry.pages.map((p, idx) => (
-                  <option key={p.id} value={idx}>Pg {p.pageNo}</option>
-                ))}
-              </select>
-              <button onClick={() => { stopSpeech(); goNext(); }} disabled={!canGoNext}
-                title={safeIndex >= totalPages - 1 && nextLesson ? `Next lesson: ${nextLesson.lessonTitle}` : 'Next page'}
-                className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm bg-indigo-600 text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                {safeIndex >= totalPages - 1 && nextLesson ? 'Next Lesson' : 'Next'}
-                <ChevronRight size={16} />
-              </button>
-            </div>
 
           </div>
           {/* Lucent FAB — hidden in video tab (IIC×NSTA button handles it there) */}
           {lucentActiveTab !== 'VIDEO' && <button
             onClick={() => { setLucentImmersive(v => !v); }}
             className={`fixed z-[9999] w-12 h-12 rounded-full shadow-xl flex flex-col items-center justify-center text-white transition-all overflow-hidden border-2 ${lucentImmersive ? 'bg-indigo-700 border-indigo-400' : 'bg-[rgba(15,23,42,0.88)] border-white/40'}`}
-            style={{ backdropFilter: 'blur(10px)', bottom: (lucentImmersive || isLandscape) ? '16px' : '72px', right: '16px' }}
+            style={{ backdropFilter: 'blur(10px)', bottom: '16px', right: '16px' }}
             title={lucentImmersive ? 'Exit Focus Mode' : 'Focus Mode'}
           >
             {lucentImmersive ? (
@@ -19275,13 +19659,34 @@ RULES:
         <RevisionHubScreen
           user={user}
           settings={settings}
-          onBack={() => setShowRevisionHubScreen(false)}
+          onBack={() => { setShowRevisionHubScreen(false); setRoutineRevisionDiscountLessonId(null); }}
           onTabChange={onTabChange}
           onNavigateContent={(type, chapterId, topicName, subjectName) => {
             setShowRevisionHubScreen(false);
           }}
           onUpdateUser={handleUserUpdate}
-          onBeforeMcqOpen={(confirm) => showCoinGate(100, 'Revision Hub MCQ Session', confirm)}
+          onBeforeMcqOpen={(confirm) => {
+            // Routine reward: one-time 50% OFF Revision Hub session for the completed lesson.
+            if (routineRevisionDiscountLessonId) {
+              const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+              if (_isAdm) { setRoutineRevisionDiscountLessonId(null); confirm(); return; }
+              const discCost = 50;
+              const total = getTotalCredits(user);
+              if (total < discCost) {
+                showAlert(`⚠️ Coins kam hain! ${discCost} CR chahiye, aapke paas sirf ${total} CR hai.`, 'INFO');
+                return;
+              }
+              setCoinGate({
+                cost: discCost,
+                originalCost: 100,
+                discountPct: 50,
+                reason: 'Revision Hub MCQ Session (Routine 50% OFF)',
+                action: () => { setRoutineRevisionDiscountLessonId(null); confirm(); },
+              });
+              return;
+            }
+            showCoinGate(100, 'Revision Hub MCQ Session', confirm);
+          }}
           onMcqAnswer={trackDailyMcqAnswer}
           onSendToMcqCommunity={(draft) => { setMcqCommunityDraft(draft); setShowMcqCommunityPopup(true); }}
         />
@@ -19339,34 +19744,23 @@ RULES:
           });
         };
 
-        // "Ignore Routine and Start" — coin gate with FULL price (no routine discount)
+        // "Ignore Routine and Start" — skip the My Routine gate for this lesson
+        // and show the page menu (same as tapping the lesson normally), so the
+        // student picks a page/mode instead of being dropped straight into page 1.
+        // The normal per-page coin gate (full price, no routine discount) still
+        // applies once they pick a page.
         const _openIgnoreRoutine = () => {
-          setRoutineGate(null);
           const _entry = routineGate.entry;
-          const _pi    = routineGate.pageIdx;
-          const isAdm  = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { setLucentNoteViewer(_entry); setLucentPageIndex(_pi); return; }
-          // Check permanent page unlock (same key as normal reading)
-          const _pgKey = `nst_pg_r_${user.id}_${_entry.id}_${_pi}`;
-          if (localStorage.getItem(_pgKey) === '1') {
-            setLucentNoteViewer(_entry); setLucentPageIndex(_pi); return;
+          setRoutineGate(null);
+          setRoutineIgnoredEntryIds(prev => new Set(prev).add(_entry.id));
+          const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+          if (isAdm) { setLucentNoteViewer(_entry); setLucentPageIndex(routineGate.pageIdx); return; }
+          if (_entry.mcqOnly) {
+            lucentInitialTabRef.current = { tab: 'MCQS' };
+            tryOpenLucentNote(_entry, 0);
+          } else {
+            setLucentPageListViewer(_entry);
           }
-          // Force full price (no discount) — user is ignoring routine
-          const BASE = 20;
-          const balance = getTotalCredits(user);
-          if (balance < BASE) {
-            showAlert(`⚠️ Coins kam hain! ${BASE} CR chahiye, aapke paas sirf ${balance} CR hai.`, 'INFO');
-            return;
-          }
-          setCoinGate({
-            cost: BASE, originalCost: BASE, discountPct: 0,
-            reason: 'Reading Mode',
-            action: () => {
-              try { localStorage.setItem(_pgKey, '1'); } catch {}
-              setLucentNoteViewer(_entry);
-              setLucentPageIndex(_pi);
-            },
-          });
         };
 
         return (
@@ -19506,6 +19900,11 @@ RULES:
           lucentNotes={(settings?.lucentNotes || []) as any[]}
           onBack={() => setShowMyRoutine(false)}
           onUserUpdate={handleUserUpdate}
+          onOpenRevisionHubDiscounted={(lessonId) => {
+            setRoutineRevisionDiscountLessonId(lessonId);
+            setShowMyRoutine(false);
+            setShowRevisionHubScreen(true);
+          }}
         />
       )}
 
@@ -20176,21 +20575,105 @@ RULES:
       )}
 
       {/* ===================== FLASHCARD MCQ OVERLAY (shared by Lucent + Homework) ===================== */}
-      {flashcardMcqs && (
-        <FlashcardMcqView
-          questions={flashcardMcqs.items}
-          title={flashcardMcqs.title}
-          subtitle={flashcardMcqs.subtitle}
-          subject={flashcardMcqs.subject}
-          onBack={() => setFlashcardMcqs(null)}
-          user={user}
-          settings={settings}
-          onUpdateUser={handleUserUpdate}
-          sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
-          sourceKey={flashcardMcqs.sourceKey}
-          startInProjectorMode={flashcardMcqs.startInProjectorMode}
-        />
-      )}
+      {flashcardMcqs && (() => {
+        const fl = flashcardMcqs.fromLesson;
+        const _tcls = (active: boolean, activeBg: string) =>
+          `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
+          ` ${active ? `${activeBg} text-white` : 'bg-white text-slate-500 active:bg-slate-50'}`;
+        const _ts = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
+        const tabBarNode = fl ? (
+          <div className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto bg-white" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
+            <div className="flex min-w-max">
+              <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
+                onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); }}>
+                Reading Mode
+              </button>
+              <button style={_ts} className={_tcls(false, 'bg-teal-600')}
+                onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('NOTES'); setLucentNotesViewMode('html'); }}>
+                Writing Mode
+              </button>
+              {fl.hasMcq && (
+                <button style={_ts} className={_tcls(false, 'bg-purple-600')}
+                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('MCQS'); }}>
+                  MCQ Practice
+                </button>
+              )}
+              {fl.hasMcq && fl.isAdmin && (
+                <button style={_ts}
+                  ref={el => { if (el && fl.activeMode === 'projector') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
+                  className={_tcls(fl.activeMode === 'projector', 'bg-amber-500')}
+                  onClick={() => {
+                    if (fl.activeMode !== 'projector') {
+                      setFlashcardMcqs(prev => prev ? {
+                        ...prev,
+                        startInProjectorMode: true,
+                        fromLesson: prev.fromLesson ? { ...prev.fromLesson, activeMode: 'projector' } : prev.fromLesson,
+                      } : null);
+                    }
+                  }}>
+                  📽️ Projector
+                </button>
+              )}
+              {fl.hasMcq && (
+                <button style={_ts}
+                  ref={el => { if (el && fl.activeMode === 'flashcard') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
+                  className={_tcls(fl.activeMode === 'flashcard', 'bg-amber-500')}
+                  onClick={() => {
+                    if (fl.activeMode !== 'flashcard') {
+                      setFlashcardMcqs(prev => prev ? {
+                        ...prev,
+                        startInProjectorMode: false,
+                        fromLesson: prev.fromLesson ? { ...prev.fromLesson, activeMode: 'flashcard' } : prev.fromLesson,
+                      } : null);
+                    }
+                  }}>
+                  🃏 Flashcard
+                </button>
+              )}
+              {fl.hasMcq && (
+                <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
+                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('QA'); }}>
+                  💬 Q&amp;A
+                </button>
+              )}
+              {fl.hasPdf && (
+                <button style={_ts} className={_tcls(false, 'bg-blue-600')}
+                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('PDF'); }}>
+                  PDF
+                </button>
+              )}
+              {fl.hasVideo && (
+                <button style={_ts} className={_tcls(false, 'bg-rose-600')}
+                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('VIDEO'); }}>
+                  Video
+                </button>
+              )}
+              {fl.hasAudio && (
+                <button style={_ts} className={_tcls(false, 'bg-violet-600')}
+                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('AUDIO'); }}>
+                  Audio
+                </button>
+              )}
+            </div>
+          </div>
+        ) : undefined;
+        return (
+          <FlashcardMcqView
+            questions={flashcardMcqs.items}
+            title={flashcardMcqs.title}
+            subtitle={flashcardMcqs.subtitle}
+            subject={flashcardMcqs.subject}
+            onBack={() => setFlashcardMcqs(null)}
+            user={user}
+            settings={settings}
+            onUpdateUser={handleUserUpdate}
+            sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
+            sourceKey={flashcardMcqs.sourceKey}
+            startInProjectorMode={flashcardMcqs.startInProjectorMode}
+            tabBar={tabBarNode}
+          />
+        );
+      })()}
 
       {/* ===================== STARRED NOTES PAGE (My Saved + Global tabs) ===================== */}
       {showStarredPage && (() => {
@@ -23519,6 +24002,17 @@ RULES:
         );
       })()}
 
+      {/* CUSTOM ALERT — powers showAlert() (e.g. "Coins kam hain!" when a coin
+          gate action can't proceed). Was previously tracked in state but never
+          rendered, so showAlert() calls were silent no-ops. */}
+      <CustomAlert
+        isOpen={alertConfig.isOpen}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={() => setAlertConfig(p => ({ ...p, isOpen: false }))}
+      />
+
       {confirmDialog?.isOpen && (() => {
         const _isThemeConfirm = confirmDialog.message.startsWith('__THEME_CONFIRM__');
         if (_isThemeConfirm) {
@@ -23597,106 +24091,283 @@ RULES:
         );
       })()}
 
-      {/* ── COIN GATE POPUP ── Full-screen confirm before any coin spend ── */}
+      {/* ── COIN GATE POPUP ── Premium full-screen confirm ── */}
       {coinGate && (() => {
         const balance = getTotalCredits(user);
-        const { cost, originalCost, discountPct, reason, action, onCancel } = coinGate;
-        const dismissGate = () => { setCoinGate(null); onCancel?.(); };
-        const confirmGate = () => {
-          // Deduct coins
-          const _freshU = (window as any).__dashUserRef?.current ?? user;
-          const _updated = applyDeduction(_freshU, cost);
-          if (_updated) {
-            handleUserUpdate(_updated);
-            try { recordCreditTx(_freshU.id, cost, 'SPEND', reason, _updated.credits ?? 0); } catch {}
-          }
-          setCoinGate(null);
-          action();
-        };
+        const { cost, originalCost, discountPct, reason, action, onCancel, selectedBulk, bulkOption, pageInfo } = coinGate;
+        const isFree = cost === 0;
+        const hasPageInfo = !!pageInfo;
         const isDisc50 = discountPct === 50;
         const isDisc25 = discountPct === 25;
+        const discMult = isDisc50 ? 0.5 : isDisc25 ? 0.75 : 1;
+
+        // ── Page-mode panel: modes accessible to user that still need coins ──
+        const _lockableModes = hasPageInfo
+          ? (pageInfo!.availableModes || []).filter(m => m.isAccessible && !m.isUnlocked && m.cost > 0)
+          : [];
+        const _bulkModeCost = _lockableModes.reduce((s, m) => s + Math.max(1, Math.floor(m.cost * discMult)), 0);
+        const _hasMultiModes = _lockableModes.length > 1; // more than just the current mode
+
+        // ── Active cost/action based on selection ──
+        const activeCost = hasPageInfo
+          ? (selectedBulk ? _bulkModeCost : cost)
+          : (selectedBulk && bulkOption ? bulkOption.totalCost : cost);
+        const activeAction = hasPageInfo
+          ? (selectedBulk
+              ? () => { _lockableModes.forEach(m => { if (m.unlockAction) m.unlockAction(); }); action(); }
+              : action)
+          : (selectedBulk && bulkOption ? bulkOption.action : action);
+        const canAfford = balance >= activeCost;
+
+        const dismissGate = () => { setCoinGate(null); onCancel?.(); };
+        const confirmGate = () => {
+          if (!isFree) {
+            const _freshU = (window as any).__dashUserRef?.current ?? user;
+            const _updated = applyDeduction(_freshU, activeCost);
+            if (_updated) {
+              handleUserUpdate(_updated);
+              try { recordCreditTx(_freshU.id, activeCost, 'SPEND', reason + (selectedBulk ? ' (Bulk)' : ''), _updated.credits ?? 0); } catch {}
+            }
+          }
+          setCoinGate(null);
+          activeAction();
+        };
+
         const emojiMap: Record<string, string> = {
-          'Reading Mode': '📖',
-          'Writing Mode': '✍️',
-          'MCQ Session': '🧠',
-          'Next Page': '📖',
-          'Next Chapter': '📚',
-          'Revision Hub MCQ Session': '🏆',
+          'Reading Mode': '📖', 'Writing Mode': '✍️', 'MCQ Session': '🧠',
+          'Next Page': '📖', 'Next Chapter': '📚', 'Revision Hub MCQ Session': '🏆',
+          'Q&A Mode': '💬', 'MCQ Practice': '🧠', 'Flashcard': '🃏',
         };
         const emoji = emojiMap[reason] || '🪙';
+
         return (
         <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center px-5"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 z-[99999] flex items-center justify-center px-4"
+          style={{ background: 'rgba(4,4,22,0.9)', backdropFilter: 'blur(20px)' }}
           onClick={dismissGate}
         >
           <div
-            className="w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl"
+            className="w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl"
+            style={{ boxShadow: '0 32px 64px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 px-5 pt-6 pb-5 text-center">
-              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <span className="text-3xl">{emoji}</span>
+            {/* ── Header ── */}
+            <div className="cg-shimmer relative px-6 pt-7 pb-6 text-center"
+              style={{ background: 'linear-gradient(135deg,#3730a3 0%,#6d28d9 50%,#7c3aed 100%)' }}
+            >
+              <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle,rgba(255,255,255,0.12),transparent 70%)' }} />
+              <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle,rgba(255,255,255,0.07),transparent 70%)' }} />
+              <div className="relative w-[60px] h-[60px] rounded-2xl mx-auto mb-4 flex items-center justify-center z-10"
+                style={{ background: 'rgba(255,255,255,0.14)', border: '1.5px solid rgba(255,255,255,0.28)', backdropFilter: 'blur(8px)' }}
+              >
+                <span className="text-[28px] leading-none">{isFree ? '🎁' : emoji}</span>
               </div>
-              <h2 className="text-white font-black text-lg leading-tight">{reason}</h2>
-              <p className="text-white/70 text-xs mt-1">Pehle Coins confirm karo</p>
+              <h2 className="relative z-10 text-white font-black text-[22px] tracking-tight leading-tight">{reason}</h2>
+              <p className="relative z-10 text-white/60 text-[11px] mt-1.5 font-semibold uppercase tracking-[0.12em]">
+                {isFree ? 'First Time Free!' : 'Premium Content Unlock'}
+              </p>
+              {hasPageInfo && pageInfo!.pageLabel && (
+                <p className="relative z-10 text-white/45 text-[10px] mt-1 font-semibold">{pageInfo!.pageLabel}</p>
+              )}
             </div>
 
-            {/* Body */}
-            <div className="bg-white px-5 pt-4 pb-5 space-y-3">
-              {/* Cost display */}
-              <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Coins Lagenge</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-indigo-700 leading-none">{cost}</span>
-                    <span className="text-sm text-indigo-500 font-bold">CR</span>
-                    {(isDisc50 || isDisc25) && (
-                      <span className="text-xs text-slate-400 line-through font-bold">{originalCost}</span>
-                    )}
+            {/* ── Body ── */}
+            <div className="bg-white px-5 pt-5 pb-6">
+
+              {/* FREE */}
+              {isFree && (
+                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 text-center mb-4">
+                  <p className="text-5xl font-black text-emerald-600 leading-none mb-1.5">FREE</p>
+                  <p className="text-[12px] font-bold text-emerald-700">Q&amp;A tab pehli baar free milta hai 🎉</p>
+                </div>
+              )}
+
+              {/* ── NEW: Page-mode panel (Left = current mode, Right = all modes for this page) ── */}
+              {!isFree && hasPageInfo && (
+                <div className="flex gap-2 mb-4">
+                  {/* Left card: Sirf Yahi Mode */}
+                  <button type="button"
+                    onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: false } : null)}
+                    className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col min-h-[130px] ${!selectedBulk ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${!selectedBulk ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 bg-white'}`}>
+                        {!selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Yahi Mode</p>
+                    </div>
+                    <p className="text-[11px] font-black text-indigo-700 leading-tight mb-1 line-clamp-2">{reason}</p>
+                    <div className="mt-auto">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[22px] font-black text-indigo-700 leading-none">{cost}</span>
+                        <span className="text-[11px] font-bold text-indigo-400">CR</span>
+                        {(isDisc50 || isDisc25) && <span className="text-[10px] text-slate-400 line-through">{originalCost}</span>}
+                      </div>
+                      {isDisc50 && <p className="text-[8px] font-black text-emerald-600">🎉 50% off</p>}
+                      {isDisc25 && <p className="text-[8px] font-black text-amber-600">⚡ 25% off</p>}
+                      <p className="text-[9px] text-slate-400 font-semibold mt-0.5">{pageInfo!.pageLabel || '1 page'}</p>
+                    </div>
+                  </button>
+
+                  {/* Right card: Sabhi Modes (only shown when >1 accessible modes exist) */}
+                  {_hasMultiModes && (
+                    <button type="button"
+                      onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: true } : null)}
+                      className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col relative overflow-hidden min-h-[130px] ${selectedBulk ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                    >
+                      <div className="absolute top-2 right-2 bg-violet-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full z-10 leading-none">SABHI MODES</div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedBulk ? 'border-violet-500 bg-violet-500' : 'border-slate-300 bg-white'}`}>
+                          {selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Is Page ke liye</p>
+                      </div>
+                      {/* All modes list */}
+                      <div className="flex-1 space-y-0.5 overflow-y-auto max-h-[72px] mb-1.5 pr-0.5">
+                        {(pageInfo!.availableModes || []).map((m, i) => {
+                          const _alreadyUnlocked = m.isUnlocked && m.cost > 0;
+                          const _subLocked = !m.isAccessible;
+                          const _tierLabel = m.requiredTier === 'ultra' ? 'ULTRA' : m.requiredTier === 'basic' ? 'BASIC' : '';
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-1">
+                              <p className={`text-[9px] font-semibold truncate flex-1 leading-tight ${_subLocked ? 'text-slate-300' : _alreadyUnlocked ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                {m.emoji} {m.label}
+                              </p>
+                              {_alreadyUnlocked ? (
+                                <span className="text-[9px] font-black text-emerald-500 shrink-0">✓</span>
+                              ) : _subLocked ? (
+                                <span className="text-[8px] font-black text-slate-300 shrink-0 bg-slate-100 px-1 py-px rounded">🔒{_tierLabel}</span>
+                              ) : m.cost === 0 ? (
+                                <span className="text-[9px] font-black text-blue-400 shrink-0">Sub ✓</span>
+                              ) : (
+                                <span className="text-[9px] font-black text-slate-400 shrink-0">{Math.max(1, Math.floor(m.cost * discMult))} CR</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Total */}
+                      <div className="border-t border-slate-200/70 pt-1.5 mt-auto">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[22px] font-black text-violet-700 leading-none">{_bulkModeCost}</span>
+                          <span className="text-[11px] font-bold text-violet-400">CR</span>
+                        </div>
+                        <p className="text-[9px] font-black text-violet-600 leading-none">🔓 Sab accessible modes unlock</p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* ── OLD: Single option (no pageInfo, no bulk) — used for Revision Hub etc. ── */}
+              {!isFree && !hasPageInfo && !bulkOption && (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em] mb-1">Coins Lagenge</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[34px] font-black text-indigo-700 leading-none">{cost}</span>
+                      <span className="text-sm font-bold text-indigo-400">CR</span>
+                      {(isDisc50 || isDisc25) && <span className="text-xs text-slate-400 line-through font-bold">{originalCost}</span>}
+                    </div>
+                    {isDisc50 && <span className="inline-block mt-1 text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🎉 50% Routine Discount</span>}
+                    {isDisc25 && <span className="inline-block mt-1 text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⚡ 25% Routine Discount</span>}
                   </div>
-                  {isDisc50 && (
-                    <span className="inline-block mt-1 text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🎉 50% Routine Discount</span>
-                  )}
-                  {isDisc25 && (
-                    <span className="inline-block mt-1 text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⚡ 25% Routine Discount</span>
-                  )}
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 6px 16px -4px rgba(99,102,241,0.5)' }}>
+                    <span className="text-2xl">🪙</span>
+                  </div>
                 </div>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                  <span className="text-2xl">🪙</span>
+              )}
+
+              {/* ── OLD: Two options — single page + bulk pages (Next Page/Chapter gates) ── */}
+              {!isFree && !hasPageInfo && bulkOption && (
+                <div className="flex gap-2 mb-4">
+                  <button type="button"
+                    onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: false } : null)}
+                    className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col min-h-[130px] ${!selectedBulk ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${!selectedBulk ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300 bg-white'}`}>
+                        {!selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Yahi Page</p>
+                    </div>
+                    <p className="text-[11px] font-black text-indigo-700 leading-tight mb-1 line-clamp-2">{reason}</p>
+                    <div className="mt-auto">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[22px] font-black text-indigo-700 leading-none">{cost}</span>
+                        <span className="text-[11px] font-bold text-indigo-400">CR</span>
+                        {(isDisc50 || isDisc25) && <span className="text-[10px] text-slate-400 line-through">{originalCost}</span>}
+                      </div>
+                      {isDisc50 && <p className="text-[8px] font-black text-emerald-600">🎉 50% off</p>}
+                      {isDisc25 && <p className="text-[8px] font-black text-amber-600">⚡ 25% off</p>}
+                      <p className="text-[9px] text-slate-400 font-semibold mt-0.5">1 page</p>
+                    </div>
+                  </button>
+                  <button type="button"
+                    onClick={() => setCoinGate(prev => prev ? { ...prev, selectedBulk: true } : null)}
+                    className={`flex-1 p-3 rounded-2xl border-2 text-left transition-all active:scale-[0.97] flex flex-col relative overflow-hidden min-h-[130px] ${selectedBulk ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}
+                  >
+                    <div className="absolute top-2 right-2 bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full z-10 leading-none">20% OFF</div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedBulk ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 bg-white'}`}>
+                        {selectedBulk && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Saare Pages</p>
+                    </div>
+                    <div className="flex-1 space-y-0.5 overflow-y-auto max-h-[68px] mb-1.5 pr-0.5">
+                      {bulkOption.pages.map((pg, i) => (
+                        <div key={i} className="flex items-center justify-between gap-1">
+                          <p className="text-[9px] font-semibold text-slate-600 truncate flex-1 leading-tight">{pg.name}</p>
+                          <span className="text-[9px] font-black text-slate-400 shrink-0 leading-tight">{pg.cost} CR</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-slate-200/70 pt-1.5 mt-auto">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[22px] font-black text-emerald-700 leading-none">{bulkOption.totalCost}</span>
+                        <span className="text-[11px] font-bold text-emerald-500">CR</span>
+                        <span className="text-[10px] text-slate-400 line-through">{bulkOption.originalTotal}</span>
+                      </div>
+                      <p className="text-[9px] font-black text-emerald-600 leading-none">💰 Save {bulkOption.originalTotal - bulkOption.totalCost} CR</p>
+                    </div>
+                  </button>
                 </div>
-              </div>
+              )}
 
               {/* Balance row */}
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
-                <span className="text-xs font-bold text-slate-500">Aapka Balance</span>
-                <span className={`text-sm font-black ${balance >= cost ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {balance.toLocaleString('en-IN')} CR {balance >= cost ? '✓' : '✗'}
-                </span>
-              </div>
+              {!isFree && (
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl mb-3">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Balance</span>
+                  <span className={`text-sm font-black ${canAfford ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {balance.toLocaleString('en-IN')} CR {canAfford ? '✓' : '✗'}
+                  </span>
+                </div>
+              )}
 
-              {/* Permanent unlock note */}
-              <p className="text-center text-[10px] text-slate-400 font-semibold">
-                ✅ Ek baar unlock ho gaya — dobara free rahega
+              {/* Unlock note */}
+              <p className="text-center text-[10px] text-slate-400 font-semibold mb-4">
+                ✅ Ek baar unlock — dobara coins nahi lagenge
               </p>
 
               {/* Buttons */}
-              <div className="flex gap-2.5 pt-1">
-                <button
-                  onClick={dismissGate}
-                  className="flex-1 py-3.5 rounded-2xl font-black text-sm text-slate-600 border-2 border-slate-200 bg-white active:scale-95 transition-all"
+              <div className="flex gap-2.5">
+                {!isFree && (
+                  <button onClick={dismissGate}
+                    className="flex-1 py-4 rounded-2xl font-black text-sm text-slate-500 border-2 border-slate-200 bg-white active:scale-95 transition-all"
+                  >
+                    Nahi
+                  </button>
+                )}
+                <button onClick={confirmGate}
+                  disabled={!isFree && !canAfford}
+                  className={`cg-shimmer py-4 rounded-2xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${isFree ? 'flex-1' : 'flex-[2]'}`}
+                  style={{
+                    background: !isFree && !canAfford ? '#94a3b8' : isFree ? 'linear-gradient(135deg,#10b981,#0891b2)' : 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+                    boxShadow: (isFree || canAfford) ? '0 10px 28px -6px rgba(99,102,241,0.6)' : 'none',
+                  }}
                 >
-                  Nahi
-                </button>
-                <button
-                  onClick={confirmGate}
-                  disabled={balance < cost}
-                  className="flex-[2] py-3.5 rounded-2xl font-black text-sm text-white active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                  style={{ background: balance >= cost ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : '#94a3b8', boxShadow: balance >= cost ? '0 6px 20px -4px rgba(99,102,241,0.5)' : 'none' }}
-                >
-                  <span>🪙</span>
-                  {cost} CR — Kholo
+                  <span className="relative z-10">{isFree ? '🎁' : '🪙'}</span>
+                  <span className="relative z-10">{isFree ? 'Free mein Kholo!' : `${activeCost} CR — Unlock!`}</span>
                 </button>
               </div>
             </div>
@@ -23893,42 +24564,27 @@ RULES:
         </div>
       )}
 
-      {/* CREDIT TOAST — slim top banner, auto-dismiss */}
+      {/* CREDIT TOAST — minimal floating pill, no background */}
       {creditDeductToast?.visible && (() => {
         const isAdd = creditDeductToast.type === 'ADD';
-        const barBg = isAdd
-          ? 'linear-gradient(90deg,#059669,#10b981,#34d399)'
-          : 'linear-gradient(90deg,#dc2626,#f97316,#fbbf24)';
-        const borderColor = isAdd ? '#10b981' : '#f97316';
         const sign = isAdd ? '+' : '−';
-        const label = isAdd ? '🪙 Coins Mile' : '🪙 Coins Kate';
         return (
-        <div
-          className="fixed top-0 left-0 right-0 z-[99999] animate-in slide-in-from-top-2 fade-in duration-300 pointer-events-none"
-          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-        >
           <div
-            className="mx-3 mt-2 rounded-2xl shadow-xl overflow-hidden border"
-            style={{ background: '#111', borderColor }}
+            className="fixed z-[99999] pointer-events-none animate-in slide-in-from-right-4 fade-in duration-200"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)', right: 12 }}
           >
-            {/* Progress bar */}
-            <div className="h-0.5 w-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-              <div className="h-full" style={{ background: barBg, animation: 'credit-toast-bar 2.5s linear forwards' }} />
-            </div>
-            {/* Content row */}
-            <div className="flex items-center gap-3 px-4 py-2.5">
-              <span className="text-base shrink-0">{isAdd ? '✅' : '💸'}</span>
-              <span className="text-white font-black text-xs tracking-wide flex-1">{label}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`font-black text-sm ${isAdd ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {sign}{creditDeductToast.deducted.toLocaleString('en-IN')} CR
-                </span>
-                <span className="text-slate-500 text-xs">→</span>
-                <span className="text-white font-bold text-xs">{creditDeductToast.current.toLocaleString('en-IN')}</span>
-              </div>
-            </div>
+            <span
+              style={{
+                color: isAdd ? '#10b981' : '#f97316',
+                fontWeight: 900,
+                fontSize: 15,
+                letterSpacing: '-0.01em',
+                textShadow: '0 1px 4px rgba(0,0,0,0.45)',
+              }}
+            >
+              {sign}{creditDeductToast.deducted}🪙
+            </span>
           </div>
-        </div>
         );
       })()}
 
