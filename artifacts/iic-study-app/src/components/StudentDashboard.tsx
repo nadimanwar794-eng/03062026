@@ -18594,25 +18594,43 @@ export const StudentDashboard: React.FC<Props> = ({
                   {lucentScoreTooltip && (() => {
                     const _isWrite = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
                     const _isRead  = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk';
-                    const _rewardLine =
-                      lucentActiveTab === 'MCQS' || lucentActiveTab === 'FLASHCARD' ? '✅ Sahi jawab pe +pts milega!' :
-                      lucentCountdown > 0 ? (
-                        lucentActiveTab === 'VIDEO'  ? `⏱ ${lucentCountdown}s → +1 pt` :
-                        lucentActiveTab === 'AUDIO'  ? `⏱ ${lucentCountdown}s → +6 pts` :
-                        _isRead                      ? `⏱ ${lucentCountdown}s → +5 pts` :
-                        _isWrite                     ? `⏱ ${lucentCountdown}s → +10 🪙` :
-                                                       `⏱ ${lucentCountdown}s → +10 🪙`
-                      ) : (
-                        lucentActiveTab === 'QA' || lucentActiveTab === 'PDF' || _isWrite
-                          ? '🎉 +10 🪙 milenge ab!' : '🎉 +pts milenge ab!'
-                      );
-                    const _protLine =
-                      (_isWrite || lucentActiveTab === 'PDF') ? '📜 Scroll 5% zaroori har 1 min' :
-                      lucentActiveTab === 'QA'               ? '📜 Scroll 5% zaroori har 30s'   : null;
+                    const _sessionScore = Math.max(0, (user?.totalScore || 0) - lucentOpenScore);
+                    const _modeIcon =
+                      _isWrite ? '✍️' : lucentActiveTab === 'PDF' ? '📄' :
+                      lucentActiveTab === 'VIDEO' ? '🎬' : lucentActiveTab === 'QA' ? '💬' :
+                      lucentActiveTab === 'MCQS' ? '📝' : lucentActiveTab === 'FLASHCARD' ? '🃏' : '📖';
+                    const _modeLabel =
+                      _isWrite ? 'Writing Score' : lucentActiveTab === 'PDF' ? 'PDF Score' :
+                      lucentActiveTab === 'VIDEO' ? 'Video Score' : lucentActiveTab === 'QA' ? 'Q&A Score' :
+                      lucentActiveTab === 'MCQS' ? 'MCQ Score' : lucentActiveTab === 'FLASHCARD' ? 'Flashcard Score' : 'Reading Score';
+                    const _accentColor =
+                      _isWrite ? '#10b981' : lucentActiveTab === 'MCQS' || lucentActiveTab === 'FLASHCARD' ? '#8b5cf6' :
+                      lucentActiveTab === 'VIDEO' ? '#6366f1' : '#16a34a';
+                    const _nextText =
+                      lucentActiveTab === 'MCQS' || lucentActiveTab === 'FLASHCARD' ? 'Sahi jawab pe!' :
+                      lucentCountdown > 0 ? `in ${lucentCountdown}s` : 'Milenge ab!';
+                    const _showProgress = !['MCQS','FLASHCARD'].includes(lucentActiveTab);
                     return (
-                      <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: '11px', fontWeight: 700, zIndex: 100, boxShadow: '0 2px 10px rgba(0,0,0,0.3)', lineHeight: 1.6, minWidth: 180 }}>
-                        <div>{_rewardLine}</div>
-                        {_protLine && <div style={{ fontSize: '9.5px', opacity: 0.75, marginTop: 2 }}>{_protLine}</div>}
+                      <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.2)', borderTop: `2px solid ${_accentColor}`, borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 4px 20px rgba(99,102,241,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260 }}>
+                        <span style={{ fontSize: 14, flexShrink: 0 }}>{_modeIcon}</span>
+                        <span style={{ fontSize: 10, fontWeight: 900, color: _accentColor, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{_modeLabel}</span>
+                        <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+                          <span style={{ fontSize: 13, fontWeight: 900, color: _accentColor, lineHeight: 1.2 }}>+{_sessionScore}</span>
+                        </div>
+                        <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
+                          <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{_showProgress ? `${Math.round(lucentScrollProgress)}%` : '--'}</span>
+                        </div>
+                        <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+                          <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>{_nextText}</span>
+                        </div>
+                        <div style={{ flex: 1 }} />
+                        <button onClick={() => setLucentScoreTooltip(false)} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
                       </div>
                     );
                   })()}
