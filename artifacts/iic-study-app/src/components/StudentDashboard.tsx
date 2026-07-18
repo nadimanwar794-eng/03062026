@@ -24684,22 +24684,68 @@ RULES:
       {creditDeductToast?.visible && (() => {
         const isAdd = creditDeductToast.type === 'ADD';
         const sign = isAdd ? '+' : '−';
+        const deltaColor = isAdd ? '#34d399' : '#fb923c';
+        const appName = settings?.appShortName || settings?.appName || 'IIC';
         return (
           <div
-            className="fixed z-[99999] pointer-events-none animate-in slide-in-from-right-4 fade-in duration-200"
-            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)', right: 12 }}
+            className="fixed left-0 right-0 z-[99999] pointer-events-none animate-in slide-in-from-top duration-300"
+            style={{ top: 0, background: tierTheme.topBarGrad }}
           >
-            <span
-              style={{
-                color: isAdd ? '#10b981' : '#f97316',
-                fontWeight: 900,
-                fontSize: 15,
-                letterSpacing: '-0.01em',
-                textShadow: '0 1px 4px rgba(0,0,0,0.45)',
-              }}
-            >
-              {sign}{creditDeductToast.deducted}🪙
-            </span>
+            {/* Safe area spacer */}
+            <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+
+            {/* Top bar row — same layout as real top bar */}
+            <div className="flex items-center justify-between px-3 py-2 gap-3">
+
+              {/* LEFT: logo + app name */}
+              <div className="flex items-center gap-2 shrink-0">
+                {settings?.appLogo ? (
+                  <img src={settings.appLogo} alt="Logo"
+                    className="w-7 h-7 rounded-full object-cover border-2 shrink-0"
+                    style={{ borderColor: 'rgba(255,255,255,0.5)' }} />
+                ) : (
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.5)' }}>
+                    <BrainCircuit size={14} className="text-white" />
+                  </div>
+                )}
+                <span className="font-black text-[17px] leading-tight tracking-tight uppercase text-white">
+                  {appName}
+                </span>
+              </div>
+
+              {/* RIGHT: credit change pill */}
+              <div className="flex items-center gap-1.5 rounded-full px-3 py-1 shrink-0"
+                style={{ background: 'rgba(0,0,0,0.25)' }}>
+                {/* Previous */}
+                <span className="text-[12px] font-bold tabular-nums"
+                  style={{ color: 'rgba(255,255,255,0.6)' }}>
+                  {creditDeductToast.previous.toLocaleString('en-IN')}🪙
+                </span>
+                {/* Arrow */}
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>→</span>
+                {/* Delta */}
+                <span className="text-[13px] font-black tabular-nums"
+                  style={{ color: deltaColor }}>
+                  {sign}{creditDeductToast.deducted}
+                </span>
+                {/* Equals */}
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>=</span>
+                {/* New total */}
+                <span className="text-[13px] font-black tabular-nums text-white">
+                  {creditDeductToast.current.toLocaleString('en-IN')}🪙
+                </span>
+              </div>
+            </div>
+
+            {/* Auto-dismiss progress bar */}
+            <div className="h-[2px] relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
+              <div className="h-full absolute left-0 top-0"
+                style={{
+                  background: deltaColor,
+                  animation: 'credit-toast-bar 2000ms linear forwards',
+                }} />
+            </div>
           </div>
         );
       })()}
