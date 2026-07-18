@@ -2712,6 +2712,21 @@ export const StudentDashboard: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentNoteViewer?.id]);
 
+  // Score chip for lesson slim bar — tracks pts earned since this lesson was opened.
+  // IMPORTANT: these must be declared BEFORE the useEffects below that reference them
+  // in dependency arrays. In production Rollup bundles, const declarations that appear
+  // after a useEffect which lists them in its deps array cause a TDZ crash
+  // ("Cannot access 'X' before initialization") because the dep array is evaluated
+  // at render time, before the later const declaration runs.
+  const [lucentOpenScore, setLucentOpenScore] = useState(0);
+  const [lucentScoreTooltip, setLucentScoreTooltip] = useState(false);
+  const [lucentCountdown, setLucentCountdown] = useState(0);
+  const lucentLastScoreTimeRef = useRef<number>(Date.now());
+  const lucentCountdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
+  // 'html' = styled HTML view (write mode), 'chunk' = ChunkedNotesReader tappable lines (read mode)
+  const [lucentNotesViewMode, setLucentNotesViewMode] = useState<'html' | 'chunk'>('chunk');
+
   // Track when pts were last earned (for live countdown tooltip)
   useEffect(() => {
     lucentLastScoreTimeRef.current = Date.now();
@@ -2733,18 +2748,6 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentNoteViewer?.id, lucentActiveTab, lucentNotesViewMode]);
-
-  // Score chip for lesson slim bar — tracks pts earned since this lesson was opened
-  const [lucentOpenScore, setLucentOpenScore] = useState(0);
-  const [lucentScoreTooltip, setLucentScoreTooltip] = useState(false);
-  const [lucentCountdown, setLucentCountdown] = useState(0);
-  const lucentLastScoreTimeRef = useRef<number>(Date.now());
-  const lucentCountdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // -- Declared here (before scoring useEffect) to avoid TDZ error in production build --
-  const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
-  // 'html' = styled HTML view (write mode), 'chunk' = ChunkedNotesReader tappable lines (read mode)
-  const [lucentNotesViewMode, setLucentNotesViewMode] = useState<'html' | 'chunk'>('chunk');
 
   // Time-based scoring for Lucent viewer — mode-aware:
   //   • NOTES + chunk mode → ChunkedNotesReader handles internally (READ_ACTIVE_30S + TTS). NOT here.
