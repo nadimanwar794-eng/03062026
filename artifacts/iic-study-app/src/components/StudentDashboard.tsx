@@ -5979,6 +5979,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       _tt?.socialScienceLessonId,
                       ...(_tt?.otherTasks || []).map((t: any) => t.lessonId),
                     ].filter(Boolean));
+                    // No task set for today → no lock (nothing to complete yet)
+                    if (_todayIds.size === 0) return false;
                     return !_todayIds.has(entry.id);
                   } catch { return false; }
                 })();
