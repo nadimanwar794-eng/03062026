@@ -421,24 +421,28 @@ export const PdfViewer: React.FC<Props> = ({
               : '+0pts'}
           </span>
            {pdfScoreTooltip && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1.5px solid rgba(22,163,74,0.35)', borderRadius: 14, padding: '10px 13px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 6px 20px rgba(22,163,74,0.15)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                <span style={{ fontSize: 13 }}>📄</span>
-                <span style={{ fontSize: 9, fontWeight: 900, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>PDF Score</span>
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.2)', borderTopWidth: 2, borderTopColor: '#16a34a', borderTop: '2px solid #16a34a', borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 4px 20px rgba(22,163,74,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260 }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>📄</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>PDF Score</span>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>+{pdfScoreState ? pdfScoreState.totalSessionScore : 0}</span>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Score</div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: '#16a34a', lineHeight: 1.3 }}>+{pdfScoreState ? pdfScoreState.totalSessionScore : 0}</div>
-                </div>
-                <div style={{ width: 1, height: 24, background: '#bbf7d0' }} />
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Next</div>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.3 }}>
-                    {pdfScoreState && pdfScoreState.nextRewardInSec > 0 ? `in ${pdfScoreState.nextRewardInSec}s` : 'Padhte raho!'}
-                  </div>
-                </div>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{pdfScoreState ? `${Math.round(pdfScoreState.progressPercent ?? 0)}%` : '0%'}</span>
               </div>
+              <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+                <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
+                  {pdfScoreState && pdfScoreState.nextRewardInSec > 0 ? `in ${pdfScoreState.nextRewardInSec}s` : 'Padhte raho!'}
+                </span>
+              </div>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => setPdfScoreTooltip(false)} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
             </div>
           )}        </div>
 

@@ -146,71 +146,50 @@ export const ReadingScoreHUD: React.FC<Props> = ({
           <div
             style={{
               ...popupBase,
-              background:  'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
-              border:      `1.5px solid ${levelColor}55`,
-              padding:     '12px 14px',
-              minWidth:    200,
+              background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
+              borderTop: `2px solid ${levelColor}`,
+              border: `1.5px solid rgba(99,102,241,0.25)`,
+              borderTopWidth: 2,
+              borderTopColor: levelColor,
+              padding: '7px 12px',
+              minWidth: 270,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 20px rgba(99,102,241,0.15), inset 0 -1px 0 #c7d2fe',
             }}
           >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: 15 }}>{modeIcon}</span>
-              <span style={{ color: '#475569', fontSize: 10, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                Score Session
+            <span style={{ fontSize: 14, flexShrink: 0 }}>{modeIcon}</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: levelColor, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              Score Session
+            </span>
+            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: levelColor, lineHeight: 1.2 }}>+{state.totalSessionScore}</span>
+            </div>
+            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', lineHeight: 1.2 }}>{progress}%</span>
+            </div>
+            <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: state.isPermanentlyStopped || state.isPaused ? '#ef4444' : '#f59e0b', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                {state.isPermanentlyStopped ? 'Scroll karo' : state.isPaused ? 'Paused' : `in ${state.nextRewardInSec}s`}
               </span>
-              {state.isPaused && (
-                <span style={{ marginLeft: 'auto', background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99 }}>
-                  PAUSED
-                </span>
-              )}
             </div>
-
-            {/* Score + Progress row */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</div>
-                <div style={{ fontSize: 15, fontWeight: 900, color: levelColor, lineHeight: 1.3 }}>+{state.totalSessionScore}</div>
-              </div>
-              <div style={{ width: 1, background: '#e2e8f0' }} />
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Progress</div>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#16a34a', lineHeight: 1.3 }}>{progress}%</div>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{ width: '100%', height: 3, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
-              <div style={{ width: `${progress}%`, height: '100%', background: levelColor, borderRadius: 99, transition: 'width 0.5s ease' }} />
-            </div>
-
-            {/* Next reward + time left */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, alignItems: 'center' }}>
-              {state.isPermanentlyStopped ? (
-                <span style={{ color: '#ef4444', fontWeight: 700 }}>⛔ Scroll karo resume ke liye</span>
-              ) : !state.isPaused ? (
-                <span style={{ color: '#f59e0b', fontWeight: 900 }}>
-                  Next: +pts in {state.nextRewardInSec}s
-                </span>
-              ) : (
-                <span style={{ color: '#ef4444', fontWeight: 700 }}>Score paused</span>
-              )}
-              <span style={{ color: '#94a3b8', fontSize: 9 }}>{remMin}:{remSec} left</span>
-            </div>
-
-            {/* Credits earned this session */}
-            {isCreditMode && state.totalCreditsEarned > 0 && (
-              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <span style={{ color: '#64748b' }}>Credits earned</span>
-                <span style={{ color: '#16a34a', fontWeight: 900 }}>+{state.totalCreditsEarned} CR</span>
-              </div>
-            )}
-
-            {/* Level badge */}
-            {levelLabel && (
-              <div style={{ marginTop: 8, paddingTop: 7, borderTop: '1px solid #e2e8f0' }}>
-                <span style={{ color: levelColor, fontSize: 9, fontWeight: 800 }}>{levelLabel}</span>
-              </div>
-            )}
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => { clearTimer(); setPopup('none'); }}
+              style={{
+                background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+                borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0, pointerEvents: 'auto',
+              }}
+              aria-label="Dismiss"
+            >✕</button>
           </div>
         )}
 
