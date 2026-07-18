@@ -2696,8 +2696,9 @@ export const StudentDashboard: React.FC<Props> = ({
   useEffect(() => {
     const newId = lucentNoteViewer?.id ?? null;
     if (newId !== null && newId !== prevLucentIdRef.current) {
-      // New viewer opened — reset TTS accumulator
+      // New viewer opened — reset TTS accumulator and session score baseline
       lucentTtsSessionPtsRef.current = 0;
+      setLucentOpenScore(user?.totalScore || 0);
     }
     if (newId === null && prevLucentIdRef.current !== null) {
       // Viewer just closed — show TTS summary if anything was earned
@@ -2710,6 +2711,10 @@ export const StudentDashboard: React.FC<Props> = ({
     prevLucentIdRef.current = newId;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentNoteViewer?.id]);
+
+  // Score chip for lesson tab bar — tracks pts earned since this lesson was opened
+  const [lucentOpenScore, setLucentOpenScore] = useState(0);
+  const [lucentScoreTooltip, setLucentScoreTooltip] = useState(false);
 
   // -- Declared here (before scoring useEffect) to avoid TDZ error in production build --
   const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
@@ -18341,7 +18346,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 }
               };
               return (
-                <div ref={lucentTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
+                <div ref={lucentTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 flex items-stretch">
+                  <div className="flex-1 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
                   <div className="flex min-w-max">
                     <button data-tab-active={String(_isReadActive)} onClick={() => { stopSpeech(); setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); _save('NOTES', 'chunk'); }} style={_tabStyle} className={_tabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
                       Reading Mode
@@ -18427,6 +18433,20 @@ export const StudentDashboard: React.FC<Props> = ({
                         </button>
                       );
                     })()}
+                  </div>
+                  </div>
+                  {/* Session score chip — fixed on right, shows pts earned this lesson */}
+                  <div className="relative shrink-0 flex items-center px-2 bg-white border-l border-slate-100">
+                    <span
+                      onClick={() => { setLucentScoreTooltip(true); setTimeout(() => setLucentScoreTooltip(false), 2500); }}
+                      style={{ fontSize: '10px', fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      📖 {Math.max(0, (user?.totalScore || 0) - lucentOpenScore)}
+                    </span>
+                    {lucentScoreTooltip && (
+                      <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+                        {lucentActiveTab === 'VIDEO' || lucentActiveTab === 'AUDIO' ? '🎬 Play karo, milega!' : lucentActiveTab === 'MCQS' ? '✅ Sahi jawab pe milega!' : '⏱ Padhte raho, milega!'}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

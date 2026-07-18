@@ -208,6 +208,8 @@ export const LessonView: React.FC<Props> = ({
   const mcqSessionPtsRef = useRef(0);
   // Live MCQ pts accumulated this session (shown in MCQ top bar)
   const [mcqLivePts, setMcqLivePts] = useState(0);
+  // Live reading pts accumulated this session (shown in readable-mode notes chip)
+  const [readingLivePts, setReadingLivePts] = useState(0);
   // Score chip tooltip visibility
   const [writingScoreTooltip, setWritingScoreTooltip] = useState(false);
   const [videoScoreTooltip, setVideoScoreTooltip] = useState(false);
@@ -249,6 +251,10 @@ export const LessonView: React.FC<Props> = ({
     if (activity?.startsWith('VIDEO') || activity?.startsWith('video')) sessionVideoPtsRef.current += pts;
     else if (activity?.startsWith('AUDIO') || activity?.startsWith('audio')) sessionAudioPtsRef.current += pts;
     else sessionReadingPtsRef.current += pts;
+    // Update live reading chip for non-video/audio activities
+    if (!activity?.startsWith('VIDEO') && !activity?.startsWith('video') && !activity?.startsWith('AUDIO') && !activity?.startsWith('audio')) {
+      setReadingLivePts(prev => prev + pts);
+    }
 
     // Update totalScore immediately — reading/MCQ pts only
     const scoreUpdated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
@@ -1150,23 +1156,23 @@ export const LessonView: React.FC<Props> = ({
                           <div className="min-w-0 flex-1">
                               <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
                           </div>
-                          {/* Live score chip — Notes Maker styled mode */}
-                          {notesViewMode === 'styled' && (
-                              <div className="relative shrink-0" style={{ zIndex: 50 }}>
-                                  <span
-                                      onClick={() => { setWritingScoreTooltip(true); setTimeout(() => setWritingScoreTooltip(false), 2500); }}
-                                      style={{ fontSize: '10px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
-                                      📖 {writingHtmlScoreState?.totalSessionScore ?? 0}
-                                  </span>
-                                  {writingScoreTooltip && (
-                                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-                                          {writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0
+                          {/* Live score chip — both reading & writing modes */}
+                          <div className="relative shrink-0" style={{ zIndex: 50 }}>
+                              <span
+                                  onClick={() => { setWritingScoreTooltip(true); setTimeout(() => setWritingScoreTooltip(false), 2500); }}
+                                  style={{ fontSize: '10px', fontWeight: 900, color: notesViewMode === 'styled' ? '#10b981' : '#6366f1', background: notesViewMode === 'styled' ? 'rgba(16,185,129,0.12)' : 'rgba(99,102,241,0.12)', border: `1px solid ${notesViewMode === 'styled' ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)'}`, borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
+                                  📖 {notesViewMode === 'styled' ? (writingHtmlScoreState?.totalSessionScore ?? 0) : readingLivePts}
+                              </span>
+                              {writingScoreTooltip && (
+                                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
+                                      {notesViewMode === 'styled'
+                                          ? (writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0
                                               ? `⏱ ${writingHtmlScoreState.nextRewardInSec}s mein milega`
-                                              : '📖 Likhte raho, milega!'}
-                                      </div>
-                                  )}
-                              </div>
-                          )}
+                                              : '📖 Likhte raho, milega!')
+                                          : '⏱ 30s mein milega pts'}
+                                  </div>
+                              )}
+                          </div>
                           {/* Language pill */}
                           {!schoolMode && (
                               <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}

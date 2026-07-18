@@ -120,16 +120,19 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const handleRevealAnswer = () => {
     setFlipped(true);
     // Award +1 pts only the first time this card is revealed this session
-    if (!revealedPtsRef.current.has(pos) && user?.id && !isAdmin && onUpdateUser) {
+    if (!revealedPtsRef.current.has(pos)) {
       revealedPtsRef.current.add(pos);
-      const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_REVEAL');
-      if (pts > 0) {
-        sessionRevealPtsRef.current += pts;
-        setSessionScore(prev => prev + pts);
-        showMcqScore(pts);
-        const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
-        onUpdateUser(updated);
-        saveUserToLive(updated);
+      // Always update visual chip so everyone (including admin/test) sees it increment
+      setSessionScore(prev => prev + 1);
+      if (user?.id && !isAdmin && onUpdateUser) {
+        const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_REVEAL');
+        if (pts > 0) {
+          sessionRevealPtsRef.current += pts;
+          showMcqScore(pts);
+          const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
+          onUpdateUser(updated);
+          saveUserToLive(updated);
+        }
       }
     }
   };
