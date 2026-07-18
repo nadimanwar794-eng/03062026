@@ -1162,12 +1162,26 @@ export const LessonView: React.FC<Props> = ({
                                   📖 {notesViewMode === 'styled' ? (writingHtmlScoreState?.totalSessionScore ?? 0) : readingLivePts}
                               </span>
                               {writingScoreTooltip && (
-                                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-                                      {notesViewMode === 'styled'
-                                          ? (writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0
-                                              ? `⏱ ${writingHtmlScoreState.nextRewardInSec}s mein milega`
-                                              : '📖 Likhte raho, milega!')
-                                          : '⏱ 30s mein milega pts'}
+                                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1.5px solid rgba(16,185,129,0.35)', borderRadius: 14, padding: '10px 13px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 6px 20px rgba(16,185,129,0.15)', animation: 'rshud-slide 0.18s ease' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                                          <span style={{ fontSize: 13 }}>✍️</span>
+                                          <span style={{ fontSize: 9, fontWeight: 900, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Writing Score</span>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                          <div style={{ textAlign: 'center' }}>
+                                              <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Score</div>
+                                              <div style={{ fontSize: 14, fontWeight: 900, color: '#10b981', lineHeight: 1.3 }}>+{notesViewMode === 'styled' ? (writingHtmlScoreState?.totalSessionScore ?? 0) : readingLivePts}</div>
+                                          </div>
+                                          <div style={{ width: 1, height: 24, background: '#bbf7d0' }} />
+                                          <div style={{ textAlign: 'center' }}>
+                                              <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Next</div>
+                                              <div style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.3 }}>
+                                                  {notesViewMode === 'styled'
+                                                      ? (writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0 ? `in ${writingHtmlScoreState.nextRewardInSec}s` : 'Likhte raho!')
+                                                      : 'in 30s'}
+                                              </div>
+                                          </div>
+                                      </div>
                                   </div>
                               )}
                           </div>
@@ -1388,10 +1402,24 @@ export const LessonView: React.FC<Props> = ({
                             📖 {mediaScoreState.totalSessionScore}
                           </span>
                           {videoScoreTooltip && (
-                            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-                              {mediaScoreState.nextRewardInSec > 0
-                                ? `⏱ ${mediaScoreState.nextRewardInSec}s mein milega`
-                                : '📖 Video chalao, milega!'}
+                            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.35)', borderRadius: 14, padding: '10px 13px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 6px 20px rgba(99,102,241,0.15)', animation: 'rshud-slide 0.18s ease' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                                <span style={{ fontSize: 13 }}>🎬</span>
+                                <span style={{ fontSize: 9, fontWeight: 900, color: '#3730a3', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Video Score</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Score</div>
+                                  <div style={{ fontSize: 14, fontWeight: 900, color: '#6366f1', lineHeight: 1.3 }}>+{mediaScoreState.totalSessionScore}</div>
+                                </div>
+                                <div style={{ width: 1, height: 24, background: '#c7d2fe' }} />
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Next</div>
+                                  <div style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.3 }}>
+                                    {mediaScoreState.nextRewardInSec > 0 ? `in ${mediaScoreState.nextRewardInSec}s` : 'Video chalao!'}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2422,8 +2450,22 @@ export const LessonView: React.FC<Props> = ({
                                📖 {mcqLivePts}
                            </span>
                            {mcqScoreTooltip && (
-                               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-                                   ✅ Sahi jawab pe milega!
+                               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#f5f3ff,#ede9fe)', border: '1.5px solid rgba(139,92,246,0.35)', borderRadius: 14, padding: '10px 13px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 6px 20px rgba(139,92,246,0.15)' }}>
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                                       <span style={{ fontSize: 13 }}>📝</span>
+                                       <span style={{ fontSize: 9, fontWeight: 900, color: '#5b21b6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>MCQ Score</span>
+                                   </div>
+                                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                       <div style={{ textAlign: 'center' }}>
+                                           <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Score</div>
+                                           <div style={{ fontSize: 14, fontWeight: 900, color: '#818cf8', lineHeight: 1.3 }}>+{mcqLivePts}</div>
+                                       </div>
+                                       <div style={{ width: 1, height: 24, background: '#ddd6fe' }} />
+                                       <div style={{ textAlign: 'center' }}>
+                                           <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Next</div>
+                                           <div style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.3 }}>Sahi jawab pe!</div>
+                                       </div>
+                                   </div>
                                </div>
                            )}
                        </div>

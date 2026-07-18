@@ -494,12 +494,25 @@ export const FlashcardMcqView: React.FC<Props> = ({
             style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
             📖 {sessionScore}
           </span>
-          {scoreTooltip && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-              📖 Card reveal pe milega!
+           {scoreTooltip && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1.5px solid rgba(22,163,74,0.35)', borderRadius: 14, padding: '10px 13px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 6px 20px rgba(22,163,74,0.15)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                <span style={{ fontSize: 13 }}>🃏</span>
+                <span style={{ fontSize: 9, fontWeight: 900, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Flashcard Score</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Score</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: '#16a34a', lineHeight: 1.3 }}>+{sessionScore}</div>
+                </div>
+                <div style={{ width: 1, height: 24, background: '#bbf7d0' }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Next</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.3 }}>Card reveal pe!</div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          )}        </div>
         <div className="bg-white/10 px-2.5 py-1 rounded-full shrink-0">
           <span className="text-[10px] font-black text-white/70">
             {getTodayCount(userId)}/{isAdmin ? '∞' : dailyLimit}

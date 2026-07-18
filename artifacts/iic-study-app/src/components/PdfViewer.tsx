@@ -420,14 +420,27 @@ export const PdfViewer: React.FC<Props> = ({
               ? `+${pdfScoreState.totalSessionScore}pts`
               : '+0pts'}
           </span>
-          {pdfScoreTooltip && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 5, background: '#1e293b', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: '10px', fontWeight: 700, whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
-              {pdfScoreState && pdfScoreState.nextRewardInSec > 0
-                ? `⏱ ${pdfScoreState.nextRewardInSec}s mein milega`
-                : '📖 Padhte raho, milega!'}
+           {pdfScoreTooltip && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1.5px solid rgba(22,163,74,0.35)', borderRadius: 14, padding: '10px 13px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 6px 20px rgba(22,163,74,0.15)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                <span style={{ fontSize: 13 }}>📄</span>
+                <span style={{ fontSize: 9, fontWeight: 900, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>PDF Score</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Score</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: '#16a34a', lineHeight: 1.3 }}>+{pdfScoreState ? pdfScoreState.totalSessionScore : 0}</div>
+                </div>
+                <div style={{ width: 1, height: 24, background: '#bbf7d0' }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: 1 }}>Next</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.3 }}>
+                    {pdfScoreState && pdfScoreState.nextRewardInSec > 0 ? `in ${pdfScoreState.nextRewardInSec}s` : 'Padhte raho!'}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          )}        </div>
 
         {/* Page counter */}
         <button
