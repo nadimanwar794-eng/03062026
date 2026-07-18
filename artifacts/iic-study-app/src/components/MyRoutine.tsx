@@ -859,7 +859,12 @@ function getAvailableSubjectSlots(notes: LucentEntry[]): Array<{
     });
   });
 
-  return [...defaults, ...Array.from(seen.values())];
+  // Default subjects (physics, chemistry, biology, history, geography, polity, economics)
+  // already shown under their own group — skip them from book/class groups to avoid duplicates.
+  const nonDefaultSeen = Array.from(seen.values()).filter(
+    item => defaultCounts[item.subjectId] === undefined
+  );
+  return [...defaults, ...nonDefaultSeen];
 }
 
 // ── Routine Setup Sheet (one-time: School/Competition → Class/Books, saved to data) ──
