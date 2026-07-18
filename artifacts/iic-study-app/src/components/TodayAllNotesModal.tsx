@@ -275,7 +275,7 @@ export const TodayAllNotesModal: React.FC<Props> = ({ dueNotes, user, onClose, o
             <div className="px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
               <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
               <div className="flex items-center gap-2 mb-1">
-                <CheckCheck size={20} className="text-indigo-600 shrink-0" />
+                <CheckCheck size={20} className="shrink-0" style={{ color: 'var(--nst-color-brand)' }} />
                 <h3 className="text-base font-black text-slate-800">Kya aapne revision kar liya?</h3>
               </div>
               <p className="text-xs text-slate-500 ml-7">
