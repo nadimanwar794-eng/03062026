@@ -63,7 +63,8 @@ export const HomeStatsToast: React.FC<HomeStatsToastProps> = ({
       style={{ pointerEvents: 'auto' }}
     >
       <div
-        className="rounded-2xl bg-white shadow-xl overflow-hidden border border-slate-100"
+        className="rounded-2xl bg-white shadow-xl overflow-hidden"
+        style={{ border: '1.5px solid var(--primary, #6366f1)', boxShadow: '0 4px 24px -4px color-mix(in srgb, var(--primary, #6366f1) 20%, transparent)' }}
       >
         {/* Header — chapter name + activity */}
         <div
