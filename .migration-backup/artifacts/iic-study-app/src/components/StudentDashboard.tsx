@@ -3234,13 +3234,25 @@ export const StudentDashboard: React.FC<Props> = ({
         const _today = new Date().toISOString().split('T')[0];
 
         // Midnight reset
+        const _lucentNotes = (settings?.lucentNotes || []) as any[];
         if (_rd.lastResetDate !== _today) {
           _rd = checkAndResetDaily(_rd);
           // Generate fresh daily task with real lesson IDs
-          const _lucentNotes = (settings?.lucentNotes || []) as any[];
           const _newTask = generateDailyTask(_rd, _lucentNotes);
           _rd = { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: _newTask } };
           saveRoutineData(_fu.id, _rd);
+        } else if (_lucentNotes.length > 0) {
+          // If task was generated before notes loaded (synthetic IDs), re-generate now with real IDs
+          const _isSyntheticId = (id?: string) => !!(id && id.includes('_lesson_'));
+          const _existingTask = _rd.dailyTasks[_today];
+          if (_existingTask &&
+              (_isSyntheticId(_existingTask.scienceLessonId) || _isSyntheticId(_existingTask.socialScienceLessonId))) {
+            const _rdWithoutToday = { ..._rd, dailyTasks: { ..._rd.dailyTasks } };
+            delete _rdWithoutToday.dailyTasks[_today];
+            const _newTask = generateDailyTask(_rdWithoutToday, _lucentNotes);
+            _rd = { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_today]: _newTask } };
+            saveRoutineData(_fu.id, _rd);
+          }
         }
 
         // Lesson-complete detection: check today's task lessons
@@ -3936,8 +3948,15 @@ export const StudentDashboard: React.FC<Props> = ({
         if (_subConf?.routineApplied && !routineIgnoredEntryIds.has(entry.id)) {
           const _todayStr = new Date().toISOString().split('T')[0];
           const _todayTask = _rg.dailyTasks?.[_todayStr];
-          const _isTodayLesson = _todayTask &&
+          // Primary check: match by real lesson ID
+          let _isTodayLesson = _todayTask &&
             (_todayTask.scienceLessonId === entry.id || _todayTask.socialScienceLessonId === entry.id);
+          // Fallback: if stored ID is synthetic (generated before notes loaded), match by subject
+          if (!_isTodayLesson && _todayTask) {
+            const _isSyn = (id?: string) => !!(id && id.includes('_lesson_'));
+            if (_isSyn(_todayTask.scienceLessonId) && _todayTask.scienceSubjectId === _subjectId) _isTodayLesson = true;
+            if (_isSyn(_todayTask.socialScienceLessonId) && _todayTask.socialScienceSubjectId === _subjectId) _isTodayLesson = true;
+          }
           if (!_isTodayLesson) {
             // Not today's assigned lesson → show routine gate
             setRoutineGate({ entry, pageIdx });
@@ -19703,7 +19722,15 @@ RULES:
         const _todayLessonId = _isScience ? _todayTask?.scienceLessonId : _todayTask?.socialScienceLessonId;
         const _isToday  = _todayLessonId === routineGate.entry.id;
         const _lucentNotes = (settings?.lucentNotes || []) as any[];
-        const _todayLesson = _todayLessonId ? _lucentNotes.find((n: any) => n.id === _todayLessonId) : null;
+        // Primary lookup by ID; if synthetic ID (before notes loaded), fallback by subject + lesson index
+        let _todayLesson = _todayLessonId ? _lucentNotes.find((n: any) => n.id === _todayLessonId) : null;
+        if (!_todayLesson && _subConf) {
+          const _isSyntheticId = (id?: string) => !!(id && id.includes('_lesson_'));
+          if (_isSyntheticId(_todayLessonId)) {
+            const _subjectNotes = _lucentNotes.filter((n: any) => (n.subject || '').toLowerCase().trim() === _subjectId);
+            _todayLesson = _subjectNotes[_subConf.currentLessonIndex] || _subjectNotes[0] || null;
+          }
+        }
 
         // Yesterday partial completion for discount calculation
         const _yestD = new Date(); _yestD.setDate(_yestD.getDate() - 1);
