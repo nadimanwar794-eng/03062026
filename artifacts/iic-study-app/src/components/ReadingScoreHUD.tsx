@@ -177,7 +177,11 @@ export const ReadingScoreHUD: React.FC<Props> = ({
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
               <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
               <span style={{ fontSize: 11, fontWeight: 900, color: state.isPermanentlyStopped || state.isPaused ? '#ef4444' : '#f59e0b', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
-                {state.isPermanentlyStopped ? 'Scroll karo' : state.isPaused ? 'Paused' : `in ${state.nextRewardInSec}s`}
+                {state.isPermanentlyStopped ? 'Scroll karo' : state.isPaused ? 'Paused' : (() => {
+                const pts = state.mode === 'writing' ? 10 : state.mode === 'video' ? 1 : 5;
+                const interval = state.mode === 'writing' ? 60 : state.mode === 'video' ? 6 : 30;
+                return `+${pts} in ${state.nextRewardInSec || interval}s`;
+              })()}
               </span>
             </div>
             <div style={{ flex: 1 }} />
