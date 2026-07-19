@@ -103,11 +103,10 @@ export const RevisionHubScreen: React.FC<Props> = ({
     return unsub;
   }, []);
 
-  // Only show MCQs authored directly in Revision Hub — exclude lessons that
-  // were auto-synced from Lucent / Class Notes entries (those have a
-  // sourceClassNotesId field and ids prefixed with "clsnotes_").
+  // Only show MCQs that have a topic name (lessonTitle) set — lessons without
+  // a title are considered incomplete/draft and should not appear in Revision Hub.
   const hubLessons = useMemo(
-    () => allLessons.filter(l => !l.sourceClassNotesId && !String(l.id || '').startsWith('clsnotes_')),
+    () => allLessons.filter(l => l.lessonTitle && String(l.lessonTitle).trim() !== ''),
     [allLessons],
   );
 
