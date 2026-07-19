@@ -133,9 +133,12 @@ export const RevisionHubScreen: React.FC<Props> = ({
   );
 
   // MCQs come from the selected lesson (new system) or fallback to legacy settings
-  const classMcqs: any[] = mcqSelectedLesson
+  // Exclude MCQs without a topic name — blank-topic MCQs would appear as
+  // "General" which should not show in Revision Hub.
+  const classMcqs: any[] = (mcqSelectedLesson
     ? (mcqSelectedLesson.mcqs || [])
-    : [];
+    : []
+  ).filter((q: any) => q.topic && String(q.topic).trim() !== '');
 
   const currentQ = sessionActive ? sessionMcqs[sessionQIndex] : null;
 
