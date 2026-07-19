@@ -61,10 +61,21 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+
+  const handleDismiss = () => {
+    if (dismissing) return;
+    setDismissing(true);
+    setVisible(false);
+    setTimeout(onDismiss, 350);
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 50);
-    return () => clearTimeout(t);
+    // Auto-hide after 3.5 seconds
+    const autoHide = setTimeout(handleDismiss, 3500);
+    return () => { clearTimeout(t); clearTimeout(autoHide); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Totals
@@ -132,7 +143,7 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
             </div>
           </div>
           <button
-            onClick={onDismiss}
+            onClick={handleDismiss}
             className="shrink-0 mt-0.5 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition active:scale-90"
           >
             <X size={15} />
