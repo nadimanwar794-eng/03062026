@@ -193,6 +193,17 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
             </div>
           </div>
 
+          {/* ── Close button ──────────────────────────────────────────────── */}
+          <div className="px-4 pb-2 shrink-0">
+            <button
+              onClick={handleDismiss}
+              className="w-full py-2.5 rounded-2xl text-[13px] font-black text-white active:scale-95 transition"
+              style={{ background: 'linear-gradient(90deg,#dc2626,#b91c1c)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              ✕ Close
+            </button>
+          </div>
+
           {/* ── More / Less toggle ─────────────────────────────────────────── */}
           <div className="px-4 pb-2 shrink-0">
             <button
