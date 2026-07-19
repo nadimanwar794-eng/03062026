@@ -495,7 +495,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
             📖 {sessionScore}
           </span>
            {scoreTooltip && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.2)', borderTop: '2px solid #16a34a', borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 4px 20px rgba(22,163,74,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260 }}>
+            <div style={{ position: 'fixed', top: 'auto', left: '50%', transform: 'translateX(-50%)', marginTop: 6, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', border: '1.5px solid rgba(99,102,241,0.2)', borderTop: '2px solid #16a34a', borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 9999, boxShadow: '0 4px 20px rgba(22,163,74,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260, maxWidth: 'calc(100vw - 16px)' }}>
               <span style={{ fontSize: 14, flexShrink: 0 }}>🃏</span>
               <span style={{ fontSize: 10, fontWeight: 900, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>Flashcard Score</span>
               <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
