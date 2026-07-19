@@ -8325,13 +8325,13 @@ export const StudentDashboard: React.FC<Props> = ({
       return (
         <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
           {/* Sticky back-button header */}
-          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm px-4 py-3 flex items-center gap-3 border-b border-slate-100 mb-4">
-            <button onClick={() => { setSelectedLucentBook(null); setSelectedSubject(null); }} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 text-slate-700 shrink-0">
+          <div className="sticky top-0 z-10 px-4 py-3 flex items-center gap-3 shadow-md mb-4" style={{ background: tierTheme.topBarGrad }}>
+            <button onClick={() => { setSelectedLucentBook(null); setSelectedSubject(null); }} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white shrink-0 transition-colors">
               <ChevronRight size={18} className="rotate-180" />
             </button>
-            <div>
-              <h2 className="text-xl font-black text-slate-800">{selectedLucentBook}</h2>
-              <p className="text-xs text-slate-500">Subject chuniye</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[13px] font-black text-white truncate leading-tight">{selectedLucentBook}</h2>
+              <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wide">📚 Subject chuniye</p>
             </div>
           </div>
           <div className="px-4 grid grid-cols-1 gap-3">
@@ -17984,24 +17984,20 @@ export const StudentDashboard: React.FC<Props> = ({
         return (
           <div className="fixed inset-0 z-[190] flex flex-col animate-in fade-in" style={{ background: 'var(--bg, #f8fafc)' }}>
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0 shadow-sm" style={{ background: tierTheme.profileCardBg || '#fff', borderColor: `${tierTheme.primary}33` }}>
+            <div className="flex items-center gap-3 px-3 py-2.5 shrink-0 shadow-md" style={{ background: tierTheme.topBarGrad }}>
               <button
                 onClick={() => setLucentPageListViewer(null)}
-                className="p-2 rounded-full active:scale-95 transition-all"
-                style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white active:scale-95 transition-all shrink-0"
               >
                 <ChevronLeft size={18} />
               </button>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-slate-800 truncate">{plEntry.lessonTitle}</p>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                  {pages.length} page{pages.length !== 1 ? 's' : ''}
+                <p className="text-[13px] font-black text-white truncate leading-tight">{plEntry.lessonTitle}</p>
+                <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wide">
+                  📘 {pages.length} page{pages.length !== 1 ? 's' : ''}
                   {topicNames.length > 0 ? ` · ${topicNames.length} topic${topicNames.length > 1 ? 's' : ''}` : ''}
                 </p>
               </div>
-              <span className="text-[10px] font-black px-2 py-1 rounded-full shrink-0" style={{ background: `${tierTheme.primary}20`, color: tierTheme.primary }}>
-                📘 Pages
-              </span>
             </div>
 
             {/* Page list */}
@@ -18250,8 +18246,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 <ChevronRight size={22} className="-rotate-90" />
               </button>
             )}
-            {/* Header */}
-            <div className="hidden" style={{ background: tierTheme.topBarGrad }}>
+            {/* Header — visible in all modes except chunk/reading (ChunkedNotesReader shows its own slim bar then) */}
+            <div className={`text-white shrink-0 ${lucentImmersive || isLandscapeUiHidden || (lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk') ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
               {(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html') ? (
                 /* ── WRITE MODE: 2-row layout ── */
                 <div className="px-3 py-2 flex flex-col gap-1.5">
