@@ -2736,14 +2736,18 @@ export const StudentDashboard: React.FC<Props> = ({
   // Always-running countdown — ticks every second while lesson is open, resets when tab changes or score earned
   useEffect(() => {
     if (!lucentNoteViewer) { setLucentCountdown(0); return; }
-    const _cdMap: Record<string, number> = { NOTES: 30, QA: 30, PDF: 30, VIDEO: 30, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
-    const _cd = _cdMap[lucentActiveTab] ?? 30;
+    // Write mode (NOTES+html) = 60s, all other scored tabs = 30s
+    const isWriteMode = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
+    const _cdMap: Record<string, number> = { QA: 30, PDF: 30, VIDEO: 30, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
+    const _cd = lucentActiveTab === 'NOTES' ? (isWriteMode ? 60 : 30) : (_cdMap[lucentActiveTab] ?? 30);
     if (_cd === 0) { setLucentCountdown(0); return; }
-    // Reset anchor on tab switch so countdown starts fresh (not carried over from previous tab)
+    // Reset anchor on tab/mode switch so countdown starts fresh
     lucentLastScoreTimeRef.current = Date.now();
     const _tick = () => {
       const elapsed = (Date.now() - lucentLastScoreTimeRef.current) / 1000;
-      setLucentCountdown(Math.max(0, Math.ceil(_cd - elapsed)));
+      // Use modulo so countdown auto-cycles (doesn't stay stuck at 0 between award cycles)
+      const cycleElapsed = elapsed % _cd;
+      setLucentCountdown(Math.max(1, Math.ceil(_cd - cycleElapsed)));
     };
     _tick();
     const id = setInterval(_tick, 1000);
