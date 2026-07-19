@@ -20,7 +20,7 @@
  *
  * PDF Mode:
  *   • Every 30 sec → +5 pts (earns pts, not credits)
- *   • Scroll check: need ≥5% net scroll per 60 sec (independent timer)
+ *   • Scroll check: need ≥2.5% net scroll per 30 sec (independent timer)
  *   • Stop after 2 consecutive fails; resumes when user scrolls again
  *
  * Q&A Mode:
@@ -91,7 +91,7 @@ const VIDEO_PTS_INTERVAL_SEC      = 30;   // +5 pts every 30s of playing
 const VIDEO_CR_INTERVAL_SEC       = 60;   // +10 credits every 60s of playing
 const AUDIO_INTERVAL_SEC          = 30;   // +5 pts every 30s
 const PDF_INTERVAL_SEC            = 30;   // +5 pts every 30s
-const PDF_SCROLL_CHECK_SEC        = 60;   // scroll check every 60s (independent)
+const PDF_SCROLL_CHECK_SEC        = 30;   // scroll check every 30s (independent)
 const QA_INTERVAL_SEC             = 30;   // +5 pts every 30s
 const QA_SCROLL_CHECK_SEC         = 30;   // scroll check every 30s (independent)
 
@@ -106,7 +106,8 @@ const QA_PTS_BASE          = 5;    // pts (not credits)
 const TTS_HIGHLIGHT_REWARD   = 1;
 const VALIDATION_INTERVAL_SEC = 120;
 const MIN_PROGRESS_PCT        = 10;   // reading: 10% per 2min
-const WRITING_MIN_SCROLL_PCT  = 5;    // writing/pdf/qa: 5% per check
+const WRITING_MIN_SCROLL_PCT  = 5;    // writing: 5% per 60s check
+const PDF_MIN_SCROLL_PCT      = 2.5;  // pdf: 2.5% per 30s check
 const QA_MIN_SCROLL_PCT       = 5;    // Q&A: 5% per 30s check
 const MAX_SCROLL_FAIL_STREAK  = 2;    // stop after 2 consecutive fails
 
@@ -544,7 +545,7 @@ export class ReadingScoreSession {
     }
 
     // ── Writing / PDF / Q&A: independent scroll-check + pts-award timers ────
-    const minScrollPct = this.mode === 'qa' ? QA_MIN_SCROLL_PCT   : WRITING_MIN_SCROLL_PCT;
+    const minScrollPct = this.mode === 'qa' ? QA_MIN_SCROLL_PCT : this.mode === 'pdf' ? PDF_MIN_SCROLL_PCT : WRITING_MIN_SCROLL_PCT;
     const ptsInterval  = this.mode === 'qa' ? QA_INTERVAL_SEC     : this.mode === 'writing' ? WRITING_INTERVAL_SEC : PDF_INTERVAL_SEC;
     const scrollCheckInt = this.mode === 'qa' ? QA_SCROLL_CHECK_SEC : this.mode === 'writing' ? WRITING_SCROLL_CHECK_SEC : PDF_SCROLL_CHECK_SEC;
     const ptsBase      = this.mode === 'qa' ? QA_PTS_BASE         : this.mode === 'writing' ? WRITING_PTS_BASE        : PDF_PTS_BASE;
