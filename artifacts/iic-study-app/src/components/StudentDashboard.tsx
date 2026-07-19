@@ -2691,6 +2691,15 @@ export const StudentDashboard: React.FC<Props> = ({
     if (node) node.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [lucentPageIndex, lucentNoteViewer?.id]);
 
+  // Reset progress % and session-score baseline whenever the user switches tabs or write/read mode.
+  // This ensures each mode shows its own fresh score and progress (not carried over from previous tab).
+  useEffect(() => {
+    if (!lucentNoteViewer) return;
+    setLucentScrollProgress(0);
+    setLucentOpenScore(userRef.current?.totalScore || 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lucentActiveTab, lucentNotesViewMode]);
+
   // TTS session exit summary: when viewer opens reset counter; when it closes show total.
   const prevLucentIdRef = useRef<string | null>(null);
   useEffect(() => {
