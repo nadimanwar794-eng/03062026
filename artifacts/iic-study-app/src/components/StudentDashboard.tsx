@@ -6616,8 +6616,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 <ChevronRight size={22} className="-rotate-90" />
               </button>
             )}
-            {/* Sticky header — hidden in read mode so ChunkedNotesReader slim bar acts as the header */}
-            <div className={`text-white shrink-0 ${hwImmersive || (isLandscape && !(effectiveMode === 'notes' && hwNotesViewMode === 'html')) || (effectiveMode === 'notes' && hwNotesViewMode === 'chunk') ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
+            {/* Sticky header — only for video/audio/pdf/flashcard (full-screen media);
+                notes/mcq/qa use the slim bar below the mode tab bar — Lucent jaisa */}
+            <div className={`text-white shrink-0 ${hwImmersive || isLandscapeUiHidden || effectiveMode === 'notes' || effectiveMode === 'mcq' || effectiveMode === 'qa' ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
               {(effectiveMode === 'notes' && hwNotesViewMode === 'html') ? (
                 /* ── WRITE MODE: 2-row layout ── */
                 <div className="px-3 py-2 flex flex-col gap-1.5">
@@ -6958,6 +6959,86 @@ export const StudentDashboard: React.FC<Props> = ({
               );
             })()}
 
+            {/* ── COMPETITION SLIM BAR — mode tab bar ke neeche, Lucent jaisa ──
+                Shows for notes/mcq/qa modes; video/audio/pdf/flashcard use the sticky header above. */}
+            {!hwImmersive && !isLandscapeUiHidden && (effectiveMode === 'notes' || effectiveMode === 'mcq' || effectiveMode === 'qa') && (
+              <div className="bg-white border-b border-slate-100 shrink-0 flex items-center" style={{ minHeight: 36 }}>
+                {/* Back */}
+                <button onClick={goBack} className="w-8 h-8 flex items-center justify-center text-slate-600 active:scale-90 transition shrink-0 border-r border-slate-100" title="Back">
+                  <ChevronRight size={16} className="rotate-180" />
+                </button>
+                {/* Title + mode-specific controls (scrollable) */}
+                <div className="flex-1 flex items-center gap-1.5 overflow-x-auto px-2 py-1 min-w-0" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+                  <span className="text-[11px] font-black text-slate-700 whitespace-nowrap shrink-0">
+                    {activeHw.title || 'Competition'}
+                    {activeHw.date && <span className="text-slate-400 font-medium"> · {new Date(activeHw.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>}
+                  </span>
+                  {/* Write mode badges + controls */}
+                  {effectiveMode === 'notes' && hwNotesViewMode === 'html' && (
+                    <>
+                      <span className="text-[9px] font-black text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">✏️ WRITE</span>
+                      {_isAdminUser && (
+                        <button onClick={() => setShowAdminBoard(true)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-500 active:scale-90 transition shrink-0" title="Whiteboard"><Presentation size={12} /></button>
+                      )}
+                      {_isAdminUser && (
+                        <button onClick={() => { const src = (activeHw as any)?.htmlNotes || ''; setInlineEditContent(src); setInlineEditPoints(splitHtmlIntoBlocks(src)); setInlineEditPointIdx(null); setInlineEditPointDraft(''); setInlineEditModal({ type: 'hw_html', entryId: activeHw.id || '', title: activeHw.title || 'Competition Note', originalEntry: activeHw }); setHwWriteMenuOpen(false); }} className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-500 active:scale-90 transition shrink-0" title="Edit HTML"><Pencil size={12} /></button>
+                      )}
+                      <div className="flex items-center rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
+                        <button onClick={zoomOut} className="w-6 h-7 flex items-center justify-center text-slate-600 text-[10px] font-black active:scale-90 transition hover:bg-slate-100">A−</button>
+                        <span className="px-1 text-slate-500 text-[9px] font-bold tabular-nums border-x border-slate-200">{Math.round(noteZoom * 100)}%</span>
+                        <button onClick={zoomIn} className="w-6 h-7 flex items-center justify-center text-slate-600 text-[10px] font-black active:scale-90 transition hover:bg-slate-100">A+</button>
+                      </div>
+                      <button onClick={handleRotate} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isLandscape ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
+                      <button
+                        onClick={async () => { try { const src = (activeHw as any).htmlNotes || (activeHw as any).chunkNotes || activeHw.notes || ''; await saveOfflineItem({ id: `hw_${activeHw.id}`, type: 'NOTE', title: activeHw.title || 'Homework', subtitle: `Competition · ${activeHw.targetSubject || ''}`, data: { kind: 'LUCENT_CHUNK', chunkNotes: src, lessonTitle: activeHw.title, subject: activeHw.targetSubject } }); setHwSaved(true); showAlert('✅ Saved offline!', 'SUCCESS'); setTimeout(() => setHwSaved(false), 3000); } catch { showAlert('Save failed.', 'ERROR'); } }}
+                        className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${hwSaved ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                        title={hwSaved ? 'Saved ✓' : 'Save Offline'}
+                      ><WifiOff size={12} /></button>
+                      {(activeHw as any).htmlNotes && (
+                        <button onClick={async () => { try { const safeTitle = (activeHw.title || 'Homework').replace(/[^a-z0-9_\- ]/gi, '_').slice(0, 60); const _dlOk = await checkAndDoDownload(async () => { await downloadAsMHTML('hw-html-download', safeTitle, { appName: settings?.appShortName || settings?.appName || 'IIC', pageTitle: activeHw.title || 'Homework', subtitle: 'Homework Notes — Write Mode' }); }); if (_dlOk) showAlert('📥 Saved!', 'SUCCESS'); } catch { showAlert('Download failed.', 'ERROR'); } }} className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 border border-slate-200 text-slate-500 active:scale-90 transition shrink-0" title="Download"><Download size={12} /></button>
+                      )}
+                    </>
+                  )}
+                  {/* MCQ controls */}
+                  {effectiveMode === 'mcq' && (
+                    <>
+                      <button onClick={handleRotate} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isLandscape ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
+                      {_isAdminUser && <button onClick={() => setShowAdminBoard(true)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 border border-orange-200 text-orange-500 active:scale-90 transition shrink-0" title="Whiteboard"><Presentation size={12} /></button>}
+                    </>
+                  )}
+                  {/* Q&A — Reveal All / Hide All */}
+                  {effectiveMode === 'qa' && (() => {
+                    const _qaItems = (activeHw.parsedMcqs || []).filter((q: any) => !q.statements || q.statements.length === 0);
+                    const _hwQaKey = (qi: number) => `${hwKey}_qa_${qi}`;
+                    const _allRevealed = _qaItems.every((_: any, i: number) => hwQaRevealed[_hwQaKey(i)]);
+                    return (
+                      <button
+                        onClick={() => {
+                          if (_allRevealed) {
+                            const reset: Record<string, boolean> = { ...hwQaRevealed };
+                            _qaItems.forEach((_: any, i: number) => { delete reset[_hwQaKey(i)]; });
+                            setHwQaRevealed(reset);
+                          } else {
+                            const all = { ...hwQaRevealed };
+                            _qaItems.forEach((_: any, i: number) => { all[_hwQaKey(i)] = true; });
+                            setHwQaRevealed(all);
+                          }
+                        }}
+                        className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 active:scale-95 transition-all shrink-0"
+                      >
+                        {_allRevealed ? 'Hide All' : 'Reveal All'}
+                      </button>
+                    );
+                  })()}
+                </div>
+                {/* Score chip — right side */}
+                <div className="shrink-0 flex items-center px-2 border-l border-slate-100">
+                  <span style={{ fontSize: '11px', fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+                    📖 {flatIdx + 1}/{filteredHw.length}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* VIDEO PAGE */}
             {effectiveMode === 'video' && hasVideo && (
@@ -7417,50 +7498,6 @@ export const StudentDashboard: React.FC<Props> = ({
                       </button>
                     )}
                   </div>
-                  {/* T3/T4: Mode selector — Khud Banao · Sidha Answer · Flashcard.
-                      All three modes share the same parsedMcqs source. */}
-                  {(() => {
-                    const hwModeKey = hwKey;
-                    const hwMode = hwMcqMode[hwModeKey] || 'interactive';
-                    return (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-1.5 grid grid-cols-3 gap-1 shadow-sm mb-3">
-                        <button
-                          onClick={() => setHwMcqMode(prev => ({ ...prev, [hwModeKey]: 'interactive' }))}
-                          className={`text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all ${
-                            hwMode === 'interactive'
-                              ? `${theme.btn} text-white shadow-sm`
-                              : 'bg-transparent text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          📝 MCQ
-                        </button>
-                        <button
-                          onClick={() => setHwMcqMode(prev => ({ ...prev, [hwModeKey]: 'reveal' }))}
-                          className={`text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all ${
-                            hwMode === 'reveal'
-                              ? 'bg-purple-600 text-white shadow-sm'
-                              : 'bg-transparent text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          💬 Q&amp;A
-                        </button>
-                        <button
-                          onClick={() => {
-                            setFlashcardMcqs({
-                              items: (activeHw.parsedMcqs || []) as any,
-                              title: activeHw.title || 'Homework MCQs',
-                              subtitle: 'Flashcard Mode',
-                              subject: activeHw.targetSubject || activeHw.subject || activeHw.subjectName || '—',
-                              sourceKey: `hw_${activeHw.id}`,
-                            });
-                          }}
-                          className="text-[11px] font-black uppercase tracking-wider py-2 rounded-xl transition-all bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95"
-                        >
-                          🃏 Flashcard
-                        </button>
-                      </div>
-                    );
-                  })()}
                   {/* TTS mode is now AUTO-tied to the practice mode chosen above:
                       • MCQ (Khud Banao)  → 'all' so the speaker reads question +
                         every option (answer hidden — student gets to attempt).
@@ -18246,8 +18283,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 <ChevronRight size={22} className="-rotate-90" />
               </button>
             )}
-            {/* Header — visible in all modes except chunk/reading (ChunkedNotesReader shows its own slim bar then) */}
-            <div className={`text-white shrink-0 ${lucentImmersive || isLandscapeUiHidden || (lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk') ? 'hidden' : ''}`} style={{ background: tierTheme.topBarGrad }}>
+            {/* Header — intentionally hidden; ChunkedNotesReader slim bar + mode tab bar act as the header */}
+            <div className="hidden" style={{ background: tierTheme.topBarGrad }}>
               {(lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html') ? (
                 /* ── WRITE MODE: 2-row layout ── */
                 <div className="px-3 py-2 flex flex-col gap-1.5">
