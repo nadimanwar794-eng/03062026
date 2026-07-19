@@ -1178,8 +1178,12 @@ export const LessonView: React.FC<Props> = ({
                                       <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                                           <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
-                                          <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                                              {notesViewMode === 'styled' ? `+10 in ${writingHtmlScoreState?.nextRewardInSec || 60}s` : '+5 in 30s'}
+                                          <span style={{ fontSize: 11, fontWeight: 900, color: (notesViewMode === 'styled' && writingHtmlScoreState?.isPermanentlyStopped) ? '#ef4444' : '#f59e0b', lineHeight: 1.2 }}>
+                                              {notesViewMode === 'styled'
+                                                ? writingHtmlScoreState?.isPermanentlyStopped ? 'Scroll karo'
+                                                  : writingHtmlScoreState?.isPaused ? 'Paused'
+                                                  : `+10 in ${writingHtmlScoreState?.nextRewardInSec ?? 60}s`
+                                                : '+5 in 30s'}
                                           </span>
                                       </div>
                                       <div style={{ flex: 1 }} />
@@ -1420,8 +1424,8 @@ export const LessonView: React.FC<Props> = ({
                               <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                                 <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
-                                <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                                  {`+1 in ${mediaScoreState.nextRewardInSec || 6}s`}
+                                <span style={{ fontSize: 11, fontWeight: 900, color: mediaScoreState.isPaused ? '#ef4444' : '#f59e0b', lineHeight: 1.2 }}>
+                                  {mediaScoreState.isPaused ? 'Paused' : `+1 in ${mediaScoreState.nextRewardInSec ?? 6}s`}
                                 </span>
                               </div>
                               <div style={{ flex: 1 }} />

@@ -1456,13 +1456,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
                   : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
                 const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
-                const _base = scoreState.mode === 'reading' ? 5 : scoreState.mode === 'writing' ? 10 : 25;
+                const _base = scoreState.mode === 'writing' ? 10 : 5;
                 const _pts = Math.max(1, Math.round(_base * _subMul * _boostMul));
+                const _interval = scoreState.mode === 'writing' ? 60 : 30;
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
-                    <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                      {scoreState.isPaused ? 'Paused' : `+${_pts} in ${scoreState.nextRewardInSec || (scoreState.mode === 'writing' ? 60 : 30)}s`}
+                    <span style={{ fontSize: 11, fontWeight: 900, color: scoreState.isPermanentlyStopped ? '#ef4444' : '#f59e0b', lineHeight: 1.2 }}>
+                      {scoreState.isPermanentlyStopped ? 'Scroll karo' : scoreState.isPaused ? 'Paused' : `+${_pts} in ${scoreState.nextRewardInSec ?? _interval}s`}
                     </span>
                   </div>
                 );
