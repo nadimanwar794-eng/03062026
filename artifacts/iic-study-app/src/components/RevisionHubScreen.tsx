@@ -833,7 +833,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
                     <p className="font-bold text-slate-800 text-sm truncate">{lesson.lessonTitle}</p>
                     <div className="flex flex-wrap gap-1 mt-0.5">
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${primary}18`, color: primary }}>
-                        {lesson.mcqCount} MCQs
+                        {(lesson.mcqs || []).filter((q: any) => q.topic && String(q.topic).trim() !== '').length} MCQs
                       </span>
                       {(lesson.topics || []).slice(0, 2).map((t: string) => (
                         <span key={t} className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full truncate max-w-[90px]">
