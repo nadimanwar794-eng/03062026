@@ -2771,7 +2771,7 @@ export const StudentDashboard: React.FC<Props> = ({
   //   • VIDEO / AUDIO tabs → VIDEO / AUDIO_TTS every 30 sec (+5 base). Handled here.
   useEffect(() => {
     const isWriteMode = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
-    const isReadTab   = ['PDF', 'VIDEO', 'AUDIO'].includes(lucentActiveTab);
+    const isReadTab   = ['PDF', 'VIDEO', 'AUDIO', 'QA'].includes(lucentActiveTab);
     if (!lucentNoteViewer) {
       lucentReadSecsRef.current = 0;
       lucentLastAwardedTierRef.current = 0;
