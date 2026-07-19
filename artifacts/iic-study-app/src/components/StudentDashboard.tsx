@@ -18610,9 +18610,10 @@ export const StudentDashboard: React.FC<Props> = ({
                 _isWrite ? '#10b981' : lucentActiveTab === 'MCQS' ? '#8b5cf6' :
                 lucentActiveTab === 'VIDEO' ? '#6366f1' : '#16a34a';
               const _nextPts = lucentActiveTab === 'VIDEO' ? 1 : _isWrite ? 10 : 5;
+              const _nextInterval = lucentActiveTab === 'VIDEO' ? 6 : _isWrite ? 60 : 30;
               const _nextText =
                 lucentActiveTab === 'MCQS' ? 'Sahi jawab pe!' :
-                lucentCountdown > 0 ? `+${_nextPts} in ${lucentCountdown}s` : 'Milenge ab!';
+                `+${_nextPts} in ${lucentCountdown || _nextInterval}s`;
               const _showProgress = lucentActiveTab !== 'MCQS';
               let _swipeStartX = 0;
               let _swipeStartY = 0;

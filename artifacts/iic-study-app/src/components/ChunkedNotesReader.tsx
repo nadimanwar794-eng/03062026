@@ -1462,7 +1462,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
                     <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                      {!scoreState.isPaused ? `+${_pts} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+                      {scoreState.isPaused ? 'Paused' : `+${_pts} in ${scoreState.nextRewardInSec || (scoreState.mode === 'writing' ? 60 : 30)}s`}
                     </span>
                   </div>
                 );

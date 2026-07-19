@@ -438,7 +438,7 @@ export const PdfViewer: React.FC<Props> = ({
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                 <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
                 <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                  {pdfScoreState && pdfScoreState.nextRewardInSec > 0 ? `+5 in ${pdfScoreState.nextRewardInSec}s` : 'Padhte raho!'}
+                  {`+5 in ${pdfScoreState?.nextRewardInSec || 30}s`}
                 </span>
               </div>
               <div style={{ flex: 1 }} />

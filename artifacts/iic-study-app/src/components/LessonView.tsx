@@ -1179,7 +1179,7 @@ export const LessonView: React.FC<Props> = ({
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                                           <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
                                           <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                                              {notesViewMode === 'styled' ? (writingHtmlScoreState && writingHtmlScoreState.nextRewardInSec > 0 ? `+10 in ${writingHtmlScoreState.nextRewardInSec}s` : 'Likhte raho!') : '+5 in 30s'}
+                                              {notesViewMode === 'styled' ? `+10 in ${writingHtmlScoreState?.nextRewardInSec || 60}s` : '+5 in 30s'}
                                           </span>
                                       </div>
                                       <div style={{ flex: 1 }} />
@@ -1421,7 +1421,7 @@ export const LessonView: React.FC<Props> = ({
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                                 <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
                                 <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                                  {mediaScoreState.nextRewardInSec > 0 ? `+1 in ${mediaScoreState.nextRewardInSec}s` : 'Video chalao!'}
+                                  {`+1 in ${mediaScoreState.nextRewardInSec || 6}s`}
                                 </span>
                               </div>
                               <div style={{ flex: 1 }} />
