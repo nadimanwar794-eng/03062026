@@ -2691,15 +2691,6 @@ export const StudentDashboard: React.FC<Props> = ({
     if (node) node.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [lucentPageIndex, lucentNoteViewer?.id]);
 
-  // Reset progress % and session-score baseline whenever the user switches tabs or write/read mode.
-  // This ensures each mode shows its own fresh score and progress (not carried over from previous tab).
-  useEffect(() => {
-    if (!lucentNoteViewer) return;
-    setLucentScrollProgress(0);
-    setLucentOpenScore(userRef.current?.totalScore || 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lucentActiveTab, lucentNotesViewMode]);
-
   // TTS session exit summary: when viewer opens reset counter; when it closes show total.
   const prevLucentIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -2735,6 +2726,15 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
   // 'html' = styled HTML view (write mode), 'chunk' = ChunkedNotesReader tappable lines (read mode)
   const [lucentNotesViewMode, setLucentNotesViewMode] = useState<'html' | 'chunk'>('chunk');
+
+  // Reset progress % and session-score baseline on tab/mode switch — each mode shows its own fresh score.
+  // IMPORTANT: declared AFTER lucentActiveTab + lucentNotesViewMode to avoid production TDZ crash.
+  useEffect(() => {
+    if (!lucentNoteViewer) return;
+    setLucentScrollProgress(0);
+    setLucentOpenScore(userRef.current?.totalScore || 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lucentActiveTab, lucentNotesViewMode]);
 
   // Track when pts were last earned (for live countdown tooltip)
   useEffect(() => {
