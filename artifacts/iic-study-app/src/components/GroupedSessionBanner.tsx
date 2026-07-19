@@ -67,8 +67,6 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
   const handleDismiss = () => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (rafRef.current)   cancelAnimationFrame(rafRef.current);
     setVisible(false);
     setTimeout(onDismiss, 380);
   };
