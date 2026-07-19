@@ -163,6 +163,9 @@ export const LessonView: React.FC<Props> = ({
   const sessionAudioPtsRef   = useRef(0);
   const sessionPdfPtsRef     = useRef(0);
   const sessionQaPtsRef      = useRef(0);
+  // MCQ flush refs — set when showResults fires, read in flushSessionEvents on back
+  const mcqFlushPtsRef       = useRef(0);
+  const mcqFlushCrRef        = useRef(0);
 
   // Per-mode time tracking — record when each mode first earned pts, accumulate on flush
   const modeFirstEarnMsRef = useRef<Partial<Record<string, number>>>({});
@@ -240,6 +243,17 @@ export const LessonView: React.FC<Props> = ({
       modeFirstEarnMsRef.current['QA'] = undefined;
       modeAccumSecsRef.current['QA'] = 0;
     }
+    if (mcqFlushPtsRef.current > 0 || mcqFlushCrRef.current > 0) {
+      fireSessionComplete({ type: 'MCQ', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('MCQ'),
+        activityType: 'MCQ',
+        sessionScore: mcqFlushPtsRef.current || undefined,
+        coinsEarned: mcqFlushCrRef.current || undefined });
+      mcqFlushPtsRef.current = 0;
+      mcqFlushCrRef.current = 0;
+      modeFirstEarnMsRef.current['MCQ'] = undefined;
+      modeAccumSecsRef.current['MCQ'] = 0;
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.title, subject?.name]);
 
@@ -290,6 +304,9 @@ export const LessonView: React.FC<Props> = ({
     const ratio = userLevel >= 5 ? 0.5 : 0.25;
     const coins = Math.floor(totalPts * ratio);
     if (coins <= 0) return;
+
+    // Save coins so flushSessionEvents can include them in MCQ session payload
+    mcqFlushCrRef.current += coins;
 
     const newCredits = (_user.credits || 0) + coins;
     const updatedWithCoins = { ..._user, credits: newCredits };
@@ -368,6 +385,8 @@ export const LessonView: React.FC<Props> = ({
   // Award MCQ coins once when results are shown (session over)
   useEffect(() => {
     if (showResults && mcqSessionPtsRef.current > 0) {
+      // Save pts for flushSessionEvents BEFORE resetting
+      mcqFlushPtsRef.current += mcqSessionPtsRef.current;
       awardMcqSessionCoins(mcqSessionPtsRef.current);
       mcqSessionPtsRef.current = 0;
     }
@@ -1223,7 +1242,7 @@ export const LessonView: React.FC<Props> = ({
                               <span
                                   onClick={() => { setWritingScoreTooltip(true); setTimeout(() => setWritingScoreTooltip(false), 2500); }}
                                   style={{ fontSize: '10px', fontWeight: 900, color: notesViewMode === 'styled' ? '#10b981' : '#6366f1', background: notesViewMode === 'styled' ? 'rgba(16,185,129,0.12)' : 'rgba(99,102,241,0.12)', border: `1px solid ${notesViewMode === 'styled' ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)'}`, borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
-                                  📖 {notesViewMode === 'styled' ? (writingHtmlScoreState?.totalSessionScore ?? 0) : readingLivePts}
+                                  📖 {readingLivePts}
                               </span>
                               {writingScoreTooltip && (
                                   <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', borderTop: '2px solid #10b981', border: '1.5px solid rgba(99,102,241,0.2)', borderTopWidth: 2, borderTopColor: '#10b981', borderRadius: 12, padding: '7px 12px', whiteSpace: 'nowrap', zIndex: 100, boxShadow: '0 4px 20px rgba(16,185,129,0.15), inset 0 -1px 0 #c7d2fe', animation: 'rshud-slide 0.18s ease', display: 'flex', alignItems: 'center', gap: 8, minWidth: 260 }}>
@@ -1859,6 +1878,7 @@ export const LessonView: React.FC<Props> = ({
                       // Accumulate MCQ pts for one-time coin award at session end
                       mcqSessionPtsRef.current += totalPts;
                       setMcqLivePts(prev => prev + totalPts);
+                      markModeActive('MCQ');
                       showMcqScore(totalPts);
                   }
               } else {
