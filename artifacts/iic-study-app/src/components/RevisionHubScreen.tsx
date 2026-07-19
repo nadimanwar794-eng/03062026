@@ -103,6 +103,14 @@ export const RevisionHubScreen: React.FC<Props> = ({
     return unsub;
   }, []);
 
+  // Only show MCQs authored directly in Revision Hub — exclude lessons that
+  // were auto-synced from Lucent / Class Notes entries (those have a
+  // sourceClassNotesId field and ids prefixed with "clsnotes_").
+  const hubLessons = useMemo(
+    () => allLessons.filter(l => !l.sourceClassNotesId && !String(l.id || '').startsWith('clsnotes_')),
+    [allLessons],
+  );
+
   // Subjects are derived purely from lessons that actually exist in Firebase
   // for the selected class — no hardcoded subject list, so a subject only
   // ever shows up once real notes/MCQ content has been added for it.
@@ -110,7 +118,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
     if (!mcqSelectedClass) return [];
     const names = Array.from(
       new Set(
-        allLessons
+        hubLessons
           .filter(l => l.classLevel === mcqSelectedClass && l.subject)
           .map(l => l.subject as string),
       ),
@@ -118,10 +126,10 @@ export const RevisionHubScreen: React.FC<Props> = ({
     return names
       .sort((a, b) => a.localeCompare(b))
       .map(name => ({ id: name, name }));
-  }, [mcqSelectedClass, allLessons]);
+  }, [mcqSelectedClass, hubLessons]);
 
   // Lessons available for current class + subject
-  const subjectLessons = allLessons.filter(
+  const subjectLessons = hubLessons.filter(
     l => l.classLevel === mcqSelectedClass && l.subject === mcqSelectedSubject
   );
 
@@ -690,7 +698,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
 
               const ClassBtn = ({ c }: { c: string }) => {
                 const subjCount = new Set(
-                  allLessons.filter(l => l.classLevel === c && l.subject).map(l => l.subject as string),
+                  hubLessons.filter(l => l.classLevel === c && l.subject).map(l => l.subject as string),
                 ).size;
                 const isBoard = boardClasses.includes(c);
                 return (
@@ -769,7 +777,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
               Subject Choose Karein
             </p>
             {mcqSubjects.map((sub: any) => {
-              const lessonCount = allLessons.filter(l => l.classLevel === mcqSelectedClass && l.subject === sub.name).length;
+              const lessonCount = hubLessons.filter(l => l.classLevel === mcqSelectedClass && l.subject === sub.name).length;
               return (
                 <button
                   key={sub.id}
