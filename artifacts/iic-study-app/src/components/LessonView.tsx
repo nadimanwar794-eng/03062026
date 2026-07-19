@@ -155,41 +155,90 @@ export const LessonView: React.FC<Props> = ({
   useEffect(() => { userRef.current = user; }, [user]);
 
   // ── Session-complete accumulation (pts + credits per mode) ──────────────────
-  // Keyed by mode: reading pts, writing credits, video pts, video credits, audio pts
-  const sessionReadingPtsRef   = useRef(0);
-  const sessionWritingCrRef    = useRef(0);
-  const sessionVideoPtsRef     = useRef(0);
-  const sessionVideoCrRef      = useRef(0);
-  const sessionAudioPtsRef     = useRef(0);
-  const sessionStartMsRef      = useRef(Date.now());
+  const sessionReadingPtsRef = useRef(0);
+  const sessionWritingPtsRef = useRef(0);
+  const sessionWritingCrRef  = useRef(0);
+  const sessionVideoPtsRef   = useRef(0);
+  const sessionVideoCrRef    = useRef(0);
+  const sessionAudioPtsRef   = useRef(0);
+  const sessionPdfPtsRef     = useRef(0);
+  const sessionQaPtsRef      = useRef(0);
+
+  // Per-mode time tracking — record when each mode first earned pts, accumulate on flush
+  const modeFirstEarnMsRef = useRef<Partial<Record<string, number>>>({});
+  const modeAccumSecsRef   = useRef<Partial<Record<string, number>>>({});
+
+  /** Record first-earn timestamp for a mode (idempotent). */
+  const markModeActive = (mode: string) => {
+    if (!modeFirstEarnMsRef.current[mode]) {
+      modeFirstEarnMsRef.current[mode] = Date.now();
+    }
+  };
+
+  /** Get accumulated seconds for a mode (first-earn → now). */
+  const getModeTimeSecs = (mode: string): number => {
+    const start = modeFirstEarnMsRef.current[mode];
+    if (!start) return modeAccumSecsRef.current[mode] || 0;
+    return (modeAccumSecsRef.current[mode] || 0) + Math.round((Date.now() - start) / 1000);
+  };
 
   /** Fire per-mode session-complete events and reset accumulators. */
   const flushSessionEvents = useCallback(() => {
-    const secs = Math.round((Date.now() - sessionStartMsRef.current) / 1000);
     // eslint-disable-next-line @typescript-eslint/no-shadow
-    const chapter = [chapter?.title].filter(Boolean).join(' · ') || '';
+    const chapter = chapter?.title || '';
     const subj = subject?.name || '';
 
     if (sessionReadingPtsRef.current > 0) {
-      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.5),
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('Reading'),
         activityType: 'Reading', sessionScore: sessionReadingPtsRef.current });
       sessionReadingPtsRef.current = 0;
+      modeFirstEarnMsRef.current['Reading'] = undefined;
+      modeAccumSecsRef.current['Reading'] = 0;
     }
-    if (sessionWritingCrRef.current > 0) {
-      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.3),
-        activityType: 'Writing', creditsEarned: sessionWritingCrRef.current });
-      sessionWritingCrRef.current = 0;
+    if (sessionWritingPtsRef.current > 0 || sessionWritingCrRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('Writing'),
+        activityType: 'Writing',
+        sessionScore: sessionWritingPtsRef.current || undefined,
+        creditsEarned: sessionWritingCrRef.current || undefined });
+      sessionWritingPtsRef.current = 0; sessionWritingCrRef.current = 0;
+      modeFirstEarnMsRef.current['Writing'] = undefined;
+      modeAccumSecsRef.current['Writing'] = 0;
     }
     if (sessionVideoPtsRef.current > 0 || sessionVideoCrRef.current > 0) {
-      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.8),
-        activityType: 'Video', sessionScore: sessionVideoPtsRef.current || undefined,
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('Video'),
+        activityType: 'Video',
+        sessionScore: sessionVideoPtsRef.current || undefined,
         creditsEarned: sessionVideoCrRef.current || undefined });
       sessionVideoPtsRef.current = 0; sessionVideoCrRef.current = 0;
+      modeFirstEarnMsRef.current['Video'] = undefined;
+      modeAccumSecsRef.current['Video'] = 0;
     }
     if (sessionAudioPtsRef.current > 0) {
-      fireSessionComplete({ type: 'LESSON', subject: subj, chapter, timeSecs: Math.round(secs * 0.8),
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('Audio'),
         activityType: 'Audio', sessionScore: sessionAudioPtsRef.current });
       sessionAudioPtsRef.current = 0;
+      modeFirstEarnMsRef.current['Audio'] = undefined;
+      modeAccumSecsRef.current['Audio'] = 0;
+    }
+    if (sessionPdfPtsRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('PDF'),
+        activityType: 'PDF', sessionScore: sessionPdfPtsRef.current });
+      sessionPdfPtsRef.current = 0;
+      modeFirstEarnMsRef.current['PDF'] = undefined;
+      modeAccumSecsRef.current['PDF'] = 0;
+    }
+    if (sessionQaPtsRef.current > 0) {
+      fireSessionComplete({ type: 'LESSON', subject: subj, chapter,
+        timeSecs: getModeTimeSecs('QA'),
+        activityType: 'QA', sessionScore: sessionQaPtsRef.current });
+      sessionQaPtsRef.current = 0;
+      modeFirstEarnMsRef.current['QA'] = undefined;
+      modeAccumSecsRef.current['QA'] = 0;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.title, subject?.name]);
@@ -260,11 +309,22 @@ export const LessonView: React.FC<Props> = ({
     const _onUpdateUser = onUpdateUserRef.current;
     if (!_user || !_onUpdateUser || pts <= 0) return;
     // Accumulate per mode for session-complete breakdown
-    if (activity?.startsWith('VIDEO') || activity?.startsWith('video')) sessionVideoPtsRef.current += pts;
-    else if (activity?.startsWith('AUDIO') || activity?.startsWith('audio')) sessionAudioPtsRef.current += pts;
-    else sessionReadingPtsRef.current += pts;
-    // Update live reading chip for non-video/audio activities
-    if (!activity?.startsWith('VIDEO') && !activity?.startsWith('video') && !activity?.startsWith('AUDIO') && !activity?.startsWith('audio')) {
+    const act = activity?.toUpperCase() || '';
+    if (act.startsWith('VIDEO')) {
+      sessionVideoPtsRef.current += pts; markModeActive('Video');
+    } else if (act.startsWith('AUDIO')) {
+      sessionAudioPtsRef.current += pts; markModeActive('Audio');
+    } else if (act.startsWith('WRITE')) {
+      sessionWritingPtsRef.current += pts; markModeActive('Writing');
+    } else if (act.startsWith('PDF')) {
+      sessionPdfPtsRef.current += pts; markModeActive('PDF');
+    } else if (act.startsWith('QA')) {
+      sessionQaPtsRef.current += pts; markModeActive('QA');
+    } else {
+      sessionReadingPtsRef.current += pts; markModeActive('Reading');
+    }
+    // Update live reading chip for reading-mode activities only
+    if (!act.startsWith('VIDEO') && !act.startsWith('AUDIO')) {
       setReadingLivePts(prev => prev + pts);
     }
 
@@ -293,8 +353,12 @@ export const LessonView: React.FC<Props> = ({
     if (credits <= 0) return;
 
     // Accumulate per mode for session-complete breakdown
-    if (activity?.startsWith('VIDEO') || activity?.startsWith('video')) sessionVideoCrRef.current += credits;
-    else sessionWritingCrRef.current += credits;
+    const act = activity?.toUpperCase() || '';
+    if (act.startsWith('VIDEO')) {
+      sessionVideoCrRef.current += credits; markModeActive('Video');
+    } else {
+      sessionWritingCrRef.current += credits; markModeActive('Writing');
+    }
 
     // Defer — collect in session box, apply 4s after HOME
     pendingSessionCreditsRef.current += credits;
