@@ -67,6 +67,8 @@ interface Props {
   /** Class 6-12: kya yeh subject ka pehla lesson hai? Pehla lesson sab ke liye free hota hai. */
   isFirstChapter?: boolean;
   onSendToMcqCommunity?: (draft: { question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string }) => void;
+  /** Session khatam hone pe pending coins pass karo — App 4s baad HOME pe add karega */
+  onSessionCreditsEarned?: (credits: number) => void;
 }
 
 export const LessonView: React.FC<Props> = ({ 
@@ -97,6 +99,7 @@ export const LessonView: React.FC<Props> = ({
   onAdminEdit,
   isFirstChapter = false,
   onSendToMcqCommunity,
+  onSessionCreditsEarned,
 }) => {
   const [mcqState, setMcqState] = useState<Record<number, number | null>>({});
   const [mcqStreak, setMcqStreak] = useState(0);
@@ -194,12 +197,17 @@ export const LessonView: React.FC<Props> = ({
   const onUpdateUserRef = useRef(onUpdateUser);
   useEffect(() => { onUpdateUserRef.current = onUpdateUser; }, [onUpdateUser]);
 
-  /** Back button handler — flushes session events then calls onBack. */
+  /** Back button handler — flushes session events, passes pending coins, then calls onBack. */
   const handleBack = useCallback(() => {
     flushSessionEvents();
+    if (pendingSessionCreditsRef.current > 0) {
+      onSessionCreditsEarned?.(pendingSessionCreditsRef.current);
+      pendingSessionCreditsRef.current = 0;
+      setPendingCreditDisplay(0);
+    }
     onBack();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flushSessionEvents, onBack]);
+  }, [flushSessionEvents, onBack, onSessionCreditsEarned]);
 
   // ── Coin accumulation: fractional carry-over prevents small events losing coins ──
   // Reading coins are awarded immediately per interval but fractional amounts
@@ -216,6 +224,10 @@ export const LessonView: React.FC<Props> = ({
   const [mcqScoreTooltip, setMcqScoreTooltip] = useState(false);
   // Fractional coin accumulator — carries sub-1 amounts between reading events
   const coinFracAccumRef = useRef(0);
+
+  // ── Pending session coins — collected during session, applied 4s after HOME ──
+  const pendingSessionCreditsRef = useRef(0);
+  const [pendingCreditDisplay, setPendingCreditDisplay] = useState(0);
 
   const awardMcqSessionCoins = useCallback((
     totalPts: number,
@@ -267,38 +279,26 @@ export const LessonView: React.FC<Props> = ({
     const coins = Math.floor(coinFracAccumRef.current);
     coinFracAccumRef.current -= coins;
 
+    // Coins deferred — accumulate for session-end (no immediate balance update / notification)
     if (coins > 0) {
-      const newCredits = (_user.credits || 0) + coins;
-      const updatedWithCoins = { ...scoreUpdated, credits: newCredits };
-      _onUpdateUser(updatedWithCoins);
-      saveUserToLive(updatedWithCoins);
-      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: 'reading' });
-    } else {
-      _onUpdateUser(scoreUpdated);
-      saveUserToLive(scoreUpdated);
+      pendingSessionCreditsRef.current += coins;
+      setPendingCreditDisplay(pendingSessionCreditsRef.current);
     }
+    _onUpdateUser(scoreUpdated);
+    saveUserToLive(scoreUpdated);
   }, []);
 
-  // Credits earned directly (video 60s, pdf 60s, writing 60s) — does NOT affect pts/totalScore
+  // Credits earned directly (video 60s, pdf 60s, writing 60s) — deferred to session-end
   const handleCreditsEarned = useCallback((credits: number, activity: string) => {
-    const _user = userRef.current;
-    const _onUpdateUser = onUpdateUserRef.current;
-    if (!_user || !_onUpdateUser || credits <= 0) return;
+    if (credits <= 0) return;
 
     // Accumulate per mode for session-complete breakdown
     if (activity?.startsWith('VIDEO') || activity?.startsWith('video')) sessionVideoCrRef.current += credits;
     else sessionWritingCrRef.current += credits;
 
-    const newCredits = (_user.credits || 0) + credits;
-    const updated = { ..._user, credits: newCredits };
-    _onUpdateUser(updated);
-    saveUserToLive(updated);
-
-    const src = activity.startsWith('VIDEO') ? 'video'
-              : activity.startsWith('PDF')   ? 'pdf'
-              : activity.startsWith('QA')    ? 'qa'
-              : 'writing';
-    fireCreditNotify({ type: 'EARN', amount: credits, remaining: newCredits, source: src });
+    // Defer — collect in session box, apply 4s after HOME
+    pendingSessionCreditsRef.current += credits;
+    setPendingCreditDisplay(pendingSessionCreditsRef.current);
   }, []);
 
   // Award MCQ coins once when results are shown (session over)
@@ -1331,6 +1331,14 @@ export const LessonView: React.FC<Props> = ({
                 </div>
               )}
               {floatingBtn}
+              {/* ── Pending coin box ── */}
+              {pendingCreditDisplay > 0 && (
+                <div style={{ position:'fixed', bottom:132, right:16, zIndex:54, background:'rgba(10,10,20,0.88)', backdropFilter:'blur(10px)', WebkitBackdropFilter:'blur(10px)', borderRadius:20, padding:'5px 11px', display:'flex', alignItems:'center', gap:5, border:'1px solid rgba(251,191,36,0.35)', boxShadow:'0 2px 12px rgba(251,191,36,0.15)', pointerEvents:'none' }}>
+                  <span style={{ fontSize:13 }}>🪙</span>
+                  <span style={{ color:'#fbbf24', fontWeight:900, fontSize:13, lineHeight:1 }}>+{pendingCreditDisplay}</span>
+                  <span style={{ color:'#64748b', fontSize:9, fontWeight:600, lineHeight:1 }}>session</span>
+                </div>
+              )}
               {coinModal}
               {nextChapterModal}
               </div>
@@ -1456,6 +1464,22 @@ export const LessonView: React.FC<Props> = ({
                           visible={true}
                           levelColor="#818cf8"
                       />
+                  )}
+                  {/* ── Pending coin box ── */}
+                  {pendingCreditDisplay > 0 && (
+                    <div style={{
+                      position: 'fixed', bottom: 132, right: 16, zIndex: 54,
+                      background: 'rgba(10,10,20,0.88)', backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)', borderRadius: 20,
+                      padding: '5px 11px', display: 'flex', alignItems: 'center', gap: 5,
+                      border: '1px solid rgba(251,191,36,0.35)',
+                      boxShadow: '0 2px 12px rgba(251,191,36,0.15)',
+                      pointerEvents: 'none',
+                    }}>
+                      <span style={{ fontSize: 13 }}>🪙</span>
+                      <span style={{ color: '#fbbf24', fontWeight: 900, fontSize: 13, lineHeight: 1 }}>+{pendingCreditDisplay}</span>
+                      <span style={{ color: '#64748b', fontSize: 9, fontWeight: 600, lineHeight: 1 }}>session</span>
+                    </div>
                   )}
                   {floatingBtn}
               </div>
@@ -1596,6 +1620,14 @@ export const LessonView: React.FC<Props> = ({
                   </div>
               </div>
           {floatingBtn}
+          {/* ── Pending coin box ── */}
+          {pendingCreditDisplay > 0 && (
+            <div style={{ position:'fixed', bottom:132, right:16, zIndex:54, background:'rgba(10,10,20,0.88)', backdropFilter:'blur(10px)', WebkitBackdropFilter:'blur(10px)', borderRadius:20, padding:'5px 11px', display:'flex', alignItems:'center', gap:5, border:'1px solid rgba(251,191,36,0.35)', boxShadow:'0 2px 12px rgba(251,191,36,0.15)', pointerEvents:'none' }}>
+              <span style={{ fontSize:13 }}>🪙</span>
+              <span style={{ color:'#fbbf24', fontWeight:900, fontSize:13, lineHeight:1 }}>+{pendingCreditDisplay}</span>
+              <span style={{ color:'#64748b', fontSize:9, fontWeight:600, lineHeight:1 }}>session</span>
+            </div>
+          )}
           </div>
       );
   }

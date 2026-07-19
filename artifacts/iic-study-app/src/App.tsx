@@ -602,6 +602,38 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // ── Pending lesson coins — deferred from session, applied 4s after HOME ─────
+  const pendingLessonCreditsRef = useRef(0);
+  const pendingLessonTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSessionCreditsEarned = useCallback((credits: number) => {
+    if (credits <= 0) return;
+    pendingLessonCreditsRef.current += credits;
+  }, []);
+
+  useEffect(() => {
+    if (studentTab !== 'HOME') return;
+    if (pendingLessonCreditsRef.current <= 0) return;
+    // Start 4-second timer — apply coins 4s after landing on HOME
+    pendingLessonTimerRef.current = setTimeout(() => {
+      const coins = pendingLessonCreditsRef.current;
+      if (coins <= 0) return;
+      pendingLessonCreditsRef.current = 0;
+      // Add to user balance
+      const currentUser = state.user;
+      if (!currentUser) return;
+      const newCredits = (currentUser.credits || 0) + coins;
+      const updated = { ...currentUser, credits: newCredits };
+      setState(prev => ({ ...prev, user: updated }));
+      saveUserToLive(updated);
+      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: 'reading' });
+    }, 4000);
+    return () => {
+      if (pendingLessonTimerRef.current) clearTimeout(pendingLessonTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentTab]);
+
   // HOME tab pe EARN notifications suppress karo (HomeStatsToast mein dikhega)
   useEffect(() => { setHomeTabActive(studentTab === 'HOME'); }, [studentTab]);
   useEffect(() => {
@@ -3376,6 +3408,7 @@ const App: React.FC = () => {
                               isFirstChapter={_isFirstChapter}
                               onAdminBoard={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => setState(prev => ({...prev, view: 'ADMIN'})) : undefined}
                               onSendToMcqCommunity={(draft) => setAppMcqCommunityDraft(draft)}
+                              onSessionCreditsEarned={handleSessionCreditsEarned}
                onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
                                 try {
                                   const ch = state.selectedChapter;

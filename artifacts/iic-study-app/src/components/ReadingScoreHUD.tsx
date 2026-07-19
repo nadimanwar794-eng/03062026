@@ -91,7 +91,7 @@ export const ReadingScoreHUD: React.FC<Props> = ({
   // Only Video still earns credits (60s ticker); all others earn pts now
   const isCreditMode = isVideo;
   const rewardLabel = isVideo ? '+5 pts / 30s · +10cr / 1min'
-                    : isPdf   ? '+5 pts / 30s (≥5% scroll/1min)'
+                    : isPdf   ? '+5 pts / 30s (≥2.5% scroll/30s)'
                     : isQa    ? '+5 pts / 30s (≥5% scroll/30s)'
                     : state.mode === 'writing' ? '+10 pts / 1min (≥5% scroll/1min)'
                     : isAudio ? '+5 pts / 30s'
