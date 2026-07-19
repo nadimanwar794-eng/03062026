@@ -2766,7 +2766,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // Time-based scoring for Lucent viewer — mode-aware:
   //   • NOTES + chunk mode → ChunkedNotesReader handles internally (READ_ACTIVE_30S + TTS). NOT here.
-  //   • NOTES + html mode  → Write mode: WRITE_ACTIVE_5MIN every 5 min (+25 base). Handled here.
+  //   • NOTES + html mode  → Write mode: WRITE_ACTIVE_5MIN every 60 sec (+10 base). Handled here.
   //   • PDF tab            → READ_NOTES_TIME every 30 sec (+5 base). Handled here.
   //   • VIDEO / AUDIO tabs → VIDEO / AUDIO_TTS every 30 sec (+5 base). Handled here.
   useEffect(() => {
@@ -2783,8 +2783,8 @@ export const StudentDashboard: React.FC<Props> = ({
     lucentLastAwardedTierRef.current = 0;
 
     const userLevel    = getLevelInfo(user.totalScore || 0).level;
-    const intervalSec  = isWriteMode ? 300 : 30;           // 5 min for write, 30s for read
-    const basePerTick  = isWriteMode ? 25 : 5;             // +25 per 5 min, +5 per 30s
+    const intervalSec  = isWriteMode ? 60 : 30;            // 60s for write, 30s for read
+    const basePerTick  = isWriteMode ? 10 : 5;             // +10 per 60s, +5 per 30s
     const maxSecs      = isWriteMode ? 3600 : getMaxReadingSeconds(userLevel); // 60 min for write
     const tabEmoji     = isWriteMode ? '✍️' : lucentActiveTab === 'PDF' ? '📄' : lucentActiveTab === 'VIDEO' ? '🎬' : '🎵';
     const activityType = isWriteMode
