@@ -87,7 +87,7 @@ export interface ReadingScoreConfig {
 const READING_INTERVAL_SEC        = 30;   // +5 pts every 30s
 const WRITING_INTERVAL_SEC        = 60;   // +10 pts every 60s
 const WRITING_SCROLL_CHECK_SEC    = 60;   // scroll check every 60s (independent)
-const VIDEO_PTS_INTERVAL_SEC      = 6;    // +1 pts every 6s of playing
+const VIDEO_PTS_INTERVAL_SEC      = 30;   // +5 pts every 30s of playing
 const VIDEO_CR_INTERVAL_SEC       = 60;   // +10 credits every 60s of playing
 const AUDIO_INTERVAL_SEC          = 30;   // +5 pts every 30s
 const PDF_INTERVAL_SEC            = 30;   // +5 pts every 30s
@@ -97,7 +97,7 @@ const QA_SCROLL_CHECK_SEC         = 30;   // scroll check every 30s (independent
 
 const READING_REWARD_BASE  = 5;
 const WRITING_PTS_BASE     = 10;   // pts (not credits)
-const VIDEO_PTS_BASE       = 1;
+const VIDEO_PTS_BASE       = 5;
 const VIDEO_CREDIT_BASE    = 10;
 const AUDIO_REWARD_BASE    = 5;    // 5 pts (was 6)
 const PDF_PTS_BASE         = 5;    // pts (not credits)
@@ -365,8 +365,8 @@ export class ReadingScoreSession {
       const elapsed = this.intervalId ? (now - this.lastRewardTime) / 1000 : 0;
       nextRewardInSec = Math.max(0, Math.ceil(AUDIO_INTERVAL_SEC - elapsed));
     } else if (this.mode === 'video') {
-      // Show countdown to next credit (60s)
-      const secsLeft = VIDEO_CR_INTERVAL_SEC - this.videoPlayingSecsSinceLastCr;
+      // Show countdown to next pts reward (30s)
+      const secsLeft = VIDEO_PTS_INTERVAL_SEC - this.videoPlayingSecsSinceLastPts;
       nextRewardInSec = Math.max(0, secsLeft);
     } else {
       // writing/pdf/qa: show countdown to next credit tick

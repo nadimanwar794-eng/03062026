@@ -90,7 +90,7 @@ export const ReadingScoreHUD: React.FC<Props> = ({
   const modeIcon   = isVideo ? '🎬' : isAudio ? '🎧' : isPdf ? '📄' : isQa ? '💬' : isReading ? '📖' : '✍️';
   // Only Video still earns credits (60s ticker); all others earn pts now
   const isCreditMode = isVideo;
-  const rewardLabel = isVideo ? '+1 pts / 6s · +10cr / 1min'
+  const rewardLabel = isVideo ? '+5 pts / 30s · +10cr / 1min'
                     : isPdf   ? '+5 pts / 30s (≥5% scroll/1min)'
                     : isQa    ? '+5 pts / 30s (≥5% scroll/30s)'
                     : state.mode === 'writing' ? '+10 pts / 1min (≥5% scroll/1min)'
@@ -178,8 +178,8 @@ export const ReadingScoreHUD: React.FC<Props> = ({
               <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
               <span style={{ fontSize: 11, fontWeight: 900, color: state.isPermanentlyStopped || state.isPaused ? '#ef4444' : '#f59e0b', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
                 {state.isPermanentlyStopped ? 'Scroll karo' : state.isPaused ? 'Paused' : (() => {
-                const pts = state.mode === 'writing' ? 10 : state.mode === 'video' ? 1 : 5;
-                const interval = state.mode === 'writing' ? 60 : state.mode === 'video' ? 6 : 30;
+                const pts = state.mode === 'writing' ? 10 : 5;
+                const interval = state.mode === 'writing' ? 60 : 30;
                 return `+${pts} in ${state.nextRewardInSec || interval}s`;
               })()}
               </span>
