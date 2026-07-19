@@ -7,6 +7,7 @@ import { storage } from '../utils/storage';
 import { DEFAULT_SUBJECTS } from '../constants';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
+import { useAppTheme } from '../utils/themeContext';
 import { renderMathInHtml } from '../utils/mathUtils';
 import { ReadingScoreSession } from '../utils/readingScoreEngine';
 import { getLevelFromScore } from '../utils/levelSystem';
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, subTopic, chapterTitle, subjectName, onClose, onUpdateUser, onSessionComplete }) => {
+    const appTheme = useAppTheme();
     const [activeTab, setActiveTab] = useState<'NOTES' | 'MCQ'>('NOTES');
     const [notesViewMode, setNotesViewMode] = useState<'html' | 'chunk'>('html');
     const [loading, setLoading] = useState(true);
@@ -363,14 +365,14 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
     return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in slide-in-from-bottom-10">
             {/* HEADER */}
-            <div className="bg-white border-b border-slate-100 p-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
-                <div>
-                    <h2 className="text-lg font-black text-slate-800 leading-tight">{subTopic}</h2>
-                    <p className="text-xs text-slate-600 font-bold">{chapterTitle} • Revision Mode</p>
-                </div>
-                <button onClick={() => { flushQaSession(); onClose(); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">
+            <div className="px-4 py-3 flex items-center gap-3 shadow-md sticky top-0 z-10" style={{ background: appTheme.topBarGrad }}>
+                <button onClick={() => { flushQaSession(); onClose(); }} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors">
                     <X size={20} />
                 </button>
+                <div className="min-w-0 flex-1">
+                    <h2 className="text-[13px] font-black text-white truncate leading-tight">{subTopic}</h2>
+                    <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wide">{chapterTitle} · 📖 Revision Mode</p>
+                </div>
             </div>
 
             {/* TABS */}
@@ -601,10 +603,13 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
             {showReview && sessionResult && (
                 <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in slide-in-from-bottom-6">
                     {/* Review Header */}
-                    <div className="sticky top-0 bg-white border-b border-slate-100 p-4 flex items-center justify-between z-10">
-                        <div>
-                            <h2 className="text-lg font-black text-slate-800">Session Review</h2>
-                            <p className="text-xs text-slate-500 font-bold">{subTopic} · {chapterTitle}</p>
+                    <div className="sticky top-0 px-4 py-3 flex items-center gap-3 shadow-md z-10" style={{ background: appTheme.topBarGrad }}>
+                        <button onClick={() => setShowReview(false)} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors">
+                            <X size={18} />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-[13px] font-black text-white truncate leading-tight">Session Review</h2>
+                            <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wide truncate">{subTopic} · {chapterTitle}</p>
                         </div>
                     </div>
 

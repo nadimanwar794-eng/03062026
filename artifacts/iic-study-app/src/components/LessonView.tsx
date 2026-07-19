@@ -928,24 +928,23 @@ export const LessonView: React.FC<Props> = ({
       return (
           <div className="fixed inset-0 z-[200] bg-white flex flex-col">
               {/* Header */}
-              <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
-                  <div className="flex items-center gap-3"><button onClick={toggleFullScreen} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200" title="Toggle Fullscreen"><Maximize size={20} /></button>
-                      {settings?.appLogo && <img src={settings.appLogo} className="w-8 h-8 object-contain" />}
-                      <div>
-                          <h2 className="font-black text-slate-800 uppercase text-sm">{settings?.appName || 'Free Notes'}</h2>
-                          <p className="text-[10px] text-orange-600 font-bold uppercase tracking-widest">Recommended Reading</p>
+              <header className="px-3 py-2.5 flex items-center gap-2.5 shadow-md sticky top-0 z-10" style={{ background: appTheme.topBarGrad }}>
+                  <button onClick={() => { setViewingNote(null); setViewingNoteChunkMode(false); }} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"><X size={18}/></button>
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                      {settings?.appLogo && <img src={settings.appLogo} className="w-7 h-7 object-contain rounded-lg shrink-0" />}
+                      <div className="min-w-0">
+                          <h2 className="font-black text-white uppercase text-[13px] truncate leading-tight">{settings?.appName || 'Free Notes'}</h2>
+                          <p className="text-[10px] text-amber-300 font-bold uppercase tracking-widest">📖 Recommended Reading</p>
                       </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setViewingNoteChunkMode(m => !m)}
-                      className={`p-2 rounded-full transition-colors ${viewingNoteChunkMode ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                      title={viewingNoteChunkMode ? 'HTML Mode' : 'TTS Reader'}
-                    >
-                      <Volume2 size={18} />
-                    </button>
-                    <button onClick={() => { setViewingNote(null); setViewingNoteChunkMode(false); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
-                  </div>
+                  <button
+                    onClick={() => setViewingNoteChunkMode(m => !m)}
+                    className={`shrink-0 p-2 rounded-xl transition-colors ${viewingNoteChunkMode ? 'bg-amber-400/30 text-amber-300' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    title={viewingNoteChunkMode ? 'HTML Mode' : 'TTS Reader'}
+                  >
+                    <Volume2 size={18} />
+                  </button>
+                  <button onClick={toggleFullScreen} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors" title="Toggle Fullscreen"><Maximize size={18} /></button>
               </header>
 
               {/* Content */}
