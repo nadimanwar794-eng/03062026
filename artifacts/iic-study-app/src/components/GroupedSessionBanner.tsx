@@ -61,10 +61,7 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
 }) => {
   const [visible, setVisible]   = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [progress, setProgress] = useState(100); // countdown bar 100→0
   const dismissedRef = useRef(false);
-  const timerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rafRef       = useRef<number | null>(null);
 
   // ── Smooth dismiss ──────────────────────────────────────────────────────────
   const handleDismiss = () => {
@@ -76,30 +73,10 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
     setTimeout(onDismiss, 380);
   };
 
-  // ── Mount: slide-in + auto-dismiss after 3.5s ───────────────────────────────
+  // ── Mount: slide-in only — manual dismiss required ──────────────────────────
   useEffect(() => {
     const show = setTimeout(() => setVisible(true), 40);
-
-    // Countdown progress bar animation
-    const start = Date.now();
-    const TOTAL = 3500;
-    const tick = () => {
-      const elapsed = Date.now() - start;
-      const pct = Math.max(0, 100 - (elapsed / TOTAL) * 100);
-      setProgress(pct);
-      if (pct > 0) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-
-    timerRef.current = setTimeout(handleDismiss, TOTAL);
-
-    return () => {
-      clearTimeout(show);
-      clearTimeout(timerRef.current!);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    return () => { clearTimeout(show); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -145,17 +122,14 @@ export const GroupedSessionBanner: React.FC<GroupedSessionBannerProps> = ({
             flexDirection: 'column',
           }}
         >
-          {/* ── Countdown progress bar (gold) ─────────────────────────────── */}
+          {/* ── Gold shimmer top line ─────────────────────────────────────── */}
           <div className="h-[3px] w-full shrink-0 relative overflow-hidden"
-            style={{ background: 'rgba(251,191,36,0.15)' }}>
-            <div
-              className="absolute left-0 top-0 h-full"
-              style={{
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
-                transition: 'width 0.1s linear',
-              }}
-            />
+            style={{ background: 'linear-gradient(90deg, transparent, #fbbf24, transparent)' }}>
+            <span className="absolute inset-0" style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer-sweep 1.6s linear infinite',
+            }} />
           </div>
 
           {/* ── Header ────────────────────────────────────────────────────── */}
