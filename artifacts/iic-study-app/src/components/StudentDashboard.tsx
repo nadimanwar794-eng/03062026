@@ -6811,6 +6811,54 @@ export const StudentDashboard: React.FC<Props> = ({
               const _audLocked       = !_isAdminUser && !_isUltraUser;
               const _canProjector    = _isAdminUser;
               const _hwMcqs = (activeHw.parsedMcqs || []) as any[];
+
+              // _pgInfo — Lucent jaisa right-panel info for coin-gate popup
+              const _hwPgInfo = {
+                pageLabel: activeHw.title || 'Competition Lesson',
+                availableModes: [
+                  { mode: 'READING',   label: 'Reading Mode', emoji: '📖', cost: 20,
+                    isUnlocked: isPgReadUnlocked(activeHw.id, 0),  isAccessible: true,                           requiredTier: 'free'  as const, unlockAction: () => markPgReadUnlocked(activeHw.id, 0) },
+                  { mode: 'WRITING',   label: 'Writing Mode', emoji: '✍️', cost: 20,
+                    isUnlocked: isPgWriteUnlocked(activeHw.id, 0), isAccessible: true,                           requiredTier: 'free'  as const, unlockAction: () => markPgWriteUnlocked(activeHw.id, 0) },
+                  ...(hasMcq ? [
+                    { mode: 'MCQ',       label: 'MCQ Practice', emoji: '🧠', cost: 20,
+                      isUnlocked: isMcqPageUnlocked(activeHw.id, 0), isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markMcqPageUnlocked(activeHw.id, 0) },
+                    { mode: 'QA',        label: 'Q&A Mode',     emoji: '💬', cost: 20,
+                      isUnlocked: isQaPageUnlocked(activeHw.id, 0),  isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: () => markQaPageUnlocked(activeHw.id, 0) },
+                    { mode: 'FLASHCARD', label: 'Flashcard',    emoji: '🃏', cost: 20,
+                      isUnlocked: isFcPageUnlocked(activeHw.id, 0),  isAccessible: _isUltraUser,                 requiredTier: 'ultra' as const, unlockAction: () => markFcPageUnlocked(activeHw.id, 0) },
+                  ] : []),
+                  ...(hasPdf   ? [{ mode: 'PDF',   label: 'PDF',   emoji: '📄', cost: 0, isUnlocked: true, isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: undefined }] : []),
+                  ...(hasVideo ? [{ mode: 'VIDEO', label: 'Video', emoji: '🎬', cost: 0, isUnlocked: true, isAccessible: _isUltraUser,                 requiredTier: 'ultra' as const, unlockAction: undefined }] : []),
+                  ...(hasAudio ? [{ mode: 'AUDIO', label: 'Audio', emoji: '🎵', cost: 0, isUnlocked: true, isAccessible: _isUltraUser,                 requiredTier: 'ultra' as const, unlockAction: undefined }] : []),
+                ],
+              };
+
+              // _switchHwMcq — Lucent ke _switchMcq jaisa, coin gate ke saath
+              const _switchHwMcq = (tab: 'mcq' | 'qa' | 'flashcard') => {
+                const _doSwitch = () => {
+                  stopSpeech();
+                  if (tab === 'flashcard') {
+                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio } });
+                    setHwViewMode('flashcard'); _hwSave('flashcard');
+                  } else {
+                    setHwViewMode(tab); _hwSave(tab);
+                  }
+                };
+                if (_isAdminUser) { _doSwitch(); return; }
+                if (tab === 'mcq') {
+                  if (isMcqPageUnlocked(activeHw.id, 0)) { _doSwitch(); return; }
+                  showCoinGate(20, 'MCQ Practice', () => { markMcqPageUnlocked(activeHw.id, 0); _doSwitch(); }, undefined, undefined, _hwPgInfo);
+                } else if (tab === 'qa') {
+                  if (_qaLocked) { showAlert('🔒 Q&A ke liye BASIC subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                  if (isQaPageUnlocked(activeHw.id, 0)) { _doSwitch(); return; }
+                  showCoinGate(20, 'Q&A Mode', () => { markQaPageUnlocked(activeHw.id, 0); _doSwitch(); }, undefined, undefined, _hwPgInfo);
+                } else if (tab === 'flashcard') {
+                  if (_fcLocked) { showAlert('🔒 Flashcard ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                  if (isFcPageUnlocked(activeHw.id, 0)) { _doSwitch(); return; }
+                  showCoinGate(20, 'Flashcard', () => { markFcPageUnlocked(activeHw.id, 0); _doSwitch(); }, undefined, undefined, _hwPgInfo);
+                }
+              };
               return (
                 <div ref={hwTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
                   <div className="flex min-w-max">
@@ -6822,9 +6870,9 @@ export const StudentDashboard: React.FC<Props> = ({
                     <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); })} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
                       Writing Mode
                     </button>
-                    {/* Free+ — MCQ Practice */}
+                    {/* Free+ — MCQ Practice (coin gate jaisa Lucent) */}
                     {hasMcq && (
-                      <button data-tab-active={String(effectiveMode === 'mcq')} onClick={() => { stopSpeech(); setHwViewMode('mcq'); _hwSave('mcq'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}>
+                      <button data-tab-active={String(effectiveMode === 'mcq')} onClick={() => _switchHwMcq('mcq')} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}>
                         MCQ Practice
                       </button>
                     )}
@@ -6835,30 +6883,22 @@ export const StudentDashboard: React.FC<Props> = ({
                         📽️ Projector
                       </button>
                     )}
-                    {/* Flashcard — ULTRA locked shown with badge (Lucent jaisa) */}
+                    {/* Flashcard — ULTRA locked shown with badge, coin gate jaisa Lucent */}
                     {hasMcq && (
                       <button
                         data-tab-active={String(effectiveMode === 'flashcard')}
-                        onClick={() => {
-                          if (_fcLocked) { showAlert('🔒 Flashcard ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
-                          stopSpeech();
-                          setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio } });
-                          setHwViewMode('flashcard'); _hwSave('flashcard');
-                        }}
+                        onClick={() => _switchHwMcq('flashcard')}
                         style={_hwTabStyle}
                         className={_hwTabCls(effectiveMode === 'flashcard', 'bg-amber-500', 'text-white') + (_fcLocked ? ' opacity-60' : '')}
                       >
                         {_fcLocked ? '🔒' : '🃏'} Flashcard{_fcLocked ? ' · ULTRA' : ''}
                       </button>
                     )}
-                    {/* Q&A — BASIC locked shown with badge (Lucent jaisa) */}
+                    {/* Q&A — BASIC locked shown with badge, coin gate jaisa Lucent */}
                     {hasMcq && (
                       <button
                         data-tab-active={String(effectiveMode === 'qa')}
-                        onClick={() => {
-                          if (_qaLocked) { showAlert('🔒 Q&A ke liye BASIC subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
-                          stopSpeech(); setHwViewMode('qa'); _hwSave('qa');
-                        }}
+                        onClick={() => _switchHwMcq('qa')}
                         style={_hwTabStyle}
                         className={_hwTabCls(effectiveMode === 'qa', 'bg-indigo-600', 'text-white') + (_qaLocked ? ' opacity-60' : '')}
                       >
