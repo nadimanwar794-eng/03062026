@@ -2736,9 +2736,11 @@ export const StudentDashboard: React.FC<Props> = ({
   // Always-running countdown — ticks every second while lesson is open, resets when tab changes or score earned
   useEffect(() => {
     if (!lucentNoteViewer) { setLucentCountdown(0); return; }
-    const _cdMap: Record<string, number> = { NOTES: 30, QA: 60, PDF: 60, VIDEO: 6, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
+    const _cdMap: Record<string, number> = { NOTES: 30, QA: 30, PDF: 30, VIDEO: 30, AUDIO: 30, MCQS: 0, FLASHCARD: 0 };
     const _cd = _cdMap[lucentActiveTab] ?? 30;
     if (_cd === 0) { setLucentCountdown(0); return; }
+    // Reset anchor on tab switch so countdown starts fresh (not carried over from previous tab)
+    lucentLastScoreTimeRef.current = Date.now();
     const _tick = () => {
       const elapsed = (Date.now() - lucentLastScoreTimeRef.current) / 1000;
       setLucentCountdown(Math.max(0, Math.ceil(_cd - elapsed)));
@@ -18609,11 +18611,11 @@ export const StudentDashboard: React.FC<Props> = ({
               const _accentColor =
                 _isWrite ? '#10b981' : lucentActiveTab === 'MCQS' ? '#8b5cf6' :
                 lucentActiveTab === 'VIDEO' ? '#6366f1' : '#16a34a';
-              const _nextPts = lucentActiveTab === 'VIDEO' ? 1 : _isWrite ? 10 : 5;
-              const _nextInterval = lucentActiveTab === 'VIDEO' ? 6 : _isWrite ? 60 : 30;
+              const _nextPts = _isWrite ? 10 : 5;
+              const _nextInterval = _isWrite ? 60 : 30;
               const _nextText =
                 lucentActiveTab === 'MCQS' ? 'Sahi jawab pe!' :
-                `+${_nextPts} in ${lucentCountdown || _nextInterval}s`;
+                `+${_nextPts} in ${lucentCountdown > 0 ? lucentCountdown : _nextInterval}s`;
               const _showProgress = lucentActiveTab !== 'MCQS';
               let _swipeStartX = 0;
               let _swipeStartY = 0;
