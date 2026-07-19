@@ -19457,7 +19457,15 @@ RULES:
               }
               const allRevealed = _qaItems.every((_, i) => lucentQaRevealed[`${_qaKey}_${i}`]);
               return (
-                <div className="flex-1 overflow-y-auto">
+                <div
+                  className="flex-1 overflow-y-auto"
+                  onScroll={(e) => {
+                    const t = e.currentTarget;
+                    const max = t.scrollHeight - t.clientHeight;
+                    const pct = max > 0 ? Math.min(100, Math.max(0, (t.scrollTop / max) * 100)) : 0;
+                    setLucentScrollProgress(pct);
+                  }}
+                >
                   <div className="px-4 pt-3 pb-4 space-y-3">
                     {_qaItems.map((mcq: any, qi: number) => {
                       const _key = `${_qaKey}_${qi}`;
