@@ -2736,6 +2736,23 @@ export const StudentDashboard: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentActiveTab, lucentNotesViewMode]);
 
+  // PDF tab: iframe ke andar scroll detect nahi hota (cross-origin).
+  // Time-based progress use karo — har second PDF pe = progress badhta hai.
+  // IMPORTANT: declared AFTER lucentActiveTab to avoid production TDZ crash.
+  useEffect(() => {
+    if (!lucentNoteViewer || lucentActiveTab !== 'PDF') return;
+    const userLevel = getLevelInfo(userRef.current?.totalScore || 0).level;
+    const maxSecs = getMaxReadingSeconds(userLevel);
+    let elapsed = 0;
+    const id = setInterval(() => {
+      elapsed += 1;
+      const pct = Math.min(100, Math.round((elapsed / maxSecs) * 100));
+      setLucentScrollProgress(pct);
+    }, 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lucentNoteViewer?.id, lucentActiveTab, lucentPageIndex]);
+
   // Track when pts were last earned (for live countdown tooltip)
   useEffect(() => {
     lucentLastScoreTimeRef.current = Date.now();
