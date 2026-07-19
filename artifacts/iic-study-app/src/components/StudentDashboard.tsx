@@ -2961,7 +2961,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [generatedContentCode, setGeneratedContentCode] = useState<string | null>(null);
   // Notes/MCQ split view: 'choose' shows a chooser overlay, 'notes' shows notes (with optional MCQ switch button),
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
-  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard'>('notes');
+  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard' | 'pdf'>('notes');
   const [hwImmersive, setHwImmersive] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
@@ -6557,9 +6557,10 @@ export const StudentDashboard: React.FC<Props> = ({
         const hasPdf = !!((activeHw as any).pdfUrl);
         const hasMedia = hasAudio || hasVideo;
         // Effective view mode — guard against stale state if content lacks the requested mode.
-        const effectiveMode: 'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard' =
+        const effectiveMode: 'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard' | 'pdf' =
           hwViewMode === 'audio' && !hasAudio ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
           : hwViewMode === 'video' && !hasVideo ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
+          : hwViewMode === 'pdf' && !hasPdf ? (hasNotes ? 'notes' : hasMcq ? 'mcq' : 'notes')
           : (hwViewMode === 'qa' || hwViewMode === 'flashcard') && !hasMcq ? (hasNotes ? 'notes' : 'notes')
           : hwViewMode === 'choose' && (!hasNotes || !hasMcq)
             ? (hasMcq && !hasNotes ? 'mcq' : 'notes')
@@ -6792,8 +6793,8 @@ export const StudentDashboard: React.FC<Props> = ({
               )}
             </div>
 
-            {/* ── COMPETITION STICKY MODE TAB BAR — upar (pehle) ── */}
-            {/* Access: Free=Reading+Writing+MCQ | Basic+=Q&A+PDF+Video+Audio | Ultra+=Flashcard | Admin=+Projector */}
+            {/* ── COMPETITION STICKY MODE TAB BAR — Lucent jaisa ── */}
+            {/* Access: Free=Reading+Writing+MCQ | Basic+=Q&A+PDF | Ultra+=Video+Audio+Flashcard | Admin=+Projector */}
             {!hwImmersive && !isLandscapeUiHidden && effectiveMode !== 'flashcard' && (() => {
               const _hwTabCls = (active: boolean, activeBg: string, activeText: string) =>
                 `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
@@ -6802,64 +6803,116 @@ export const StudentDashboard: React.FC<Props> = ({
               const _isReadActive = effectiveMode === 'notes' && hwNotesViewMode === 'chunk';
               const _isWriteActive = effectiveMode === 'notes' && hwNotesViewMode === 'html';
               const _hwSave = (tab: string, vm?: string) => { try { if (activeHw?.id) { localStorage.setItem(`iic_hw_tab_${activeHw.id}`, tab); if (vm) localStorage.setItem(`iic_hw_tabvm_${activeHw.id}`, vm); } } catch {} };
-              // Tier access flags
-              const _canQa        = _isAdminUser || _isUltraUser || _isBasicUser;
-              const _canFlashcard = _isAdminUser || _isUltraUser;
-              const _canMedia     = _isAdminUser || _isUltraUser || _isBasicUser; // PDF, Video, Audio
-              const _canProjector = _isAdminUser;
+              // Tier access flags — same as Lucent
+              const _qaLocked        = !_isAdminUser && !_isBasicUser && !_isUltraUser;
+              const _fcLocked        = !_isAdminUser && !_isUltraUser;
+              const _pdfLocked       = !_isAdminUser && !_isBasicUser && !_isUltraUser;
+              const _vidLocked       = !_isAdminUser && !_isUltraUser;
+              const _audLocked       = !_isAdminUser && !_isUltraUser;
+              const _canProjector    = _isAdminUser;
+              const _hwMcqs = (activeHw.parsedMcqs || []) as any[];
               return (
-                <div ref={hwTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none' } as any}>
+                <div ref={hwTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
                   <div className="flex min-w-max">
-                    {/* Free+ */}
-                    <button data-tab-active={String(_isReadActive)} onClick={() => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); }} style={_hwTabStyle} className={_hwTabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
+                    {/* Free+ — Reading */}
+                    <button data-tab-active={String(_isReadActive)} onClick={() => { stopSpeech(); setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); }} style={_hwTabStyle} className={_hwTabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
                       Reading Mode
                     </button>
+                    {/* Free+ — Writing (credit gate) */}
                     <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); })} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
                       Writing Mode
                     </button>
+                    {/* Free+ — MCQ Practice */}
                     {hasMcq && (
-                      <button data-tab-active={String(effectiveMode === 'mcq')} onClick={() => { setHwViewMode('mcq'); _hwSave('mcq'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}>
+                      <button data-tab-active={String(effectiveMode === 'mcq')} onClick={() => { stopSpeech(); setHwViewMode('mcq'); _hwSave('mcq'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}>
                         MCQ Practice
                       </button>
                     )}
                     {/* Admin only — Projector */}
-                    {hasMcq && _canProjector && (() => {
-                      const _hwMcqs = (activeHw.parsedMcqs || []) as any[];
+                    {hasMcq && _canProjector && (
+                      <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
+                        onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector', hasPdf, hasVideo, hasAudio } }); }}>
+                        📽️ Projector
+                      </button>
+                    )}
+                    {/* Flashcard — ULTRA locked shown with badge (Lucent jaisa) */}
+                    {hasMcq && (
+                      <button
+                        data-tab-active={String(effectiveMode === 'flashcard')}
+                        onClick={() => {
+                          if (_fcLocked) { showAlert('🔒 Flashcard ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                          stopSpeech();
+                          setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio } });
+                          setHwViewMode('flashcard'); _hwSave('flashcard');
+                        }}
+                        style={_hwTabStyle}
+                        className={_hwTabCls(effectiveMode === 'flashcard', 'bg-amber-500', 'text-white') + (_fcLocked ? ' opacity-60' : '')}
+                      >
+                        {_fcLocked ? '🔒' : '🃏'} Flashcard{_fcLocked ? ' · ULTRA' : ''}
+                      </button>
+                    )}
+                    {/* Q&A — BASIC locked shown with badge (Lucent jaisa) */}
+                    {hasMcq && (
+                      <button
+                        data-tab-active={String(effectiveMode === 'qa')}
+                        onClick={() => {
+                          if (_qaLocked) { showAlert('🔒 Q&A ke liye BASIC subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                          stopSpeech(); setHwViewMode('qa'); _hwSave('qa');
+                        }}
+                        style={_hwTabStyle}
+                        className={_hwTabCls(effectiveMode === 'qa', 'bg-indigo-600', 'text-white') + (_qaLocked ? ' opacity-60' : '')}
+                      >
+                        {_qaLocked ? '🔒' : '💬'} Q&amp;A{_qaLocked ? ' · BASIC' : ''}
+                      </button>
+                    )}
+                    {/* PDF — BASIC locked, inline viewer (Lucent jaisa, window.open nahi) */}
+                    {hasPdf && (() => {
                       return (
-                        <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
-                          onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector' } }); }}>
-                          📽️ Projector
+                        <button
+                          data-tab-active={String(effectiveMode === 'pdf')}
+                          onClick={() => {
+                            if (_pdfLocked) { showAlert('🔒 PDF ke liye BASIC subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                            stopSpeech(); setHwViewMode('pdf'); _hwSave('pdf');
+                          }}
+                          style={_hwTabStyle}
+                          className={_hwTabCls(effectiveMode === 'pdf', 'bg-blue-600', 'text-white') + (_pdfLocked ? ' opacity-60' : '')}
+                        >
+                          {_pdfLocked ? '🔒 ' : ''}PDF{_pdfLocked ? ' · BASIC' : ''}
                         </button>
                       );
                     })()}
-                    {/* Basic+ — Q&A */}
-                    {hasMcq && _canQa && (
-                      <button data-tab-active={String(effectiveMode === 'qa')} onClick={() => { setHwViewMode('qa'); _hwSave('qa'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'qa', 'bg-indigo-600', 'text-white')}>
-                        💬 Q&amp;A
-                      </button>
-                    )}
-                    {/* Ultra only — Flashcard */}
-                    {hasMcq && _canFlashcard && (
-                      <button data-tab-active={String(effectiveMode === 'flashcard')} onClick={() => { setHwViewMode('flashcard'); _hwSave('flashcard'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'flashcard', 'bg-amber-500', 'text-white')}>
-                        🃏 Flashcard
-                      </button>
-                    )}
-                    {/* Basic+ — PDF, Video, Audio */}
-                    {hasPdf && _canMedia && (
-                      <button data-tab-active="false" onClick={() => window.open((activeHw as any).pdfUrl, '_blank')} style={_hwTabStyle} className={_hwTabCls(false, 'bg-blue-600', 'text-white')}>
-                        PDF
-                      </button>
-                    )}
-                    {hasVideo && _canMedia && (
-                      <button data-tab-active={String(effectiveMode === 'video')} onClick={() => { setHwViewMode('video'); _hwSave('video'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'video', 'bg-rose-600', 'text-white')}>
-                        Video
-                      </button>
-                    )}
-                    {hasAudio && _canMedia && (
-                      <button data-tab-active={String(effectiveMode === 'audio')} onClick={() => { setHwViewMode('audio'); _hwSave('audio'); }} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'audio', 'bg-violet-600', 'text-white')}>
-                        Audio
-                      </button>
-                    )}
+                    {/* Video — ULTRA locked shown with badge */}
+                    {hasVideo && (() => {
+                      return (
+                        <button
+                          data-tab-active={String(effectiveMode === 'video')}
+                          onClick={() => {
+                            if (_vidLocked) { showAlert('🔒 Video ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                            stopSpeech(); setHwViewMode('video'); _hwSave('video');
+                          }}
+                          style={_hwTabStyle}
+                          className={_hwTabCls(effectiveMode === 'video', 'bg-rose-600', 'text-white') + (_vidLocked ? ' opacity-60' : '')}
+                        >
+                          {_vidLocked ? '🔒 ' : ''}Video{_vidLocked ? ' · ULTRA' : ''}
+                        </button>
+                      );
+                    })()}
+                    {/* Audio — ULTRA locked shown with badge */}
+                    {hasAudio && (() => {
+                      return (
+                        <button
+                          data-tab-active={String(effectiveMode === 'audio')}
+                          onClick={() => {
+                            if (_audLocked) { showAlert('🔒 Audio ke liye ULTRA subscription chahiye! Store se upgrade karein.', 'INFO'); return; }
+                            stopSpeech(); setHwViewMode('audio'); _hwSave('audio');
+                          }}
+                          style={_hwTabStyle}
+                          className={_hwTabCls(effectiveMode === 'audio', 'bg-violet-600', 'text-white') + (_audLocked ? ' opacity-60' : '')}
+                        >
+                          {_audLocked ? '🔒 ' : ''}Audio{_audLocked ? ' · ULTRA' : ''}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -6920,8 +6973,35 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
             )}
 
+            {/* PDF PAGE — inline viewer (Lucent jaisa) */}
+            {effectiveMode === 'pdf' && hasPdf && (
+              <div className={`flex-1 overflow-hidden flex flex-col ${(!hwImmersive && !isLandscape) ? 'pt-2 px-3 gap-2' : ''}`}>
+                <div className={`flex-1 overflow-hidden bg-white relative ${hwImmersive ? '' : 'rounded-2xl border border-blue-200 shadow-lg'}`}>
+                  <iframe
+                    src={
+                      (activeHw as any).pdfUrl?.includes('drive.google.com')
+                        ? `https://drive.google.com/file/d/${(((activeHw as any).pdfUrl.match(/drive\.google\.com\/file\/d\/([^/?#]+)/) || [])[1])}/preview?rm=minimal`
+                        : (activeHw as any).pdfUrl
+                    }
+                    className="w-full h-full border-none"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                    allow="autoplay"
+                    title="PDF"
+                  />
+                  {/* Drive top-right blocker */}
+                  {(activeHw as any).pdfUrl?.includes('drive.google.com') && (
+                    <div
+                      className="absolute top-0 right-0 bg-blue-800/80 text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg z-10 select-none"
+                      style={{ pointerEvents: 'all', cursor: 'default' }}
+                      title="Stay in the App"
+                    >🔒 App</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Scrollable content (notes/mcq only) */}
-            {effectiveMode !== 'choose' && effectiveMode !== 'video' && effectiveMode !== 'audio' && (
+            {effectiveMode !== 'choose' && effectiveMode !== 'video' && effectiveMode !== 'audio' && effectiveMode !== 'pdf' && (
             <div
               ref={hwScrollContainerRef}
               className={`flex-1 overflow-y-auto ${!hwImmersive && !isLandscape ? 'pb-[72px]' : ''}`}
