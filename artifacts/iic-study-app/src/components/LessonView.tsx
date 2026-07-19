@@ -34,6 +34,7 @@ import { fireCreditNotify } from '../utils/creditNotify';
 import { ReadingScoreSession, ReadingScoreState } from '../utils/readingScoreEngine';
 import { ReadingScoreHUD } from './ReadingScoreHUD';
 import { PdfViewer } from './PdfViewer';
+import { useAppTheme } from '../utils/themeContext';
 import { fireSessionComplete } from '../utils/sessionNotify';
 
 
@@ -101,6 +102,7 @@ export const LessonView: React.FC<Props> = ({
   onSendToMcqCommunity,
   onSessionCreditsEarned,
 }) => {
+  const appTheme = useAppTheme();
   const [mcqState, setMcqState] = useState<Record<number, number | null>>({});
   const [mcqStreak, setMcqStreak] = useState(0);
   const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
@@ -1231,11 +1233,12 @@ export const LessonView: React.FC<Props> = ({
                       </div>
                   )}
                   {/* Header — write mode bar */}
-                  <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 flex-shrink-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
+                  <header className={`px-3 pt-2 pb-2 flex-shrink-0 z-10 shadow-md${isImmersive || schoolMode ? ' hidden' : ''}`} style={{ background: appTheme.topBarGrad }}>
                       <div className="flex items-center gap-2">
-                          <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
+                          <button onClick={handleBack} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"><ArrowLeft size={18} /></button>
                           <div className="min-w-0 flex-1">
-                              <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
+                              <h2 className="text-[13px] font-black text-white truncate leading-tight">{content.title}</h2>
+                              <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wide truncate">{notesViewMode === 'styled' ? '✍️ Writing Mode' : '📖 Reading Mode'}</p>
                           </div>
                           {/* Live score chip — both reading & writing modes */}
                           <div className="relative shrink-0" style={{ zIndex: 50 }}>
@@ -1277,13 +1280,13 @@ export const LessonView: React.FC<Props> = ({
                           {/* Language pill */}
                           {!schoolMode && (
                               <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
-                                  className="shrink-0 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 flex items-center gap-1 transition-all">
+                                  className="shrink-0 px-2.5 py-1 bg-white/10 border border-white/20 rounded-lg text-[11px] font-black text-white/80 hover:bg-white/20 flex items-center gap-1 transition-all">
                                   <Globe size={11} /> {language === 'English' ? 'हि' : 'EN'}
                               </button>
                           )}
                           {/* Admin Edit button */}
                           {isAdmin && onAdminEdit && (
-                              <button onClick={onAdminEdit} className="shrink-0 p-2 bg-orange-50 hover:bg-orange-100 rounded-xl text-orange-600 border border-orange-200 transition-colors" title="Edit / Delete Notes (Admin)">
+                              <button onClick={onAdminEdit} className="shrink-0 p-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-300 border border-amber-400/30 transition-colors" title="Edit / Delete Notes (Admin)">
                                   <Pencil size={17} />
                               </button>
                           )}
@@ -1292,7 +1295,7 @@ export const LessonView: React.FC<Props> = ({
                               <div className="relative shrink-0">
                                   {showMoreMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />}
                                   <button onClick={() => setShowMoreMenu(s => !s)}
-                                      className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
+                                      className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-white/25 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
                                       <MoreVertical size={17} />
                                   </button>
                                   {showMoreMenu && (
@@ -1325,7 +1328,7 @@ export const LessonView: React.FC<Props> = ({
                                   )}
                               </div>
                           )}
-                          <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
+                          <button onClick={handleBack} className="shrink-0 p-2 bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-white/70 rounded-xl transition-colors"><X size={17} /></button>
                       </div>
                   </header>
 
@@ -1601,29 +1604,30 @@ export const LessonView: React.FC<Props> = ({
                   </div>
               )}
               {/* Header — write mode bar */}
-              <header className={`bg-white border-b border-slate-100 px-3 pt-2 pb-2 sticky top-0 z-10 shadow-sm${isImmersive || schoolMode ? ' hidden' : ''}`}>
+              <header className={`px-3 pt-2 pb-2 sticky top-0 z-10 shadow-md${isImmersive || schoolMode ? ' hidden' : ''}`} style={{ background: appTheme.topBarGrad }}>
                   <div className="flex items-center gap-2">
-                      <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><ArrowLeft size={18} /></button>
+                      <button onClick={handleBack} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"><ArrowLeft size={18} /></button>
                       <div className="min-w-0 flex-1">
-                          <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{content.title}</h2>
+                          <h2 className="text-[13px] font-black text-white truncate leading-tight">{content.title}</h2>
+                          <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wide">📖 Notes</p>
                       </div>
                       {/* School mode controls */}
                       {schoolMode && onSchoolModeSwitch && (
-                          <button onClick={onSchoolModeSwitch} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><LayoutGrid size={17} /></button>
+                          <button onClick={onSchoolModeSwitch} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"><LayoutGrid size={17} /></button>
                       )}
                       {schoolMode && (
-                          <button onClick={() => schoolControlsRef?.current?.()} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"><MoreVertical size={17} /></button>
+                          <button onClick={() => schoolControlsRef?.current?.()} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"><MoreVertical size={17} /></button>
                       )}
                       {/* Language pill */}
                       {!schoolMode && (
                           <button onClick={() => setLanguage(l => l === 'English' ? 'Hindi' : 'English')}
-                              className="shrink-0 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-black text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 flex items-center gap-1 transition-all">
+                              className="shrink-0 px-2.5 py-1 bg-white/10 border border-white/20 rounded-lg text-[11px] font-black text-white/80 hover:bg-white/20 flex items-center gap-1 transition-all">
                               <Globe size={11} /> {language === 'English' ? 'हि' : 'EN'}
                           </button>
                       )}
                       {/* Admin Edit button */}
                       {isAdmin && onAdminEdit && (
-                          <button onClick={onAdminEdit} className="shrink-0 p-2 bg-orange-50 hover:bg-orange-100 rounded-xl text-orange-600 border border-orange-200 transition-colors" title="Edit / Delete Notes (Admin)">
+                          <button onClick={onAdminEdit} className="shrink-0 p-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-300 border border-amber-400/30 transition-colors" title="Edit / Delete Notes (Admin)">
                               <Pencil size={17} />
                           </button>
                       )}
@@ -1632,7 +1636,7 @@ export const LessonView: React.FC<Props> = ({
                           <div className="relative shrink-0">
                               {showMoreMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />}
                               <button onClick={() => setShowMoreMenu(s => !s)}
-                                  className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
+                                  className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-white/25 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
                                   <MoreVertical size={17} />
                               </button>
                               {showMoreMenu && (
@@ -1665,7 +1669,7 @@ export const LessonView: React.FC<Props> = ({
                               )}
                           </div>
                       )}
-                      <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-xl transition-colors"><X size={17} /></button>
+                      <button onClick={handleBack} className="shrink-0 p-2 bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-white/70 rounded-xl transition-colors"><X size={17} /></button>
                   </div>
               </header>
               <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-white">
@@ -2554,16 +2558,16 @@ export const LessonView: React.FC<Props> = ({
                    );
                })()}
 
-               {/* MCQ Top Bar — clean, professional */}
-               <div className={`bg-white border-b border-slate-100 px-3 py-2 flex items-center gap-2 sticky top-0 z-10 shadow-sm${isImmersive ? ' hidden' : ''}`}>
+               {/* MCQ Top Bar — Lucent style */}
+               <div className={`px-3 py-2 flex items-center gap-2 sticky top-0 z-10 shadow-md${isImmersive ? ' hidden' : ''}`} style={{ background: appTheme.topBarGrad }}>
                    {/* Back */}
-                   <button onClick={handleBack} className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
+                   <button onClick={handleBack} className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors">
                        <ArrowLeft size={18} />
                    </button>
                    {/* Title block — flex-1, center */}
                    <div className="min-w-0 flex-1">
-                       <h2 className="text-[13px] font-black text-slate-800 truncate leading-tight">{chapter.title}</h2>
-                       <p className="text-[10px] font-bold text-violet-500 truncate leading-tight uppercase tracking-wide">
+                       <h2 className="text-[13px] font-black text-white truncate leading-tight">{chapter.title}</h2>
+                       <p className="text-[10px] font-bold text-amber-300 truncate leading-tight uppercase tracking-wide">
                            📝 MCQ {subject?.name ? `· ${subject.name}` : ''}
                        </p>
                    </div>
@@ -2601,42 +2605,42 @@ export const LessonView: React.FC<Props> = ({
                        </div>
                    )}
                    {/* Compact timer pill */}
-                   <div className="shrink-0 flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+                   <div className="shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-xl px-2.5 py-1.5">
                        <div className="flex flex-col items-center">
-                           <span className="text-[8px] font-bold text-slate-400 uppercase leading-none">Total</span>
-                           <span className="text-[11px] font-mono font-black text-slate-700 leading-none">
+                           <span className="text-[8px] font-bold text-white/50 uppercase leading-none">Total</span>
+                           <span className="text-[11px] font-mono font-black text-white leading-none">
                                {Math.floor(sessionTime / 60)}:{String(sessionTime % 60).padStart(2, '0')}
                            </span>
                        </div>
-                       <div className="w-px h-5 bg-slate-200" />
+                       <div className="w-px h-5 bg-white/20" />
                        <div className="flex flex-col items-center">
-                           <span className="text-[8px] font-bold text-slate-400 uppercase leading-none">Q</span>
-                           <span className={`text-[11px] font-mono font-black leading-none ${(timeSpentPerQuestion[batchIndex] || 0) > 60 ? 'text-red-500' : 'text-slate-700'}`}>
+                           <span className="text-[8px] font-bold text-white/50 uppercase leading-none">Q</span>
+                           <span className={`text-[11px] font-mono font-black leading-none ${(timeSpentPerQuestion[batchIndex] || 0) > 60 ? 'text-red-400' : 'text-white'}`}>
                                {Math.floor((timeSpentPerQuestion[batchIndex] || 0) / 60)}:{String((timeSpentPerQuestion[batchIndex] || 0) % 60).padStart(2, '0')}
                            </span>
                        </div>
                    </div>
                    {/* All Questions button */}
                    <button onClick={() => setShowQuestionDrawer(true)}
-                       className="shrink-0 flex items-center gap-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 font-black text-[11px] px-2.5 py-1.5 rounded-xl transition-colors">
+                       className="shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/20 hover:bg-white/20 text-white font-black text-[11px] px-2.5 py-1.5 rounded-xl transition-colors">
                        <Grip size={14} />
-                       <span className="text-[10px] font-black text-slate-500">{attemptedCount}/{displayData.length}</span>
+                       <span className="text-[10px] font-black text-white/70">{attemptedCount}/{displayData.length}</span>
                    </button>
                    {/* Projector Mode button — admin/subadmin only */}
                    {isAdmin && (
                    <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelected(null); setIsProjectorMode(true); }}
-                       className="shrink-0 p-2 bg-amber-50 hover:bg-amber-100 rounded-xl text-amber-500 border border-amber-200 transition-colors" title="Projector Mode">
+                       className="shrink-0 p-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-300 border border-amber-400/30 transition-colors" title="Projector Mode">
                        <Tv size={17} />
                    </button>
                    )}
                    {/* Rotate button — real screen rotation */}
                    <button onClick={handleRotate}
-                       className="shrink-0 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 border border-slate-200 transition-colors active:scale-90" title="Screen Rotate">
+                       className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white border border-white/20 transition-colors active:scale-90" title="Screen Rotate">
                        <RotateCcw size={17} />
                    </button>
                    {/* Admin Edit button — only for admin/subadmin */}
                    {isAdmin && onAdminEdit && (
-                       <button onClick={onAdminEdit} className="shrink-0 p-2 bg-orange-50 hover:bg-orange-100 rounded-xl text-orange-600 border border-orange-200 transition-colors" title="Edit / Delete MCQ (Admin)">
+                       <button onClick={onAdminEdit} className="shrink-0 p-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-300 border border-amber-400/30 transition-colors" title="Edit / Delete MCQ (Admin)">
                            <Pencil size={17} />
                        </button>
                    )}
@@ -2644,7 +2648,7 @@ export const LessonView: React.FC<Props> = ({
                    <div className="relative shrink-0">
                        {showMoreMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />}
                        <button onClick={() => setShowMoreMenu(s => !s)}
-                           className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-violet-100 text-violet-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
+                           className={`p-2 rounded-xl transition-colors ${showMoreMenu ? 'bg-white/25 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
                            <MoreVertical size={17} />
                        </button>
                        {showMoreMenu && (
