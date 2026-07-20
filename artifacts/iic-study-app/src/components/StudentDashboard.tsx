@@ -2875,6 +2875,51 @@ export const StudentDashboard: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentNoteViewer]);
 
+  // ── HomeStatsToast — HW viewer (competition / coaching mode) tracking ─────
+  // Fire iic-mcq-session when hwActiveHwId opens/closes so HomeStatsToast shows
+  // the pts + credits earned during PDF, Video, QA, Notes sessions here too.
+  const hwActivityTypeRef = React.useRef<string>('Reading');
+  // Keep activityType ref in sync with current hwViewMode
+  React.useEffect(() => {
+    if (!hwActiveHwId) return;
+    const t = hwViewMode === 'video' ? 'Video' : hwViewMode === 'pdf' ? 'PDF' : hwViewMode === 'qa' ? 'Q&A' : 'Reading';
+    hwActivityTypeRef.current = t;
+  }, [hwActiveHwId, hwViewMode]);
+  // Fire open/close events (mirrors lucentNoteViewer block above)
+  React.useEffect(() => {
+    if (hwActiveHwId) {
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: { active: true, activityType: hwActivityTypeRef.current, chapterName: '', subjectName: '' },
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: { active: false, activityType: hwActivityTypeRef.current },
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hwActiveHwId]);
+
+  // ── HomeStatsToast — Standalone FlashcardMcqView tracking ─────────────────
+  // Only when opened outside an active hw/lucent session (those already track overall pts).
+  React.useEffect(() => {
+    if (hwActiveHwId || lucentNoteViewer) return; // hw/lucent session already tracking
+    if (flashcardMcqs) {
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: {
+          active: true,
+          activityType: 'Flashcard',
+          chapterName: flashcardMcqs.title || '',
+          subjectName: flashcardMcqs.subject || '',
+        },
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: { active: false, activityType: 'Flashcard' },
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashcardMcqs]);
+
   // Local Auto-Read & Sync state for the Lucent viewer (mirrors LessonView pattern).
   // Initialised from settings.isAutoTtsEnabled but stays local to this view.
   const [lucentAutoSync, setLucentAutoSync] = useState<boolean>(!!settings?.isAutoTtsEnabled);
