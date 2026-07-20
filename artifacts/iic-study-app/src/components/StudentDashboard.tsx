@@ -953,12 +953,13 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // ── WRITE MODE GATE: now uses coin gate popup (20 coins per page, once) ──
   const _wmAutoSkipKey = `nst_wm_autoskip_${user.id}`;
-  const handleWriteModeGate = (action: () => void, pgInfo?: Parameters<typeof showCoinGate>[5]) => {
+  const handleWriteModeGate = (action: () => void, pgInfo?: Parameters<typeof showCoinGate>[5], overrideLid?: string, overridePi?: number) => {
     const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
     if (_isAdm) { action(); return; }
-    // Determine current page's write-unlock key (lucentNoteViewer + lucentPageIndex captured at call time)
-    const _lid = (lucentNoteViewer as any)?.id || '';
-    const _pi  = lucentPageIndex ?? 0;
+    // overrideLid/overridePi: competition player passes activeHw.id so unlock persists per-lesson.
+    // Without override, falls back to Lucent page (lucentNoteViewer.id).
+    const _lid = overrideLid ?? (lucentNoteViewer as any)?.id ?? '';
+    const _pi  = overridePi  ?? lucentPageIndex ?? 0;
     if (_lid && isPgWriteUnlocked(_lid, _pi)) { action(); return; }
     showCoinGate(20, 'Writing Mode', () => {
       if (_lid) markPgWriteUnlocked(_lid, _pi);
@@ -3129,7 +3130,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'reveal' = direct-answer "show answer" flow; 'interactive' = build-answer quiz flow.
   const [lucentMcqMode, setLucentMcqMode] = useState<Record<string, 'reveal' | 'interactive'>>({});
   // Flashcard launcher (Lucent + Homework MCQs share this single overlay)
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean } } | null>(null);
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean } } | null>(null);
   const [hwMcqMode, setHwMcqMode] = useState<Record<string, 'interactive' | 'reveal'>>({});
   const [hwQaRevealed, setHwQaRevealed] = useState<Record<string, boolean>>({});
   const [hwMcqCurrentIdx, setHwMcqCurrentIdx] = useState<Record<string, number>>({});
@@ -6842,10 +6843,8 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (tab === 'flashcard') {
                     // Flashcard is a full-screen overlay, NOT a persistent mode.
                     // Don't set hwViewMode — when overlay closes, previous mode stays intact.
-                    // Don't pass fromLesson — competition has its own tab bar; the Lucent-only
-                    // fromLesson tab bar inside FlashcardMcqView would call setLucentActiveTab
-                    // (wrong for competition) and its scrollIntoView ref cancels user's manual scroll.
-                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '' });
+                    // isCompetition:true so the fromLesson tab bar uses setHwViewMode (not setLucentActiveTab).
+                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio, isCompetition: true } });
                   } else {
                     setHwViewMode(tab); _hwSave(tab);
                   }
@@ -6871,8 +6870,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     <button data-tab-active={String(_isReadActive)} onClick={() => { stopSpeech(); setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); }} style={_hwTabStyle} className={_hwTabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
                       Reading Mode
                     </button>
-                    {/* Free+ — Writing (credit gate) */}
-                    <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); })} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
+                    {/* Free+ — Writing (credit gate — pass activeHw.id so unlock is remembered per lesson) */}
+                    <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); }, _hwPgInfo, activeHw.id, 0)} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
                       Writing Mode
                     </button>
                     {/* Free+ — MCQ Practice (coin gate jaisa Lucent) */}
@@ -20993,23 +20992,37 @@ RULES:
         const tabBarNode = fl ? (
           <div className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto bg-white" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
             <div className="flex min-w-max">
+              {/* Reading Mode */}
               <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
-                onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); }}>
+                onClick={() => {
+                  setFlashcardMcqs(null);
+                  if (fl.isCompetition) { setHwViewMode('notes'); setHwNotesViewMode('chunk'); }
+                  else { setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); }
+                }}>
                 Reading Mode
               </button>
+              {/* Writing Mode — coin gate for competition */}
               <button style={_ts} className={_tcls(false, 'bg-teal-600')}
-                onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('NOTES'); setLucentNotesViewMode('html'); }}>
+                onClick={() => {
+                  setFlashcardMcqs(null);
+                  if (fl.isCompetition) { handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); }, undefined, hwActiveHwId, 0); }
+                  else { setLucentActiveTab('NOTES'); setLucentNotesViewMode('html'); }
+                }}>
                 Writing Mode
               </button>
               {fl.hasMcq && (
                 <button style={_ts} className={_tcls(false, 'bg-purple-600')}
-                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('MCQS'); }}>
+                  onClick={() => {
+                    setFlashcardMcqs(null);
+                    if (fl.isCompetition) { setHwViewMode('mcq'); }
+                    else { setLucentActiveTab('MCQS'); }
+                  }}>
                   MCQ Practice
                 </button>
               )}
               {fl.hasMcq && fl.isAdmin && (
                 <button style={_ts}
-                  ref={el => { if (el && fl.activeMode === 'projector') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
+                  ref={el => { if (el && fl.activeMode === 'projector' && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, inline: 'center', block: 'nearest' }); } }}
                   className={_tcls(fl.activeMode === 'projector', 'bg-amber-500')}
                   onClick={() => {
                     if (fl.activeMode !== 'projector') {
@@ -21025,7 +21038,7 @@ RULES:
               )}
               {fl.hasMcq && (
                 <button style={_ts}
-                  ref={el => { if (el && fl.activeMode === 'flashcard') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }}
+                  ref={el => { if (el && fl.activeMode === 'flashcard' && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, inline: 'center', block: 'nearest' }); } }}
                   className={_tcls(fl.activeMode === 'flashcard', 'bg-amber-500')}
                   onClick={() => {
                     if (fl.activeMode !== 'flashcard') {
@@ -21041,25 +21054,29 @@ RULES:
               )}
               {fl.hasMcq && (
                 <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
-                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('QA'); }}>
+                  onClick={() => {
+                    setFlashcardMcqs(null);
+                    if (fl.isCompetition) { setHwViewMode('qa'); }
+                    else { setLucentActiveTab('QA'); }
+                  }}>
                   💬 Q&amp;A
                 </button>
               )}
               {fl.hasPdf && (
                 <button style={_ts} className={_tcls(false, 'bg-blue-600')}
-                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('PDF'); }}>
+                  onClick={() => { setFlashcardMcqs(null); if (fl.isCompetition) { setHwViewMode('pdf'); } else { setLucentActiveTab('PDF'); } }}>
                   PDF
                 </button>
               )}
               {fl.hasVideo && (
                 <button style={_ts} className={_tcls(false, 'bg-rose-600')}
-                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('VIDEO'); }}>
+                  onClick={() => { setFlashcardMcqs(null); if (fl.isCompetition) { setHwViewMode('video'); } else { setLucentActiveTab('VIDEO'); } }}>
                   Video
                 </button>
               )}
               {fl.hasAudio && (
                 <button style={_ts} className={_tcls(false, 'bg-violet-600')}
-                  onClick={() => { setFlashcardMcqs(null); setLucentActiveTab('AUDIO'); }}>
+                  onClick={() => { setFlashcardMcqs(null); if (fl.isCompetition) { setHwViewMode('audio'); } else { setLucentActiveTab('AUDIO'); } }}>
                   Audio
                 </button>
               )}
