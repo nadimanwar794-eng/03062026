@@ -12,6 +12,7 @@ import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
 import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
+import { hapticCorrect, hapticWrong } from '../utils/haptic';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -200,6 +201,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
                           _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
             if (isCorrect) {
+                hapticCorrect();
                 const newStreak = mcqStreak + 1;
                 setMcqStreak(newStreak);
                 const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
@@ -216,6 +218,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     showMcqScore(totalPts);
                 }
             } else {
+                hapticWrong();
                 setMcqStreak(0);
                 subtractDailyScore(user.id, 1);
                 const _u = userRef.current;

@@ -2030,7 +2030,6 @@ export const StudentDashboard: React.FC<Props> = ({
   const [nameFxOff, setNameFxOff] = useState(() => { try { return localStorage.getItem('nst_name_fx_off') === '1'; } catch { return false; } });
   const [cardFxOff, setCardFxOff] = useState(() => { try { return localStorage.getItem('nst_card_fx_off') === '1'; } catch { return false; } });
   const [hapticEnabled, setHapticEnabled] = useState(() => { try { return localStorage.getItem('nst_haptic_enabled') !== '0'; } catch { return true; } });
-  const [neonEnabled, setNeonEnabled] = useState(() => { try { return localStorage.getItem('nst_neon_enabled') !== '0'; } catch { return true; } });
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
   const [showLevelChooser, setShowLevelChooser] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -2055,40 +2054,6 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
-  // ── Global neon ring on click ──
-  useEffect(() => {
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (localStorage.getItem('nst_neon_enabled') === '0') return;
-      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Element | null;
-      if (!target) return;
-      const el = target.closest('button, [role="button"], a, .nst-btn') as HTMLElement | null;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const computedRadius = getComputedStyle(el).borderRadius || '12px';
-      const ring = document.createElement('div');
-      ring.style.cssText = [
-        `position:fixed`,
-        `top:${rect.top - 2}px`,
-        `left:${rect.left - 2}px`,
-        `width:${rect.width + 4}px`,
-        `height:${rect.height + 4}px`,
-        `border-radius:${computedRadius}`,
-        `border:2px solid rgba(168,85,247,1)`,
-        `pointer-events:none`,
-        `z-index:99998`,
-        `animation:nst-neon-flash 0.65s ease-out forwards`,
-      ].join(';');
-      document.body.appendChild(ring);
-      setTimeout(() => ring.remove(), 700);
-    };
-    document.addEventListener('click', handler, true);
-    document.addEventListener('touchstart', handler, { capture: true, passive: true });
-    return () => {
-      document.removeEventListener('click', handler, true);
-      document.removeEventListener('touchstart', handler, true as any);
-    };
-  }, []);
   const [showAllNotesCatalog, setShowAllNotesCatalog] = useState<
     "PREMIUM" | "DEEP_DIVE" | "VIDEO" | "AUDIO" | false
   >(false);
@@ -11588,33 +11553,6 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
             </button>
 
-            {/* ── Neon Light Toggle ── */}
-            <button
-              onClick={() => {
-                const next = !neonEnabled;
-                setNeonEnabled(next);
-                try { localStorage.setItem('nst_neon_enabled', next ? '1' : '0'); } catch {}
-              }}
-              className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
-              style={{ borderBottom: _pSep }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{
-                background: neonEnabled ? 'rgba(168,85,247,0.14)' : _pIconBg,
-                border: `1px solid ${neonEnabled ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.10)'}`,
-              }}>
-                <span className="text-base leading-none">{neonEnabled ? '✨' : '🔘'}</span>
-              </div>
-              <div className="flex-1 text-left">
-                <p className={`text-sm font-bold ${_pTxt}`}>Neon Light Effect</p>
-                <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
-                  {neonEnabled ? 'Click pe neon ring animation on hai' : 'Neon effect off hai'}
-                </p>
-              </div>
-              <div className="shrink-0 w-10 h-5 rounded-full relative transition-all"
-                style={{ background: neonEnabled ? 'rgba(168,85,247,0.7)' : 'rgba(255,255,255,0.12)' }}>
-                <div className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
-                  style={{ background: '#fff', left: neonEnabled ? '1.375rem' : '0.125rem', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
-              </div>
-            </button>
 
             {/* ── Level Style Chooser ── */}
             {_pLvl.level >= 2 && (
@@ -25734,118 +25672,145 @@ RULES:
       )}
 
       {/* ── Hurried MCQ Popup ── */}
-      {lucentMcqHurriedPopup && (
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center px-5"
-          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
-        >
-          <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
-            style={{ background: '#fff' }}>
-            {/* Header */}
-            <div style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)', padding: '20px 20px 16px' }}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">⚠️</div>
-                <div>
-                  <p className="text-white font-black text-base leading-tight">Jaldi jaldi MCQ!</p>
-                  <p className="text-white/80 text-[11px] mt-0.5">Kuch questions bahut kam time mein solve kiye</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="p-5">
-              <p className="text-slate-800 font-bold text-sm leading-relaxed mb-4">
-                ⚠️ Aapne{' '}
-                <span className="text-amber-600 font-black">{lucentMcqHurriedPopup.hurriedIndices.length} questions</span>{' '}
-                bahut jaldi solve kiye hain. Kya aap inhe dobara attempt karna chahenge?
-              </p>
-
-              {/* Stats row */}
-              <div className="flex gap-2 mb-5">
-                <div className="flex-1 bg-amber-50 border border-amber-200 rounded-2xl py-3 text-center">
-                  <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Hurried Qs</div>
-                  <div className="text-2xl font-black text-amber-700">{lucentMcqHurriedPopup.hurriedIndices.length}</div>
-                  <div className="text-[10px] text-amber-500">(&lt;3 sec each)</div>
-                </div>
-                <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-3 text-center">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total Qs</div>
-                  <div className="text-2xl font-black text-slate-700">{lucentMcqHurriedPopup.totalQ}</div>
-                  <div className="text-[10px] text-slate-400">in session</div>
-                </div>
-                <div className="flex-1 bg-rose-50 border border-rose-200 rounded-2xl py-3 text-center">
-                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wide">Time Spent</div>
-                  <div className="text-xl font-black text-rose-700">{Math.round(lucentMcqHurriedPopup.totalElapsed)}s</div>
-                  <div className="text-[10px] text-rose-400">of {lucentMcqHurriedPopup.totalQ * 5}s min</div>
+      {lucentMcqHurriedPopup && (() => {
+        const _hP = tierTheme.primary;
+        const _hBtnStart = (tierTheme as any).btnStart || _hP;
+        const _hBtnEnd   = (tierTheme as any).btnEnd   || _hP;
+        const _hTopGrad  = (tierTheme as any).topBarGrad || `linear-gradient(135deg,${_hBtnStart},${_hBtnEnd})`;
+        const _hCardBg   = (tierTheme as any).cardBg || '#ffffff';
+        return (
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center px-5"
+            style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+          >
+            <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+              style={{ background: _hCardBg }}>
+              {/* Header — theme gradient */}
+              <div style={{ background: _hTopGrad, padding: '20px 20px 16px' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">⚠️</div>
+                  <div>
+                    <p className="text-white font-black text-base leading-tight">Jaldi jaldi MCQ!</p>
+                    <p className="text-white/80 text-[11px] mt-0.5">Kuch questions bahut kam time mein solve kiye</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Hurried question numbers */}
-              <div className="flex flex-wrap gap-1.5 mb-5">
-                {lucentMcqHurriedPopup.hurriedIndices.map(qi => (
-                  <span key={qi} className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-black border border-amber-200">
-                    Q{qi + 1}
-                  </span>
-                ))}
-              </div>
+              {/* Body */}
+              <div className="p-5">
+                <p className="text-slate-800 font-bold text-sm leading-relaxed mb-4">
+                  ⚠️ Aapne{' '}
+                  <span className="font-black" style={{ color: _hP }}>{lucentMcqHurriedPopup.hurriedIndices.length} questions</span>{' '}
+                  bahut jaldi solve kiye hain. Kya aap inhe dobara attempt karna chahenge?
+                </p>
 
-              {/* Buttons */}
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    const popup = lucentMcqHurriedPopup;
-                    // Clear only hurried questions, keep rest
-                    setLucentMcqAnswers(prev => {
-                      const n = { ...prev };
-                      popup.hurriedIndices.forEach(qi => { delete n[`${popup.pageKey}_${qi}`]; });
-                      return n;
-                    });
-                    setLucentMcqSubmitted(prev => {
-                      const n = { ...prev };
-                      popup.hurriedIndices.forEach(qi => { delete n[`${popup.pageKey}_${qi}`]; });
-                      return n;
-                    });
-                    // Go to first hurried question
-                    setLucentMcqCurrentIdx(prev => ({ ...prev, [popup.pageKey]: popup.hurriedIndices[0] }));
-                    // Reset timing for those questions
-                    const t = lucentMcqTimingsRef.current[popup.pageKey] || [];
-                    popup.hurriedIndices.forEach(qi => { t[qi] = 0; });
-                    lucentMcqTimingsRef.current[popup.pageKey] = t;
-                    lucentMcqQStartTsRef.current[popup.pageKey] = Date.now();
-                    setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: false }));
-                    setLucentMcqHurriedPopup(null);
-                  }}
-                  className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
-                  style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff' }}
-                >
-                  🔄 Reattempt
-                </button>
-                <button
-                  onClick={() => {
-                    const popup = lucentMcqHurriedPopup;
-                    // Deduct pts for correct hurried answers (2 pts each)
-                    if (popup.hurriedCorrectCount > 0) {
+                {/* Stats row */}
+                <div className="flex gap-2 mb-5">
+                  <div className="flex-1 rounded-2xl py-3 text-center border" style={{ background: `${_hP}12`, borderColor: `${_hP}30` }}>
+                    <div className="text-[10px] font-bold uppercase tracking-wide" style={{ color: _hP }}>Hurried Qs</div>
+                    <div className="text-2xl font-black" style={{ color: _hP }}>{lucentMcqHurriedPopup.hurriedIndices.length}</div>
+                    <div className="text-[10px]" style={{ color: `${_hP}99` }}>(&lt;3 sec each)</div>
+                  </div>
+                  <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-3 text-center">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total Qs</div>
+                    <div className="text-2xl font-black text-slate-700">{lucentMcqHurriedPopup.totalQ}</div>
+                    <div className="text-[10px] text-slate-400">in session</div>
+                  </div>
+                  <div className="flex-1 bg-rose-50 border border-rose-200 rounded-2xl py-3 text-center">
+                    <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wide">Time Spent</div>
+                    <div className="text-xl font-black text-rose-700">{Math.round(lucentMcqHurriedPopup.totalElapsed)}s</div>
+                    <div className="text-[10px] text-rose-400">of {lucentMcqHurriedPopup.totalQ * 5}s min</div>
+                  </div>
+                </div>
+
+                {/* Hurried question numbers — theme colored chips */}
+                <div className="flex flex-wrap gap-1.5 mb-5">
+                  {lucentMcqHurriedPopup.hurriedIndices.map(qi => (
+                    <span key={qi} className="px-2.5 py-1 rounded-full text-[11px] font-black border"
+                      style={{ background: `${_hP}15`, color: _hP, borderColor: `${_hP}40` }}>
+                      Q{qi + 1}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col gap-2">
+                  {/* Reattempt — theme gradient */}
+                  <button
+                    onClick={() => {
+                      const popup = lucentMcqHurriedPopup;
+                      // Clear only hurried questions, keep rest
+                      setLucentMcqAnswers(prev => {
+                        const n = { ...prev };
+                        popup.hurriedIndices.forEach(qi => { delete n[`${popup.pageKey}_${qi}`]; });
+                        return n;
+                      });
+                      setLucentMcqSubmitted(prev => {
+                        const n = { ...prev };
+                        popup.hurriedIndices.forEach(qi => { delete n[`${popup.pageKey}_${qi}`]; });
+                        return n;
+                      });
+                      // Go to first hurried question
+                      setLucentMcqCurrentIdx(prev => ({ ...prev, [popup.pageKey]: popup.hurriedIndices[0] }));
+                      // Reset timing for those questions
+                      const t = lucentMcqTimingsRef.current[popup.pageKey] || [];
+                      popup.hurriedIndices.forEach(qi => { t[qi] = 0; });
+                      lucentMcqTimingsRef.current[popup.pageKey] = t;
+                      lucentMcqQStartTsRef.current[popup.pageKey] = Date.now();
+                      setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: false }));
+                      setLucentMcqHurriedPopup(null);
+                    }}
+                    className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
+                    style={{ background: `linear-gradient(135deg,${_hBtnStart},${_hBtnEnd})`, color: '#fff' }}
+                  >
+                    🔄 Reattempt
+                  </button>
+
+                  {/* Skip — routine still marked complete, but pts deducted */}
+                  <button
+                    onClick={() => {
+                      const popup = lucentMcqHurriedPopup;
+                      // Deduct pts for correct hurried answers (2 pts each)
+                      if (popup.hurriedCorrectCount > 0) {
+                        try {
+                          const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
+                          const _boost = getCombinedBoost(_fu, settings);
+                          for (let i = 0; i < popup.hurriedCorrectCount; i++) {
+                            tryEarnScore(_fu.id, -2, _fu.subscriptionLevel, _fu.isPremium, _boost, 'MCQ_HURRIED_SKIP', undefined, undefined);
+                          }
+                        } catch {}
+                      }
+                      // ✅ Mark routine page MCQ done even on skip — routine stays green
                       try {
-                        const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
-                        const _boost = getCombinedBoost(_fu, settings);
-                        for (let i = 0; i < popup.hurriedCorrectCount; i++) {
-                          tryEarnScore(_fu.id, -2, _fu.subscriptionLevel, _fu.isPremium, _boost, 'MCQ_HURRIED_SKIP', undefined, undefined);
+                        if (isRoutineMcqDone(popup.lessonId)) markRoutinePageMcqDone(popup.lessonId, popup.pageIdx);
+                        const _fu2 = (window as any).__dashUserRef?.current ?? userRef.current;
+                        const _rd2 = loadRoutineData(_fu2.id);
+                        const _td2 = new Date().toISOString().split('T')[0];
+                        const _tt2 = _rd2.dailyTasks[_td2];
+                        if (_tt2) {
+                          let _tu2 = { ..._tt2 };
+                          if (_tt2.scienceLessonId === popup.lessonId) _tu2.scienceComplete = true;
+                          if (_tt2.socialScienceLessonId === popup.lessonId) _tu2.socialScienceComplete = true;
+                          if (JSON.stringify(_tu2) !== JSON.stringify(_tt2))
+                            saveRoutineData(_fu2.id, { ..._rd2, dailyTasks: { ..._rd2.dailyTasks, [_td2]: _tu2 } });
                         }
                       } catch {}
-                    }
-                    // Don't mark routine page MCQ done — show review without completing routine
-                    setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: true }));
-                    setLucentMcqHurriedPopup(null);
-                    showAlert(`⚠️ Hurried MCQs skip ho gaye — Routine mein count nahi hoga${popup.hurriedCorrectCount > 0 ? `, ${popup.hurriedCorrectCount * 2} pts minus` : ''}`, 'WARNING');
-                  }}
-                  className="w-full py-3 rounded-2xl font-black text-sm text-slate-600 bg-slate-100 border border-slate-200 active:scale-95 transition"
-                >
-                  Skip
-                </button>
+                      setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: true }));
+                      setLucentMcqHurriedPopup(null);
+                      if (popup.hurriedCorrectCount > 0) {
+                        showAlert(`⚠️ ${popup.hurriedIndices.length} jaldi wale questions skip — ${popup.hurriedCorrectCount * 2} pts minus`, 'WARNING');
+                      }
+                    }}
+                    className="w-full py-3 rounded-2xl font-black text-sm text-slate-600 bg-slate-100 border border-slate-200 active:scale-95 transition"
+                  >
+                    Skip
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Feature discovery hints for new users */}
       <FeatureHints
