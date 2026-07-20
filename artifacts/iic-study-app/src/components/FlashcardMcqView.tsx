@@ -10,6 +10,7 @@ import { getUserTier } from '../utils/permissionUtils';
 import { applyDeduction } from '../utils/creditSystem';
 import { saveUserToLive, saveSuggestion } from '../firebase';
 import { fireCreditNotify } from '../utils/creditNotify';
+import { loadRoutineData } from '../utils/routineStorage';
 import { useAppTheme } from '../utils/themeContext';
 import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
@@ -129,7 +130,10 @@ export const FlashcardMcqView: React.FC<Props> = ({
         if (pts > 0) {
           sessionRevealPtsRef.current += pts;
           showMcqScore(pts);
-          const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
+          const _routineOn = loadRoutineData(user.id).enabled;
+          const _coinMult  = _routineOn ? (1 / 6) : (1 / 8);
+          const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
+          const updated = { ...user, totalScore: (user.totalScore || 0) + pts, credits: (user.credits || 0) + _coinEarned };
           onUpdateUser(updated);
           saveUserToLive(updated);
         }
@@ -334,10 +338,20 @@ export const FlashcardMcqView: React.FC<Props> = ({
       hardQueueRef.current = newQ;
       setHardQueue(newQ);
     }
-    // ── Award score when "Easy" (student knew the answer) ─────────────────
+    // ── Award score + credits when "Easy" (student knew the answer) ───────
     if (level === 'easy' && user?.id && !isAdmin) {
       const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');
-      if (pts > 0) showMcqScore(pts);
+      if (pts > 0) {
+        showMcqScore(pts);
+        if (onUpdateUser) {
+          const _routineOn  = loadRoutineData(user.id).enabled;
+          const _coinMult   = _routineOn ? (1 / 6) : (1 / 8);
+          const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
+          const updated = { ...user, totalScore: (user.totalScore || 0) + pts, credits: (user.credits || 0) + _coinEarned };
+          onUpdateUser(updated);
+          saveUserToLive(updated);
+        }
+      }
     }
     // Auto-advance after brief visual feedback
     setTimeout(() => { if (isMountedRef.current) goNext(); }, 480);
@@ -1037,7 +1051,17 @@ export const FlashcardMcqView: React.FC<Props> = ({
                             setProjectorCorrect(c => c + 1);
                             if (user?.id && !isAdmin) {
                               const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');
-                              if (pts > 0) showMcqScore(pts);
+                              if (pts > 0) {
+                                showMcqScore(pts);
+                                if (onUpdateUser) {
+                                  const _routineOn  = loadRoutineData(user.id).enabled;
+                                  const _coinMult   = _routineOn ? (1 / 6) : (1 / 8);
+                                  const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
+                                  const updated = { ...user, totalScore: (user.totalScore || 0) + pts, credits: (user.credits || 0) + _coinEarned };
+                                  onUpdateUser(updated);
+                                  saveUserToLive(updated);
+                                }
+                              }
                             }
                           } else {
                             setProjectorWrong(w => w + 1);
