@@ -3068,7 +3068,10 @@ export const StudentDashboard: React.FC<Props> = ({
           const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
-          handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned, credits: (freshU.credits || 0) + _coinEarned });
+          const _newScore = (freshU.totalScore || 0) + earned;
+          handleUserUpdate({ ...freshU, totalScore: _newScore, credits: (freshU.credits || 0) + _coinEarned });
+          // Update credit-sync key so HOME-tab sync does NOT double-convert these pts to credits
+          try { localStorage.setItem(`nst_credit_sync_score_${freshU.id}`, String(_newScore)); } catch {}
           if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
           setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD' });
           creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
@@ -7580,10 +7583,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           onScoreEarned: (pts: number, activity: string) => {
                             if (pts <= 0) return;
                             const cur = userRef.current;
-                            const _rdCoin = loadRoutineData(cur.id);
-                            const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
-                            const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
-                            handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts, credits: (cur.credits || 0) + _coinEarned });
+                            handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts });
                             if (activity === 'READ_TTS_HIGHLIGHT') {
                               lucentTtsSessionPtsRef.current += pts;
                             } else {
@@ -19280,11 +19280,9 @@ export const StudentDashboard: React.FC<Props> = ({
                       onScoreEarned: (pts: number, activity: string) => {
                         if (pts <= 0) return;
                         const cur = userRef.current;
-                        const _rdCoin = loadRoutineData(cur.id);
-                        const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
-                        const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
-                        handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts, credits: (cur.credits || 0) + _coinEarned });
+                        handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts });
                         if (activity === 'READ_TTS_HIGHLIGHT') {
+                          // TTS score: silently accumulate — no per-topic popup
                           lucentTtsSessionPtsRef.current += pts;
                         } else {
                           const lbl = activity === 'READ_ACTIVE_30S'
