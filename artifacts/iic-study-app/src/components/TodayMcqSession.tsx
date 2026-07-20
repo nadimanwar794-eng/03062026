@@ -210,14 +210,20 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 const bonus = getMcqStreakBonus(newStreak);
                 const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`) : 0;
                 const totalPts = pts + bonusPts;
+                // Credits = ½ of pts earned (revision hub = routine active)
+                const _creditsEarned = totalPts > 0 ? Math.max(1, Math.floor(totalPts * 0.5)) : 0;
                 if (totalPts > 0) {
                     const _u = userRef.current;
                     if (_u && onUpdateUser) {
-                        const updated = { ..._u, totalScore: (_u.totalScore || 0) + totalPts };
+                        const updated = {
+                            ..._u,
+                            totalScore: (_u.totalScore || 0) + totalPts,
+                            credits: (_u.credits || 0) + _creditsEarned,
+                        };
                         onUpdateUser(updated);
                         saveUserToLive(updated);
                     }
-                    showMcqScore(totalPts);
+                    showMcqScore(totalPts, _creditsEarned);
                 }
             } else {
                 hapticWrong();
@@ -693,8 +699,14 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     transform: mcqScoreVisible ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.95)',
                     transition: 'opacity 0.25s, transform 0.25s',
                     pointerEvents: 'none',
+                    display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                    {mcqScorePopup < 0 ? `❌ ${mcqScorePopup} pts` : `⭐ +${mcqScorePopup} pts`}
+                    <span>{mcqScorePopup < 0 ? `❌ ${mcqScorePopup} pts` : `⭐ +${mcqScorePopup} pts`}</span>
+                    {mcqScoreCredits !== null && mcqScoreCredits > 0 && (
+                        <span style={{ fontSize: 12, opacity: 0.9, borderLeft: '1px solid rgba(255,255,255,0.4)', paddingLeft: 6 }}>
+                            +{mcqScoreCredits} 🪙
+                        </span>
+                    )}
                 </div>
             )}
             {/* Sidebar */}
