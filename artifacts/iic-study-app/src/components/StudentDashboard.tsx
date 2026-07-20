@@ -6842,7 +6842,10 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (tab === 'flashcard') {
                     // Flashcard is a full-screen overlay, NOT a persistent mode.
                     // Don't set hwViewMode — when overlay closes, previous mode stays intact.
-                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio } });
+                    // Don't pass fromLesson — competition has its own tab bar; the Lucent-only
+                    // fromLesson tab bar inside FlashcardMcqView would call setLucentActiveTab
+                    // (wrong for competition) and its scrollIntoView ref cancels user's manual scroll.
+                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '' });
                   } else {
                     setHwViewMode(tab); _hwSave(tab);
                   }
