@@ -62,16 +62,15 @@ export const CustomBloggerPage: React.FC<Props> = ({ onBack, settings }) => {
             <div className="flex flex-col items-end text-[10px] text-slate-600 font-medium leading-tight">
                 <span>App Version: {APP_VERSION}</span>
                 {settings?.showFooter !== false && (
-                    <span className="flex items-center gap-1">
-                        <span className="opacity-60">Dev</span>
-                        <span style={{
-                            background: 'linear-gradient(90deg,#6366f1,#a855f7,#ec4899)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                            fontWeight: 800,
-                            letterSpacing: '0.05em',
-                        }}>Nadim Anwar</span>
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                        padding: '1px 6px', borderRadius: '999px',
+                        border: '1px solid rgba(0,0,0,0.12)',
+                        fontSize: '9px', letterSpacing: '0.01em',
+                        color: '#64748b',
+                    }}>
+                        <span style={{ fontWeight: 400 }}>Developed by</span>
+                        <span style={{ fontWeight: 700, color: '#1e293b' }}>Nadim Anwar</span>
                     </span>
                 )}
             </div>

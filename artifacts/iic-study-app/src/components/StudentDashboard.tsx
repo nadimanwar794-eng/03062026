@@ -11575,14 +11575,15 @@ export const StudentDashboard: React.FC<Props> = ({
           {/* Footer */}
           <p className={`text-center text-[10px] pb-4 ${_pTxtMuted}`}>
             v{APP_VERSION}{settings?.showFooter !== false ? (
-              <> · <span style={{
-                background: 'linear-gradient(90deg,#6366f1,#a855f7,#ec4899)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-              }}>Nadim Anwar</span></>
+              <> &nbsp;·&nbsp;
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                padding: '1px 7px', borderRadius: '999px',
+                border: '1px solid currentColor', opacity: 0.35,
+                fontSize: '9px', fontWeight: 500, letterSpacing: '0.02em',
+              }}>
+                Developed by <strong style={{ fontWeight: 700, opacity: 1 }}>Nadim Anwar</strong>
+              </span></>
             ) : ''}
           </p>
 

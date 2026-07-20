@@ -308,19 +308,20 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
             </span>
             {showFooter && (
               <>
-                <span className={`${t.badge} opacity-40 text-[10px]`}>·</span>
-                <span className={`text-[11px] font-semibold ${t.badge} opacity-80`}>
-                  <span style={{ opacity: 0.55, fontSize: '9px', marginRight: '3px', letterSpacing: '0.05em' }}>DEV</span>
-                  <span style={{
-                    background: 'linear-gradient(90deg,#6366f1,#a855f7,#ec4899)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    fontWeight: 800,
-                    letterSpacing: '0.06em',
-                  }}>{developerName}</span>
+                <span className={`${t.badge} opacity-25 text-[10px]`}>·</span>
+                <span
+                  className={`text-[10px] ${t.badge}`}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    padding: '2px 8px', borderRadius: '999px',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(255,255,255,0.05)',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  <span style={{ opacity: 0.45, fontWeight: 400, fontSize: '9px' }}>Developed by</span>
+                  <span style={{ opacity: 0.85, fontWeight: 600, fontSize: '10px' }}>{developerName}</span>
                 </span>
-                <span className={`${t.badge} opacity-30 text-[10px]`}>|</span>
               </>
             )}
             <span className={`text-[11px] ${t.badge} font-mono opacity-50 tracking-widest`}>
