@@ -2875,6 +2875,15 @@ export const StudentDashboard: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentNoteViewer]);
 
+  // ── IMPORTANT: hwActiveHwId + hwViewMode declared HERE (before the useEffects
+  // at L2883–2887 that list them in dep arrays) to avoid production TDZ crash.
+  // In Vite/esbuild minified bundles, dep arrays are evaluated synchronously at
+  // render time; if the const is declared after the hook, JS throws
+  // "Cannot access 'X' before initialization".  Keep these two declarations
+  // ABOVE the hwActivityTypeRef useEffect block.
+  const [hwActiveHwId, setHwActiveHwId] = useState<string | null>(null);
+  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard' | 'pdf'>('notes');
+
   // ── HomeStatsToast — HW viewer (competition / coaching mode) tracking ─────
   // Fire iic-mcq-session when hwActiveHwId opens/closes so HomeStatsToast shows
   // the pts + credits earned during PDF, Video, QA, Notes sessions here too.
@@ -2898,6 +2907,10 @@ export const StudentDashboard: React.FC<Props> = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hwActiveHwId]);
+
+  // ── IMPORTANT: flashcardMcqs declared HERE (before the useEffect below that lists
+  // it in its dep array) to avoid production TDZ crash — same reason as hwActiveHwId above.
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean } } | null>(null);
 
   // ── HomeStatsToast — Standalone FlashcardMcqView tracking ─────────────────
   // Only when opened outside an active hw/lucent session (those already track overall pts).
@@ -2997,7 +3010,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [hwMonth, setHwMonth] = useState<number | null>(null);
   const [hwWeek, setHwWeek] = useState<number | null>(null);
   // For page-wise book subjects (Sar Sangrah / Speedy / Custom Books) student
-  const [hwActiveHwId, setHwActiveHwId] = useState<string | null>(null);
+  // hwActiveHwId declared above (before useEffects) to avoid production TDZ — see comment near L2878.
   // Content Code Generator
   const [showContentCodeModal, setShowContentCodeModal] = useState(false);
   const [contentCodeTarget, setContentCodeTarget] = useState<{ id: string; title: string } | null>(null);
@@ -3009,7 +3022,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [generatedContentCode, setGeneratedContentCode] = useState<string | null>(null);
   // Notes/MCQ split view: 'choose' shows a chooser overlay, 'notes' shows notes (with optional MCQ switch button),
   // 'mcq' shows MCQ-only view. Defaults to 'notes' when only notes exist, 'mcq' when only MCQ.
-  const [hwViewMode, setHwViewMode] = useState<'notes' | 'mcq' | 'audio' | 'video' | 'choose' | 'qa' | 'flashcard' | 'pdf'>('notes');
+  // hwViewMode declared above (before useEffects) to avoid production TDZ — see comment near L2878.
   const [hwImmersive, setHwImmersive] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
@@ -3294,7 +3307,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'reveal' = direct-answer "show answer" flow; 'interactive' = build-answer quiz flow.
   const [lucentMcqMode, setLucentMcqMode] = useState<Record<string, 'reveal' | 'interactive'>>({});
   // Flashcard launcher (Lucent + Homework MCQs share this single overlay)
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean } } | null>(null);
+  // flashcardMcqs declared above (before useEffect) to avoid production TDZ — see comment near L2902.
   const [hwMcqMode, setHwMcqMode] = useState<Record<string, 'interactive' | 'reveal'>>({});
   const [hwQaRevealed, setHwQaRevealed] = useState<Record<string, boolean>>({});
   const [hwMcqCurrentIdx, setHwMcqCurrentIdx] = useState<Record<string, number>>({});

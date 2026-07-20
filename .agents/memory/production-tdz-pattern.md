@@ -17,4 +17,10 @@ Every `const` (state, ref, or derived value) that appears in a `useEffect` depen
 - Error signature: `Cannot access 'X' before initialization` in a React component, only in the production build.
 - Diagnostic: in the minified bundle, find `const[X,...]=useState(...)` position and `useEffect(...,[...,X,...])` position — if declaration char-index > dep-array char-index, it's broken.
 - Fix: move the `useState`/`useRef` declarations above the `useEffect` that depends on them.
-- Real example fixed: `lucentActiveTab` / `lucentNotesViewMode` in `StudentDashboard.tsx` were declared after the countdown `useEffect` that listed them in deps, causing the `Hs` TDZ crash in production.
+- Real examples fixed in `StudentDashboard.tsx`:
+  - `lucentActiveTab` / `lucentNotesViewMode` — declared after countdown useEffect
+  - `hwActiveHwId` / `hwViewMode` — declared ~120 lines after useEffects at L2883–2900 that listed them in dep arrays
+  - `flashcardMcqs` — declared ~390 lines after useEffect at L2904 that listed it in dep array
+- Scanner script (node): collect useState/useRef declaration lines in a Map, then for each useEffect dep array check if any dep's declaration line > hook line. Reliable way to find remaining bugs.
+- Crash signature in reports: minified var name (e.g. `Ki`, `Hs`) in "Cannot access 'X' before initialization"; component shows as minified name (`WTt` = StudentDashboard); `dIt` = App.tsx parent.
+- App.tsx renders `<main id="main-content">` — component stack `main → div → zh → WTt` means WTt is rendered by App through ErrorBoundary wrappers (each shows as `zh`).
