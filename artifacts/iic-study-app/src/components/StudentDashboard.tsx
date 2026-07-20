@@ -6840,8 +6840,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 const _doSwitch = () => {
                   stopSpeech();
                   if (tab === 'flashcard') {
+                    // Flashcard is a full-screen overlay, NOT a persistent mode.
+                    // Don't set hwViewMode — when overlay closes, previous mode stays intact.
                     setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio } });
-                    setHwViewMode('flashcard'); _hwSave('flashcard');
                   } else {
                     setHwViewMode(tab); _hwSave(tab);
                   }
