@@ -9958,9 +9958,8 @@ export const StudentDashboard: React.FC<Props> = ({
         : 0;
       const _pTotalCredits = (user.credits ?? 0) + (user.bonusCredits ?? 0);
 
-      // Auto-detect light theme EARLY so _nameStyle can use it too
-      const _isLightBgEarly = (() => {
-        const c = tierTheme.profileCardBg || '#040c24';
+      // Helper: check if a hex/rgb color string is perceptually light
+      const _isColorLight = (c: string) => {
         let r = 4, g2 = 12, b = 36;
         const rgbM = c.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
         if (rgbM) { r = +rgbM[1]; g2 = +rgbM[2]; b = +rgbM[3]; }
@@ -9971,8 +9970,24 @@ export const StudentDashboard: React.FC<Props> = ({
           b = parseInt(hex.slice(4,6), 16) || 0;
         }
         return (r * 299 + g2 * 587 + b * 114) / 1000 > 145;
+      };
+
+      // Admin-set profile page theme override — computed early so lightness check can use bgColor
+      const _adminProfileTheme = (() => {
+        const pt = (settings as any)?.profilePageThemes;
+        if (!pt) return null;
+        const userTierKey = !user.isPremium ? 'free' : (user.subscriptionLevel === 'ULTRA' ? 'ultra' : 'basic');
+        const entry = pt[userTierKey] || pt['free'];
+        if (!entry) return null;
+        if (entry.expiresAt && new Date(entry.expiresAt) <= new Date()) return null;
+        return entry as { bgColor?: string; cardColor?: string; accentColor?: string };
       })();
-      const _profileIsLight = profileWhite || _isLightBgEarly;
+
+      // Auto-detect light theme EARLY so _nameStyle can use it too
+      // Also checks admin-set bgColor so footer/text colors stay legible on light admin themes
+      const _isLightBgEarly = _isColorLight(tierTheme.profileCardBg || '#040c24');
+      const _adminBgIsLight  = !!(_adminProfileTheme?.bgColor && _isColorLight(_adminProfileTheme.bgColor));
+      const _profileIsLight  = profileWhite || _isLightBgEarly || _adminBgIsLight;
 
       // ── Level-based name effect (uses _displayLvl so user can pick any unlocked level's style) ──
       const _nameStyle = ((): React.CSSProperties => {
@@ -10027,16 +10042,6 @@ export const StudentDashboard: React.FC<Props> = ({
       // _light reuses the early detection (already computed above for _nameStyle)
       const _light    = _profileIsLight;
 
-      // Admin-set profile page theme override
-      const _adminProfileTheme = (() => {
-        const pt = (settings as any)?.profilePageThemes;
-        if (!pt) return null;
-        const userTierKey = !user.isPremium ? 'free' : (user.subscriptionLevel === 'ULTRA' ? 'ultra' : 'basic');
-        const entry = pt[userTierKey] || pt['free'];
-        if (!entry) return null;
-        if (entry.expiresAt && new Date(entry.expiresAt) <= new Date()) return null;
-        return entry as { bgColor?: string; cardColor?: string; accentColor?: string };
-      })();
       const _pBg      = _pw ? '#f0f4f8' : (_adminProfileTheme?.bgColor || tierTheme.profileBg);
       const _pCard    = _pw ? '#ffffff' : (_adminProfileTheme?.cardColor || tierTheme.profileCardBg);
       const _pCardSt  = _pw ? '#f1f5f9' : (_adminProfileTheme?.cardColor || tierTheme.profileCardBg);
