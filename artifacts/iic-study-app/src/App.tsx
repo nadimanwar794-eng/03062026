@@ -494,7 +494,7 @@ const App: React.FC = () => {
     // ── Credit calculation ─────────────────────────────────────────────────────
     // MCQ sessions ke liye earnedC = 0 hota hai (MCQ answering pe credits earn nahi
     // hote). Reading sessions mein earnedC > 0 ho sakta hai (timer se). Dono cases
-    // mein ensure karo ki earned pts ka ½ (routine on) ya ¼ (off) credit mile.
+    // mein ensure karo ki earned pts ka ⅙ (routine on) ya ⅛ (off) credit mile.
     let finalCoins = earnedC;
     const _sessUser = state.user;
     if (earned > 0 && _sessUser?.id) {

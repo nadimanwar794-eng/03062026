@@ -13,6 +13,7 @@ import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelS
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
 import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
 import { hapticCorrect, hapticWrong } from '../utils/haptic';
+import { loadRoutineData } from '../utils/routineStorage';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -210,8 +211,10 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 const bonus = getMcqStreakBonus(newStreak);
                 const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`) : 0;
                 const totalPts = pts + bonusPts;
-                // Credits = ½ of pts earned (revision hub = routine active)
-                const _creditsEarned = totalPts > 0 ? Math.max(1, Math.floor(totalPts * 0.5)) : 0;
+                // Credits = ⅙ (routine on) ya ⅛ (routine off) of pts earned
+                const _routineOn = loadRoutineData(user.id).enabled;
+                const _creditRatio = _routineOn ? (1 / 6) : (1 / 8);
+                const _creditsEarned = totalPts > 0 ? Math.max(1, Math.floor(totalPts * _creditRatio)) : 0;
                 if (totalPts > 0) {
                     const _u = userRef.current;
                     if (_u && onUpdateUser) {
