@@ -20658,7 +20658,7 @@ RULES:
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-base">🪙</span>
                       <p className="text-[11px] text-red-700 font-bold leading-tight">
-                        Coins sirf <span className="text-base font-black">¼</span> milenge — yaani normal ka 25% hi
+                        Coins sirf <span className="text-base font-black">⅛</span> milenge — yaani normal ka 12.5% hi
                       </p>
                     </div>
                     <div className="flex items-center gap-2 mb-1">
