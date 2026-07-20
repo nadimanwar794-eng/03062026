@@ -2827,7 +2827,7 @@ export const StudentDashboard: React.FC<Props> = ({
           logScoreActivity(freshU.id, activityType, earned);
           // Coin earn: routine ON = pts÷2, OFF = pts÷4
           const _rdCoin = loadRoutineData(freshU.id);
-          const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+          const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
           const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
@@ -3064,7 +3064,7 @@ export const StudentDashboard: React.FC<Props> = ({
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
           const _rdCoin = loadRoutineData(freshU.id);
-          const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+          const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
           const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
@@ -7996,7 +7996,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   if (_hwEarned > 0) {
                                     logScoreActivity(_freshU.id, 'MCQ_CORRECT', _hwEarned);
                                     const _rdCoin = loadRoutineData(_freshU.id);
-                                    const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+                                    const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
                                     const _coinEarned = Math.max(1, Math.floor(_hwEarned * _coinMult));
                                     handleUserUpdate({ ..._freshU, totalScore: (_freshU.totalScore || 0) + _hwEarned, credits: (_freshU.credits || 0) + _coinEarned });
                                     triggerRewardEffect(_hwEarned, `+${_hwEarned} pts 🧠 Competition MCQ!`);

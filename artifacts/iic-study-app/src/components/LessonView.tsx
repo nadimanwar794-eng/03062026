@@ -303,7 +303,7 @@ export const LessonView: React.FC<Props> = ({
     if (!_user || !_onUpdateUser) return;
 
     const userLevel = getLevelFromScore(_user.totalScore || 0);
-    const ratio = userLevel >= 5 ? 0.5 : 0.25;
+    const ratio = userLevel >= 5 ? (1 / 6) : 0.125;
     const coins = Math.floor(totalPts * ratio);
     if (coins <= 0) return;
 
@@ -353,7 +353,7 @@ export const LessonView: React.FC<Props> = ({
     // Fractional coin accumulator: add this event's coin-value to running total,
     // then award only the integer part — remainder carries to the next event.
     const userLevel = getLevelFromScore(_user.totalScore || 0);
-    const ratio = userLevel >= 5 ? 0.5 : 0.25;
+    const ratio = userLevel >= 5 ? (1 / 6) : 0.125;
     coinFracAccumRef.current += pts * ratio;
     const coins = Math.floor(coinFracAccumRef.current);
     coinFracAccumRef.current -= coins;

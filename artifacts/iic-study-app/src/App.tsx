@@ -419,7 +419,7 @@ const App: React.FC = () => {
       if (delta > 0) {
         localStorage.setItem(syncKey, String(currentScore));
         const routineOn = loadRoutineData(user.id).enabled;
-        const ratio = routineOn ? 0.5 : 0.25;
+        const ratio = routineOn ? (1 / 6) : 0.125;
         coinsFromSync = Math.floor(delta * ratio);
         if (coinsFromSync > 0) {
           const newCredits = (user.credits || 0) + coinsFromSync;
@@ -499,7 +499,7 @@ const App: React.FC = () => {
     const _sessUser = state.user;
     if (earned > 0 && _sessUser?.id) {
       const routineOn = loadRoutineData(_sessUser.id).enabled;
-      const ratio = routineOn ? 0.5 : 0.25;
+      const ratio = routineOn ? (1 / 6) : 0.125;
       const expectedCoins = Math.floor(earned * ratio);
       finalCoins = Math.max(earnedC, expectedCoins);
       if (finalCoins > earnedC) {
