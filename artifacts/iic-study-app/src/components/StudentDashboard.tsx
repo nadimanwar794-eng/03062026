@@ -3226,6 +3226,16 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentMcqShowReview, setLucentMcqShowReview] = useState<Record<string, boolean>>({});
   const lucentAutoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lucentMcqAutoTts, setLucentMcqAutoTts] = useState(false);
+  // ── MCQ per-question timing (for hurried-answer detection & routine time gate) ──
+  const lucentMcqQStartTsRef     = useRef<Record<string, number>>({});   // pageKey → current Q shown ts
+  const lucentMcqSessionStartTsRef = useRef<Record<string, number>>({});  // pageKey → session start ts
+  const lucentMcqTimingsRef      = useRef<Record<string, number[]>>({});  // pageKey → secs per qi
+  // Hurried-answer popup (< 3s per question)
+  const [lucentMcqHurriedPopup, setLucentMcqHurriedPopup] = useState<{
+    pageKey: string; lessonId: string; pageIdx: number;
+    hurriedIndices: number[]; hurriedCorrectCount: number; mcqs: any[];
+    totalElapsed: number; totalQ: number;
+  } | null>(null);
   // lucentNotesViewMode declared earlier (before scoring useEffect) to avoid TDZ — see above
   // Tracks htmlViewMode inside ChunkedNotesReader (for download sync without unmounting reader)
   const [lucentChunkHtmlMode, setLucentChunkHtmlMode] = useState<'chunk' | 'html'>('chunk');
@@ -3296,9 +3306,7 @@ export const StudentDashboard: React.FC<Props> = ({
       (window as any).__routinePageEnterTs = Date.now();
       (window as any).__routinePageLid     = _lid;
       (window as any).__routinePageIdx     = _pi;
-      if (!isRoutinePageRead(_lid, _pi)) {
-        markRoutinePageRead(_lid, _pi);
-      }
+      // NOTE: markRoutinePageRead is now timer-gated (see separate useEffect below)
     }
     const page = lucentNoteViewer?.pages?.[lucentPageIndex];
     const hasNotes = !!(page?.chunkNotes?.trim() || page?.htmlNotes?.trim() || page?.content?.trim());
@@ -3369,6 +3377,21 @@ export const StudentDashboard: React.FC<Props> = ({
   useEffect(() => {
     // Flush time when lesson/page changes
     return () => { try { __routineTimeFlushRef.current(); } catch {} };
+  }, [lucentPageIndex, lucentNoteViewer?.id]);
+
+  // ── My Routine: timer-gated page-read (min lines×2s before marking read) ────
+  useEffect(() => {
+    if (!lucentNoteViewer?.id) return;
+    const _lid = lucentNoteViewer.id;
+    const _pi  = lucentPageIndex;
+    if (isRoutinePageRead(_lid, _pi)) return; // already marked — skip
+    const _pg = lucentNoteViewer?.pages?.[_pi];
+    const _rawText = (_pg?.chunkNotes || '').trim() || stripHtml(_pg?.htmlNotes || '') || (_pg?.content || '');
+    const _lines = Math.max(3, _rawText.split('\n').filter((l: string) => l.trim().length > 1).length);
+    const _minMs = Math.min(_lines * 2000, 120_000); // 2s per line, max 2 min
+    const t = setTimeout(() => { markRoutinePageRead(_lid, _pi); }, _minMs);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentPageIndex, lucentNoteViewer?.id]);
 
   // ── My Routine: midnight reset + lesson-complete reward ───────────────────────
@@ -19568,46 +19591,37 @@ RULES:
                       const submitThreshold = Math.min(20, totalQ);
                       const canShowReview = attempted >= submitThreshold;
 
+                      // ── Initialise session/question start times (first render of this pageKey) ──
+                      if (!lucentMcqSessionStartTsRef.current[pageKey]) {
+                        lucentMcqSessionStartTsRef.current[pageKey] = Date.now();
+                        lucentMcqQStartTsRef.current[pageKey] = Date.now();
+                      }
+
                       // Auto-submit + auto-advance on option click
                       const handleOptionClick = (oi: number) => {
                         if (isAnswered) return;
                         const key = `${pageKey}_${ci}`;
                         const isCorrectAns = oi === cq.correctAnswer;
                         if (!trackDailyMcqAnswer(isCorrectAns)) return;
-                        // MCQ credit deduction now handled by coinGate popup (see openMcq / tryOpenLucentNote)
+
+                        // ── Track per-question elapsed time ──
+                        const _qElapsed = (Date.now() - (lucentMcqQStartTsRef.current[pageKey] ?? Date.now())) / 1000;
+                        const _timings = lucentMcqTimingsRef.current[pageKey] || [];
+                        _timings[ci] = _qElapsed;
+                        lucentMcqTimingsRef.current[pageKey] = _timings;
+
+                        // ── Lesson-level MCQ mark (backward compat only) ──
                         if (!isRoutineMcqDone(entry.id)) {
                           markRoutineMcqDone(entry.id);
-                          // Mark today's task complete if this lesson matches
-                          try {
-                            const _freshUser  = (window as any).__dashUserRef?.current ?? userRef.current;
-                            const _rData2     = loadRoutineData(_freshUser.id);
-                            const _today2 = new Date().toISOString().split('T')[0];
-                            const _tt = _rData2.dailyTasks[_today2];
-                            if (_tt) {
-                              let _ttUpd = { ..._tt };
-                              if (_tt.scienceLessonId === entry.id) _ttUpd.scienceComplete = true;
-                              if (_tt.socialScienceLessonId === entry.id) _ttUpd.socialScienceComplete = true;
-                              if (JSON.stringify(_ttUpd) !== JSON.stringify(_tt)) {
-                                saveRoutineData(_freshUser.id, { ..._rData2, dailyTasks: { ..._rData2.dailyTasks, [_today2]: _ttUpd } });
-                              }
-                            }
-                          } catch {}
                         }
-                        // ── Per-page MCQ tracking (new): mark this specific page's MCQ done ──
-                        // Only mark if lesson credit has been paid (either just now above, or previously).
-                        // This preserves the credit-gated semantics: free pages after first payment.
-                        try {
-                          if (isRoutineMcqDone(entry.id)) {
-                            markRoutinePageMcqDone(entry.id, safeIndex);
-                          }
-                        } catch {}
+                        // NOTE: markRoutinePageMcqDone + daily task moved to Submit & Review
+                        // to enforce the 5s/question minimum time gate.
+
                         // ── Track wrong answers for Routine mistakes counter ──
                         if (!isCorrectAns) {
                           try { recordMistake(entry.id); } catch {}
                         }
                         // ── Update running MCQ score in routine tracker on every answer ──
-                        // `attempted` / `right` reflect questions answered BEFORE this click,
-                        // so we add 1 to each to include the current answer.
                         try {
                           updateRoutineMcqScore(entry.id, right + (isCorrectAns ? 1 : 0), attempted + 1);
                           updateRoutinePageMcqScore(entry.id, safeIndex, right + (isCorrectAns ? 1 : 0), attempted + 1);
@@ -19635,6 +19649,7 @@ RULES:
                           if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current);
                           lucentAutoNextTimerRef.current = setTimeout(() => {
                             const _nextCi = ci + 1;
+                            lucentMcqQStartTsRef.current[pageKey] = Date.now(); // reset Q start for next
                             setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nextCi }));
                             if (lucentMcqAutoTts && mcqs[_nextCi]) {
                               const _nq = mcqs[_nextCi];
@@ -19652,6 +19667,10 @@ RULES:
                         setLucentMcqSubmitted(prev => { const n = { ...prev }; mcqs.forEach((_: any, i: number) => delete n[`${pageKey}_${i}`]); return n; });
                         setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: 0 }));
                         setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: false }));
+                        // Reset all timing refs for this pageKey
+                        lucentMcqTimingsRef.current[pageKey] = [];
+                        lucentMcqSessionStartTsRef.current[pageKey] = Date.now();
+                        lucentMcqQStartTsRef.current[pageKey] = Date.now();
                       };
 
                       // ── REVIEW SCREEN ──
@@ -19745,7 +19764,55 @@ RULES:
                           {/* Submit & Review banner — appears after submitThreshold questions answered */}
                           {canShowReview && (
                             <button
-                              onClick={() => setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: true }))}
+                              onClick={() => {
+                                // ── Time gate: each question needs ≥5s total ──
+                                const _sessStart = lucentMcqSessionStartTsRef.current[pageKey] || (Date.now() - 1000);
+                                const _totalElapsed = (Date.now() - _sessStart) / 1000;
+                                const _minTotalSec = totalQ * 5;
+                                // ── Hurried check: flag questions answered in <3s ──
+                                const _timings = lucentMcqTimingsRef.current[pageKey] || [];
+                                const _hurriedIdx: number[] = [];
+                                let _hurriedCorrect = 0;
+                                mcqs.forEach((q: any, qi: number) => {
+                                  if (!lucentMcqSubmitted[`${pageKey}_${qi}`]) return;
+                                  const t = _timings[qi] !== undefined ? _timings[qi] : 999;
+                                  if (t < 3) {
+                                    _hurriedIdx.push(qi);
+                                    if (lucentMcqAnswers[`${pageKey}_${qi}`] === q.correctAnswer) _hurriedCorrect++;
+                                  }
+                                });
+                                if (_hurriedIdx.length > 0) {
+                                  // Show hurried popup — must decide before review
+                                  setLucentMcqHurriedPopup({
+                                    pageKey, lessonId: entry.id, pageIdx: safeIndex,
+                                    hurriedIndices: _hurriedIdx, hurriedCorrectCount: _hurriedCorrect,
+                                    mcqs, totalElapsed: _totalElapsed, totalQ,
+                                  });
+                                  return;
+                                }
+                                // No hurried — check total time gate
+                                if (_totalElapsed >= _minTotalSec) {
+                                  // ✅ Time ok — mark page MCQ done for routine
+                                  try {
+                                    if (isRoutineMcqDone(entry.id)) markRoutinePageMcqDone(entry.id, safeIndex);
+                                    const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
+                                    const _rd = loadRoutineData(_fu.id);
+                                    const _td = new Date().toISOString().split('T')[0];
+                                    const _tt = _rd.dailyTasks[_td];
+                                    if (_tt) {
+                                      let _tu = { ..._tt };
+                                      if (_tt.scienceLessonId === entry.id) _tu.scienceComplete = true;
+                                      if (_tt.socialScienceLessonId === entry.id) _tu.socialScienceComplete = true;
+                                      if (JSON.stringify(_tu) !== JSON.stringify(_tt))
+                                        saveRoutineData(_fu.id, { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_td]: _tu } });
+                                    }
+                                  } catch {}
+                                } else {
+                                  // ⏱ Too fast — warn, don't mark routine complete
+                                  showAlert(`⚠️ MCQ bahut jaldi complete kiya (${Math.round(_totalElapsed)}s). Minimum ${_minTotalSec}s chahiye — Routine mein count nahi hoga.`, 'WARNING');
+                                }
+                                setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: true }));
+                              }}
                               className="w-full mb-3 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
                             >
                               <CheckCircle size={15} /> Submit & Review ({attempted}/{totalQ})
@@ -25662,6 +25729,120 @@ RULES:
               </>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Hurried MCQ Popup ── */}
+      {lucentMcqHurriedPopup && (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center px-5"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+        >
+          <div className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200"
+            style={{ background: '#fff' }}>
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444)', padding: '20px 20px 16px' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0">⚠️</div>
+                <div>
+                  <p className="text-white font-black text-base leading-tight">Jaldi jaldi MCQ!</p>
+                  <p className="text-white/80 text-[11px] mt-0.5">Kuch questions bahut kam time mein solve kiye</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5">
+              <p className="text-slate-800 font-bold text-sm leading-relaxed mb-4">
+                ⚠️ Aapne{' '}
+                <span className="text-amber-600 font-black">{lucentMcqHurriedPopup.hurriedIndices.length} questions</span>{' '}
+                bahut jaldi solve kiye hain. Kya aap inhe dobara attempt karna chahenge?
+              </p>
+
+              {/* Stats row */}
+              <div className="flex gap-2 mb-5">
+                <div className="flex-1 bg-amber-50 border border-amber-200 rounded-2xl py-3 text-center">
+                  <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Hurried Qs</div>
+                  <div className="text-2xl font-black text-amber-700">{lucentMcqHurriedPopup.hurriedIndices.length}</div>
+                  <div className="text-[10px] text-amber-500">(&lt;3 sec each)</div>
+                </div>
+                <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-3 text-center">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total Qs</div>
+                  <div className="text-2xl font-black text-slate-700">{lucentMcqHurriedPopup.totalQ}</div>
+                  <div className="text-[10px] text-slate-400">in session</div>
+                </div>
+                <div className="flex-1 bg-rose-50 border border-rose-200 rounded-2xl py-3 text-center">
+                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wide">Time Spent</div>
+                  <div className="text-xl font-black text-rose-700">{Math.round(lucentMcqHurriedPopup.totalElapsed)}s</div>
+                  <div className="text-[10px] text-rose-400">of {lucentMcqHurriedPopup.totalQ * 5}s min</div>
+                </div>
+              </div>
+
+              {/* Hurried question numbers */}
+              <div className="flex flex-wrap gap-1.5 mb-5">
+                {lucentMcqHurriedPopup.hurriedIndices.map(qi => (
+                  <span key={qi} className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-black border border-amber-200">
+                    Q{qi + 1}
+                  </span>
+                ))}
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    const popup = lucentMcqHurriedPopup;
+                    // Clear only hurried questions, keep rest
+                    setLucentMcqAnswers(prev => {
+                      const n = { ...prev };
+                      popup.hurriedIndices.forEach(qi => { delete n[`${popup.pageKey}_${qi}`]; });
+                      return n;
+                    });
+                    setLucentMcqSubmitted(prev => {
+                      const n = { ...prev };
+                      popup.hurriedIndices.forEach(qi => { delete n[`${popup.pageKey}_${qi}`]; });
+                      return n;
+                    });
+                    // Go to first hurried question
+                    setLucentMcqCurrentIdx(prev => ({ ...prev, [popup.pageKey]: popup.hurriedIndices[0] }));
+                    // Reset timing for those questions
+                    const t = lucentMcqTimingsRef.current[popup.pageKey] || [];
+                    popup.hurriedIndices.forEach(qi => { t[qi] = 0; });
+                    lucentMcqTimingsRef.current[popup.pageKey] = t;
+                    lucentMcqQStartTsRef.current[popup.pageKey] = Date.now();
+                    setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: false }));
+                    setLucentMcqHurriedPopup(null);
+                  }}
+                  className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
+                  style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff' }}
+                >
+                  🔄 Reattempt
+                </button>
+                <button
+                  onClick={() => {
+                    const popup = lucentMcqHurriedPopup;
+                    // Deduct pts for correct hurried answers (2 pts each)
+                    if (popup.hurriedCorrectCount > 0) {
+                      try {
+                        const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
+                        const _boost = getCombinedBoost(_fu, settings);
+                        for (let i = 0; i < popup.hurriedCorrectCount; i++) {
+                          tryEarnScore(_fu.id, -2, _fu.subscriptionLevel, _fu.isPremium, _boost, 'MCQ_HURRIED_SKIP', undefined, undefined);
+                        }
+                      } catch {}
+                    }
+                    // Don't mark routine page MCQ done — show review without completing routine
+                    setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: true }));
+                    setLucentMcqHurriedPopup(null);
+                    showAlert(`⚠️ Hurried MCQs skip ho gaye — Routine mein count nahi hoga${popup.hurriedCorrectCount > 0 ? `, ${popup.hurriedCorrectCount * 2} pts minus` : ''}`, 'WARNING');
+                  }}
+                  className="w-full py-3 rounded-2xl font-black text-sm text-slate-600 bg-slate-100 border border-slate-200 active:scale-95 transition"
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
