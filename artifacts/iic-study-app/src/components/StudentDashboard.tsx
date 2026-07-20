@@ -11574,7 +11574,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
           {/* Footer */}
           <p className={`text-center text-[10px] pb-4 ${_pTxtMuted}`}>
-            v{APP_VERSION}{settings?.showFooter !== false ? ` · Nadim Anwar` : ''}
+            v{APP_VERSION}{settings?.showFooter !== false ? ` · Shivangi Singh` : ''}
           </p>
 
           {/* ── Level Style Chooser Sheet ── */}

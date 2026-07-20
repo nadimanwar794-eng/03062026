@@ -77,7 +77,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     } catch { return 'IIC'; }
   });
 
-  const developerName = 'Nadim Anwar';
+  const developerName = 'Shivangi Singh';
 
   const [showFooter] = useState<boolean>(() => {
     try {
