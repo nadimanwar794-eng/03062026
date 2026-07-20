@@ -3019,6 +3019,67 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hwActiveHwId, hwViewMode, hwNotesViewMode]);
+
+  // ── Time-based scoring for competition homework ── (mirrors Lucent timer at 2792)
+  //   • NOTES + chunk mode → ChunkedNotesReader handles internally. NOT here.
+  //   • NOTES + html mode  → Write mode: WRITE_ACTIVE_5MIN every 60 sec (+10 base). Handled here.
+  //   • PDF / VIDEO / AUDIO / QA → READ_NOTES_TIME / VIDEO / AUDIO_TTS every 30 sec (+5 base + credits). Handled here.
+  const hwReadSecsRef = useRef(0);
+  const hwLastAwardedTierRef = useRef(0);
+  useEffect(() => {
+    if (!hwActiveHwId) {
+      hwReadSecsRef.current = 0;
+      hwLastAwardedTierRef.current = 0;
+      return;
+    }
+    const isChunk = hwViewMode === 'notes' && hwNotesViewMode === 'chunk';
+    if (isChunk) return; // ChunkedNotesReader handles its own scoring in chunk mode
+    const isWriteMode = hwViewMode === 'notes' && hwNotesViewMode === 'html';
+    const isReadTab   = ['pdf', 'video', 'audio', 'qa'].includes(hwViewMode);
+    if (!isWriteMode && !isReadTab) return;
+
+    hwReadSecsRef.current = 0;
+    hwLastAwardedTierRef.current = 0;
+
+    const userLevel   = getLevelInfo(userRef.current?.totalScore || 0).level;
+    const intervalSec = isWriteMode ? 60 : 30;
+    const basePerTick = isWriteMode ? 10 : 5;
+    const maxSecs     = isWriteMode ? 3600 : getMaxReadingSeconds(userLevel);
+    const activityType = isWriteMode ? 'WRITE_ACTIVE_5MIN'
+      : hwViewMode === 'video' ? 'VIDEO'
+      : hwViewMode === 'audio' ? 'AUDIO_TTS'
+      : 'READ_NOTES_TIME';
+    const tabEmoji     = isWriteMode ? '✍️' : hwViewMode === 'pdf' ? '📄' : hwViewMode === 'video' ? '🎬' : hwViewMode === 'audio' ? '🎵' : '💬';
+    const rewardReason = isWriteMode ? 'Notes Written' : hwViewMode === 'video' ? 'Video Watched' : hwViewMode === 'audio' ? 'Audio Listened' : hwViewMode === 'pdf' ? 'PDF Read' : 'Q&A';
+
+    const timer = setInterval(() => {
+      if (hwReadSecsRef.current >= maxSecs) return;
+      hwReadSecsRef.current += 1;
+      const newTier = Math.floor(hwReadSecsRef.current / intervalSec);
+      if (newTier > hwLastAwardedTierRef.current) {
+        const tiers = newTier - hwLastAwardedTierRef.current;
+        hwLastAwardedTierRef.current = newTier;
+        const freshU = userRef.current;
+        const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getCombinedBoost(freshU, settings), activityType, (freshU as any).scoreLimitBoostPercent, (freshU as any).scoreLimitBoostExpiry);
+        if (earned > 0) {
+          logScoreActivity(freshU.id, activityType, earned);
+          const _rdCoin = loadRoutineData(freshU.id);
+          const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+          const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
+          const _prevCR = getTotalCredits(freshU);
+          const _newCR  = _prevCR + _coinEarned;
+          handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned, credits: (freshU.credits || 0) + _coinEarned });
+          if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
+          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD' });
+          creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
+          triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}!`);
+        }
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hwActiveHwId, hwViewMode, hwNotesViewMode]);
+
   const [hwHtmlTtsPlaying, setHwHtmlTtsPlaying] = useState(false);
   const [noteZoom, setNoteZoom] = useState<number>(() => {
     try { const v = parseFloat(localStorage.getItem('nst_note_zoom') || ''); return (v >= 0.6 && v <= 1.8) ? v : 1.0; } catch { return 1.0; }
@@ -7519,9 +7580,11 @@ export const StudentDashboard: React.FC<Props> = ({
                           onScoreEarned: (pts: number, activity: string) => {
                             if (pts <= 0) return;
                             const cur = userRef.current;
-                            handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts });
+                            const _rdCoin = loadRoutineData(cur.id);
+                            const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+                            const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
+                            handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts, credits: (cur.credits || 0) + _coinEarned });
                             if (activity === 'READ_TTS_HIGHLIGHT') {
-                              // TTS score: silently accumulate — no per-topic popup
                               lucentTtsSessionPtsRef.current += pts;
                             } else {
                               const lbl = activity === 'READ_ACTIVE_30S'
@@ -7923,6 +7986,22 @@ export const StudentDashboard: React.FC<Props> = ({
                                   }, []);
                                   if (wrongEntries.length > 0) addMistakes(wrongEntries).catch(() => {});
                                 } catch {}
+                                // Award MCQ pts on submit: 2 pts correct, 1 pt wrong (base before multiplier)
+                                const _hwRight = mcqs.reduce((a: number, m: any, i: number) => { const s = hwAnswers[`${hwKey}_${i}`]; return (s !== undefined && s === m.correctAnswer) ? a + 1 : a; }, 0);
+                                const _hwAttempted = mcqs.reduce((a: number, _m: any, i: number) => hwAnswers[`${hwKey}_${i}`] !== undefined ? a + 1 : a, 0);
+                                const _hwBaseScore = _hwRight * 2 + (_hwAttempted - _hwRight) * 1;
+                                if (_hwBaseScore > 0) {
+                                  const _freshU = userRef.current;
+                                  const _hwEarned = tryEarnScore(_freshU.id, _hwBaseScore, _freshU.subscriptionLevel, _freshU.isPremium, getCombinedBoost(_freshU, settings), 'MCQ_CORRECT', (_freshU as any).scoreLimitBoostPercent, (_freshU as any).scoreLimitBoostExpiry);
+                                  if (_hwEarned > 0) {
+                                    logScoreActivity(_freshU.id, 'MCQ_CORRECT', _hwEarned);
+                                    const _rdCoin = loadRoutineData(_freshU.id);
+                                    const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+                                    const _coinEarned = Math.max(1, Math.floor(_hwEarned * _coinMult));
+                                    handleUserUpdate({ ..._freshU, totalScore: (_freshU.totalScore || 0) + _hwEarned, credits: (_freshU.credits || 0) + _coinEarned });
+                                    triggerRewardEffect(_hwEarned, `+${_hwEarned} pts 🧠 Competition MCQ!`);
+                                  }
+                                }
                                 setHwManualSubmitted(prev => ({ ...prev, [hwKey]: true }));
                               }}
                               className="mb-3 w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition animate-pulse"
@@ -11618,13 +11697,13 @@ export const StudentDashboard: React.FC<Props> = ({
           )}
 
           {/* Footer */}
-          <p className={`text-center text-[10px] pb-4 ${_pTxtMuted}`}>
+          <p className={`text-center text-[10px] pb-4`} style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.30)' }}>
             v{APP_VERSION}{settings?.showFooter !== false ? (
               <> &nbsp;·&nbsp;
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
                 padding: '1px 7px', borderRadius: '999px',
-                border: '1px solid currentColor', opacity: 0.35,
+                border: '1px solid currentColor', opacity: _light ? 0.75 : 0.35,
                 fontSize: '9px', fontWeight: 500, letterSpacing: '0.02em',
               }}>
                 Developed by <strong style={{ fontWeight: 700, opacity: 1 }}>Nadim Anwar</strong>
@@ -19201,9 +19280,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       onScoreEarned: (pts: number, activity: string) => {
                         if (pts <= 0) return;
                         const cur = userRef.current;
-                        handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts });
+                        const _rdCoin = loadRoutineData(cur.id);
+                        const _coinMult = _rdCoin.enabled ? 0.5 : 0.25;
+                        const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
+                        handleUserUpdate({ ...cur, totalScore: (cur.totalScore || 0) + pts, credits: (cur.credits || 0) + _coinEarned });
                         if (activity === 'READ_TTS_HIGHLIGHT') {
-                          // TTS score: silently accumulate — no per-topic popup
                           lucentTtsSessionPtsRef.current += pts;
                         } else {
                           const lbl = activity === 'READ_ACTIVE_30S'
