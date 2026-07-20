@@ -6910,8 +6910,12 @@ export const StudentDashboard: React.FC<Props> = ({
               return (
                 <div ref={hwTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
                   <div className="flex min-w-max">
-                    {/* Free+ — Reading */}
-                    <button data-tab-active={String(_isReadActive)} onClick={() => { stopSpeech(); setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); }} style={_hwTabStyle} className={_hwTabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
+                    {/* Free+ — Reading (coin gate: 20 coins, once per lesson) */}
+                    <button data-tab-active={String(_isReadActive)} onClick={() => {
+                      const _doRead = () => { stopSpeech(); setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); };
+                      if (_isAdminUser || isPgReadUnlocked(activeHw.id, 0)) { _doRead(); return; }
+                      showCoinGate(20, 'Reading Mode', () => { markPgReadUnlocked(activeHw.id, 0); _doRead(); }, undefined, undefined, _hwPgInfo);
+                    }} style={_hwTabStyle} className={_hwTabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
                       Reading Mode
                     </button>
                     {/* Free+ — Writing (credit gate — pass activeHw.id so unlock is remembered per lesson) */}
