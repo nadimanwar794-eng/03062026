@@ -548,7 +548,7 @@ export const MarksheetCard: React.FC<Props> = ({
     page * ITEMS_PER_PAGE,
   );
 
-  const devName = settings?.footerText || "Shivangi Singh";
+  const devName = settings?.footerText || "Nadim Anwar";
 
   useEffect(() => {
     if (initialView === "ANALYSIS" || result.ultraAnalysisReport) {

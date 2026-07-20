@@ -77,7 +77,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     } catch { return 'IIC'; }
   });
 
-  const developerName = 'Shivangi Singh';
+  const developerName = 'Nadim Anwar';
 
   const [showFooter] = useState<boolean>(() => {
     try {
@@ -309,8 +309,16 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
             {showFooter && (
               <>
                 <span className={`${t.badge} opacity-40 text-[10px]`}>·</span>
-                <span className={`text-[11px] font-medium ${t.badge} opacity-60 tracking-wide`}>
-                  Developed by {developerName}
+                <span className={`text-[11px] font-semibold ${t.badge} opacity-80`}>
+                  <span style={{ opacity: 0.55, fontSize: '9px', marginRight: '3px', letterSpacing: '0.05em' }}>DEV</span>
+                  <span style={{
+                    background: 'linear-gradient(90deg,#6366f1,#a855f7,#ec4899)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                  }}>{developerName}</span>
                 </span>
                 <span className={`${t.badge} opacity-30 text-[10px]`}>|</span>
               </>

@@ -672,7 +672,7 @@ export interface SystemSettings {
   mcqAnalysisCost?: number;
   appShortName?: string; // e.g. "IIC"
   appShortNameSize?: number; // Font size in pixels for loading-screen short name (admin slider, 24-120). Default 30.
-  developerName?: string; // Shown as "Developed by …" on the loading screen and profile page. Default "Shivangi Singh".
+  developerName?: string; // Shown as "Developed by …" on the loading screen and profile page. Default "Nadim Anwar".
   /** Admin-defined extra "books" (Sar Sangrah / Speedy ki tarah). Each entry becomes:
    *   - a target-subject option in the Homework form (admin)
    *   - a subject card on the student dashboard, opening a flat page-wise list of notes/MCQs
