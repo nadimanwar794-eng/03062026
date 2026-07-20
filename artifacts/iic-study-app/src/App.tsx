@@ -530,6 +530,21 @@ const App: React.FC = () => {
     // Agar HOME pe nahi — queue mein rahega, HOME tab pe aane pe dikhega
   };
 
+  // ── MCQ refs — useEffect ke pehle declare karna zaroori hai (production TDZ fix) ──
+  const mcqSessionSecondsRef = useRef(0);
+  const scoreAtSessionStartRef = useRef(0);
+  const creditsAtSessionStartRef = useRef(0);
+  const sessionStartTimeRef = useRef(0); // session shuru hone ka timestamp
+  const userTotalScoreRef = useRef(0);
+  const userCreditsRef = useRef(0);
+  // awaitingPostMcqDataRef: true jab MCQ khatam hua lekin score abhi state mein aana baaki hai
+  const awaitingPostMcqDataRef = useRef(false);
+  // sessionEndProcessedRef: double-fire guard (sessionStartTimeRef pe depend mat karo)
+  const sessionEndProcessedRef = useRef(false);
+  // RevisionHub open hone pe HomeStatsToast defer karo — close hone pe dikhao
+  const revisionHubOpenRef = useRef(false);
+  const pendingHomeStatsRef = useRef(false);
+
   // ── Fallback timer (1.5s) agar Firebase se score update late aaye ─────────
   const [mcqJustEnded, setMcqJustEnded] = useState(false);
   const mcqFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -564,22 +579,9 @@ const App: React.FC = () => {
   // Refs — enqueueMcqAndShow mein stale closures avoid karne ke liye
   const mcqChapterNameRef = useRef('');
   const mcqActivityTypeRef = useRef('MCQ');
-  const mcqSessionSecondsRef = useRef(0);
   useEffect(() => { mcqChapterNameRef.current = mcqChapterName; }, [mcqChapterName]);
   useEffect(() => { mcqActivityTypeRef.current = mcqActivityType; }, [mcqActivityType]);
   useEffect(() => { mcqSessionSecondsRef.current = mcqSessionSeconds; }, [mcqSessionSeconds]);
-  const scoreAtSessionStartRef = useRef(0);
-  const creditsAtSessionStartRef = useRef(0);
-  const sessionStartTimeRef = useRef(0); // session shuru hone ka timestamp
-  const userTotalScoreRef = useRef(0);
-  const userCreditsRef = useRef(0);
-  // awaitingPostMcqDataRef: true jab MCQ khatam hua lekin score abhi state mein aana baaki hai
-  const awaitingPostMcqDataRef = useRef(false);
-  // sessionEndProcessedRef: double-fire guard (sessionStartTimeRef pe depend mat karo)
-  const sessionEndProcessedRef = useRef(false);
-  // RevisionHub open hone pe HomeStatsToast defer karo — close hone pe dikhao
-  const revisionHubOpenRef = useRef(false);
-  const pendingHomeStatsRef = useRef(false);
   useEffect(() => { userTotalScoreRef.current = state.user?.totalScore || 0; }, [state.user?.totalScore]);
   useEffect(() => { userCreditsRef.current = state.user?.credits || 0; }, [state.user?.credits]);
 
