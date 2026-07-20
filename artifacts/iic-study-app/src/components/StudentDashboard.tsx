@@ -4258,6 +4258,39 @@ export const StudentDashboard: React.FC<Props> = ({
     setRecentHw(getRecentHomeworks());
   };
 
+  // Open a competition homework lesson with a Reading Mode coin gate (20 CR, once per lesson).
+  // Admin and already-unlocked lessons bypass the gate. Pass doOpen as the callback that
+  // actually sets hwActiveHwId + view mode so the lesson opens.
+  const openHwWithReadGate = (
+    hw: { id?: string | null; title?: string; parsedMcqs?: any[]; audioUrl?: string; videoUrl?: string; pdfUrl?: string },
+    doOpen: () => void
+  ) => {
+    const _lid = hw.id || '';
+    if (_isAdminUser || isPgReadUnlocked(_lid, 0)) { doOpen(); return; }
+    const _hasMcq = (hw.parsedMcqs || []).length > 0;
+    const _pgInfo = {
+      pageLabel: hw.title || 'Competition Lesson',
+      availableModes: [
+        { mode: 'READING',   label: 'Reading Mode', emoji: '📖', cost: 20,
+          isUnlocked: false, isAccessible: true, requiredTier: 'free'  as const, unlockAction: () => markPgReadUnlocked(_lid, 0) },
+        { mode: 'WRITING',   label: 'Writing Mode', emoji: '✍️', cost: 20,
+          isUnlocked: isPgWriteUnlocked(_lid, 0), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markPgWriteUnlocked(_lid, 0) },
+        ...(_hasMcq ? [
+          { mode: 'MCQ',       label: 'MCQ Practice', emoji: '🧠', cost: 20,
+            isUnlocked: isMcqPageUnlocked(_lid, 0), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markMcqPageUnlocked(_lid, 0) },
+          { mode: 'QA',        label: 'Q&A Mode',     emoji: '💬', cost: 20,
+            isUnlocked: isQaPageUnlocked(_lid, 0), isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: () => markQaPageUnlocked(_lid, 0) },
+          { mode: 'FLASHCARD', label: 'Flashcard',    emoji: '🃏', cost: 20,
+            isUnlocked: isFcPageUnlocked(_lid, 0), isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: () => markFcPageUnlocked(_lid, 0) },
+        ] : []),
+        ...(hw.pdfUrl   ? [{ mode: 'PDF',   label: 'PDF',   emoji: '📄', cost: 0, isUnlocked: true, isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: undefined as undefined }] : []),
+        ...(hw.videoUrl ? [{ mode: 'VIDEO', label: 'Video', emoji: '🎬', cost: 0, isUnlocked: true, isAccessible: _isUltraUser,                 requiredTier: 'ultra' as const, unlockAction: undefined as undefined }] : []),
+        ...(hw.audioUrl ? [{ mode: 'AUDIO', label: 'Audio', emoji: '🎵', cost: 0, isUnlocked: true, isAccessible: _isUltraUser,                 requiredTier: 'ultra' as const, unlockAction: undefined as undefined }] : []),
+      ],
+    };
+    showCoinGate(20, 'Reading Mode', () => { markPgReadUnlocked(_lid, 0); doOpen(); }, undefined, undefined, _pgInfo);
+  };
+
   // Restore last-read scroll position for the active homework note
   React.useEffect(() => {
     if (!hwActiveHwId || hwViewMode !== 'notes') return;
@@ -6614,23 +6647,27 @@ export const StudentDashboard: React.FC<Props> = ({
               : hwViewMode);
 
         const goToHw = (target: typeof activeHw) => {
-          const d = new Date(target.date);
-          setHwYear(d.getFullYear());
-          setHwMonth(d.getMonth());
-          setHwWeek(getWeekOfMonth(d));
-          setHwActiveHwId(target.id || '');
-          setHwScrollProgress(0);
-          hwScrollRestoredRef.current = false;
-          // Reset view mode for the new item.
           const tNotes = !!(target.notes?.trim() || (target as any).chunkNotes?.trim() || (target as any).htmlNotes?.trim());
           const tMcq = !!(target.parsedMcqs && target.parsedMcqs.length > 0);
           const tAudio = !!(target as any).audioUrl;
           const tVideo = !!(target as any).videoUrl;
-          if (tNotes) setHwViewMode('notes');
-          else if (tMcq) setHwViewMode('mcq');
-          else if (tAudio) setHwViewMode('audio');
-          else if (tVideo) setHwViewMode('video');
-          else setHwViewMode('notes');
+          const doNav = () => {
+            const d = new Date(target.date);
+            setHwYear(d.getFullYear());
+            setHwMonth(d.getMonth());
+            setHwWeek(getWeekOfMonth(d));
+            setHwActiveHwId(target.id || '');
+            setHwScrollProgress(0);
+            hwScrollRestoredRef.current = false;
+            if (tNotes) setHwViewMode('notes');
+            else if (tMcq) setHwViewMode('mcq');
+            else if (tAudio) setHwViewMode('audio');
+            else if (tVideo) setHwViewMode('video');
+            else setHwViewMode('notes');
+          };
+          // Gate reading on nav to a new lesson (only when it would default to notes)
+          if (tNotes) { openHwWithReadGate(target, doNav); return; }
+          doNav();
         };
         // Expose filtered list + goToHw to the back-navigation popstate handler
         hwFilteredRef.current = filteredHw as any[];
@@ -8054,7 +8091,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       setPlayerIsReadingAll(false);
                       setPlayerRevealAll(true);
                     } else {
-                      setHwActiveHwId(hw.id || '');
+                      openHwWithReadGate(hw, () => setHwActiveHwId(hw.id || ''));
                     }
                   };
                   return (
@@ -8136,7 +8173,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         setPlayerIsReadingAll(false);
                         setPlayerRevealAll(true);
                       } else {
-                        setHwActiveHwId(hw.id || '');
+                        openHwWithReadGate(hw, () => setHwActiveHwId(hw.id || ''));
                       }
                     };
                     return (
@@ -8271,8 +8308,8 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={hw.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); if (hw?.id) setHwActiveHwId(hw.id); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setHwViewMode('notes'); setHwNotesViewMode('chunk'); if (hw?.id) setHwActiveHwId(hw.id); } }}
+                        onClick={() => { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); } }}
                         className={`w-full border rounded-xl p-2 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-2.5 cursor-pointer`}
                         style={{ background: tierTheme.profileCardBg, borderColor: tierTheme.primary }}
                       >
@@ -8310,7 +8347,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         return (
                           <button
                             key={hw.id}
-                            onClick={() => setHwActiveHwId(hw.id || null)}
+                            onClick={() => openHwWithReadGate(hw, () => setHwActiveHwId(hw.id || null))}
                             className={`w-full bg-white border-2 border-slate-200 rounded-2xl p-3 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-3`}
                           >
                             <div className="bg-slate-100 text-slate-600 w-14 h-14 rounded-xl shrink-0 flex items-center justify-center">
@@ -13925,30 +13962,32 @@ export const StudentDashboard: React.FC<Props> = ({
         const openHomeworkDirect = (hw: typeof allHw[number], subId: string) => {
           const hasNotes = !!(hw.notes?.trim() || (hw as any).chunkNotes?.trim() || (hw as any).htmlNotes?.trim());
           const hasMcq = !!(hw.parsedMcqs && hw.parsedMcqs.length > 0);
-          // Pre-set the view mode — open notes if available, else MCQ, else audio, else video.
           const hasAudioDirect = !!(hw as any)?.audioUrl;
           const hasVideoDirect = !!(hw as any)?.videoUrl;
-          if (hasNotes) setHwViewMode('notes');
-          else if (hasMcq) setHwViewMode('mcq');
-          else if (hasAudioDirect) setHwViewMode('audio');
-          else if (hasVideoDirect) setHwViewMode('video');
-          else setHwViewMode('notes');
-
-          setShowHomeworkHistory(false);
-          setHwTodayPickerSub(null);
-          setHomeworkSubjectView(subId);
-          setSelectedSubject({ id: subId, name: SUBJECT_INFO[subId]?.label || subId, icon: 'Book', color: 'bg-slate-100' } as any);
-          setContentViewStep('SUBJECTS');
-          setLucentCategoryView(false);
-          // Leave year/month/week null so "Back" goes straight back to the homework page,
-          // not into the year/month hierarchy.
-          setHwYear(null);
-          setHwMonth(null);
-          setHwWeek(null);
-          setHwActiveHwId(hw.id || '');
-          setHwOpenedDirect(true);
-          setHwSubjectOpenedFrom('HOMEWORK');
-          onTabChange('COURSES');
+          const doOpen = () => {
+            // Pre-set the view mode — open notes if available, else MCQ, else audio, else video.
+            if (hasNotes) setHwViewMode('notes');
+            else if (hasMcq) setHwViewMode('mcq');
+            else if (hasAudioDirect) setHwViewMode('audio');
+            else if (hasVideoDirect) setHwViewMode('video');
+            else setHwViewMode('notes');
+            setShowHomeworkHistory(false);
+            setHwTodayPickerSub(null);
+            setHomeworkSubjectView(subId);
+            setSelectedSubject({ id: subId, name: SUBJECT_INFO[subId]?.label || subId, icon: 'Book', color: 'bg-slate-100' } as any);
+            setContentViewStep('SUBJECTS');
+            setLucentCategoryView(false);
+            setHwYear(null);
+            setHwMonth(null);
+            setHwWeek(null);
+            setHwActiveHwId(hw.id || '');
+            setHwOpenedDirect(true);
+            setHwSubjectOpenedFrom('HOMEWORK');
+            onTabChange('COURSES');
+          };
+          // Gate reading mode — only shown when lesson would open in notes/reading mode
+          if (hasNotes) { openHwWithReadGate(hw, doOpen); return; }
+          doOpen();
         };
 
         // Tap on a today-banner subject card.
