@@ -3262,6 +3262,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentMcqSubmitted, setLucentMcqSubmitted] = useState<Record<string, boolean>>({});
   // Show review/result screen (per pageKey) — triggered by "Submit & Review" button
   const [lucentMcqShowReview, setLucentMcqShowReview] = useState<Record<string, boolean>>({});
+  // Hurried reattempt filter — only show these real-indices during reattempt (per pageKey)
+  const [lucentMcqHurriedFilter, setLucentMcqHurriedFilter] = useState<Record<string, number[]>>({});
   const lucentAutoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lucentMcqAutoTts, setLucentMcqAutoTts] = useState(false);
   // ── MCQ per-question timing (for hurried-answer detection & routine time gate) ──
@@ -19577,21 +19579,31 @@ RULES:
                       }
 
                       // ── INTERACTIVE (MCQ) MODE — one-at-a-time ──
+                      // ── Hurried reattempt filter — only show hurried questions ──
+                      const _hurriedFilter = lucentMcqHurriedFilter[pageKey];
+                      const effectiveMcqs = _hurriedFilter ? _hurriedFilter.map((ri: number) => mcqs[ri]) : mcqs;
+
                       const ci = lucentMcqCurrentIdx[pageKey] ?? 0;
-                      const totalQ = mcqs.length;
-                      const cq = mcqs[ci];
+                      const totalQ = effectiveMcqs.length;
+                      const cq = effectiveMcqs[ci];
                       if (!cq) return null;
-                      const ansKey = `${pageKey}_${ci}`;
+                      // realIdx maps virtual ci → actual mcqs index for answer key lookups
+                      const realIdx = _hurriedFilter ? _hurriedFilter[ci] : ci;
+                      const ansKey = `${pageKey}_${realIdx}`;
                       const selected = lucentMcqAnswers[ansKey];
                       const isAnswered = lucentMcqSubmitted[ansKey] === true;
                       const isCorrect = isAnswered && selected === cq.correctAnswer;
                       const showReview = lucentMcqShowReview[pageKey] === true;
 
-                      // Stats — only submitted questions
-                      const attempted = mcqs.reduce((acc: number, _: any, i: number) => lucentMcqSubmitted[`${pageKey}_${i}`] ? acc + 1 : acc, 0);
-                      const right = mcqs.reduce((acc: number, q2: any, i: number) => {
-                        if (!lucentMcqSubmitted[`${pageKey}_${i}`]) return acc;
-                        const s = lucentMcqAnswers[`${pageKey}_${i}`];
+                      // Stats — only submitted questions (over effective set)
+                      const attempted = effectiveMcqs.reduce((acc: number, _: any, i: number) => {
+                        const rIdx = _hurriedFilter ? _hurriedFilter[i] : i;
+                        return lucentMcqSubmitted[`${pageKey}_${rIdx}`] ? acc + 1 : acc;
+                      }, 0);
+                      const right = effectiveMcqs.reduce((acc: number, q2: any, i: number) => {
+                        const rIdx = _hurriedFilter ? _hurriedFilter[i] : i;
+                        if (!lucentMcqSubmitted[`${pageKey}_${rIdx}`]) return acc;
+                        const s = lucentMcqAnswers[`${pageKey}_${rIdx}`];
                         return (s !== undefined && s === q2.correctAnswer) ? acc + 1 : acc;
                       }, 0);
                       const wrong = attempted - right;
@@ -19607,14 +19619,14 @@ RULES:
                       // Auto-submit + auto-advance on option click
                       const handleOptionClick = (oi: number) => {
                         if (isAnswered) return;
-                        const key = `${pageKey}_${ci}`;
+                        const key = `${pageKey}_${realIdx}`;
                         const isCorrectAns = oi === cq.correctAnswer;
                         if (!trackDailyMcqAnswer(isCorrectAns)) return;
 
                         // ── Track per-question elapsed time ──
                         const _qElapsed = (Date.now() - (lucentMcqQStartTsRef.current[pageKey] ?? Date.now())) / 1000;
                         const _timings = lucentMcqTimingsRef.current[pageKey] || [];
-                        _timings[ci] = _qElapsed;
+                        _timings[realIdx] = _qElapsed;
                         lucentMcqTimingsRef.current[pageKey] = _timings;
 
                         // ── Lesson-level MCQ mark (backward compat only) ──
@@ -19658,8 +19670,8 @@ RULES:
                             const _nextCi = ci + 1;
                             lucentMcqQStartTsRef.current[pageKey] = Date.now(); // reset Q start for next
                             setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nextCi }));
-                            if (lucentMcqAutoTts && mcqs[_nextCi]) {
-                              const _nq = mcqs[_nextCi];
+                            if (lucentMcqAutoTts && effectiveMcqs[_nextCi]) {
+                              const _nq = effectiveMcqs[_nextCi];
                               stopSpeech();
                               const _nopts = (_nq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
                               speakText(`Question ${_nextCi + 1}: ${_nq.question}. Options: ${_nopts}.`, null, 1.0, 'hi-IN', () => {}, () => {});
@@ -19674,6 +19686,8 @@ RULES:
                         setLucentMcqSubmitted(prev => { const n = { ...prev }; mcqs.forEach((_: any, i: number) => delete n[`${pageKey}_${i}`]); return n; });
                         setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: 0 }));
                         setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: false }));
+                        // Clear hurried filter so full question set shows again
+                        setLucentMcqHurriedFilter(prev => { const n = { ...prev }; delete n[pageKey]; return n; });
                         // Reset all timing refs for this pageKey
                         lucentMcqTimingsRef.current[pageKey] = [];
                         lucentMcqSessionStartTsRef.current[pageKey] = Date.now();
@@ -19717,15 +19731,16 @@ RULES:
                             {/* Review — only answered questions */}
                             <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-2">📋 Answer Review ({attempted} questions)</p>
                             <div className="space-y-3">
-                              {mcqs.map((q2: any, qi: number) => {
-                                const qKey = `${pageKey}_${qi}`;
+                              {effectiveMcqs.map((q2: any, i: number) => {
+                                const rIdx = _hurriedFilter ? _hurriedFilter[i] : i;
+                                const qKey = `${pageKey}_${rIdx}`;
                                 if (!lucentMcqSubmitted[qKey]) return null;
                                 const userAns = lucentMcqAnswers[qKey];
                                 const isQ2Correct = userAns === q2.correctAnswer;
                                 return (
-                                  <div key={qi} className={`bg-white rounded-2xl p-3 border-2 ${isQ2Correct ? 'border-emerald-200' : 'border-rose-200'}`}>
+                                  <div key={rIdx} className={`bg-white rounded-2xl p-3 border-2 ${isQ2Correct ? 'border-emerald-200' : 'border-rose-200'}`}>
                                     <div className="flex items-start gap-2 mb-2">
-                                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{qi + 1} {isQ2Correct ? '✅' : '❌'}</span>
+                                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{rIdx + 1} {isQ2Correct ? '✅' : '❌'}</span>
                                       <p className="text-xs font-bold text-slate-800 leading-snug flex-1">{q2.question}</p>
                                     </div>
                                     <div className="space-y-1 ml-1">
@@ -19887,7 +19902,7 @@ RULES:
                           <div className="mt-3 flex gap-2">
                             {ci > 0 ? (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _pci = ci - 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _pci })); if (lucentMcqAutoTts && mcqs[_pci]) { const _pq = mcqs[_pci]; stopSpeech(); const _popts = (_pq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_pci + 1}: ${_pq.question}. Options: ${_popts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _pci = ci - 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _pci })); if (lucentMcqAutoTts && effectiveMcqs[_pci]) { const _pq = effectiveMcqs[_pci]; stopSpeech(); const _popts = (_pq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_pci + 1}: ${_pq.question}. Options: ${_popts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
                                 className="py-3 px-4 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-1 active:scale-95 transition"
                               >
                                 <ChevronLeft size={15} /> Prev
@@ -19900,7 +19915,7 @@ RULES:
                             {/* Skip — only when not answered and not last question */}
                             {!isAnswered && ci < totalQ - 1 && (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _sci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _sci })); if (lucentMcqAutoTts && mcqs[_sci]) { const _sq = mcqs[_sci]; stopSpeech(); const _sopts = (_sq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_sci + 1}: ${_sq.question}. Options: ${_sopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _sci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _sci })); if (lucentMcqAutoTts && effectiveMcqs[_sci]) { const _sq = effectiveMcqs[_sci]; stopSpeech(); const _sopts = (_sq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_sci + 1}: ${_sq.question}. Options: ${_sopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
                                 className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition"
                               >
                                 Skip <ChevronRight size={13} />
@@ -19908,7 +19923,7 @@ RULES:
                             )}
                             {ci < totalQ - 1 ? (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _nci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nci })); if (lucentMcqAutoTts && mcqs[_nci]) { const _nq = mcqs[_nci]; stopSpeech(); const _nopts = (_nq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_nci + 1}: ${_nq.question}. Options: ${_nopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _nci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nci })); if (lucentMcqAutoTts && effectiveMcqs[_nci]) { const _nq = effectiveMcqs[_nci]; stopSpeech(); const _nopts = (_nq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_nci + 1}: ${_nq.question}. Options: ${_nopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
                                 disabled={!isAnswered}
                                 className={`flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow-md ${isAnswered ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
                               >
@@ -25820,7 +25835,9 @@ RULES:
                         return n;
                       });
                       // Go to first hurried question
-                      setLucentMcqCurrentIdx(prev => ({ ...prev, [popup.pageKey]: popup.hurriedIndices[0] }));
+                      setLucentMcqCurrentIdx(prev => ({ ...prev, [popup.pageKey]: 0 }));
+                      // Set hurried filter — only show jaldi questions in reattempt
+                      setLucentMcqHurriedFilter(prev => ({ ...prev, [popup.pageKey]: popup.hurriedIndices }));
                       // Reset timing for those questions
                       const t = lucentMcqTimingsRef.current[popup.pageKey] || [];
                       popup.hurriedIndices.forEach(qi => { t[qi] = 0; });
@@ -25866,9 +25883,6 @@ RULES:
                       } catch {}
                       setLucentMcqShowReview(prev => ({ ...prev, [popup.pageKey]: true }));
                       setLucentMcqHurriedPopup(null);
-                      if (popup.hurriedCorrectCount > 0) {
-                        showAlert(`⚠️ ${popup.hurriedIndices.length} jaldi wale questions skip — ${popup.hurriedCorrectCount * 2} pts minus`, 'WARNING');
-                      }
                     }}
                     className="w-full py-3 rounded-2xl font-black text-sm text-slate-600 bg-slate-100 border border-slate-200 active:scale-95 transition"
                   >
