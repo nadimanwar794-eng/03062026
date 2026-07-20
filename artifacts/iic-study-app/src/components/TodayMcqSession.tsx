@@ -62,12 +62,14 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
 
     // ── MCQ Score Popup ────────────────────────────────────────────────────────
     const [mcqScorePopup, setMcqScorePopup] = useState<number | null>(null);
+    const [mcqScoreCredits, setMcqScoreCredits] = useState<number | null>(null);
     const [mcqScoreVisible, setMcqScoreVisible] = useState(false);
     const mcqPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const showMcqScore = (pts: number) => {
+    const showMcqScore = (pts: number, credits?: number) => {
         if (mcqPopupTimerRef.current) clearTimeout(mcqPopupTimerRef.current);
         setMcqScorePopup(pts);
+        setMcqScoreCredits(credits ?? null);
         setMcqScoreVisible(true);
         mcqPopupTimerRef.current = setTimeout(() => setMcqScoreVisible(false), 1800);
     };
