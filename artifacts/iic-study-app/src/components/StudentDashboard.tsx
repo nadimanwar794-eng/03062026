@@ -2966,6 +2966,12 @@ export const StudentDashboard: React.FC<Props> = ({
   const [hwImmersive, setHwImmersive] = useState(false);
   const [hwFabOpen, setHwFabOpen] = useState(false);
   const [hwNotesViewMode, setHwNotesViewMode] = useState<'html' | 'chunk'>('chunk');
+  // ── Competition mode: session score + countdown (mirrors Lucent lucentOpenScore/lucentCountdown) ──
+  // IMPORTANT: declared AFTER hwViewMode + hwNotesViewMode to avoid production TDZ crash
+  const [hwOpenScore, setHwOpenScore] = useState(0);
+  const [hwScoreTooltip, setHwScoreTooltip] = useState(false);
+  const [hwCountdown, setHwCountdown] = useState(0);
+  const hwLastScoreTimeRef = useRef<number>(Date.now());
   const [showWMUnlockPrompt, setShowWMUnlockPrompt] = useState(false);
   const [pendingWMCallback, setPendingWMCallback] = useState<(() => void) | null>(null);
   const [wmDontShowChecked, setWmDontShowChecked] = useState(false);
@@ -2973,6 +2979,44 @@ export const StudentDashboard: React.FC<Props> = ({
   useEffect(() => {
     if (!hwActiveHwId) setHwImmersive(false);
   }, [hwActiveHwId]);
+  // Reset session-score baseline when hw lesson opens/changes
+  useEffect(() => {
+    if (!hwActiveHwId) return;
+    setHwOpenScore(userRef.current?.totalScore || 0);
+    setHwScoreTooltip(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hwActiveHwId]);
+  // Reset session-score baseline on mode/sub-mode switch
+  useEffect(() => {
+    if (!hwActiveHwId) return;
+    setHwOpenScore(userRef.current?.totalScore || 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hwViewMode, hwNotesViewMode]);
+  // Keep score-time anchor in sync when pts are earned
+  useEffect(() => {
+    hwLastScoreTimeRef.current = Date.now();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.totalScore]);
+  // Countdown timer for competition mode slim bar
+  useEffect(() => {
+    if (!hwActiveHwId) { setHwCountdown(0); return; }
+    const isChunk = hwViewMode === 'notes' && hwNotesViewMode === 'chunk';
+    if (isChunk) { setHwCountdown(0); return; } // ChunkedNotesReader handles its own countdown
+    const isHtml = hwViewMode === 'notes' && hwNotesViewMode === 'html';
+    const _cdMap: Record<string, number> = { qa: 30, pdf: 30, video: 30, audio: 30, mcq: 0, flashcard: 0 };
+    const _cd = hwViewMode === 'notes' ? (isHtml ? 60 : 30) : (_cdMap[hwViewMode] ?? 30);
+    if (_cd === 0) { setHwCountdown(0); return; }
+    hwLastScoreTimeRef.current = Date.now();
+    const _tick = () => {
+      const elapsed = (Date.now() - hwLastScoreTimeRef.current) / 1000;
+      const cycleElapsed = elapsed % _cd;
+      setHwCountdown(Math.max(1, Math.ceil(_cd - cycleElapsed)));
+    };
+    _tick();
+    const id = setInterval(_tick, 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hwActiveHwId, hwViewMode, hwNotesViewMode]);
   const [hwHtmlTtsPlaying, setHwHtmlTtsPlaying] = useState(false);
   const [noteZoom, setNoteZoom] = useState<number>(() => {
     try { const v = parseFloat(localStorage.getItem('nst_note_zoom') || ''); return (v >= 0.6 && v <= 1.8) ? v : 1.0; } catch { return 1.0; }
@@ -7035,14 +7079,47 @@ export const StudentDashboard: React.FC<Props> = ({
                     );
                   })()}
                 </div>
-                {/* Score chip — right side */}
+                {/* 📖 Live session pts — right side (tap to open score popup) */}
                 <div className="shrink-0 flex items-center px-2 border-l border-slate-100">
-                  <span style={{ fontSize: '11px', fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '2px 9px', whiteSpace: 'nowrap' }}>
-                    📖 {flatIdx + 1}/{filteredHw.length}
+                  <span
+                    onClick={() => setHwScoreTooltip(v => !v)}
+                    style={{ fontSize: '11px', fontWeight: 900, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 99, padding: '2px 9px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    📖 {Math.max(0, (user?.totalScore || 0) - hwOpenScore)}
                   </span>
                 </div>
               </div>
             )}
+
+            {/* ── COMPETITION SCORE BANNER — slim bar ke neeche, 📖 chip tap karne pe ── */}
+            {!hwImmersive && !isLandscapeUiHidden && hwScoreTooltip && (() => {
+              const _isWrite = effectiveMode === 'notes' && hwNotesViewMode === 'html';
+              const _sessionScore = Math.max(0, (user?.totalScore || 0) - hwOpenScore);
+              const _modeIcon = _isWrite ? '✍️' : effectiveMode === 'pdf' ? '📄' : effectiveMode === 'video' ? '🎬' : effectiveMode === 'qa' ? '💬' : effectiveMode === 'mcq' ? '📝' : '🎵';
+              const _modeLabel = _isWrite ? 'Writing Score' : effectiveMode === 'pdf' ? 'PDF Score' : effectiveMode === 'video' ? 'Video Score' : effectiveMode === 'qa' ? 'Q&A Score' : effectiveMode === 'mcq' ? 'MCQ Score' : 'Audio Score';
+              const _accentColor = _isWrite ? '#10b981' : effectiveMode === 'mcq' ? '#8b5cf6' : effectiveMode === 'video' ? '#6366f1' : '#16a34a';
+              const _nextPts = _isWrite ? 10 : 5;
+              const _nextInterval = _isWrite ? 60 : 30;
+              const _nextText = effectiveMode === 'mcq' ? 'Sahi jawab pe!' : `+${_nextPts} in ${hwCountdown > 0 ? hwCountdown : _nextInterval}s`;
+              return (
+                <div style={{ width: '100%', background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', borderTop: `2px solid ${_accentColor}`, borderBottom: '1px solid rgba(99,102,241,0.15)', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 2px 8px rgba(99,102,241,0.10)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 15, flexShrink: 0 }}>{_modeIcon}</span>
+                  <span style={{ fontSize: 10, fontWeight: 900, color: _accentColor, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{_modeLabel}</span>
+                  <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Score</span>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: _accentColor, lineHeight: 1.2 }}>+{_sessionScore}</span>
+                  </div>
+                  <div style={{ width: 1, height: 14, background: '#e2e8f0', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
+                    <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>{_nextText}</span>
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>tap to hide</span>
+                  <button onClick={() => setHwScoreTooltip(false)} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 900, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
+                </div>
+              );
+            })()}
 
             {/* VIDEO PAGE */}
             {effectiveMode === 'video' && hasVideo && (
