@@ -10,6 +10,7 @@ interface AutoTrackData {
   mcqScore:     Record<string, { correct: number; total: number; ts: number }>;  // lessonId → latest running score (lesson-level)
   pageMcqDone:  Record<string, number>;                                          // `${lessonId}__${pageIdx}` → timestamp (per-page)
   pageMcqScore: Record<string, { correct: number; total: number; ts: number }>;  // `${lessonId}__${pageIdx}` → score (per-page)
+  pageMcqBest:  Record<string, { correct: number; total: number; ts: number }>;  // `${lessonId}__${pageIdx}` → best-ever score (per-page)
   timings:      Record<string, number>;                                          // `${lessonId}__${pageIdx}` → accumulated seconds
   mistakes:     Record<string, number>;                                          // lessonId → wrong-answer count
   masks:        Record<string, number>;                                          // lessonId → mask-used count
@@ -27,6 +28,7 @@ function load(): AutoTrackData {
         mcqScore:       parsed.mcqScore       || {},
         pageMcqDone:    parsed.pageMcqDone    || {},
         pageMcqScore:   parsed.pageMcqScore   || {},
+        pageMcqBest:    parsed.pageMcqBest    || {},
         timings:        parsed.timings        || {},
         mistakes:       parsed.mistakes       || {},
         masks:          parsed.masks          || {},
@@ -34,7 +36,7 @@ function load(): AutoTrackData {
       };
     }
   } catch {}
-  return { pageReads: {}, mcqDone: {}, mcqScore: {}, pageMcqDone: {}, pageMcqScore: {}, timings: {}, mistakes: {}, masks: {}, lessonRewarded: {} };
+  return { pageReads: {}, mcqDone: {}, mcqScore: {}, pageMcqDone: {}, pageMcqScore: {}, pageMcqBest: {}, timings: {}, mistakes: {}, masks: {}, lessonRewarded: {} };
 }
 
 function save(data: AutoTrackData): void {
@@ -92,13 +94,62 @@ export function updateRoutineMcqScore(lessonId: string, correct: number, total: 
 /**
  * Called on EVERY MCQ option click to update the running score for a specific page.
  * `correct` and `total` are cumulative counts for that page.
+ * Also updates best-ever score if this attempt beats the previous best.
  */
 export function updateRoutinePageMcqScore(lessonId: string, pageIdx: number, correct: number, total: number): void {
   if (!lessonId) return;
   const d = load();
   const key = `${lessonId}__${pageIdx}`;
   d.pageMcqScore[key] = { correct, total, ts: Date.now() };
+  // Update best score if this attempt is better (higher %)
+  const pct     = total > 0 ? correct / total : 0;
+  const prev    = d.pageMcqBest?.[key];
+  const prevPct = prev && prev.total > 0 ? prev.correct / prev.total : -1;
+  if (pct > prevPct) {
+    if (!d.pageMcqBest) d.pageMcqBest = {};
+    d.pageMcqBest[key] = { correct, total, ts: Date.now() };
+  }
   save(d);
+}
+
+/** Returns 0–100 for the current MCQ attempt on this page, or null if not attempted */
+export function getPageMcqPercent(lessonId: string, pageIdx: number): number | null {
+  const s = getRoutinePageMcqScore(lessonId, pageIdx);
+  if (!s || s.total === 0) return null;
+  return Math.round((s.correct / s.total) * 100);
+}
+
+/** Returns 0–100 for the best-ever MCQ attempt on this page, or null if never attempted */
+export function getPageMcqBestPercent(lessonId: string, pageIdx: number): number | null {
+  const d = load();
+  const b = d.pageMcqBest?.[`${lessonId}__${pageIdx}`];
+  if (!b || b.total === 0) return null;
+  return Math.round((b.correct / b.total) * 100);
+}
+
+/**
+ * Average MCQ % across all pages that have MCQ data. Returns null if no page has MCQ data.
+ * Used as the "page component" of the lesson mastery %.
+ */
+export function getLessonPageAvgPercent(lessonId: string, totalPages: number): number | null {
+  let sum = 0, count = 0;
+  for (let i = 0; i < totalPages; i++) {
+    const pct = getPageMcqPercent(lessonId, i);
+    if (pct !== null) { sum += pct; count++; }
+  }
+  return count > 0 ? Math.round(sum / count) : null;
+}
+
+/**
+ * Best-ever lesson average (best per-page % averaged across pages that have data).
+ */
+export function getLessonBestPageAvgPercent(lessonId: string, totalPages: number): number | null {
+  let sum = 0, count = 0;
+  for (let i = 0; i < totalPages; i++) {
+    const pct = getPageMcqBestPercent(lessonId, i);
+    if (pct !== null) { sum += pct; count++; }
+  }
+  return count > 0 ? Math.round(sum / count) : null;
 }
 
 /** Returns the latest MCQ score for a lesson (lesson-level), or null if not yet attempted */

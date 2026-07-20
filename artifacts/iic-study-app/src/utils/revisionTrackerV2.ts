@@ -351,6 +351,24 @@ export function clearTracker() {
   safeWrite({});
 }
 
+/**
+ * Returns 0–100 accuracy % for all Revision Hub attempts linked to a lesson
+ * (matched by chapterId === lessonId). Returns null if no data exists yet.
+ */
+export function getLessonRevHubPercent(lessonId: string): number | null {
+  if (!lessonId) return null;
+  const map = safeRead();
+  let totalQ = 0, correctQ = 0;
+  for (const b of Object.values(map)) {
+    if (b.chapterId === lessonId) {
+      totalQ   += b.total   || 0;
+      correctQ += b.correct || 0;
+    }
+  }
+  if (totalQ === 0) return null;
+  return Math.round((correctQ / totalQ) * 100);
+}
+
 // ─── Topic Notes Direct Storage ─────────────────────────────────────────────
 // Stores notes pasted by admin alongside MCQs (from <NOTE: topic> blocks).
 // Key: nst_topic_notes → { [topicKey]: { title, content, savedAt } }

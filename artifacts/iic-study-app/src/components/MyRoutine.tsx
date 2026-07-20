@@ -25,7 +25,11 @@ import {
   getStarRating, getMistakeCount, getMaskCount, getLessonTotalTime,
   isLessonAutoComplete, isLessonRewarded, markLessonRewarded,
   isRoutinePageMcqDone, getRoutinePageMcqScore, countPageMcqDone,
+  getPageMcqPercent, getPageMcqBestPercent,
+  getLessonPageAvgPercent, getLessonBestPageAvgPercent,
+  getPageTime,
 } from '../utils/routineAutoTrack';
+import { getLessonRevHubPercent } from '../utils/revisionTrackerV2';
 
 // ── Revision Hub connection constants ────────────────────────────────────────
 export const REVISION_HUB_MCQ_COST_NO_ROUTINE = 100;
@@ -709,6 +713,22 @@ function TrackingView({ subjectGroups, subjects, mcqHistory }: {
                   const lComplete = lDone === tp && tp > 0;
                   const lExpanded = !!expandedLessons[lesson.id];
 
+                  // ── Lesson % computation ──────────────────────────────────────
+                  const pageAvgPct  = getLessonPageAvgPercent(lesson.id, tp);   // current avg
+                  const bestAvgPct  = getLessonBestPageAvgPercent(lesson.id, tp); // best avg
+                  const revHubPct   = getLessonRevHubPercent(lesson.id);         // revision hub
+                  // Combined lesson %: 60% page MCQ + 40% revision hub (if both present)
+                  const lessonPct: number | null = pageAvgPct !== null
+                    ? (revHubPct !== null
+                        ? Math.round(0.6 * pageAvgPct + 0.4 * revHubPct)
+                        : pageAvgPct)
+                    : revHubPct;
+
+                  const pctColor = (p: number) =>
+                    p >= 80 ? 'text-emerald-600' : p >= 50 ? 'text-amber-500' : 'text-red-500';
+                  const pctBg = (p: number) =>
+                    p >= 80 ? 'bg-emerald-50 border-emerald-200' : p >= 50 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+
                   return (
                     <div key={lesson.id} className={`rounded-xl border overflow-hidden ${
                       lComplete ? 'border-emerald-200 bg-emerald-50' :
@@ -734,34 +754,109 @@ function TrackingView({ subjectGroups, subjects, mcqHistory }: {
                           {lesson.lessonTitle || `Lesson ${lidx + 1}`}
                         </p>
 
-                        {/* Mini page progress */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <div className="w-12 h-1 bg-slate-200 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${lComplete ? 'bg-emerald-500' : lRead > 0 ? 'bg-orange-400' : 'bg-slate-200'}`}
-                              style={{ width: tp > 0 ? `${(lRead / tp) * 100}%` : '0%' }} />
+                        {/* Lesson % badge */}
+                        {lessonPct !== null ? (
+                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-lg border shrink-0 ${pctBg(lessonPct)} ${pctColor(lessonPct)}`}>
+                            {lessonPct}%
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="w-12 h-1 bg-slate-200 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${lComplete ? 'bg-emerald-500' : lRead > 0 ? 'bg-orange-400' : 'bg-slate-200'}`}
+                                style={{ width: tp > 0 ? `${(lRead / tp) * 100}%` : '0%' }} />
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-medium">{lRead}/{tp}</span>
                           </div>
-                          <span className="text-[9px] text-slate-400 font-medium">{lRead}/{tp}</span>
-                          {lMcqPagesCount > 0 ? <span className="text-[9px] text-emerald-500">✅{lMcqPagesCount}</span> : <span className="text-[9px] text-slate-300">○</span>}
-                        </div>
+                        )}
 
                         {lExpanded ? <ChevronUp size={11} className="text-slate-300 shrink-0" /> : <ChevronDown size={11} className="text-slate-300 shrink-0" />}
                       </div>
 
                       {/* Expanded pages */}
                       {lExpanded && (
-                        <div className="px-3 pb-3 border-t border-slate-100 pt-2.5">
+                        <div className="px-3 pb-3 border-t border-slate-100 pt-2.5 space-y-3">
                           {tp > 0 ? (
                             <>
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pages ({tp} total)</p>
-                              <div className="flex flex-wrap gap-1.5 mb-2">
-                                {lPages.map((s, pi) => <PageDot key={pi} state={s} num={pi + 1} />)}
+                              {/* ── Lesson mastery card ── */}
+                              {lessonPct !== null && (
+                                <div className={`rounded-xl border p-3 ${pctBg(lessonPct)}`}>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">📊 Lesson Mastery</p>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex-1 h-2 bg-white/60 rounded-full overflow-hidden border border-white/80">
+                                      <div className={`h-full rounded-full transition-all ${lessonPct >= 80 ? 'bg-emerald-500' : lessonPct >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                        style={{ width: `${lessonPct}%` }} />
+                                    </div>
+                                    <span className={`text-sm font-black ${pctColor(lessonPct)}`}>{lessonPct}%</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="bg-white/70 rounded-lg py-1.5 px-1">
+                                      <p className="text-[8px] text-slate-400 font-medium">Page MCQ</p>
+                                      <p className={`text-xs font-black ${pageAvgPct !== null ? pctColor(pageAvgPct) : 'text-slate-300'}`}>
+                                        {pageAvgPct !== null ? `${pageAvgPct}%` : '—'}
+                                      </p>
+                                    </div>
+                                    <div className="bg-white/70 rounded-lg py-1.5 px-1">
+                                      <p className="text-[8px] text-slate-400 font-medium">Revision Hub</p>
+                                      <p className={`text-xs font-black ${revHubPct !== null ? pctColor(revHubPct) : 'text-slate-300'}`}>
+                                        {revHubPct !== null ? `${revHubPct}%` : '—'}
+                                      </p>
+                                    </div>
+                                    <div className="bg-white/70 rounded-lg py-1.5 px-1">
+                                      <p className="text-[8px] text-slate-400 font-medium">Best</p>
+                                      <p className={`text-xs font-black ${bestAvgPct !== null ? pctColor(bestAvgPct) : 'text-slate-300'}`}>
+                                        {bestAvgPct !== null ? `${bestAvgPct}%` : '—'}
+                                        {bestAvgPct !== null && pageAvgPct !== null && bestAvgPct > pageAvgPct
+                                          ? <span className="text-[8px] text-amber-500 ml-0.5">↑</span>
+                                          : null}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ── Per-page grid ── */}
+                              <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pages ({tp} total)</p>
+                                <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.min(tp, 6)}, minmax(0, 1fr))` }}>
+                                  {Array.from({ length: tp }, (_, pi) => {
+                                    const st      = lPages[pi];
+                                    const curPct  = getPageMcqPercent(lesson.id, pi);
+                                    const bestPct = getPageMcqBestPercent(lesson.id, pi);
+                                    const pageSec = getPageTime(lesson.id, pi);
+                                    const dotColor = st === 'done' ? 'bg-emerald-500' : st === 'read' ? 'bg-orange-400' : 'bg-slate-200';
+                                    return (
+                                      <div key={pi} className={`rounded-lg border text-center py-1.5 px-1 ${
+                                        st === 'done' ? 'border-emerald-200 bg-emerald-50' :
+                                        st === 'read' ? 'border-orange-200 bg-orange-50' :
+                                        'border-slate-100 bg-slate-50'
+                                      }`}>
+                                        <div className={`w-4 h-4 rounded-full mx-auto mb-0.5 flex items-center justify-center text-[8px] font-black text-white ${dotColor}`}>
+                                          {pi + 1}
+                                        </div>
+                                        {curPct !== null ? (
+                                          <p className={`text-[9px] font-black ${pctColor(curPct)}`}>{curPct}%</p>
+                                        ) : (
+                                          <p className="text-[9px] text-slate-300">—</p>
+                                        )}
+                                        {bestPct !== null && curPct !== null && bestPct > curPct && (
+                                          <p className="text-[8px] text-amber-400 font-bold">↑{bestPct}%</p>
+                                        )}
+                                        {pageSec > 0 && (
+                                          <p className="text-[7px] text-slate-400">{formatTime(pageSec)}</p>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1.5">
+                                  <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />Read+MCQ</span>
+                                  <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />Sirf padha</span>
+                                  <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block" />Baaki</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block" />Read+MCQ</span>
-                                <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded bg-orange-400 inline-block" />Sirf padha</span>
-                                <span className="flex items-center gap-1 text-[9px] text-slate-400"><span className="w-2.5 h-2.5 rounded bg-slate-200 inline-block" />Baaki</span>
-                              </div>
-                              <div className="flex gap-3 mt-2.5 bg-white rounded-xl border border-slate-100 px-3 py-2">
+
+                              {/* ── Summary strip ── */}
+                              <div className="flex flex-wrap gap-2 bg-white rounded-xl border border-slate-100 px-3 py-2">
                                 <div>
                                   <p className="text-[9px] text-slate-400">Pages padhe</p>
                                   <p className="text-xs font-black text-slate-700">{lRead}/{tp}</p>
@@ -773,9 +868,7 @@ function TrackingView({ subjectGroups, subjects, mcqHistory }: {
                                 {lScore && (
                                   <div>
                                     <p className="text-[9px] text-slate-400">🎯 Score</p>
-                                    <p className="text-xs font-black text-blue-600">
-                                      {lScore.correct}/{lScore.total}
-                                    </p>
+                                    <p className="text-xs font-black text-blue-600">{lScore.correct}/{lScore.total}</p>
                                     <StarBadge lessonId={lesson.id} />
                                   </div>
                                 )}
