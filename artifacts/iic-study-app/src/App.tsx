@@ -491,12 +491,34 @@ const App: React.FC = () => {
 
   // MCQ session ko queue karo + agar HOME pe already hain to turant banner dikhao
   const enqueueMcqAndShow = (earned: number, earnedC: number, secs: number) => {
+    // ── Credit calculation ─────────────────────────────────────────────────────
+    // MCQ sessions ke liye earnedC = 0 hota hai (MCQ answering pe credits earn nahi
+    // hote). Reading sessions mein earnedC > 0 ho sakta hai (timer se). Dono cases
+    // mein ensure karo ki earned pts ka ½ (routine on) ya ¼ (off) credit mile.
+    let finalCoins = earnedC;
+    const _sessUser = state.user;
+    if (earned > 0 && _sessUser?.id) {
+      const routineOn = loadRoutineData(_sessUser.id).enabled;
+      const ratio = routineOn ? 0.5 : 0.25;
+      const expectedCoins = Math.floor(earned * ratio);
+      finalCoins = Math.max(earnedC, expectedCoins);
+      if (finalCoins > earnedC) {
+        // Gap fill karo — ye credits abhi tak balance mein nahi hain
+        const toAdd = finalCoins - earnedC;
+        const newCredits = (_sessUser.credits || 0) + toAdd;
+        const updatedUser = { ..._sessUser, credits: newCredits };
+        setState(prev => ({ ...prev, user: updatedUser }));
+        saveUserToLive(updatedUser);
+      }
+      // Home-tab sync key update karo — warna home sync yahi pts dobara convert karega
+      localStorage.setItem(`nst_credit_sync_score_${_sessUser.id}`, String(_sessUser.totalScore || 0));
+    }
     queueSession({
       type: 'MCQ',
       subject: '',
       chapter: mcqChapterNameRef.current,
       timeSecs: secs,
-      coinsEarned: earnedC,
+      coinsEarned: finalCoins,
       sessionScore: earned,
       activityType: mcqActivityTypeRef.current,
     });

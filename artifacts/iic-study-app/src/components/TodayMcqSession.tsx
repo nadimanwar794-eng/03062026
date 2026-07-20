@@ -222,6 +222,8 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         };
                         onUpdateUser(updated);
                         saveUserToLive(updated);
+                        // Home-sync key update — yahi pts ab credit sync se skip honge
+                        try { localStorage.setItem(`nst_credit_sync_score_${_u.id}`, String((_u.totalScore || 0) + totalPts)); } catch {}
                     }
                     showMcqScore(totalPts, _creditsEarned);
                 }

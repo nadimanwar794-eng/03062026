@@ -3096,12 +3096,21 @@ export const StudentDashboard: React.FC<Props> = ({
   // Routine gate popup — shown when user tries to open a lesson in a routineApplied subject
   const [routineGate, setRoutineGate] = useState<{ entry: any; pageIdx: number } | null>(null);
   // Fire window events when RevisionHub opens/closes so App.tsx can defer HomeStatsToast
+  // Also fire iic-mcq-session so App.tsx tracks session start/end for credit calculation
   const _prevRevHubRef = React.useRef(false);
   useEffect(() => {
     const wasOpen = _prevRevHubRef.current;
     _prevRevHubRef.current = showRevisionHubScreen;
-    if (!wasOpen && showRevisionHubScreen) window.dispatchEvent(new CustomEvent('iic-revision-hub-opened'));
-    if (wasOpen && !showRevisionHubScreen) window.dispatchEvent(new CustomEvent('iic-revision-hub-closed'));
+    if (!wasOpen && showRevisionHubScreen) {
+      window.dispatchEvent(new CustomEvent('iic-revision-hub-opened'));
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', {
+        detail: { active: true, chapterName: 'Revision MCQ', activityType: 'MCQ' },
+      }));
+    }
+    if (wasOpen && !showRevisionHubScreen) {
+      window.dispatchEvent(new CustomEvent('iic-revision-hub-closed'));
+      window.dispatchEvent(new CustomEvent('iic-mcq-session', { detail: { active: false } }));
+    }
   }, [showRevisionHubScreen]);
   // 2-category view toggle for the Important Notes pages: 'list' = original
   // flat list, 'bybook' = grouped by source book / page.
