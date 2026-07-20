@@ -2029,6 +2029,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [profileWhite, setProfileWhite] = useState(() => localStorage.getItem(`nst_pw_${user.id}`) === '1');
   const [nameFxOff, setNameFxOff] = useState(() => { try { return localStorage.getItem('nst_name_fx_off') === '1'; } catch { return false; } });
   const [cardFxOff, setCardFxOff] = useState(() => { try { return localStorage.getItem('nst_card_fx_off') === '1'; } catch { return false; } });
+  const [hapticEnabled, setHapticEnabled] = useState(() => { try { return localStorage.getItem('nst_haptic_enabled') !== '0'; } catch { return true; } });
+  const [neonEnabled, setNeonEnabled] = useState(() => { try { return localStorage.getItem('nst_neon_enabled') !== '0'; } catch { return true; } });
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
   const [showLevelChooser, setShowLevelChooser] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -2051,6 +2053,41 @@ export const StudentDashboard: React.FC<Props> = ({
     };
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  // ── Global neon ring on click ──
+  useEffect(() => {
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (localStorage.getItem('nst_neon_enabled') === '0') return;
+      const target = (e instanceof TouchEvent ? e.touches[0]?.target : e.target) as Element | null;
+      if (!target) return;
+      const el = target.closest('button, [role="button"], a, .nst-btn') as HTMLElement | null;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const computedRadius = getComputedStyle(el).borderRadius || '12px';
+      const ring = document.createElement('div');
+      ring.style.cssText = [
+        `position:fixed`,
+        `top:${rect.top - 2}px`,
+        `left:${rect.left - 2}px`,
+        `width:${rect.width + 4}px`,
+        `height:${rect.height + 4}px`,
+        `border-radius:${computedRadius}`,
+        `border:2px solid rgba(168,85,247,1)`,
+        `pointer-events:none`,
+        `z-index:99998`,
+        `animation:nst-neon-flash 0.65s ease-out forwards`,
+      ].join(';');
+      document.body.appendChild(ring);
+      setTimeout(() => ring.remove(), 700);
+    };
+    document.addEventListener('click', handler, true);
+    document.addEventListener('touchstart', handler, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('click', handler, true);
+      document.removeEventListener('touchstart', handler, true as any);
+    };
   }, []);
   const [showAllNotesCatalog, setShowAllNotesCatalog] = useState<
     "PREMIUM" | "DEEP_DIVE" | "VIDEO" | "AUDIO" | false
@@ -11499,6 +11536,63 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
             </button>
 
+            {/* ── Haptic Vibration Toggle ── */}
+            <button
+              onClick={() => {
+                const next = !hapticEnabled;
+                setHapticEnabled(next);
+                try { localStorage.setItem('nst_haptic_enabled', next ? '1' : '0'); } catch {}
+                if (next) { try { navigator.vibrate?.(25); } catch {} }
+              }}
+              className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
+              style={{ borderBottom: _pSep }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{
+                background: hapticEnabled ? 'rgba(16,185,129,0.14)' : _pIconBg,
+                border: `1px solid ${hapticEnabled ? 'rgba(16,185,129,0.45)' : 'rgba(255,255,255,0.10)'}`,
+              }}>
+                <span className="text-base leading-none">{hapticEnabled ? '📳' : '📴'}</span>
+              </div>
+              <div className="flex-1 text-left">
+                <p className={`text-sm font-bold ${_pTxt}`}>Haptic Vibration</p>
+                <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
+                  {hapticEnabled ? 'Button tap pe vibration on hai' : 'Vibration off hai'}
+                </p>
+              </div>
+              <div className="shrink-0 w-10 h-5 rounded-full relative transition-all"
+                style={{ background: hapticEnabled ? 'rgba(16,185,129,0.7)' : 'rgba(255,255,255,0.12)' }}>
+                <div className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+                  style={{ background: '#fff', left: hapticEnabled ? '1.375rem' : '0.125rem', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+              </div>
+            </button>
+
+            {/* ── Neon Light Toggle ── */}
+            <button
+              onClick={() => {
+                const next = !neonEnabled;
+                setNeonEnabled(next);
+                try { localStorage.setItem('nst_neon_enabled', next ? '1' : '0'); } catch {}
+              }}
+              className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}
+              style={{ borderBottom: _pSep }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{
+                background: neonEnabled ? 'rgba(168,85,247,0.14)' : _pIconBg,
+                border: `1px solid ${neonEnabled ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.10)'}`,
+              }}>
+                <span className="text-base leading-none">{neonEnabled ? '✨' : '🔘'}</span>
+              </div>
+              <div className="flex-1 text-left">
+                <p className={`text-sm font-bold ${_pTxt}`}>Neon Light Effect</p>
+                <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
+                  {neonEnabled ? 'Click pe neon ring animation on hai' : 'Neon effect off hai'}
+                </p>
+              </div>
+              <div className="shrink-0 w-10 h-5 rounded-full relative transition-all"
+                style={{ background: neonEnabled ? 'rgba(168,85,247,0.7)' : 'rgba(255,255,255,0.12)' }}>
+                <div className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+                  style={{ background: '#fff', left: neonEnabled ? '1.375rem' : '0.125rem', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+              </div>
+            </button>
+
             {/* ── Level Style Chooser ── */}
             {_pLvl.level >= 2 && (
               <button
@@ -17439,104 +17533,132 @@ export const StudentDashboard: React.FC<Props> = ({
                   return new Date(msg.expiresAt).getTime() > now;
                 });
                 if (msgs.length === 0) return (
-                  <div className="text-center py-14 flex flex-col items-center">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300"><Mail size={32} /></div>
-                    <p className="text-slate-500 font-bold text-sm">No messages</p>
-                    <p className="text-slate-400 text-xs mt-1">Gifts and rewards from admin will appear here</p>
+                  <div className="text-center py-16 flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                      <Mail size={26} className="text-indigo-400" />
+                    </div>
+                    <div>
+                      <p className="text-slate-600 font-semibold text-sm">Inbox Empty</p>
+                      <p className="text-slate-400 text-[11px] mt-0.5">Admin messages aur gifts yahan dikhenge</p>
+                    </div>
                   </div>
                 );
+                // type → accent color + label
+                const typeMap: Record<string, { color: string; bg: string; label: string; icon: React.ReactNode }> = {
+                  GIFT:           { color: '#ec4899', bg: 'rgba(236,72,153,0.08)', label: 'Gift',     icon: <Gift size={13} /> },
+                  REWARD:         { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', label: 'Reward',   icon: <Crown size={13} /> },
+                  STORE_DISCOUNT: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  label: 'Discount', icon: <span style={{ fontSize: 11, fontWeight: 800 }}>%</span> },
+                  REDEEM_CODE:    { color: '#6366f1', bg: 'rgba(99,102,241,0.08)', label: 'Code',     icon: <Gift size={13} /> },
+                  INFO:           { color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)', label: 'Info',     icon: <MessageSquare size={13} /> },
+                  SUCCESS:        { color: '#10b981', bg: 'rgba(16,185,129,0.08)', label: 'Notice',   icon: <CheckCircle size={13} /> },
+                };
                 return msgs.map((msg, idx) => {
                   const isExpired = msg.expiresAt && new Date(msg.expiresAt).getTime() < now && !msg.isClaimed;
                   const expiresAt = msg.expiresAt ? new Date(msg.expiresAt) : null;
                   const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt.getTime() - now) / 86400000)) : null;
+                  const tm = typeMap[(msg.type as string)] ?? typeMap.INFO;
+                  const msgDate = new Date(msg.date);
+                  const dateStr = msgDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const timeStr = msgDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
                   return (
-                    <div key={msg.id || idx} className={`p-4 rounded-2xl border transition-all ${isExpired ? 'bg-slate-50 border-slate-200 opacity-60' : msg.read ? 'bg-white border-slate-200' : 'bg-indigo-50 border-indigo-200 shadow-sm'}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          {msg.type === 'GIFT' ? <Gift size={15} className="text-pink-500" /> : msg.type === 'REWARD' ? <Crown size={15} className="text-amber-500" /> : msg.type === 'STORE_DISCOUNT' ? <span className="text-rose-500 font-black text-xs">%</span> : (msg.type as string) === 'REDEEM_CODE' ? <Gift size={15} className="text-indigo-500" /> : <MessageSquare size={15} className="text-blue-500" />}
-                          <span className="text-[10px] font-bold text-slate-400">{new Date(msg.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                          {isExpired && <span className="text-[9px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">EXPIRED</span>}
-                          {!isExpired && daysLeft !== null && daysLeft <= 7 && !msg.isClaimed && (
-                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${daysLeft <= 2 ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50'}`}>
-                              ⏳ {daysLeft}d baki
-                            </span>
-                          )}
+                    <div key={msg.id || idx} style={{
+                      borderRadius: 16,
+                      border: `1px solid ${msg.read || isExpired ? 'rgba(0,0,0,0.07)' : tm.color + '40'}`,
+                      background: isExpired ? 'rgba(0,0,0,0.02)' : msg.read ? '#fff' : tm.bg,
+                      opacity: isExpired ? 0.6 : 1,
+                      overflow: 'hidden',
+                      boxShadow: msg.read || isExpired ? 'none' : `0 2px 12px ${tm.color}18`,
+                    }}>
+                      {/* Mail header strip */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px 8px',
+                        borderBottom: '1px solid rgba(0,0,0,0.055)',
+                        background: isExpired ? 'transparent' : msg.read ? 'rgba(0,0,0,0.02)' : tm.bg,
+                      }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: tm.bg, border: `1.5px solid ${tm.color}55`, color: tm.color,
+                        }}>
+                          {tm.icon}
                         </div>
-                        {!msg.read && <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shrink-0"></span>}
-                      </div>
-                      <p className="text-sm font-medium text-slate-800 leading-relaxed mb-3 whitespace-pre-line">{msg.text}</p>
-                      {(msg.type as string) === 'REDEEM_CODE' && (msg as any).redeemCode && !isExpired && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2">
-                            <span className="flex-1 font-mono font-black text-sm text-slate-800 tracking-wider">{(msg as any).redeemCode}</span>
-                            <button
-                              onClick={() => {
-                                try { navigator.clipboard.writeText((msg as any).redeemCode); } catch {}
-                              }}
-                              className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg active:scale-95 transition-all"
-                            >
-                              Copy
-                            </button>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>NSTA Admin</span>
+                            {/* Type badge */}
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, padding: '1.5px 6px', borderRadius: 999,
+                              background: tm.bg, color: tm.color, border: `1px solid ${tm.color}40`,
+                              letterSpacing: '0.04em', textTransform: 'uppercase',
+                            }}>{tm.label}</span>
+                            {isExpired && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1.5px 6px', borderRadius: 999, background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a544' }}>EXPIRED</span>
+                            )}
+                            {!isExpired && daysLeft !== null && daysLeft <= 7 && !msg.isClaimed && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1.5px 6px', borderRadius: 999, background: daysLeft <= 2 ? '#fef2f2' : '#fffbeb', color: daysLeft <= 2 ? '#ef4444' : '#d97706', border: `1px solid ${daysLeft <= 2 ? '#fca5a544' : '#fcd34d55'}` }}>
+                                ⏳ {daysLeft}d left
+                              </span>
+                            )}
+                            {msg.isClaimed && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1.5px 6px', borderRadius: 999, background: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac44' }}>✓ CLAIMED</span>
+                            )}
                           </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                            <span style={{ fontSize: 10, color: '#94a3b8' }}>{dateStr}</span>
+                            <span style={{ fontSize: 10, color: '#cbd5e1' }}>·</span>
+                            <span style={{ fontSize: 10, color: '#94a3b8' }}>{timeStr}</span>
+                          </div>
+                        </div>
+                        {!msg.read && (
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: tm.color, flexShrink: 0, boxShadow: `0 0 6px ${tm.color}` }} />
+                        )}
+                      </div>
+
+                      {/* Message body */}
+                      <div style={{ padding: '12px 14px' }}>
+                        <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-line', fontWeight: 400 }}>{msg.text}</p>
+
+                        {/* Action buttons */}
+                        {(msg.type as string) === 'REDEEM_CODE' && (msg as any).redeemCode && !isExpired && (
+                          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: '8px 12px', border: '1px solid rgba(0,0,0,0.07)' }}>
+                              <span style={{ flex: 1, fontFamily: 'monospace', fontWeight: 800, fontSize: 14, color: '#1e293b', letterSpacing: '0.08em' }}>{(msg as any).redeemCode}</span>
+                              <button
+                                onClick={() => { try { navigator.clipboard.writeText((msg as any).redeemCode); } catch {} }}
+                                style={{ fontSize: 10, fontWeight: 700, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(99,102,241,0.25)' }}
+                              >Copy</button>
+                            </div>
+                            <button
+                              onClick={() => { try { navigator.clipboard.writeText((msg as any).redeemCode); } catch {} setShowInbox(false); setActiveTab('REDEEM'); }}
+                              style={{ width: '100%', padding: '10px 0', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', borderRadius: 11, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                            ><Gift size={14} /> Redeem Code</button>
+                          </div>
+                        )}
+                        {msg.type === 'STORE_DISCOUNT' && msg.discountPercent && !msg.isClaimed && !isExpired && (
                           <button
                             onClick={() => {
-                              try { navigator.clipboard.writeText((msg as any).redeemCode); } catch {}
-                              setShowInbox(false);
-                              setActiveTab('REDEEM');
+                              const latestUser = (window as any).__dashUserRef?.current ?? user;
+                              const newDiscount = Math.min(100, (latestUser.storeDiscount || 0) + (msg.discountPercent || 0));
+                              const updatedInbox = (latestUser.inbox || []).map((m: any) => m.id === msg.id ? { ...m, isClaimed: true, read: true } : m);
+                              handleUserUpdate({ ...latestUser, storeDiscount: newDiscount, inbox: updatedInbox });
+                              setShowInbox(false); onTabChange('STORE');
+                              showAlert(`🎟️ ${msg.discountPercent}% discount applied to Store!`, 'SUCCESS', 'Discount Active!');
                             }}
-                            className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
-                          >
-                            <Gift size={15} /> Code Copy Karke Redeem Karo
-                          </button>
-                          {msg.id?.startsWith('store-disc-') && (
-                            <button
-                              onClick={() => {
-                                setShowInbox(false);
-                                setShowRulesPage(true);
-                              }}
-                              className="w-full py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-bold text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
-                            >
-                              <span>📋</span> Feature Rules Dekho — Free / Basic / Ultra
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {msg.type === 'STORE_DISCOUNT' && msg.discountPercent && !msg.isClaimed && !isExpired && (
-                        <button
-                          onClick={() => {
-                            const latestUser = (window as any).__dashUserRef?.current ?? user;
-                            const newDiscount = Math.min(100, (latestUser.storeDiscount || 0) + (msg.discountPercent || 0));
-                            const updatedInbox = (latestUser.inbox || []).map((m: any) =>
-                              m.id === msg.id ? { ...m, isClaimed: true, read: true } : m
-                            );
-                            handleUserUpdate({ ...latestUser, storeDiscount: newDiscount, inbox: updatedInbox });
-                            setShowInbox(false);
-                            onTabChange('STORE');
-                            showAlert(`🎟️ ${msg.discountPercent}% discount applied to Store! Upgrade now.`, 'SUCCESS', 'Discount Active!');
-                          }}
-                          className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
-                        >
-                          <span>🎟️</span> Claim Discount — Will Apply in Store
-                          <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{msg.discountPercent}% OFF</span>
-                        </button>
-                      )}
-                      {msg.type === 'GIFT' && msg.gift && !msg.isClaimed && !isExpired && (
-                        <button onClick={() => claimRewardMessage(msg.id, null, msg.gift)} className="w-full py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm">
-                          <Gift size={15} /> Claim Gift
-                          {msg.gift.type === 'CREDITS' && <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">+{msg.gift.value} CR</span>}
-                        </button>
-                      )}
-                      {msg.type === 'REWARD' && (msg.reward || msg.gift) && !msg.isClaimed && !isExpired && (
-                        <button onClick={() => claimRewardMessage(msg.id, msg.reward || null, msg.reward ? undefined : msg.gift)} className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm">
-                          <Crown size={15} /> Claim Reward
-                          {!msg.reward && msg.gift?.type === 'CREDITS' && <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">+{msg.gift.value} CR</span>}
-                        </button>
-                      )}
-                      {msg.isClaimed && (
-                        <div className="text-xs font-bold text-green-600 bg-green-50 p-2 rounded-xl text-center flex items-center justify-center gap-1">
-                          <CheckCircle size={13} /> Claimed
-                        </div>
-                      )}
+                            style={{ marginTop: 12, width: '100%', padding: '10px 0', background: 'linear-gradient(135deg,#ef4444,#ec4899)', color: '#fff', borderRadius: 11, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          ><span>🎟️</span> Claim {msg.discountPercent}% Discount</button>
+                        )}
+                        {msg.type === 'GIFT' && msg.gift && !msg.isClaimed && !isExpired && (
+                          <button onClick={() => claimRewardMessage(msg.id, null, msg.gift)}
+                            style={{ marginTop: 12, width: '100%', padding: '10px 0', background: 'linear-gradient(135deg,#ec4899,#f43f5e)', color: '#fff', borderRadius: 11, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          ><Gift size={14} /> Claim Gift {msg.gift.type === 'CREDITS' ? `(+${msg.gift.value} CR)` : ''}</button>
+                        )}
+                        {msg.type === 'REWARD' && (msg.reward || msg.gift) && !msg.isClaimed && !isExpired && (
+                          <button onClick={() => claimRewardMessage(msg.id, msg.reward || null, msg.reward ? undefined : msg.gift)}
+                            style={{ marginTop: 12, width: '100%', padding: '10px 0', background: 'linear-gradient(135deg,#f59e0b,#ef4444)', color: '#fff', borderRadius: 11, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          ><Crown size={14} /> Claim Reward {!msg.reward && msg.gift?.type === 'CREDITS' ? `(+${msg.gift.value} CR)` : ''}</button>
+                        )}
+                      </div>
                     </div>
                   );
                 });
