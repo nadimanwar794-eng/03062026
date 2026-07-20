@@ -8928,198 +8928,179 @@ export const StudentDashboard: React.FC<Props> = ({
               { key: 'speedy',      label: 'Speedy',       emoji: '⚡', count: counts.speedy,     activeBg: 'bg-emerald-600',  activeText: 'text-white' },
               { key: 'mcq',         label: 'MCQ',          emoji: '❓', count: counts.mcq,        activeBg: 'bg-violet-600',   activeText: 'text-white' },
             ].filter(c => c.count > 0);
-            return (
-              <div className="rounded-3xl p-3.5 shadow-md" style={{ background: `linear-gradient(145deg,${tierTheme.primary}18,${tierTheme.cardBg || '#ffffff'}ee,${tierTheme.primary}0a)`, border: `1.5px solid ${tierTheme.primary}30`, boxShadow: `0 4px 20px ${tierTheme.primary}12` }}>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm" style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
-                      <BookOpen size={13} />
+            // ── Slim entry renderer ─────────────────────────────────────────
+            const renderEntry = (item: Merged) => {
+              // Shared: compact single-row card with thin progress line at bottom
+              const cardStyle: React.CSSProperties = {
+                background: tierTheme.cardBg || '#ffffff',
+                border: `1px solid ${tierTheme.primary}18`,
+              };
+              const resumeBtn = (
+                <span className="shrink-0 text-[9px] font-black text-white px-2 py-1 rounded-lg flex items-center gap-0.5"
+                  style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
+                  Resume <ChevronRight size={7} />
+                </span>
+              );
+
+              if (item.kind === 'chapter') {
+                const entry = item.entry;
+                return (
+                  <SwipeToDismiss
+                    key={`ch_${entry.id}`}
+                    onDismiss={() => dismissRecentChapter(entry.id)}
+                    className="rounded-xl overflow-hidden"
+                    style={cardStyle}
+                  >
+                    <button onClick={() => openRecentChapter(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-center gap-2 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0 uppercase tracking-wide"
+                            style={{ background: `${tierTheme.primary}15`, color: tierTheme.primary }}>
+                            Cl.{entry.classLevel} · {(entry.subject?.name || 'Subject').slice(0, 10)}
+                          </span>
+                          <p className="text-[12px] font-black truncate leading-none flex-1" style={{ color: tierTheme.textColor || '#0f172a' }}>
+                            {entry.chapter?.title || 'Chapter'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[9px] font-semibold text-slate-400">{entry.scrollPct}%</span>
+                        {resumeBtn}
+                        <button onClick={(e) => { e.stopPropagation(); dismissRecentChapter(entry.id); }}
+                          className="w-5 h-5 flex items-center justify-center rounded-full text-slate-300 hover:text-slate-500 active:scale-90 transition-all">
+                          <X size={10} />
+                        </button>
+                      </div>
+                    </button>
+                    <div className="h-[2px] mx-3 mb-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: tierTheme.primary }}>Continue Reading</p>
-                      <p className="text-[8.5px] font-normal leading-none mt-0.5 truncate opacity-40" style={{ color: tierTheme.primary }}>Where you left off · swipe or × to remove</p>
+                  </SwipeToDismiss>
+                );
+              }
+
+              if (item.kind === 'lucent') {
+                const entry = item.entry;
+                return (
+                  <SwipeToDismiss
+                    key={`luc_${entry.id}`}
+                    onDismiss={() => { removeRecentLucent(entry.id); setRecentLucent(getRecentLucent()); }}
+                    className="rounded-xl overflow-hidden"
+                    style={cardStyle}
+                  >
+                    <button onClick={() => openRecentLucent(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-center gap-2 min-w-0">
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0 bg-teal-50 text-teal-700">📗 Lucent{entry.pageNo ? ` · P.${entry.pageNo}` : ''}</span>
+                        <p className="text-[12px] font-black truncate leading-none flex-1" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.lessonTitle}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[9px] font-semibold text-slate-400">{entry.scrollPct}%</span>
+                        {resumeBtn}
+                        <button onClick={(e) => { e.stopPropagation(); removeRecentLucent(entry.id); setRecentLucent(getRecentLucent()); }}
+                          className="w-5 h-5 flex items-center justify-center rounded-full text-slate-300 hover:text-slate-500 active:scale-90 transition-all">
+                          <X size={10} />
+                        </button>
+                      </div>
+                    </button>
+                    <div className="h-[2px] mx-3 mb-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
                     </div>
+                  </SwipeToDismiss>
+                );
+              }
+
+              // homework (Sar Sangrah / Speedy)
+              const entry = item.entry;
+              const meta = HW_SUBJECT_META[entry.targetSubject || ''] || HW_SUBJECT_META.sarSangrah;
+              return (
+                <SwipeToDismiss
+                  key={`hw_${entry.id}`}
+                  onDismiss={() => dismissRecentHw(entry.id)}
+                  className="rounded-xl overflow-hidden"
+                  style={cardStyle}
+                >
+                  <button onClick={() => openRecentHw(entry)} className="w-full text-left px-3 pt-2.5 pb-1 flex items-center gap-2 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${meta.chipBg} ${meta.chipText}`}>
+                        {meta.label}{entry.hw?.pageNo ? ` · P.${entry.hw.pageNo}` : ''}
+                      </span>
+                      <p className="text-[12px] font-black truncate leading-none flex-1" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.title}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[9px] font-semibold text-slate-400">{entry.scrollPct}%</span>
+                      <span className={`text-[9px] font-black text-white ${meta.btnBg} px-2 py-1 rounded-lg flex items-center gap-0.5`}>
+                        Resume <ChevronRight size={7} />
+                      </span>
+                      <button onClick={(e) => { e.stopPropagation(); dismissRecentHw(entry.id); }}
+                        className="w-5 h-5 flex items-center justify-center rounded-full text-slate-300 hover:text-slate-500 active:scale-90 transition-all">
+                        <X size={10} />
+                      </button>
+                    </div>
+                  </button>
+                  <div className="h-[2px] mx-3 mb-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo}`} style={{ width: `${Math.max(2, entry.scrollPct)}%` }} />
                   </div>
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm" style={{ color: tierTheme.primary, background: `${tierTheme.primary}12`, border: `1px solid ${tierTheme.primary}30` }}>
-                    {merged.length}{activeFilter !== 'all' ? `/${allMerged.length}` : ''}
+                </SwipeToDismiss>
+              );
+            };
+
+            return (
+              <div className="rounded-2xl px-3 pt-2.5 pb-2" style={{ background: tierTheme.cardBg || '#ffffff', border: `1.5px solid ${tierTheme.primary}22`, boxShadow: `0 2px 12px ${tierTheme.primary}0d` }}>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-lg text-white flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
+                      <BookOpen size={10} />
+                    </div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: tierTheme.primary }}>Continue Reading</p>
+                  </div>
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: tierTheme.primary, background: `${tierTheme.primary}10` }}>
+                    {allMerged.length}
                   </span>
                 </div>
-                {/* SUBJECT FILTER CHIP ROW (admin-toggleable, only if 3+ items) */}
+                {/* Filter chips */}
                 {showFilterChips && FILTER_CHIPS.length > 1 && (
-                  <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-3 snap-x">
+                  <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-0.5 px-0.5 pb-2 snap-x">
                     {FILTER_CHIPS.map(c => {
                       const isActive = activeFilter === c.key;
                       return (
                         <button
                           key={c.key}
                           onClick={() => setHomeResumeFilter(c.key)}
-                          className={`shrink-0 snap-start flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black transition-all active:scale-95 border ${
-                            isActive
-                              ? `${c.activeBg} ${c.activeText} border-transparent shadow-sm`
-                              : 'border-slate-200 text-slate-600'
+                          className={`shrink-0 snap-start flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all active:scale-95 border ${
+                            isActive ? `${c.activeBg} ${c.activeText} border-transparent` : 'border-slate-200 text-slate-500 bg-white'
                           }`}
                         >
-                          <span className="text-[12px] leading-none">{c.emoji}</span>
+                          <span className="leading-none">{c.emoji}</span>
                           <span className="leading-none">{c.label}</span>
-                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none ${
-                            isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
-                          }`}>{c.count}</span>
+                          <span className={`text-[8px] font-black px-1 rounded-full leading-none ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-400'}`}>{c.count}</span>
                         </button>
                       );
                     })}
                   </div>
                 )}
+                {/* Entries */}
                 {merged.length === 0 ? (
-                  <div className="rounded-2xl p-4 text-center border border-dashed" style={{ background: `${tierTheme.primary}06`, borderColor: `${tierTheme.primary}35` }}>
-                    <p className="text-xs font-bold text-slate-500">Nothing matches this filter yet.</p>
-                    <button
-                      onClick={() => setHomeResumeFilter('all')}
-                      className="mt-2 text-[11px] font-black underline"
-                      style={{ color: tierTheme.primary }}
-                    >
-                      Show all
-                    </button>
+                  <div className="py-3 text-center">
+                    <p className="text-[11px] text-slate-400">Nothing matches this filter.</p>
+                    <button onClick={() => setHomeResumeFilter('all')} className="text-[10px] font-black underline mt-1" style={{ color: tierTheme.primary }}>Show all</button>
                   </div>
                 ) : (
-                <div className="flex flex-col gap-2">
-                  {merged.map(item => {
-                    if (item.kind === 'chapter') {
-                      const entry = item.entry;
-                      return (
-                        <SwipeToDismiss
-                          key={`ch_${entry.id}`}
-                          onDismiss={() => dismissRecentChapter(entry.id)}
-                          className="rounded-xl overflow-hidden"
-                          style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
-                        >
-                          <div className="flex items-center">
-                            <button onClick={() => openRecentChapter(entry)} className="flex-1 text-left px-3 py-1.5 flex items-center gap-2 min-w-0">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[8px] font-black uppercase tracking-widest truncate leading-none" style={{ color: tierTheme.primary }}>
-                                  Class {entry.classLevel} · {entry.subject?.name || 'Subject'}
-                                </p>
-                                <p className="text-[12px] font-black leading-snug line-clamp-1 mt-0.5" style={{ color: tierTheme.textColor || '#0f172a' }}>
-                                  {entry.chapter?.title || 'Chapter'}
-                                </p>
-                                <div className="flex items-center gap-1.5 mt-1.5">
-                                  <div className="flex-1 h-px bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
-                                  </div>
-                                  <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
-                                </div>
-                              </div>
-                              <span className="shrink-0 text-[9px] font-black text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm"
-                                style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
-                                Resume <ChevronRight size={8} />
-                              </span>
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); dismissRecentChapter(entry.id); }}
-                              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full mr-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 active:scale-90 transition-all"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        </SwipeToDismiss>
-                      );
-                    }
-                    // Lucent book page card
-                    if (item.kind === 'lucent') {
-                      const entry = item.entry;
-                      return (
-                        <SwipeToDismiss
-                          key={`luc_${entry.id}`}
-                          onDismiss={() => { removeRecentLucent(entry.id); setRecentLucent(getRecentLucent()); }}
-                          className="rounded-xl overflow-hidden"
-                          style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
-                        >
-                          <div className="flex items-center">
-                            <button onClick={() => openRecentLucent(entry)} className="flex-1 text-left px-3 py-1.5 flex items-center gap-2 min-w-0">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1 leading-none">
-                                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-teal-100 text-teal-700">📗 Lucent</span>
-                                  {entry.pageNo && (
-                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">P.{entry.pageNo}</span>
-                                  )}
-                                </div>
-                                <p className="text-[12px] font-black leading-snug line-clamp-1 mt-0.5" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.lessonTitle}</p>
-                                <div className="flex items-center gap-1.5 mt-1.5">
-                                  <div className="flex-1 h-px bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${Math.max(2, entry.scrollPct)}%`, background: `linear-gradient(to right,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }} />
-                                  </div>
-                                  <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
-                                </div>
-                              </div>
-                              <span className="shrink-0 text-[9px] font-black text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm"
-                                style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
-                                Resume <ChevronRight size={8} />
-                              </span>
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); removeRecentLucent(entry.id); setRecentLucent(getRecentLucent()); }}
-                              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full mr-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 active:scale-90 transition-all"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        </SwipeToDismiss>
-                      );
-                    }
-                    // homework note (Sar Sangrah / Speedy) — page-wise card
-                    const entry = item.entry;
-                    const meta = HW_SUBJECT_META[entry.targetSubject || ''] || HW_SUBJECT_META.sarSangrah;
-                    return (
-                      <SwipeToDismiss
-                        key={`hw_${entry.id}`}
-                        onDismiss={() => dismissRecentHw(entry.id)}
-                        className="rounded-xl overflow-hidden"
-                        style={{ background: tierTheme.cardBg || '#ffffff', border: `1px solid ${tierTheme.cardBorder || tierTheme.primary + '18'}`, boxShadow: `0 2px 8px ${tierTheme.primary}0e` }}
+                  <div className="flex flex-col gap-1.5">
+                    {merged.map(item => renderEntry(item))}
+                    {totalFiltered > 2 && (
+                      <button
+                        onClick={() => setShowAllContinueReading(v => !v)}
+                        className="w-full py-1 flex items-center justify-center gap-1 rounded-lg text-[10px] font-bold transition-all active:scale-95"
+                        style={{ color: tierTheme.primary, background: `${tierTheme.primary}08` }}
                       >
-                        <div className="flex items-center">
-                          <button onClick={() => openRecentHw(entry)} className="flex-1 text-left px-3 py-1.5 flex items-center gap-2 min-w-0">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 leading-none">
-                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest ${meta.chipBg} ${meta.chipText}`}>{meta.label}</span>
-                                {entry.hw?.pageNo && (
-                                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest bg-slate-800 text-white">P.{entry.hw.pageNo}</span>
-                                )}
-                              </div>
-                              <p className="text-[12px] font-black leading-snug line-clamp-1 mt-0.5" style={{ color: tierTheme.textColor || '#0f172a' }}>{entry.title}</p>
-                              <div className="flex items-center gap-1.5 mt-1.5">
-                                <div className="flex-1 h-px bg-slate-100 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo}`} style={{ width: `${Math.max(2, entry.scrollPct)}%` }} />
-                                </div>
-                                <p className="text-[8px] text-slate-400 font-semibold shrink-0 leading-none">{entry.scrollPct}%</p>
-                              </div>
-                            </div>
-                            <span className={`shrink-0 text-[9px] font-black text-white ${meta.btnBg} px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm`}>
-                              Resume <ChevronRight size={8} />
-                            </span>
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); dismissRecentHw(entry.id); }}
-                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full mr-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 active:scale-90 transition-all"
-                          >
-                            <X size={13} />
-                          </button>
-                        </div>
-                      </SwipeToDismiss>
-                    );
-                  })}
-                  {/* More / Less toggle — only show when 2+ additional items exist */}
-                  {totalFiltered > 2 && (
-                    <button
-                      onClick={() => setShowAllContinueReading(v => !v)}
-                      className="w-full mt-0.5 py-1.5 flex items-center justify-center gap-1.5 rounded-xl text-[11px] font-black transition-all active:scale-95 border border-dashed"
-                      style={{ color: tierTheme.primary, background: tierTheme.cardBg || '#ffffff', borderColor: `${tierTheme.primary}40` }}
-                    >
-                      {showAllContinueReading
-                        ? <><ChevronUp size={12} /> Less</>
-                        : <><ChevronDown size={12} /> More ({totalFiltered - 1} more)</>
-                      }
-                    </button>
-                  )}
-                </div>
+                        {showAllContinueReading
+                          ? <><ChevronUp size={11} /> Less</>
+                          : <><ChevronDown size={11} /> {totalFiltered - 1} more</>
+                        }
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             );
