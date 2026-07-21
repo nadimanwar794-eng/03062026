@@ -11437,6 +11437,109 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                 </div>
                               </div>
 
+                                {/* School Card */}
+                                <div className="mb-3 mt-3 p-2.5 bg-white rounded-xl border border-indigo-100">
+                                  <p className="text-[10px] font-black text-slate-700 mb-1.5">🏫 School Card (Home)</p>
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <p className="text-[9px] text-slate-400 mb-1">Background</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <input type="color" value={localSettings.homeSchoolCardBg || '#ffffff'} onChange={e => setLocalSettings({...localSettings, homeSchoolCardBg: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0" />
+                                        <input type="text" value={localSettings.homeSchoolCardBg || ''} onChange={e => setLocalSettings({...localSettings, homeSchoolCardBg: e.target.value})} placeholder="Default" className="flex-1 p-1 border rounded-lg text-[9px] uppercase font-mono bg-slate-50" />
+                                        {localSettings.homeSchoolCardBg && <button onClick={() => setLocalSettings({...localSettings, homeSchoolCardBg: undefined})} className="text-[9px] text-red-400 font-black shrink-0">✕</button>}
+                                      </div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[9px] text-slate-400 mb-1">Border / Accent</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <input type="color" value={localSettings.homeSchoolCardBorder || '#6366f1'} onChange={e => setLocalSettings({...localSettings, homeSchoolCardBorder: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0" />
+                                        <input type="text" value={localSettings.homeSchoolCardBorder || ''} onChange={e => setLocalSettings({...localSettings, homeSchoolCardBorder: e.target.value})} placeholder="Default" className="flex-1 p-1 border rounded-lg text-[9px] uppercase font-mono bg-slate-50" />
+                                        {localSettings.homeSchoolCardBorder && <button onClick={() => setLocalSettings({...localSettings, homeSchoolCardBorder: undefined})} className="text-[9px] text-red-400 font-black shrink-0">✕</button>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                                    {['#ffffff','#eff6ff','#f0fdf4','#fef3c7','#fdf4ff','#fff1f2','#f0fdfa','#1e293b'].map(c => (
+                                      <button key={c} onClick={() => setLocalSettings({...localSettings, homeSchoolCardBg: c})} className="w-5 h-5 rounded border-2 transition-all hover:scale-110" style={{ background: c, borderColor: (localSettings.homeSchoolCardBg||'') === c ? '#6366f1' : '#e2e8f0' }} title={c} />
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-slate-100">
+                                    <div>
+                                      <p className="text-[9px] font-black text-slate-700">Card Style</p>
+                                      <p className="text-[8px] text-slate-400 mt-0.5">{localSettings.homeSchoolCard3D ? '🎲 3D raised' : '⬜ 2D flat'}</p>
+                                    </div>
+                                    <button onClick={() => setLocalSettings({...localSettings, homeSchoolCard3D: !localSettings.homeSchoolCard3D})} className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border ${localSettings.homeSchoolCard3D ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                      {localSettings.homeSchoolCard3D ? '🎲 3D ON' : '⬜ 2D'}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Coaching Card */}
+                                <div className="mb-3 p-2.5 bg-white rounded-xl border border-indigo-100">
+                                  <p className="text-[10px] font-black text-slate-700 mb-1.5">🏫 Coaching Card (Home)</p>
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <p className="text-[9px] text-slate-400 mb-1">Background</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <input type="color" value={localSettings.homeCoachingCardBg || '#ffffff'} onChange={e => setLocalSettings({...localSettings, homeCoachingCardBg: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0" />
+                                        <input type="text" value={localSettings.homeCoachingCardBg || ''} onChange={e => setLocalSettings({...localSettings, homeCoachingCardBg: e.target.value})} placeholder="Default" className="flex-1 p-1 border rounded-lg text-[9px] uppercase font-mono bg-slate-50" />
+                                        {localSettings.homeCoachingCardBg && <button onClick={() => setLocalSettings({...localSettings, homeCoachingCardBg: undefined})} className="text-[9px] text-red-400 font-black shrink-0">✕</button>}
+                                      </div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[9px] text-slate-400 mb-1">Border / Accent</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <input type="color" value={localSettings.homeCoachingCardBorder || '#6366f1'} onChange={e => setLocalSettings({...localSettings, homeCoachingCardBorder: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0" />
+                                        <input type="text" value={localSettings.homeCoachingCardBorder || ''} onChange={e => setLocalSettings({...localSettings, homeCoachingCardBorder: e.target.value})} placeholder="Default" className="flex-1 p-1 border rounded-lg text-[9px] uppercase font-mono bg-slate-50" />
+                                        {localSettings.homeCoachingCardBorder && <button onClick={() => setLocalSettings({...localSettings, homeCoachingCardBorder: undefined})} className="text-[9px] text-red-400 font-black shrink-0">✕</button>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                                    {['#ffffff','#eff6ff','#f0fdf4','#fef3c7','#fdf4ff','#fff1f2','#f0fdfa','#1e293b'].map(c => (
+                                      <button key={c} onClick={() => setLocalSettings({...localSettings, homeCoachingCardBg: c})} className="w-5 h-5 rounded border-2 transition-all hover:scale-110" style={{ background: c, borderColor: (localSettings.homeCoachingCardBg||'') === c ? '#6366f1' : '#e2e8f0' }} title={c} />
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-slate-100">
+                                    <div>
+                                      <p className="text-[9px] font-black text-slate-700">Card Style</p>
+                                      <p className="text-[8px] text-slate-400 mt-0.5">{localSettings.homeCoachingCard3D ? '🎲 3D raised' : '⬜ 2D flat'}</p>
+                                    </div>
+                                    <button onClick={() => setLocalSettings({...localSettings, homeCoachingCard3D: !localSettings.homeCoachingCard3D})} className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border ${localSettings.homeCoachingCard3D ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                      {localSettings.homeCoachingCard3D ? '🎲 3D ON' : '⬜ 2D'}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Content List Card Colors */}
+                                <div className="p-2.5 bg-white rounded-xl border border-indigo-100">
+                                  <p className="text-[10px] font-black text-slate-700 mb-0.5">📋 Book / Lesson / Page List Cards</p>
+                                  <p className="text-[8px] text-slate-400 mb-1.5">Teeno jagah ek hi color apply hoga — subject list, lesson list, page list</p>
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <p className="text-[9px] text-slate-400 mb-1">Background</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <input type="color" value={localSettings.contentListCardBg || '#ffffff'} onChange={e => setLocalSettings({...localSettings, contentListCardBg: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0" />
+                                        <input type="text" value={localSettings.contentListCardBg || ''} onChange={e => setLocalSettings({...localSettings, contentListCardBg: e.target.value})} placeholder="Default" className="flex-1 p-1 border rounded-lg text-[9px] uppercase font-mono bg-slate-50" />
+                                        {localSettings.contentListCardBg && <button onClick={() => setLocalSettings({...localSettings, contentListCardBg: undefined})} className="text-[9px] text-red-400 font-black shrink-0">✕</button>}
+                                      </div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[9px] text-slate-400 mb-1">Border / Accent</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <input type="color" value={localSettings.contentListCardBorder || '#3b82f6'} onChange={e => setLocalSettings({...localSettings, contentListCardBorder: e.target.value})} className="w-8 h-8 rounded-lg cursor-pointer border border-slate-200 shrink-0" />
+                                        <input type="text" value={localSettings.contentListCardBorder || ''} onChange={e => setLocalSettings({...localSettings, contentListCardBorder: e.target.value})} placeholder="Default" className="flex-1 p-1 border rounded-lg text-[9px] uppercase font-mono bg-slate-50" />
+                                        {localSettings.contentListCardBorder && <button onClick={() => setLocalSettings({...localSettings, contentListCardBorder: undefined})} className="text-[9px] text-red-400 font-black shrink-0">✕</button>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                                    {['#ffffff','#eff6ff','#f0fdf4','#fef3c7','#fdf4ff','#fff1f2','#f0fdfa','#1e293b'].map(c => (
+                                      <button key={c} onClick={() => setLocalSettings({...localSettings, contentListCardBg: c})} className="w-5 h-5 rounded border-2 transition-all hover:scale-110" style={{ background: c, borderColor: (localSettings.contentListCardBg||'') === c ? '#6366f1' : '#e2e8f0' }} title={c} />
+                                    ))}
+                                  </div>
+                                </div>
+
                               {/* ── DESIGN TOKENS LIVE PREVIEW ── */}
                               <div className="mt-3">
                                 <button

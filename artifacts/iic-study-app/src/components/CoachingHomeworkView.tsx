@@ -697,26 +697,30 @@ export function CoachingHomeworkSection({
   }
 
   // Agar RTDB mein nahi hai par Firestore mein hai — empty card dikhao
+  const _coachBg  = (settings as any)?.homeCoachingCardBg  || tierTheme?.profileCardBg || tierTheme?.cardBg || '#ffffff';
+  const _coachBdr = (settings as any)?.homeCoachingCardBorder || accent;
+
   if (visibleCoachings.length === 0 && firestoreCoaching) {
-    const bg = tierTheme?.profileCardBg || tierTheme?.cardBg || '#ffffff';
+    const bg = _coachBg;
+    const borderAccent = _coachBdr;
     return (
       <>
         <div className="flex items-center gap-2 mb-2">
-          <span className="flex-1 h-px" style={{ background: `${accent}30` }} />
-          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: accent }}>Coaching Homework</span>
-          <span className="flex-1 h-px" style={{ background: `${accent}30` }} />
+          <span className="flex-1 h-px" style={{ background: `${borderAccent}30` }} />
+          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: borderAccent }}>Coaching Homework</span>
+          <span className="flex-1 h-px" style={{ background: `${borderAccent}30` }} />
         </div>
         <div className="rounded-2xl overflow-hidden text-left"
           style={card3D
-            ? { background: bg, border: `2px solid ${accent}`, boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${accent}bb, 0 7px 18px ${accent}28`, transform: 'translateY(-1px)' }
-            : { background: bg, border: `2px solid ${accent}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
+            ? { background: bg, border: `2px solid ${borderAccent}`, boxShadow: `0 1px 0 rgba(255,255,255,0.85) inset, 0 4px 0 ${borderAccent}bb, 0 7px 18px ${borderAccent}28`, transform: 'translateY(-1px)' }
+            : { background: bg, border: `2px solid ${borderAccent}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
           }>
           <div className="flex items-center gap-3 px-4 py-3.5">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${accent}15` }}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${borderAccent}15` }}>
               {firestoreCoaching.emoji || '🏫'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-wider mb-0.5" style={{ color: accent }}>Coaching Homework</p>
+              <p className="text-[10px] font-black uppercase tracking-wider mb-0.5" style={{ color: borderAccent }}>Coaching Homework</p>
               <p className="font-black text-slate-800 text-sm leading-tight truncate">{firestoreCoaching.name}</p>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">Abhi koi homework nahi hai</p>
             </div>
@@ -751,8 +755,8 @@ export function CoachingHomeworkSection({
         {visibleCoachings.map(coaching => {
           const latestDate = getLatestDate(coaching);
           const entryCount = countEntries(coaching);
-          const borderColor = accent;
-          const bg = tierTheme?.profileCardBg || tierTheme?.cardBg || '#ffffff';
+          const borderColor = _coachBdr;
+          const bg = _coachBg;
 
           return (
             <button

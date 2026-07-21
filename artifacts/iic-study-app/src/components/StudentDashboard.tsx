@@ -6350,8 +6350,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     key={entry.id}
                     className={`nst-lesson-card rounded-2xl overflow-hidden border-2 transition-all hover:shadow-md ${_isLocked ? 'opacity-75' : ''}`}
                     style={{
-                      background: _isTodayRoutineLesson ? (isDarkMode ? '#292524' : '#fffbeb') : tierTheme.profileCardBg,
-                      borderColor: _isLocked ? '#ef4444' : _isTodayRoutineLesson ? '#f59e0b' : _showRoutineLock ? '#f59e0b' : tierTheme.primary
+                      background: _isTodayRoutineLesson ? (isDarkMode ? '#292524' : '#fffbeb') : (settings?.contentListCardBg || tierTheme.profileCardBg),
+                      borderColor: _isLocked ? '#ef4444' : _isTodayRoutineLesson ? '#f59e0b' : _showRoutineLock ? '#f59e0b' : (settings?.contentListCardBorder || tierTheme.primary)
                     }}
                   >
                     {_isTodayRoutineLesson && (
@@ -9396,6 +9396,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const _masterAll3D = settings?.homeAllCards3D ?? false;
               const _cmp3D   = _masterAll3D || (settings?.homeCompetitionCard3D ?? false);
               const _card3D  = _masterAll3D || (settings?.homeClass612Card3D ?? false);
+              const _scBg    = settings?.homeSchoolCardBg     || tierTheme.profileCardBg || '#ffffff';
               const _scBdr   = settings?.homeSchoolCardBorder  || tierTheme.primary;
               const _sc3D    = _masterAll3D || (settings?.homeSchoolCard3D ?? false);
 
@@ -9490,6 +9491,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         onOpen={() => { hapticStrong(); onOpenSchool?.(); }}
                         onChangeSchool={() => { hapticMedium(); onOpenSchool?.(); }}
                         themeAccent={_scBdr}
+                        cardBg={_scBg}
                         card3D={_sc3D}
                       />
                     </div>
@@ -9723,6 +9725,8 @@ export const StudentDashboard: React.FC<Props> = ({
               lucentNotes={(settings?.lucentNotes || []) as any[]}
               subscriptionLevel={user.subscriptionLevel}
               isPremium={user.isPremium}
+              listCardBg={settings?.contentListCardBg}
+              listCardBorder={settings?.contentListCardBorder}
               onSelect={(subject) => {
                 setSelectedSubject(subject);
                 setHomeworkSubjectView(null);
@@ -18406,8 +18410,11 @@ export const StudentDashboard: React.FC<Props> = ({
                   <button
                     key={idx}
                     onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
-                    className="w-full text-left bg-white rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] hover:shadow-md transition-all border"
-                    style={{ borderColor: pageMcqDone ? '#6ee7b7' : pageRead ? '#fdba74' : `${tierTheme.primary}33` }}
+                    className="w-full text-left rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] hover:shadow-md transition-all border"
+                    style={{
+                      background: settings?.contentListCardBg || '#ffffff',
+                      borderColor: pageMcqDone ? '#6ee7b7' : pageRead ? '#fdba74' : (settings?.contentListCardBorder ? `${settings.contentListCardBorder}55` : `${tierTheme.primary}33`),
+                    }}
                   >
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: boxBg }}>
                       <span className="text-[11px] font-black" style={{ color: boxColor }}>{idx + 1}</span>

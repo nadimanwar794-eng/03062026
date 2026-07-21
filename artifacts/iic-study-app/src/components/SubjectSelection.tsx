@@ -18,6 +18,8 @@ interface Props {
   lucentNotes?: LucentNoteEntry[];
   subscriptionLevel?: string;
   isPremium?: boolean;
+  listCardBg?: string;
+  listCardBorder?: string;
 }
 
 const SubjectIcon: React.FC<{ icon: string; className?: string }> = ({ icon, className }) => {
@@ -114,7 +116,8 @@ const getSubjectStats = (
 
 export const SubjectSelection: React.FC<Props> = ({
   classLevel, stream, board, onSelect, onBack, hideBack = false, settings,
-  contentIndex = {}, lucentNotes = [], subscriptionLevel, isPremium
+  contentIndex = {}, lucentNotes = [], subscriptionLevel, isPremium,
+  listCardBg, listCardBorder,
 }) => {
   const appTheme = useAppTheme();
   const subjects = getSubjectsList(classLevel, stream, board).filter(
@@ -178,12 +181,20 @@ export const SubjectSelection: React.FC<Props> = ({
             ].filter(b => b.count > 0);
           }
 
+          const _cardStyle = (listCardBg || listCardBorder) ? {
+            background: listCardBg || undefined,
+            borderColor: listCardBorder || undefined,
+            borderWidth: listCardBorder ? 2 : undefined,
+            borderStyle: listCardBorder ? 'solid' : undefined,
+          } : undefined;
+
           return (
             <button
               key={subject.id}
               onClick={() => onSelect(subject)}
               data-tier={tier}
               className="nst-subject-card p-4 rounded-2xl flex items-center gap-4 active:scale-95 text-left group"
+              style={_cardStyle}
             >
               <div className="nst-card-icon w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <SubjectIcon icon={subject.icon} className="w-6 h-6" />

@@ -737,6 +737,17 @@ export interface SystemSettings {
   homeQuickAccessCard3D?: boolean;
   homeQuickAccessCardBg?: string;
   homeQuickAccessCardBorder?: string;
+  // ── School & Coaching Home Cards ──────────────────────────────────────────
+  homeSchoolCardBg?: string;
+  homeSchoolCardBorder?: string;
+  homeSchoolCard3D?: boolean;
+  homeCoachingCardBg?: string;
+  homeCoachingCardBorder?: string;
+  homeCoachingCard3D?: boolean;
+  homeCoachingHomeworkCard3D?: boolean;
+  // ── Content List Cards (Book / Lesson / Page list) — same color everywhere ─
+  contentListCardBg?: string;
+  contentListCardBorder?: string;
   statusBarColor?: string;
   darkThemeColor?: string;
   lightThemeColor?: string;
