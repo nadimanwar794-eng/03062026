@@ -1367,10 +1367,183 @@ function SlotRow({ icon, label, count, unlocked, cost, userCredits, locked, lock
   );
 }
 
+// ── Category Edit Sheet ───────────────────────────────────────────────────────
+function CategoryEditSheet({ category, allNotes, existingCategories, routineMode, selectedClass, selectedBook, selectedBooks, onUpdateSubjects, onClose }: {
+  category: RoutineCategory;
+  allNotes: LucentEntry[];
+  existingCategories: RoutineCategory[];
+  routineMode: 'SCHOOL' | 'COMPETITION' | null;
+  selectedClass: string | null;
+  selectedBook: string | null;
+  selectedBooks?: string[];
+  onUpdateSubjects: (catId: string, subjects: RoutineCategorySubject[]) => void;
+  onClose: () => void;
+}) {
+  const [subjects, setSubjects] = useState<RoutineCategorySubject[]>(category.subjects);
+
+  // Available notes filtered by mode
+  const modeFilteredNotes = useMemo(() => {
+    if (routineMode === 'SCHOOL' && selectedClass) {
+      return allNotes.filter(n => String((n as any).classLevel) === String(selectedClass));
+    }
+    if (routineMode === 'COMPETITION') {
+      if (selectedBooks && selectedBooks.length > 0) {
+        const bookSet = new Set(selectedBooks);
+        return allNotes.filter(n => bookSet.has((n as any).bookName?.trim() || ''));
+      }
+      if (selectedBook) return allNotes.filter(n => ((n as any).bookName?.trim() || '') === selectedBook);
+    }
+    return allNotes;
+  }, [allNotes, routineMode, selectedClass, selectedBook, selectedBooks]);
+
+  const available = useMemo(() => getAvailableSubjectSlots(modeFilteredNotes), [modeFilteredNotes]);
+
+  // Subjects in OTHER categories (already locked elsewhere)
+  const otherCatSubjectKeys = useMemo(() => {
+    const s = new Set<string>();
+    existingCategories.forEach(cat => {
+      if (cat.id === category.id) return;
+      cat.subjects.forEach(sub => s.add(`${sub.bookName}||${sub.classLevel || ''}||${sub.subjectId}`));
+    });
+    return s;
+  }, [existingCategories, category.id]);
+
+  // Current subject keys (already in this category)
+  const currentKeys = useMemo(() => new Set(subjects.map(s => `${s.bookName}||${s.classLevel || ''}||${s.subjectId}`)), [subjects]);
+
+  // Available to add (not in this category, not in other categories)
+  const addable = available.filter(item => {
+    const key = `${item.bookName}||${item.classLevel || ''}||${item.subjectId}`;
+    return !currentKeys.has(key) && !otherCatSubjectKeys.has(key);
+  });
+
+  const removeSubject = (key: string) => {
+    if (subjects.length <= 1) return; // can't remove last
+    const next = subjects.filter(s => `${s.bookName}||${s.classLevel || ''}||${s.subjectId}` !== key);
+    setSubjects(next);
+    onUpdateSubjects(category.id, next);
+  };
+
+  const addSubject = (item: ReturnType<typeof getAvailableSubjectSlots>[0]) => {
+    const newSub: RoutineCategorySubject = {
+      subjectId: item.subjectId,
+      bookName: item.bookName,
+      classLevel: item.classLevel,
+      displayName: item.displayName,
+      emoji: item.emoji,
+      currentLessonIndex: 0,
+      totalLessons: item.count,
+    };
+    const next = [...subjects, newSub];
+    setSubjects(next);
+    onUpdateSubjects(category.id, next);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[650] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full bg-white rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
+        <div className="px-5 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-black text-slate-800">✏️ Category Edit Karo</h2>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              {category.emoji} {category.categoryName} · {subjects.length} subject{subjects.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><X size={16} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+
+          {/* Current subjects */}
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Is Category Ke Subjects</p>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              {subjects.map((sub, i) => {
+                const key = `${sub.bookName}||${sub.classLevel || ''}||${sub.subjectId}`;
+                const canRemove = subjects.length > 1;
+                const notes = getNotesForSubject(sub, allNotes);
+                return (
+                  <div key={key} className={`flex items-center gap-3 px-4 py-3 ${i < subjects.length - 1 ? 'border-b border-slate-100' : ''}`}>
+                    <span className="text-xl shrink-0">{sub.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-slate-800">{capitalise(sub.subjectId)}</p>
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        {sub.bookName || (sub.classLevel ? `Class ${sub.classLevel}` : 'Default')} · {notes.length} lessons
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => removeSubject(key)}
+                      disabled={!canRemove}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center active:scale-90 transition shrink-0 border ${
+                        canRemove
+                          ? 'bg-red-50 border-red-200 text-red-500'
+                          : 'bg-slate-50 border-slate-100 text-slate-300'
+                      }`}
+                      title={canRemove ? 'Remove karo' : 'Akela subject nahi hat sakta'}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {subjects.length === 1 && (
+              <p className="text-[10px] text-slate-400 font-medium mt-1.5 px-1">
+                ⚠️ Kam se kam 1 subject zaroori hai — pehle naya add karo, phir hata sakte ho
+              </p>
+            )}
+          </div>
+
+          {/* Add more subjects */}
+          {addable.length > 0 && (
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Add Karo</p>
+              <div className="space-y-1.5">
+                {addable.map(item => {
+                  const key = `${item.bookName}||${item.classLevel || ''}||${item.subjectId}`;
+                  return (
+                    <button key={key} onClick={() => addSubject(item)}
+                      className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border border-slate-200 bg-white active:bg-blue-50 active:border-blue-300 transition text-left">
+                      <span className="text-xl shrink-0">{item.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-800">{capitalise(item.subjectId)}</p>
+                        <p className="text-[11px] text-slate-400 font-medium">
+                          {item.bookName || (item.classLevel ? `Class ${item.classLevel}` : 'Default')} · {item.count} lessons
+                        </p>
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                        <Plus size={14} className="text-white" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {addable.length === 0 && subjects.length > 0 && (
+            <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 text-center">
+              <p className="text-sm font-bold text-slate-400">Sabhi available subjects already add hain ✅</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 pb-6 pt-3 shrink-0 border-t border-slate-100">
+          <button onClick={onClose}
+            className="w-full py-3.5 rounded-2xl font-black text-sm bg-emerald-600 text-white shadow-sm active:scale-[0.98] transition">
+            ✅ Done — Changes Save Ho Gaye
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Category Manager Sheet ────────────────────────────────────────────────────
-function CategoryManagerSheet({ categories, tier, level, userCredits, data, onRemove, onUnlockTier, onAddOpen, onClose }: {
+function CategoryManagerSheet({ categories, tier, level, userCredits, data, onRemove, onEdit, onUnlockTier, onAddOpen, onClose }: {
   categories: RoutineCategory[]; tier: UserSubTier; level: number; userCredits: number;
-  data: RoutineData; onRemove: (id: string) => void;
+  data: RoutineData; onRemove: (id: string) => void; onEdit: (catId: string) => void;
   onUnlockTier: () => void;
   onAddOpen: () => void; onClose: () => void;
 }) {
@@ -1417,6 +1590,10 @@ function CategoryManagerSheet({ categories, tier, level, userCredits, data, onRe
                       {cat.subjects.map(s => capitalise(s.subjectId)).join(', ')} · {cat.subjects.length} subject{cat.subjects.length > 1 ? 's' : ''}
                     </p>
                   </div>
+                  <button onClick={() => onEdit(cat.id)}
+                    className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center active:scale-90 transition shrink-0 mr-1">
+                    <span className="text-[13px]">✏️</span>
+                  </button>
                   <button onClick={() => onRemove(cat.id)}
                     className="w-8 h-8 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center active:scale-90 transition shrink-0">
                     <Trash2 size={14} className="text-red-500" />
@@ -1485,6 +1662,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   });
   const [showCatManager, setShowCatManager] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [showRoutineSetup, setShowRoutineSetup] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [activeView, setActiveView] = useState<'home' | 'subjects' | 'tracking'>('home');
@@ -1565,6 +1743,17 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     setData(prev => ({ ...prev, routineCategories: (prev.routineCategories || []).filter(c => c.id !== catId) }));
     showToast('Category remove ho gayi', 'info');
   }, [showToast]);
+
+  const handleUpdateCategorySubjects = useCallback((catId: string, newSubjects: RoutineCategorySubject[]) => {
+    setData(prev => ({
+      ...prev,
+      routineCategories: (prev.routineCategories || []).map(c =>
+        c.id === catId
+          ? { ...c, subjects: newSubjects, currentSubjectIndex: Math.min(c.currentSubjectIndex, Math.max(0, newSubjects.length - 1)) }
+          : c
+      ),
+    }));
+  }, []);
 
   const SUBJECT_SWITCH_COST = 500;
 
@@ -1686,13 +1875,32 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
       )}
       {showCatManager && (
         <CategoryManagerSheet categories={categories} tier={subTier} level={userLevel} userCredits={userCredits} data={data}
-          onRemove={handleRemoveCategory} onUnlockTier={handleUnlockTierSlot}
+          onRemove={handleRemoveCategory}
+          onEdit={catId => { setShowCatManager(false); setEditingCatId(catId); }}
+          onUnlockTier={handleUnlockTierSlot}
           onAddOpen={() => {
             if (!data.routineMode) { setShowCatManager(false); setShowRoutineSetup(true); return; }
             setShowCatManager(false); setShowAddCat(true);
           }}
           onClose={() => setShowCatManager(false)} />
       )}
+      {editingCatId && (() => {
+        const editCat = categories.find(c => c.id === editingCatId);
+        if (!editCat) return null;
+        return (
+          <CategoryEditSheet
+            category={editCat}
+            allNotes={allNotes}
+            existingCategories={categories}
+            routineMode={data.routineMode}
+            selectedClass={data.selectedClass}
+            selectedBook={data.selectedBook}
+            selectedBooks={data.selectedBooks || []}
+            onUpdateSubjects={handleUpdateCategorySubjects}
+            onClose={() => { setEditingCatId(null); setShowCatManager(true); }}
+          />
+        );
+      })()}
       {showAddCat && (
         <AddCategorySheet
           allNotes={allNotes}
