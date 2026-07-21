@@ -16,6 +16,7 @@ import { onSessionComplete, queueSession, consumeSessionQueue, SessionCompletePa
 import { SessionSummaryBanner } from './components/SessionSummaryBanner';
 import { GroupedSessionBanner } from './components/GroupedSessionBanner';
 import { loadRoutineData } from './utils/routineStorage';
+import { recordAttempt } from './utils/revisionTrackerV2';
 import { applyDeduction, getTotalCredits } from './utils/creditSystem';
 import { signInAnonymously } from 'firebase/auth';
 import { fetchChapters, fetchLessonContent } from './services/groq';
@@ -2059,6 +2060,18 @@ const App: React.FC = () => {
         setAlertConfig({isOpen: true, message: "⚠️ Low Score Alert: Check your inbox for study recommendations."});
     }
     
+    // REVISION HUB: Lesson-wise tracking — har lesson ke MCQ attempt ko track karo
+    recordAttempt({
+      subjectId: state.selectedSubject?.id || result.subjectId,
+      subjectName: state.selectedSubject?.title || result.subjectName,
+      chapterId: state.selectedChapter.id,
+      chapterTitle: state.selectedChapter.title,
+      questions: displayData,
+      userAnswers: displayData.map((_, idx) =>
+        answers[idx] !== undefined ? answers[idx] : null
+      ),
+    });
+
     // Save to Firestore
     saveUserHistory(state.user.id, result);
     saveTestResult(state.user.id, result);
