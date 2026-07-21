@@ -35,7 +35,7 @@ import { getLessonRevHubPercent, getDueItems, getAllBuckets } from '../utils/rev
 export const REVISION_HUB_MCQ_COST_NO_ROUTINE = 100;
 
 // ── Reward claim helpers ──────────────────────────────────────────────────────
-const REWARD_CREDITS = 25;
+const REWARD_CREDITS = 10;
 type RewardType = 'notes' | 'mcq' | 'revision';
 const REWARD_CLAIMS_KEY = 'nst_reward_claims_v1';
 function getRewardClaims(userId: string): Record<string, boolean> {
@@ -414,7 +414,7 @@ function RewardTaskCard({ lessonId, lessonTitle, totalPages, userId, onClaim }: 
   );
 }
 
-// ── Reward row: yesterday's topic status + Revision Hub 50% OFF button ───────
+// ── Reward row: yesterday's topic status + Revision Hub button ───────
 function RewardRow({
   label, title, rewarded, onOpenRevisionHub,
 }: {
@@ -430,12 +430,12 @@ function RewardRow({
       </div>
       {rewarded ? (
         <div className="mt-2 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-bold text-emerald-700">✅ Complete! +50🪙 mil gaye</p>
+          <p className="text-[11px] font-bold text-emerald-700">✅ Complete! +10🪙 mil gaye</p>
           <button
             onClick={onOpenRevisionHub}
             className="shrink-0 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-black active:scale-95 transition"
           >
-            Revision Hub (50% OFF) →
+            Revision Hub →
           </button>
         </div>
       ) : (
@@ -2089,8 +2089,8 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
             <div className="px-5 py-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {([
-                  { title: '✅ Routine ON', color: 'green', items: ['Lesson complete → +50🪙', 'Revision Hub permanently unlock', '50% OFF Revision Hub session', 'Multiple subjects daily!'] },
-                  { title: '❌ Routine OFF', color: 'red', items: ['Koi coin reward nahi', 'Revision Hub unlock nahi', 'Koi discount nahi', 'Normal access'] },
+                  { title: '✅ Routine ON', color: 'green', items: ['Lesson complete → +10🪙', 'Revision Hub permanently unlock', 'Multiple subjects daily!'] },
+                  { title: '❌ Routine OFF', color: 'red', items: ['Koi coin reward nahi', 'Revision Hub unlock nahi', 'Normal access'] },
                 ] as const).map(col => (
                   <div key={col.title} className={`rounded-2xl border-2 p-3.5 ${col.color === 'green' ? 'border-green-200 bg-green-50' : 'border-red-100 bg-red-50'}`}>
                     <p className={`text-xs font-black uppercase tracking-wide mb-2.5 ${col.color === 'green' ? 'text-green-700' : 'text-red-600'}`}>{col.title}</p>
@@ -2198,7 +2198,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5">
             <div className="flex items-center gap-2 mb-1"><Zap size={13} className="text-indigo-600 shrink-0" /><p className="text-xs font-black text-indigo-700">Revision Hub</p></div>
             <p className="text-[11px] text-indigo-600 font-medium">
-              {data.enabled ? '✅ Lesson complete → Hub unlock + 50% OFF' : `⚠️ Routine OFF → Hub MCQ = ${REVISION_HUB_MCQ_COST_NO_ROUTINE}🪙`}
+              {data.enabled ? '✅ Lesson complete → Hub unlock' : `⚠️ Routine OFF → Hub MCQ = ${REVISION_HUB_MCQ_COST_NO_ROUTINE}🪙`}
             </p>
           </div>
         </div>
