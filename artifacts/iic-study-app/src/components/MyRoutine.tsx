@@ -1867,7 +1867,33 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           currentClass={data.selectedClass}
           currentBooks={data.selectedBooks || []}
           onSave={(mode, classLevel, books) => {
-            setData(prev => ({ ...prev, routineMode: mode, selectedClass: classLevel, selectedBooks: books, selectedBook: books[0] || null }));
+            setData(prev => {
+              // Filter existing category subjects to match new class/book syllabus
+              const bookSet = new Set(books);
+              const updatedCats = (prev.routineCategories || []).map(cat => {
+                const filteredSubjects = cat.subjects.filter(sub => {
+                  if (mode === 'SCHOOL' && classLevel) {
+                    // Keep subject if it belongs to the new class OR has no classLevel (default subject)
+                    return !sub.classLevel || String(sub.classLevel) === String(classLevel);
+                  }
+                  if (mode === 'COMPETITION' && books.length > 0) {
+                    // Keep subject if it belongs to a selected book OR has no bookName (default subject)
+                    return !sub.bookName || bookSet.has(sub.bookName);
+                  }
+                  return true;
+                });
+                return { ...cat, subjects: filteredSubjects, currentSubjectIndex: Math.min(cat.currentSubjectIndex, Math.max(0, filteredSubjects.length - 1)) };
+              }).filter(cat => cat.subjects.length > 0); // remove categories that became empty
+
+              return {
+                ...prev,
+                routineMode: mode,
+                selectedClass: classLevel,
+                selectedBooks: books,
+                selectedBook: books[0] || null,
+                routineCategories: updatedCats,
+              };
+            });
             setShowRoutineSetup(false);
           }}
           onClose={() => setShowRoutineSetup(false)}
