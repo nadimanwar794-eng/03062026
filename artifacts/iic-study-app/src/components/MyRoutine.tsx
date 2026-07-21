@@ -29,10 +29,28 @@ import {
   getLessonPageAvgPercent, getLessonBestPageAvgPercent,
   getPageTime,
 } from '../utils/routineAutoTrack';
-import { getLessonRevHubPercent } from '../utils/revisionTrackerV2';
+import { getLessonRevHubPercent, getDueItems, getAllBuckets } from '../utils/revisionTrackerV2';
 
 // ── Revision Hub connection constants ────────────────────────────────────────
 export const REVISION_HUB_MCQ_COST_NO_ROUTINE = 100;
+
+// ── Reward claim helpers ──────────────────────────────────────────────────────
+const REWARD_CREDITS = 25;
+type RewardType = 'notes' | 'mcq' | 'revision';
+const REWARD_CLAIMS_KEY = 'nst_reward_claims_v1';
+function getRewardClaims(userId: string): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(`${REWARD_CLAIMS_KEY}_${userId}`) || '{}'); } catch { return {}; }
+}
+function saveRewardClaim(userId: string, lessonId: string, type: RewardType): void {
+  const today = new Date().toISOString().split('T')[0];
+  const claims = getRewardClaims(userId);
+  claims[`${today}_${lessonId}_${type}`] = true;
+  localStorage.setItem(`${REWARD_CLAIMS_KEY}_${userId}`, JSON.stringify(claims));
+}
+function isRewardClaimed(userId: string, lessonId: string, type: RewardType): boolean {
+  const today = new Date().toISOString().split('T')[0];
+  return !!getRewardClaims(userId)[`${today}_${lessonId}_${type}`];
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface LucentEntry {
@@ -283,6 +301,115 @@ function TaskLessonCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Revision Hub Due Block (Today tab ke har lesson ke neeche) ───────────────
+function RevisionHubDueBlock({ lessonId, lessonTitle, onOpenRevisionHub }: {
+  lessonId: string; lessonTitle: string; onOpenRevisionHub?: () => void;
+}) {
+  const dueItems = getDueItems().filter(b => b.chapterId === lessonId);
+  if (dueItems.length === 0) return null;
+  const notesItems = dueItems.filter(b => b.stage === 'NOTES');
+  const mcqItems   = dueItems.filter(b => b.stage === 'MCQ');
+  return (
+    <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 overflow-hidden">
+      <div className="px-3.5 py-2.5 flex items-center gap-2">
+        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+          <span className="text-sm">🔁</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Revision Hub</p>
+          <p className="text-xs font-black text-indigo-800 truncate">{lessonTitle}</p>
+        </div>
+        <span className="text-[10px] font-black bg-indigo-200 text-indigo-700 px-2 py-0.5 rounded-full shrink-0">
+          {dueItems.length} due
+        </span>
+      </div>
+      <div className="px-3.5 pb-3 space-y-1">
+        {notesItems.length > 0 && (
+          <p className="text-[11px] text-indigo-700 font-medium">
+            📖 Notes: {notesItems.map(b => b.topic).join(', ')}
+          </p>
+        )}
+        {mcqItems.length > 0 && (
+          <p className="text-[11px] text-indigo-700 font-medium">
+            🧠 MCQ: {mcqItems.map(b => b.topic).join(', ')}
+          </p>
+        )}
+        {onOpenRevisionHub && (
+          <button onClick={onOpenRevisionHub}
+            className="mt-1.5 w-full py-2 rounded-xl bg-indigo-600 text-white text-xs font-black active:scale-95 transition">
+            Revision Karo →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Reward Tab — lesson-wise claim cards ──────────────────────────────────────
+function RewardTaskCard({ lessonId, lessonTitle, totalPages, userId, onClaim }: {
+  lessonId: string; lessonTitle: string; totalPages: number;
+  userId: string; onClaim: (type: RewardType, lessonId: string) => void;
+}) {
+  const snap = getAutoTrackSnapshot();
+  const pagesRead = Array.from({ length: totalPages }, (_, i) => !!snap.pageReads[`${lessonId}__${i}`]).filter(Boolean).length;
+  const notesPct  = totalPages > 0 ? Math.round((pagesRead / totalPages) * 100) : 0;
+  const mcqDoneCount = Array.from({ length: totalPages }, (_, i) => !!snap.pageMcqDone?.[`${lessonId}__${i}`]).filter(Boolean).length;
+  const mcqPct    = totalPages > 0 ? Math.round((mcqDoneCount / totalPages) * 100) : 0;
+  const dueItems  = getDueItems().filter(b => b.chapterId === lessonId);
+  const allBucketsForLesson = getAllBuckets().filter(b => b.chapterId === lessonId);
+  const hasRevision = allBucketsForLesson.length > 0;
+  const revComplete = hasRevision && dueItems.length === 0;
+
+  const notesClaimed    = isRewardClaimed(userId, lessonId, 'notes');
+  const mcqClaimed      = isRewardClaimed(userId, lessonId, 'mcq');
+  const revClaimed      = isRewardClaimed(userId, lessonId, 'revision');
+
+  function RewardRow({ type, label, pct, claimed, canClaim }: {
+    type: RewardType; label: string; pct: number; claimed: boolean; canClaim: boolean;
+  }) {
+    return (
+      <div className={`rounded-xl border p-3 ${claimed ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}`}>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[11px] font-black text-slate-700">{label}</p>
+          {claimed ? (
+            <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">✓ +{REWARD_CREDITS}🪙</span>
+          ) : canClaim ? (
+            <button onClick={() => onClaim(type, lessonId)}
+              className="text-[11px] font-black bg-amber-500 text-white px-3 py-1 rounded-xl active:scale-95 transition">
+              Claim +{REWARD_CREDITS}🪙
+            </button>
+          ) : (
+            <span className="text-[10px] font-bold text-slate-400">{pct}%</span>
+          )}
+        </div>
+        {!claimed && (
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${canClaim ? 'bg-emerald-500' : 'bg-blue-400'}`}
+              style={{ width: `${pct}%` }} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+        <span className="text-base">📚</span>
+        <p className="text-xs font-black text-slate-800 truncate">{lessonTitle}</p>
+      </div>
+      <div className="px-3 py-3 space-y-2">
+        <RewardRow type="notes"    label="📖 Notes Padhna" pct={notesPct}  claimed={notesClaimed} canClaim={notesPct === 100 && !notesClaimed} />
+        <RewardRow type="mcq"      label="🧠 MCQ Karna"    pct={mcqPct}   claimed={mcqClaimed}   canClaim={mcqPct === 100 && !mcqClaimed} />
+        {hasRevision && (
+          <RewardRow type="revision" label="🔁 Revision Hub" pct={revComplete ? 100 : 0}
+            claimed={revClaimed} canClaim={revComplete && !revClaimed} />
+        )}
+      </div>
     </div>
   );
 }
@@ -1665,7 +1792,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [showRoutineSetup, setShowRoutineSetup] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [activeView, setActiveView] = useState<'home' | 'subjects' | 'tracking'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'subjects' | 'tracking' | 'reward'>('home');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' | 'coin' } | null>(null);
   const [tick, setTick] = useState(0);
 
@@ -1851,6 +1978,17 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     setData(prev => ({ ...prev, enabled: on }));
     showToast(on ? 'Routine ON! 🎯 Daily tasks active' : 'Routine OFF', on ? 'success' : 'info');
   };
+
+  const handleRewardClaim = useCallback((type: RewardType, lessonId: string) => {
+    saveRewardClaim(userId, lessonId, type);
+    if (onUserUpdate) {
+      const u = { ...user, credits: (user.credits || 0) + REWARD_CREDITS };
+      onUserUpdate(u);
+      try { saveUserToLive(u); } catch (_) {}
+    }
+    showToast(`+${REWARD_CREDITS}🪙 reward mila! 🎉`, 'coin');
+    setTick(t => t + 1);
+  }, [userId, user, onUserUpdate]);
 
   const dailyAmount = getDailyClaimAmount(subTier);
   const userCredits = (user.credits || 0) + (user.bonusCredits || 0);
@@ -2067,9 +2205,14 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
 
         {/* Tabs */}
         <div className="mx-4 mt-4 flex bg-slate-100 rounded-2xl p-1 gap-1">
-          {([['home', 'Today', <Target size={13} />], ['subjects', 'Subjects', <LayoutGrid size={13} />], ['tracking', 'Tracking', <ListChecks size={13} />]] as const).map(([id, label, icon]) => (
+          {([
+            ['home', 'Today', <Target size={13} />],
+            ['subjects', 'Subjects', <LayoutGrid size={13} />],
+            ['tracking', 'Tracking', <ListChecks size={13} />],
+            ['reward', 'Reward', <Trophy size={13} />],
+          ] as const).map(([id, label, icon]) => (
             <button key={id} onClick={() => setActiveView(id)}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-black transition-all ${activeView === id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
               {icon} {label}
             </button>
           ))}
@@ -2125,7 +2268,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                     </div>
                   );
                   return (
-                    <div key={`${cat.id}-${lesson.id}`}>
+                    <div key={`${cat.id}-${lesson.id}`} className="space-y-2">
                       <TaskLessonCard
                         label={`${cat.emoji} ${cat.categoryName}`}
                         subjectName={subLabel}
@@ -2135,6 +2278,11 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                         meta={meta}
                         mcqHistory={mcqHistory}
                         onLessonComplete={(lid) => handleCategoryLessonComplete(cat.id, lid)}
+                      />
+                      <RevisionHubDueBlock
+                        lessonId={lesson.id}
+                        lessonTitle={lesson.lessonTitle || `Lesson ${safeIdx + 1}`}
+                        onOpenRevisionHub={onOpenRevisionHubDiscounted ? () => onOpenRevisionHubDiscounted(lesson.id) : undefined}
                       />
                     </div>
                   );
@@ -2182,6 +2330,54 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           <div className="mx-4 mt-4">
             <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">📊 Pura Syllabus Progress</p>
             <TrackingView subjectGroups={subjectGroups} subjects={subjects} mcqHistory={mcqHistory} />
+          </div>
+        )}
+
+        {/* REWARD */}
+        {activeView === 'reward' && (
+          <div className="mx-4 mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black text-slate-600 uppercase tracking-widest">🏆 Aaj Ka Reward</p>
+              <span className="text-[10px] font-bold text-slate-400">Har task complete karo → +{REWARD_CREDITS}🪙</span>
+            </div>
+            {!data.enabled ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+                <Trophy size={40} className="text-slate-200 mx-auto mb-3" />
+                <p className="font-black text-slate-700 mb-1">Routine OFF Hai</p>
+                <p className="text-sm text-slate-500">Pehle Routine ON karo</p>
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+                <p className="font-black text-slate-700 mb-1">Koi Lesson Nahi</p>
+                <p className="text-sm text-slate-500">Today tab mein categories add karo</p>
+              </div>
+            ) : (
+              <>
+                {categories.map(cat => {
+                  const si = cat.currentSubjectIndex % cat.subjects.length;
+                  const sub = cat.subjects[si];
+                  const subNotes = getNotesForSubject(sub, allNotes);
+                  const safeIdx = subNotes.length > 0 ? Math.min(sub.currentLessonIndex, subNotes.length - 1) : -1;
+                  const lesson = safeIdx >= 0 ? subNotes[safeIdx] : null;
+                  if (!lesson) return null;
+                  return (
+                    <RewardTaskCard
+                      key={`${cat.id}-${lesson.id}`}
+                      lessonId={lesson.id}
+                      lessonTitle={lesson.lessonTitle || `Lesson ${safeIdx + 1}`}
+                      totalPages={lesson.pages?.length || 0}
+                      userId={userId}
+                      onClaim={handleRewardClaim}
+                    />
+                  );
+                })}
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center">
+                  <p className="text-xs font-bold text-amber-700">
+                    💡 Har lesson mein Notes, MCQ aur Revision Hub complete karo → teen baar +{REWARD_CREDITS}🪙 milega
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
