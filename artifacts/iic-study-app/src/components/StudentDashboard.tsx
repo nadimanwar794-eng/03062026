@@ -20713,11 +20713,6 @@ RULES:
           lucentNotes={(settings?.lucentNotes || []) as any[]}
           onBack={() => setShowMyRoutine(false)}
           onUserUpdate={handleUserUpdate}
-          onOpenRevisionHubDiscounted={(lessonId) => {
-            setRoutineRevisionDiscountLessonId(lessonId);
-            setShowMyRoutine(false);
-            setShowRevisionHubScreen(true);
-          }}
         />
       )}
 

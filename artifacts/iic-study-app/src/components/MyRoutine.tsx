@@ -15,7 +15,6 @@ import {
   getUserSubTier, ensureTodayClaimEntry,
   getDailyClaimAmount,
   getBaseSlotCount, getTierSlotCost, getActualMaxSlots,
-  unlockRevisionLesson,
   type RoutineData, type RoutineSubjectConfig, type UserSubTier, type RoutineSlot,
   type RoutineCategory, type RoutineCategorySubject,
 } from '../utils/routineStorage';
@@ -29,10 +28,7 @@ import {
   getLessonPageAvgPercent, getLessonBestPageAvgPercent,
   getPageTime,
 } from '../utils/routineAutoTrack';
-import { getLessonRevHubPercent, getDueItems, getAllBuckets } from '../utils/revisionTrackerV2';
 
-// ── Revision Hub connection constants ────────────────────────────────────────
-export const REVISION_HUB_MCQ_COST_NO_ROUTINE = 100;
 
 // ── Reward claim helpers ──────────────────────────────────────────────────────
 const REWARD_CREDITS = 10;
@@ -305,49 +301,6 @@ function TaskLessonCard({
   );
 }
 
-// ── Revision Hub Due Block (Today tab ke har lesson ke neeche) ───────────────
-function RevisionHubDueBlock({ lessonId, lessonTitle, onOpenRevisionHub }: {
-  lessonId: string; lessonTitle: string; onOpenRevisionHub?: () => void;
-}) {
-  const dueItems = getDueItems().filter(b => b.chapterId === lessonId);
-  if (dueItems.length === 0) return null;
-  const notesItems = dueItems.filter(b => b.stage === 'NOTES');
-  const mcqItems   = dueItems.filter(b => b.stage === 'MCQ');
-  return (
-    <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 overflow-hidden">
-      <div className="px-3.5 py-2.5 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-          <span className="text-sm">🔁</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Revision Hub</p>
-          <p className="text-xs font-black text-indigo-800 truncate">{lessonTitle}</p>
-        </div>
-        <span className="text-[10px] font-black bg-indigo-200 text-indigo-700 px-2 py-0.5 rounded-full shrink-0">
-          {dueItems.length} due
-        </span>
-      </div>
-      <div className="px-3.5 pb-3 space-y-1">
-        {notesItems.length > 0 && (
-          <p className="text-[11px] text-indigo-700 font-medium">
-            📖 Notes: {notesItems.map(b => b.topic).join(', ')}
-          </p>
-        )}
-        {mcqItems.length > 0 && (
-          <p className="text-[11px] text-indigo-700 font-medium">
-            🧠 MCQ: {mcqItems.map(b => b.topic).join(', ')}
-          </p>
-        )}
-        {onOpenRevisionHub && (
-          <button onClick={onOpenRevisionHub}
-            className="mt-1.5 w-full py-2 rounded-xl bg-indigo-600 text-white text-xs font-black active:scale-95 transition">
-            Revision Karo →
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── Reward Tab — lesson-wise claim cards ──────────────────────────────────────
 function RewardTaskCard({ lessonId, lessonTitle, totalPages, userId, onClaim }: {
@@ -359,14 +312,8 @@ function RewardTaskCard({ lessonId, lessonTitle, totalPages, userId, onClaim }: 
   const notesPct  = totalPages > 0 ? Math.round((pagesRead / totalPages) * 100) : 0;
   const mcqDoneCount = Array.from({ length: totalPages }, (_, i) => !!snap.pageMcqDone?.[`${lessonId}__${i}`]).filter(Boolean).length;
   const mcqPct    = totalPages > 0 ? Math.round((mcqDoneCount / totalPages) * 100) : 0;
-  const dueItems  = getDueItems().filter(b => b.chapterId === lessonId);
-  const allBucketsForLesson = getAllBuckets().filter(b => b.chapterId === lessonId);
-  const hasRevision = allBucketsForLesson.length > 0;
-  const revComplete = hasRevision && dueItems.length === 0;
-
   const notesClaimed    = isRewardClaimed(userId, lessonId, 'notes');
   const mcqClaimed      = isRewardClaimed(userId, lessonId, 'mcq');
-  const revClaimed      = isRewardClaimed(userId, lessonId, 'revision');
 
   function RewardRow({ type, label, pct, claimed, canClaim }: {
     type: RewardType; label: string; pct: number; claimed: boolean; canClaim: boolean;
@@ -405,47 +352,11 @@ function RewardTaskCard({ lessonId, lessonTitle, totalPages, userId, onClaim }: 
       <div className="px-3 py-3 space-y-2">
         <RewardRow type="notes"    label="📖 Notes Padhna" pct={notesPct}  claimed={notesClaimed} canClaim={notesPct === 100 && !notesClaimed} />
         <RewardRow type="mcq"      label="🧠 MCQ Karna"    pct={mcqPct}   claimed={mcqClaimed}   canClaim={mcqPct === 100 && !mcqClaimed} />
-        {hasRevision && (
-          <RewardRow type="revision" label="🔁 Revision Hub" pct={revComplete ? 100 : 0}
-            claimed={revClaimed} canClaim={revComplete && !revClaimed} />
-        )}
       </div>
     </div>
   );
 }
 
-// ── Reward row: yesterday's topic status + Revision Hub button ───────
-function RewardRow({
-  label, title, rewarded, onOpenRevisionHub,
-}: {
-  label: string; title: string; rewarded: boolean; onOpenRevisionHub: () => void;
-}) {
-  return (
-    <div className={`rounded-xl border p-3 ${rewarded ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-          <p className={`text-xs font-black truncate ${rewarded ? 'text-emerald-700' : 'text-amber-700'}`}>{title}</p>
-        </div>
-      </div>
-      {rewarded ? (
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-bold text-emerald-700">✅ Complete! +10🪙 mil gaye</p>
-          <button
-            onClick={onOpenRevisionHub}
-            className="shrink-0 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-[11px] font-black active:scale-95 transition"
-          >
-            Revision Hub →
-          </button>
-        </div>
-      ) : (
-        <p className="mt-2 text-[11px] font-bold text-amber-700">
-          ⏳ Abhi complete nahi hua — yehi lesson aaj bhi padhna hoga. Jab tak complete na ho, naya reward nahi milega.
-        </p>
-      )}
-    </div>
-  );
-}
 
 // ── Lesson row for Subjects tab ───────────────────────────────────────────────
 function LessonDetailRow({ lesson, idx, isCurrent, mcqHistory }: {
@@ -843,13 +754,7 @@ function TrackingView({ subjectGroups, subjects, mcqHistory }: {
                   // ── Lesson % computation ──────────────────────────────────────
                   const pageAvgPct  = getLessonPageAvgPercent(lesson.id, tp);   // current avg
                   const bestAvgPct  = getLessonBestPageAvgPercent(lesson.id, tp); // best avg
-                  const revHubPct   = getLessonRevHubPercent(lesson.id);         // revision hub
-                  // Combined lesson %: 60% page MCQ + 40% revision hub (if both present)
-                  const lessonPct: number | null = pageAvgPct !== null
-                    ? (revHubPct !== null
-                        ? Math.round(0.6 * pageAvgPct + 0.4 * revHubPct)
-                        : pageAvgPct)
-                    : revHubPct;
+                  const lessonPct: number | null = pageAvgPct;
 
                   const pctColor = (p: number) =>
                     p >= 80 ? 'text-emerald-600' : p >= 50 ? 'text-amber-500' : 'text-red-500';
@@ -915,17 +820,11 @@ function TrackingView({ subjectGroups, subjects, mcqHistory }: {
                                     </div>
                                     <span className={`text-sm font-black ${pctColor(lessonPct)}`}>{lessonPct}%</span>
                                   </div>
-                                  <div className="grid grid-cols-3 gap-2 text-center">
+                                  <div className="grid grid-cols-2 gap-2 text-center">
                                     <div className="bg-white/70 rounded-lg py-1.5 px-1">
                                       <p className="text-[8px] text-slate-400 font-medium">Page MCQ</p>
                                       <p className={`text-xs font-black ${pageAvgPct !== null ? pctColor(pageAvgPct) : 'text-slate-300'}`}>
                                         {pageAvgPct !== null ? `${pageAvgPct}%` : '—'}
-                                      </p>
-                                    </div>
-                                    <div className="bg-white/70 rounded-lg py-1.5 px-1">
-                                      <p className="text-[8px] text-slate-400 font-medium">Revision Hub</p>
-                                      <p className={`text-xs font-black ${revHubPct !== null ? pctColor(revHubPct) : 'text-slate-300'}`}>
-                                        {revHubPct !== null ? `${revHubPct}%` : '—'}
                                       </p>
                                     </div>
                                     <div className="bg-white/70 rounded-lg py-1.5 px-1">
@@ -1772,10 +1671,9 @@ interface MyRoutineProps {
   lucentNotes?: any[];
   onBack: () => void;
   onUserUpdate?: (u: any) => void;
-  onOpenRevisionHubDiscounted?: (lessonId: string) => void;
 }
 
-export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onOpenRevisionHubDiscounted }) => {
+export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate }) => {
   const userId = user?.id || 'guest';
   const mcqHistory: any[] = user?.mcqHistory || [];
   const subTier: UserSubTier = getUserSubTier(user);
@@ -1936,7 +1834,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         cats[ci] = cat;
       }
       let next = { ...prev, coins: prev.coins + LESSON_COMPLETE_REWARD, routineCategories: cats };
-      next = unlockRevisionLesson(next, lessonId);
       return next;
     });
     const note = allNotes.find(n => n.id === lessonId);
@@ -2195,12 +2092,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
               <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${data.enabled ? 'left-7' : 'left-0.5'}`} />
             </button>
           </div>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5">
-            <div className="flex items-center gap-2 mb-1"><Zap size={13} className="text-indigo-600 shrink-0" /><p className="text-xs font-black text-indigo-700">Revision Hub</p></div>
-            <p className="text-[11px] text-indigo-600 font-medium">
-              {data.enabled ? '✅ Lesson complete → Hub unlock' : `⚠️ Routine OFF → Hub MCQ = ${REVISION_HUB_MCQ_COST_NO_ROUTINE}🪙`}
-            </p>
-          </div>
         </div>
 
         {/* Tabs */}
@@ -2278,11 +2169,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                         meta={meta}
                         mcqHistory={mcqHistory}
                         onLessonComplete={(lid) => handleCategoryLessonComplete(cat.id, lid)}
-                      />
-                      <RevisionHubDueBlock
-                        lessonId={lesson.id}
-                        lessonTitle={lesson.lessonTitle || `Lesson ${safeIdx + 1}`}
-                        onOpenRevisionHub={onOpenRevisionHubDiscounted ? () => onOpenRevisionHubDiscounted(lesson.id) : undefined}
                       />
                     </div>
                   );
