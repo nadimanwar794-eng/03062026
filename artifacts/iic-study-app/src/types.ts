@@ -988,6 +988,7 @@ export interface SystemSettings {
     mode: 'AUTO' | 'MANUAL';
     rewardPercentage: number;
     selectedChapterIds?: string[];
+    autoChallengeEnabled?: boolean; // true = popup auto-triggers daily; false = admin ne band kar diya
   };
   themeConfig?: {
     freeTheme: 'BASIC' | 'ULTRA' | 'DARK' | 'LIGHT';

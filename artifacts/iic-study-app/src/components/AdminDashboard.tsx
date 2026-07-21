@@ -11740,6 +11740,34 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               <div className="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-3xl border border-red-100 space-y-4">
                   <h4 className="font-bold text-red-900 flex items-center gap-2 text-lg"><Trophy size={20} /> Daily MCQ Challenge</h4>
 
+                  {/* AUTO-TRIGGER MASTER TOGGLE */}
+                  <div className="bg-white p-4 rounded-xl border border-red-100 shadow-sm flex items-center justify-between gap-4">
+                      <div>
+                          <p className="font-bold text-slate-800 text-sm">Auto Daily Challenge (Master Switch)</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                              {localSettings.dailyChallengeConfig?.autoChallengeEnabled !== false
+                                  ? "✅ ON — Students ko roz login pe challenge popup aayega apne aap"
+                                  : "❌ OFF — Popup band hai, koi bhi student ko auto challenge nahi aayega"}
+                          </p>
+                      </div>
+                      <button
+                          onClick={() => setLocalSettings({
+                              ...localSettings,
+                              dailyChallengeConfig: {
+                                  ...(localSettings.dailyChallengeConfig || { mode: 'AUTO', rewardPercentage: 90 }),
+                                  autoChallengeEnabled: localSettings.dailyChallengeConfig?.autoChallengeEnabled === false ? true : false
+                              }
+                          })}
+                          className={`flex-shrink-0 relative inline-flex h-7 w-12 items-center rounded-full transition-colors shadow-inner ${
+                              localSettings.dailyChallengeConfig?.autoChallengeEnabled !== false ? 'bg-green-500' : 'bg-slate-300'
+                          }`}
+                      >
+                          <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                              localSettings.dailyChallengeConfig?.autoChallengeEnabled !== false ? 'translate-x-6' : 'translate-x-1'
+                          }`} />
+                      </button>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-white p-4 rounded-xl border border-red-100 shadow-sm">
                           <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Reward Condition</label>

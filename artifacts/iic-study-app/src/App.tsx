@@ -53,6 +53,7 @@ import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
 import { HomeStatsToast } from './components/HomeStatsToast';
 import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
+import { DailyChallengePopup } from './components/DailyChallengePopup';
 import { recordCreditTx } from './utils/creditHistory';
 import { buildAutoMixQuestions, generateDailyChallengeQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -1809,7 +1810,13 @@ const App: React.FC = () => {
             queue.push('TRACKER');
         }
 
-        // 2. Welcome/Promo Popup - DISABLED
+        // 2. Daily Challenge — auto-trigger every day (sirf tab jab admin ne enable kiya ho)
+        // Default: enabled (agar admin ne kabhi set nahi kiya to bhi chalta hai)
+        const autoChallengeOn = state.settings.dailyChallengeConfig?.autoChallengeEnabled !== false;
+        const lastChallengeDate = localStorage.getItem('nst_last_daily_challenge_date');
+        if (autoChallengeOn && lastChallengeDate !== new Date().toDateString()) {
+            queue.push('CHALLENGE');
+        }
 
         if (queue.length > 0) setPopupQueue(queue);
 
@@ -3669,7 +3676,7 @@ const App: React.FC = () => {
       )}
       
       {/* POPUP QUEUE MANAGER */}
-      {/* {popupQueue.length > 0 && !showPremiumModal && !activeWeeklyTest && (
+      {popupQueue.length > 0 && !showPremiumModal && !activeWeeklyTest && (
           <>
             {popupQueue[0] === 'CHALLENGE' && (
                 <DailyChallengePopup
@@ -3679,7 +3686,7 @@ const App: React.FC = () => {
                 />
             )}
           </>
-      )} */}
+      )}
 
       {lastTestResult && state.user && (
         <Suspense fallback={null}>
