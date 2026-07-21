@@ -9909,6 +9909,7 @@ export const StudentDashboard: React.FC<Props> = ({
           onUserUpdate={handleUserUpdate}
           onBack={() => onTabChange('HOME')}
           themeColor={(tierTheme as any).primary}
+          tierTheme={tierTheme}
           renderEarnContent={
             isGameEnabled
               ? user.isGameBanned
@@ -16613,7 +16614,7 @@ export const StudentDashboard: React.FC<Props> = ({
               ? ""
               : activeTab === "HOME"
                 ? "px-4 pt-1 pb-20"
-                : activeTab === "PROFILE"
+                : activeTab === "PROFILE" || activeTab === "STORE"
                   ? "p-0"
                   : "p-4 pb-20"
         }`}

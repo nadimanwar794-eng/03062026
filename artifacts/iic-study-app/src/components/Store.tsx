@@ -26,6 +26,7 @@ interface Props {
   renderEarnContent?: React.ReactNode;
   onBack?: () => void;
   themeColor?: string;
+  tierTheme?: any;
 }
 
 /* ─── Fixed color palette ─── */
@@ -259,7 +260,9 @@ function DailyClaimCard({ userId, user: u, onUpdateUser }: { userId: string; use
   );
 }
 
-export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEarnContent, onBack }) => {
+export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEarnContent, onBack, tierTheme }) => {
+  const dynBg      = (tierTheme as any)?.flashcardBg1 || C.bg;
+  const dynSurface = (tierTheme as any)?.flashcardBg2 || C.surface;
   const [tierType, setTierType] = useState<'BASIC' | 'ULTRA' | 'EARN' | 'CREDITS' | 'HISTORY'>('BASIC');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
@@ -474,7 +477,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
   /* ── Store locked ── */
   if (settings?.isPaymentEnabled === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: C.bg }}>
+      <div className="min-h-[100dvh] flex items-center justify-center px-6" style={{ background: dynBg }}>
         <div className="rounded-3xl p-10 text-center max-w-sm w-full" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: C.surfaceHigh }}>
             <Lock size={30} color={C.textMuted} />
@@ -489,7 +492,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
   }
 
   return (
-    <div className="min-h-screen pb-32 animate-in fade-in duration-300" style={{ background: C.bg }}>
+    <div className="min-h-[100dvh] pb-32 animate-in fade-in duration-300" style={{ background: dynBg }}>
 
       {/* ── SUPPORT MODAL ── */}
       {showSupportModal && (
@@ -694,7 +697,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
       })()}
 
       {/* ══════════ HERO HEADER ══════════ */}
-      <div className="relative overflow-hidden" style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+      <div className="relative overflow-hidden" style={{ background: dynSurface, borderBottom: `1px solid ${C.border}` }}>
         {/* Ambient glow blobs */}
         <div className="absolute -top-10 -left-10 w-48 h-48 rounded-full pointer-events-none"
           style={{ background: isPro ? 'rgba(34,211,238,0.07)' : 'rgba(192,132,252,0.07)', filter: 'blur(40px)' }} />
@@ -754,11 +757,10 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                 })}
                 {/* History tab */}
                 <button onClick={() => setTierType('HISTORY')}
-                  className="py-3 rounded-2xl font-black transition-all flex flex-col items-center gap-1 relative overflow-hidden"
+                  className="py-2.5 rounded-2xl font-black transition-all flex items-center justify-center relative overflow-hidden"
                   style={tierType === 'HISTORY'
                     ? { background: 'rgba(251,191,36,0.10)', border: `2px solid rgba(251,191,36,0.35)`, boxShadow: '0 0 14px rgba(251,191,36,0.18)' }
                     : { background: C.surfaceHigh, border: `1.5px solid ${C.border}` }}>
-                  <span className="text-lg leading-none">📋</span>
                   <span className="text-[11px]" style={{ color: tierType === 'HISTORY' ? C.gold : C.textMuted }}>History</span>
                 </button>
               </div>
