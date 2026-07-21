@@ -10983,7 +10983,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       )}
 
       {activeTab === 'CHALLENGE_CREATOR_20' && (
-          <ChallengeCreator20 onBack={() => setActiveTab('DASHBOARD')} language={localSettings.aiModel?.includes('Hindi') ? 'Hindi' : 'English'} />
+          <ChallengeCreator20
+              onBack={() => setActiveTab('DASHBOARD')}
+              language={localSettings.aiModel?.includes('Hindi') ? 'Hindi' : 'English'}
+              autoChallengeEnabled={localSettings.dailyChallengeConfig?.autoChallengeEnabled !== false}
+              onToggleAutoChallenge={() => {
+                  const updated = {
+                      ...localSettings,
+                      dailyChallengeConfig: {
+                          ...(localSettings.dailyChallengeConfig || { mode: 'AUTO', rewardPercentage: 90 }),
+                          autoChallengeEnabled: localSettings.dailyChallengeConfig?.autoChallengeEnabled === false ? true : false
+                      }
+                  };
+                  setLocalSettings(updated);
+                  handleSaveSettings(updated);
+              }}
+          />
       )}
 
       {activeTab === 'CONFIG_CHALLENGE' && (

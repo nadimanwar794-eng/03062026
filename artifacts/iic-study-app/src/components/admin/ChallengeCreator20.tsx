@@ -11,9 +11,11 @@ import { Sparkles, Trophy, Calendar, Save, RefreshCw, Plus, Layers, Trash2, Hist
 interface Props {
   onBack: () => void;
   language: 'English' | 'Hindi';
+  autoChallengeEnabled?: boolean;
+  onToggleAutoChallenge?: () => void;
 }
 
-export const ChallengeCreator20: React.FC<Props> = ({ onBack, language }) => {
+export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChallengeEnabled, onToggleAutoChallenge }) => {
   const [viewMode, setViewMode] = useState<'CREATE' | 'HISTORY'>('CREATE');
   const [pastChallenges, setPastChallenges] = useState<Challenge20[]>([]);
 
@@ -281,19 +283,39 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language }) => {
               </div>
 
               {viewMode === 'CREATE' && (
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                     <button
-                        onClick={() => setType('DAILY_CHALLENGE')}
-                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${type === 'DAILY_CHALLENGE' ? 'bg-white shadow text-red-600' : 'text-slate-600'}`}
-                     >
-                        Daily Challenge
-                     </button>
-                     <button
-                        onClick={() => setType('WEEKLY_TEST')}
-                        className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${type === 'WEEKLY_TEST' ? 'bg-white shadow text-blue-600' : 'text-slate-600'}`}
-                     >
-                        Weekly Test
-                     </button>
+                  <div className="flex items-center gap-3 flex-wrap">
+                     <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button
+                           onClick={() => setType('DAILY_CHALLENGE')}
+                           className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${type === 'DAILY_CHALLENGE' ? 'bg-white shadow text-red-600' : 'text-slate-600'}`}
+                        >
+                           Daily Challenge
+                        </button>
+                        <button
+                           onClick={() => setType('WEEKLY_TEST')}
+                           className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${type === 'WEEKLY_TEST' ? 'bg-white shadow text-blue-600' : 'text-slate-600'}`}
+                        >
+                           Weekly Test
+                        </button>
+                     </div>
+
+                     {/* AUTO-TRIGGER TOGGLE — sirf Daily Challenge tab pe dikhega */}
+                     {type === 'DAILY_CHALLENGE' && onToggleAutoChallenge && (
+                         <button
+                             onClick={onToggleAutoChallenge}
+                             title={autoChallengeEnabled !== false ? "Auto popup ON — tap to turn OFF" : "Auto popup OFF — tap to turn ON"}
+                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold border-2 transition-all ${
+                                 autoChallengeEnabled !== false
+                                     ? 'bg-green-50 border-green-400 text-green-700'
+                                     : 'bg-slate-100 border-slate-300 text-slate-500'
+                             }`}
+                         >
+                             <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${autoChallengeEnabled !== false ? 'bg-green-500' : 'bg-slate-300'}`}>
+                                 <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${autoChallengeEnabled !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                             </span>
+                             Auto Trigger {autoChallengeEnabled !== false ? 'ON' : 'OFF'}
+                         </button>
+                     )}
                   </div>
               )}
           </div>
