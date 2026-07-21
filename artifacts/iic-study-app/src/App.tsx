@@ -54,7 +54,7 @@ import { CreditToast } from './components/CreditToast';
 import { HomeStatsToast } from './components/HomeStatsToast';
 import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
 import { recordCreditTx } from './utils/creditHistory';
-import { buildAutoMixQuestions } from './utils/challengeGenerator';
+import { buildAutoMixQuestions, generateDailyChallengeQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
@@ -2895,72 +2895,73 @@ const App: React.FC = () => {
   };
 
   const handleStartDailyChallenge = async () => {
-      // 1. Generate Questions — no AI, pulls from completed lessons + revision hub
+      // Generate Questions — pulls from full syllabus (all chapters) + globalChallengeMcq pool
+      // Same seed (date+board+class) ensures ALL users get IDENTICAL questions → fair leaderboard
       if (!state.user) return;
 
       const config = state.settings.dailyChallengeConfig || { rewardPercentage: 90, mode: 'AUTO', selectedChapterIds: [] };
-      const questions = buildAutoMixQuestions(
+
+      const result = await generateDailyChallengeQuestions(
           state.user.classLevel || '10',
-          state.user.board || 'CBSE',
+          state.user.board || 'BSEB',
           state.user.stream || null,
-          'DAILY',
-          config.selectedChapterIds || []
+          state.settings,
+          state.user.id,
+          'DAILY'
       );
 
-      if (questions.length === 0) {
-          setAlertConfig({isOpen: true, message: "Koi completed lesson nahi mila. Pehle kuch chapters padho!"});
+      if (!result || result.questions.length === 0) {
+          setAlertConfig({isOpen: true, message: "Aaj ka challenge abhi available nahi hai. Admin se contact karo ya baad mein try karo!"});
           handlePopupClose('CHALLENGE');
           return;
       }
 
-      // 2. Create Test Object — 50 questions, 30 min
-      const testId = `daily-challenge-${Date.now()}`;
+      // Create Test Object — reuse consistent challenge ID (date+board+class) for leaderboard grouping
       const test: WeeklyTest = {
-          id: testId,
-          name: `Daily Challenge (${new Date().toLocaleDateString()})`,
-          description: "Aaj ke 50 sawaal — completed lessons + revision hub se!",
+          id: result.id,
+          name: result.name,
+          description: "Aaj ke sawaal — syllabus ke sabhi chapters se!",
           isActive: true,
           classLevel: state.user.classLevel || '10',
-          questions: questions,
-          totalQuestions: questions.length,
-          passingScore: Math.ceil((config.rewardPercentage / 100) * questions.length),
+          questions: result.questions,
+          totalQuestions: result.questions.length,
+          passingScore: Math.ceil((config.rewardPercentage / 100) * result.questions.length),
           createdAt: new Date().toISOString(),
-          durationMinutes: 30,
+          durationMinutes: result.durationMinutes,
           autoSubmitEnabled: true
       };
 
-      // 3. Set Active Test
       setActiveWeeklyTest(test);
-
-      // 4. Mark as Seen and Close Popup
       localStorage.setItem('nst_last_daily_challenge_date', new Date().toDateString());
       setPopupQueue(prev => prev.slice(1));
   };
 
-  /** Sunday Weekly Auto-Trigger — 100 questions from completed lessons + revision hub */
-  const handleStartWeeklyAutoChallenge = () => {
+  /** Sunday Weekly Auto-Trigger — 100 questions from full syllabus (all chapters) */
+  const handleStartWeeklyAutoChallenge = async () => {
       if (!state.user) return;
-      const questions = buildAutoMixQuestions(
+      const result = await generateDailyChallengeQuestions(
           state.user.classLevel || '10',
-          state.user.board || 'CBSE',
+          state.user.board || 'BSEB',
           state.user.stream || null,
+          state.settings,
+          state.user.id,
           'WEEKLY'
       );
-      if (questions.length === 0) {
-          setAlertConfig({isOpen: true, message: "Weekly test ke liye koi completed lesson nahi mila. Pehle kuch chapters padho!"});
+      if (!result || result.questions.length === 0) {
+          setAlertConfig({isOpen: true, message: "Weekly test ke liye sawaal available nahi hai. Admin se contact karo!"});
           return;
       }
       const test: WeeklyTest = {
-          id: `weekly-auto-${Date.now()}`,
-          name: `Weekly Test — ${new Date().toLocaleDateString()}`,
-          description: "Sunday ka weekly mega test — 100 sawaal completed lessons se!",
+          id: result.id,
+          name: result.name,
+          description: "Is hafte ka mega test — syllabus ke sabhi chapters se!",
           isActive: true,
           classLevel: state.user.classLevel || '10',
-          questions: questions,
-          totalQuestions: questions.length,
-          passingScore: Math.ceil(0.6 * questions.length),
+          questions: result.questions,
+          totalQuestions: result.questions.length,
+          passingScore: Math.ceil(0.6 * result.questions.length),
           createdAt: new Date().toISOString(),
-          durationMinutes: 60,
+          durationMinutes: result.durationMinutes,
           autoSubmitEnabled: true
       };
       setActiveWeeklyTest(test);

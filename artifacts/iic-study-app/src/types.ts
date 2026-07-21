@@ -1389,6 +1389,7 @@ export interface LeaderboardEntry {
     total: number;
     date: string;
     topic: string;
+    challengeId?: string; // Shared challenge ID for fair leaderboard comparison
 }
 
 export interface ActivityLogEntry {
