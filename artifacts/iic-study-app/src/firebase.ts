@@ -2673,6 +2673,55 @@ export const getAppFeedbacks = async (): Promise<AppFeedbackEntry[]> => {
   }
 };
 
+// ─── Daily Challenge Leaderboard ─────────────────────────────────────────────
+
+export interface DailyChallengeEntry {
+    userId: string;
+    userName: string;
+    classLevel: string;
+    score: number;          // correct answers
+    totalQuestions: number;
+    percentage: number;     // 0-100
+    timeTakenSeconds: number;
+    submittedAt: string;    // ISO
+    date: string;           // YYYY-MM-DD
+}
+
+/** Save (or overwrite) a user's daily challenge score for a given date. */
+export const saveDailyChallengeScore = async (entry: DailyChallengeEntry): Promise<void> => {
+    try {
+        const dateKey = `${entry.date}_${entry.classLevel}`;
+        await setDoc(
+            doc(db, 'daily_challenge_leaderboard', dateKey, 'scores', entry.userId),
+            sanitizeForFirestore(entry)
+        );
+    } catch (e) { console.error('saveDailyChallengeScore error:', e); }
+};
+
+/** Fetch all entries for a date + class, sorted by percentage desc.
+ *  Returns the full sorted list so the caller can find any user's rank. */
+export const getDailyChallengeLeaderboard = async (
+    date: string,
+    classLevel: string
+): Promise<DailyChallengeEntry[]> => {
+    try {
+        const dateKey = `${date}_${classLevel}`;
+        const snap = await getDocs(collection(db, 'daily_challenge_leaderboard', dateKey, 'scores'));
+        if (snap.empty) return [];
+        const entries = snap.docs.map(d => d.data() as DailyChallengeEntry);
+        // Primary sort: percentage desc; secondary: timeTaken asc (faster = better)
+        entries.sort((a, b) =>
+            b.percentage !== a.percentage
+                ? b.percentage - a.percentage
+                : a.timeTakenSeconds - b.timeTakenSeconds
+        );
+        return entries;
+    } catch (e) {
+        console.error('getDailyChallengeLeaderboard error:', e);
+        return [];
+    }
+};
+
 export { app, db, rtdb, auth };
 
 export const updateUserUID = async (oldUid: string, newUid: string, userData: any) => {

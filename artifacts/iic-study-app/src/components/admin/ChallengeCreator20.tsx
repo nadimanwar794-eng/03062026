@@ -193,7 +193,7 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language }) => {
           // Pull from completed lessons + revision hub (no AI)
           const mixed = buildAutoMixQuestions(
               classLevel,
-              'CBSE',   // board not tracked here; auto-prefix picks up all boards
+              null,   // null = scan all boards for this class level
               null,
               type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY'
           );

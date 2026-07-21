@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 
 import { 
   ClassLevel, Subject, Chapter, AppState, Board, Stream, User, ContentType, SystemSettings, ActivityLogEntry, WeeklyTest, LessonContent, ActiveSubscription, InboxMessage
 } from './types';
-import { getChapterData, saveChapterData, checkFirebaseConnection, saveTestResult, saveUserToLive, updateUserStatus, getUserData, subscribeToSettings, subscribeToUser, auth, savePublicActivity, saveUserHistory, getUserSavedNotes, rtdb, db } from './firebase';
+import { getChapterData, saveChapterData, checkFirebaseConnection, saveTestResult, saveUserToLive, updateUserStatus, getUserData, subscribeToSettings, subscribeToUser, auth, savePublicActivity, saveUserHistory, getUserSavedNotes, rtdb, db, saveDailyChallengeScore } from './firebase';
 import { ref as rtdbRef, set as rtdbSet } from 'firebase/database';
 import { doc as fsDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { storage } from './utils/storage';
@@ -52,6 +52,7 @@ import { logErrorToFirebase, setErrorLoggerUser } from './utils/errorLogger';
 import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
 import { HomeStatsToast } from './components/HomeStatsToast';
+import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
 import { recordCreditTx } from './utils/creditHistory';
 import { buildAutoMixQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -691,6 +692,7 @@ const App: React.FC = () => {
   }, []);
   const [lastTestResult, setLastTestResult] = useState<MCQResult | null>(null);
   const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null); // NEW: For granular analysis
+  const [showDailyRankCard, setShowDailyRankCard] = useState(false);
   const [pendingSessionSummary, setPendingSessionSummary] = useState<SessionCompletePayload | null>(null);
   // Grouped sessions — 2+ activities ek saath HOME pe aane pe
   const [groupedSessions, setGroupedSessions] = useState<SessionCompletePayload[]>([]);
@@ -1811,7 +1813,16 @@ const App: React.FC = () => {
 
         if (queue.length > 0) setPopupQueue(queue);
 
-        // 3. Sunday Weekly Auto-Trigger — 100 questions from completed lessons
+        // 3. Yesterday's Daily Challenge Rank Card
+        const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
+        const lastCompleted = localStorage.getItem('nst_last_daily_challenge_completed');
+        const rankShownKey = `nst_rank_shown_${yesterday}`;
+        if (lastCompleted === yesterday && !localStorage.getItem(rankShownKey)) {
+            localStorage.setItem(rankShownKey, '1');
+            setTimeout(() => setShowDailyRankCard(true), 800);
+        }
+
+        // 4. Sunday Weekly Auto-Trigger — 100 questions from completed lessons
         const isSunday = new Date().getDay() === 0;
         const lastWeeklyAuto = localStorage.getItem('nst_last_weekly_auto_date');
         if (isSunday && lastWeeklyAuto !== new Date().toDateString()) {
@@ -2706,6 +2717,27 @@ const App: React.FC = () => {
     // 2. Firestore Sync (So Admin can see)
     await saveTestResult(state.user.id, attempt);
 
+    // 3. Daily Challenge Leaderboard — save score so rank can be shown tomorrow
+    const isDailyChallengeAttempt = activeWeeklyTest.id.startsWith('daily-challenge-') || activeWeeklyTest.id.startsWith('weekly-auto-');
+    if (isDailyChallengeAttempt && !state.originalAdmin) {
+        const today = new Date().toISOString().split('T')[0];
+        const timeTakenStr = localStorage.getItem(`weekly_test_start_${activeWeeklyTest.id}`);
+        const timeTaken = timeTakenStr ? Math.round((Date.now() - parseInt(timeTakenStr)) / 1000) : 0;
+        saveDailyChallengeScore({
+            userId: state.user.id,
+            userName: state.user.name || 'Student',
+            classLevel: state.user.classLevel || '10',
+            score,
+            totalQuestions: total,
+            percentage: Math.round((score / total) * 100),
+            timeTakenSeconds: timeTaken,
+            submittedAt: new Date().toISOString(),
+            date: today,
+        });
+        // Mark that user has taken today's challenge (for rank card tomorrow)
+        localStorage.setItem('nst_last_daily_challenge_completed', today);
+    }
+
     logActivity("TEST_SUBMIT", `Completed ${activeWeeklyTest.name} with score ${score}/${total}`);
 
     // REWARD LOGIC
@@ -2714,8 +2746,8 @@ const App: React.FC = () => {
 
     // NEW RULE BASED LOGIC
     const percentage = (score / total) * 100;
-    const isDaily = activeWeeklyTest.id.startsWith('daily-challenge-');
-    const category = isDaily ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST';
+    const isDailyForReward = activeWeeklyTest.id.startsWith('daily-challenge-');
+    const category = isDailyForReward ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST';
 
     // Fetch rules for this category
     const eligibleRules = (state.settings.prizeRules || [])
@@ -2747,7 +2779,7 @@ const App: React.FC = () => {
             rewardMsg = `🏆 Reward Unlocked: ${bestRule.label}`;
         }
     } else {
-        if (isDaily) {
+        if (isDailyForReward) {
              rewardMsg = `Daily Challenge Complete. Score: ${Math.round(percentage)}%.`;
         } else {
              rewardMsg = "Test Submitted!";
@@ -3413,6 +3445,15 @@ const App: React.FC = () => {
                           />
                         </ErrorBoundary>
                     )
+                )}
+
+                {/* Daily Challenge Rank Card — shown next day after completing daily challenge */}
+                {showDailyRankCard && state.user && (
+                    <DailyChallengeRankCard
+                        userId={state.user.id}
+                        classLevel={state.user.classLevel || '10'}
+                        onClose={() => setShowDailyRankCard(false)}
+                    />
                 )}
                 
                 {(!activeWeeklyTest && state.view === 'BOARDS') && (

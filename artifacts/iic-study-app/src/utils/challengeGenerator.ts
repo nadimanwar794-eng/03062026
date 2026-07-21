@@ -22,7 +22,7 @@ function _shuffle<T>(arr: T[]): T[] {
  */
 export const buildAutoMixQuestions = (
   classLevel: ClassLevel,
-  board: Board,
+  board: Board | null,
   stream: Stream | null,
   mode: 'DAILY' | 'WEEKLY' = 'DAILY',
   selectedChapterIds: string[] = []
@@ -33,7 +33,10 @@ export const buildAutoMixQuestions = (
 
   // ── 1. Lesson content from localStorage ──────────────────────────────────
   const streamKey = (classLevel === '11' || classLevel === '12') ? `-${stream}` : '';
-  const autoPrefix = `nst_content_${board}_${classLevel}${streamKey}`;
+  // When board is null (e.g. admin Auto Mix), scan across all boards for this class
+  const autoPrefix = board
+    ? `nst_content_${board}_${classLevel}${streamKey}`
+    : `nst_content_`;
   const selectedSet = new Set(selectedChapterIds);
 
   for (let i = 0; i < localStorage.length; i++) {
@@ -46,8 +49,10 @@ export const buildAutoMixQuestions = (
       const chId = parts[parts.length - 1];
       if (!selectedSet.has(chId)) continue;
     } else {
-      // Auto mode — match current class/board prefix
+      // Auto mode — match prefix (board-specific or all-boards)
       if (!key.startsWith(autoPrefix)) continue;
+      // When scanning all boards, still filter by class level embedded in key
+      if (!board && !key.includes(`_${classLevel}_`) && !key.includes(`_${classLevel}-`)) continue;
     }
 
     try {
