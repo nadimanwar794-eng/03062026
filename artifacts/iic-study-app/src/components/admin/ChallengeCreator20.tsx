@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { Challenge20, ClassLevel, MCQItem, Subject } from '../../types';
 import { fetchLessonContent } from '../../services/groq';
 import { parseMCQText } from '../../utils/mcqParser';
-import { saveChallenge20, saveQuestionsToBank, fetchRandomQuestionsFromBank, getAllChallenges, deleteChallenge20 } from '../../services/questionBank';
+import { saveChallenge20, saveQuestionsToBank, getAllChallenges, deleteChallenge20 } from '../../services/questionBank';
+import { buildAutoMixQuestions } from '../../utils/challengeGenerator';
 import { DEFAULT_SUBJECTS, getSubjectsList } from '../../constants';
 import { Sparkles, Trophy, Calendar, Save, RefreshCw, Plus, Layers, Trash2, History } from 'lucide-react';
 
@@ -189,28 +190,20 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language }) => {
   const handlePreviewAuto = async () => {
       setLoading(true);
       try {
-          const bankQuestions = await fetchRandomQuestionsFromBank(classLevel, autoCount);
+          // Pull from completed lessons + revision hub (no AI)
+          const mixed = buildAutoMixQuestions(
+              classLevel,
+              'CBSE',   // board not tracked here; auto-prefix picks up all boards
+              null,
+              type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY'
+          );
 
-          // Also fetch questions from past challenges to mix them
-          const allPastChallenges = await getAllChallenges();
-          const pastQuestions = allPastChallenges
-              .filter(c => c.classLevel === classLevel)
-              .flatMap(c => c.questions);
-
-          // Deduplicate based on question text to avoid same questions
-          const combined = [...bankQuestions, ...pastQuestions];
-          const uniqueQuestionsMap = new Map();
-          combined.forEach(q => {
-              uniqueQuestionsMap.set(q.question.trim().toLowerCase(), q);
-          });
-
-          let finalPool = Array.from(uniqueQuestionsMap.values());
+          // Override count with admin-chosen autoCount
+          const finalPool = mixed.slice(0, autoCount);
 
           if (finalPool.length === 0) {
-              alert("No questions in bank or past challenges for this class yet! Use AI or Import Mode first.");
+              alert("Koi completed lesson nahi mila! Pehle students kuch chapters padhen.");
           } else {
-              // Shuffle and slice to the required count
-              finalPool = finalPool.sort(() => 0.5 - Math.random()).slice(0, autoCount);
               setQuestions(finalPool);
               setStep('PREVIEW');
           }

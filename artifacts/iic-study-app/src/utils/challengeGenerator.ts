@@ -1,6 +1,103 @@
 import { ClassLevel, Board, Stream, MCQItem, SystemSettings } from '../types';
 import { getSubjectsList } from '../constants';
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+function _shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * buildAutoMixQuestions
+ * ---------------------
+ * Collects MCQs from two sources — without any AI call:
+ *   1. Completed lesson content stored in `nst_content_*` localStorage keys
+ *      (manualMcqData, weeklyTestMcqData, mcqData fields)
+ *   2. Wrong-answer history in the Revision Hub (`nst_revision_tracker_v2`)
+ *
+ * Returns a shuffled, deduplicated pool trimmed to `totalTarget` questions.
+ */
+export const buildAutoMixQuestions = (
+  classLevel: ClassLevel,
+  board: Board,
+  stream: Stream | null,
+  mode: 'DAILY' | 'WEEKLY' = 'DAILY',
+  selectedChapterIds: string[] = []
+): MCQItem[] => {
+  const totalTarget = mode === 'DAILY' ? 50 : 100;
+  const usedQuestions = new Set<string>();
+  const pool: MCQItem[] = [];
+
+  // ── 1. Lesson content from localStorage ──────────────────────────────────
+  const streamKey = (classLevel === '11' || classLevel === '12') ? `-${stream}` : '';
+  const autoPrefix = `nst_content_${board}_${classLevel}${streamKey}`;
+  const selectedSet = new Set(selectedChapterIds);
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith('nst_content_')) continue;
+
+    if (selectedChapterIds.length > 0) {
+      // Manual mode — only include selected chapter IDs
+      const parts = key.split('_');
+      const chId = parts[parts.length - 1];
+      if (!selectedSet.has(chId)) continue;
+    } else {
+      // Auto mode — match current class/board prefix
+      if (!key.startsWith(autoPrefix)) continue;
+    }
+
+    try {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+      const content = JSON.parse(stored);
+      const allQs: MCQItem[] = [
+        ...(content.manualMcqData || []),
+        ...(content.weeklyTestMcqData || []),
+        ...(content.mcqData || []),
+      ];
+      allQs.forEach(q => {
+        if (!q || !q.question) return;
+        const key = q.question.trim().toLowerCase();
+        if (!usedQuestions.has(key)) {
+          pool.push(q);
+          usedQuestions.add(key);
+        }
+      });
+    } catch { /* skip corrupt entries */ }
+  }
+
+  // ── 2. Wrong-answer bank from Revision Hub ───────────────────────────────
+  try {
+    const raw = localStorage.getItem('nst_revision_tracker_v2');
+    if (raw) {
+      const trackerMap = JSON.parse(raw) as Record<string, any>;
+      Object.values(trackerMap).forEach((bucket: any) => {
+        (bucket.wrongQuestions || []).forEach((wq: any) => {
+          if (!wq.question) return;
+          const qKey = wq.question.trim().toLowerCase();
+          if (usedQuestions.has(qKey)) return;
+          if (!wq.allOptions || wq.allOptions.length < 2) return;
+          const correctIdx = wq.allOptions.indexOf(wq.correctOption);
+          if (correctIdx === -1) return;
+          pool.push({
+            question: wq.question,
+            options: wq.allOptions,
+            correctAnswer: correctIdx,
+            explanation: wq.explanation || '',
+          });
+          usedQuestions.add(qKey);
+        });
+      });
+    }
+  } catch { /* ignore */ }
+
+  return _shuffle(pool).slice(0, totalTarget);
+};
+
 export const generateDailyChallengeQuestions = async (
     classLevel: ClassLevel,
     board: Board,

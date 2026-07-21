@@ -53,7 +53,7 @@ import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
 import { HomeStatsToast } from './components/HomeStatsToast';
 import { recordCreditTx } from './utils/creditHistory';
-import { generateDailyChallengeQuestions } from './utils/challengeGenerator';
+import { buildAutoMixQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
@@ -1810,6 +1810,35 @@ const App: React.FC = () => {
         // 2. Welcome/Promo Popup - DISABLED
 
         if (queue.length > 0) setPopupQueue(queue);
+
+        // 3. Sunday Weekly Auto-Trigger — 100 questions from completed lessons
+        const isSunday = new Date().getDay() === 0;
+        const lastWeeklyAuto = localStorage.getItem('nst_last_weekly_auto_date');
+        if (isSunday && lastWeeklyAuto !== new Date().toDateString()) {
+            const weeklyQs = buildAutoMixQuestions(
+                state.user.classLevel || '10',
+                state.user.board || 'CBSE',
+                state.user.stream || null,
+                'WEEKLY'
+            );
+            if (weeklyQs.length > 0) {
+                const weeklyTest: WeeklyTest = {
+                    id: `weekly-auto-${Date.now()}`,
+                    name: `Weekly Test — ${new Date().toLocaleDateString()}`,
+                    description: "Sunday ka weekly mega test — 100 sawaal completed lessons se!",
+                    isActive: true,
+                    classLevel: state.user.classLevel || '10',
+                    questions: weeklyQs,
+                    totalQuestions: weeklyQs.length,
+                    passingScore: Math.ceil(0.6 * weeklyQs.length),
+                    createdAt: new Date().toISOString(),
+                    durationMinutes: 60,
+                    autoSubmitEnabled: true
+                };
+                localStorage.setItem('nst_last_weekly_auto_date', new Date().toDateString());
+                setTimeout(() => setActiveWeeklyTest(weeklyTest), 1500);
+            }
+        }
     }
   }, [state.user?.id, state.view, state.settings]);
 
@@ -2834,46 +2863,76 @@ const App: React.FC = () => {
   };
 
   const handleStartDailyChallenge = async () => {
-      // 1. Generate Questions
+      // 1. Generate Questions — no AI, pulls from completed lessons + revision hub
       if (!state.user) return;
 
       const config = state.settings.dailyChallengeConfig || { rewardPercentage: 90, mode: 'AUTO', selectedChapterIds: [] };
-      const questions = generateDailyChallengeQuestions(
-          state.user.board || 'CBSE',
+      const questions = buildAutoMixQuestions(
           state.user.classLevel || '10',
-          state.user.stream,
-          config.mode,
+          state.user.board || 'CBSE',
+          state.user.stream || null,
+          'DAILY',
           config.selectedChapterIds || []
       );
 
       if (questions.length === 0) {
-          setAlertConfig({isOpen: true, message: "Not enough content to generate a challenge yet. Try browsing some chapters first!"});
-          handlePopupClose('CHALLENGE'); // Close popup anyway
+          setAlertConfig({isOpen: true, message: "Koi completed lesson nahi mila. Pehle kuch chapters padho!"});
+          handlePopupClose('CHALLENGE');
           return;
       }
 
-      // 2. Create Test Object
+      // 2. Create Test Object — 50 questions, 30 min
       const testId = `daily-challenge-${Date.now()}`;
       const test: WeeklyTest = {
           id: testId,
           name: `Daily Challenge (${new Date().toLocaleDateString()})`,
-          description: "Win rewards by scoring high in this challenge!",
+          description: "Aaj ke 50 sawaal — completed lessons + revision hub se!",
           isActive: true,
           classLevel: state.user.classLevel || '10',
           questions: questions,
           totalQuestions: questions.length,
           passingScore: Math.ceil((config.rewardPercentage / 100) * questions.length),
           createdAt: new Date().toISOString(),
-          durationMinutes: 15,
+          durationMinutes: 30,
           autoSubmitEnabled: true
       };
 
-      // 3. Set Active Test (Starts the test view)
+      // 3. Set Active Test
       setActiveWeeklyTest(test);
 
       // 4. Mark as Seen and Close Popup
       localStorage.setItem('nst_last_daily_challenge_date', new Date().toDateString());
-      setPopupQueue(prev => prev.slice(1)); // Manually close popup without triggering handlePopupClose again (which sets storage too)
+      setPopupQueue(prev => prev.slice(1));
+  };
+
+  /** Sunday Weekly Auto-Trigger — 100 questions from completed lessons + revision hub */
+  const handleStartWeeklyAutoChallenge = () => {
+      if (!state.user) return;
+      const questions = buildAutoMixQuestions(
+          state.user.classLevel || '10',
+          state.user.board || 'CBSE',
+          state.user.stream || null,
+          'WEEKLY'
+      );
+      if (questions.length === 0) {
+          setAlertConfig({isOpen: true, message: "Weekly test ke liye koi completed lesson nahi mila. Pehle kuch chapters padho!"});
+          return;
+      }
+      const test: WeeklyTest = {
+          id: `weekly-auto-${Date.now()}`,
+          name: `Weekly Test — ${new Date().toLocaleDateString()}`,
+          description: "Sunday ka weekly mega test — 100 sawaal completed lessons se!",
+          isActive: true,
+          classLevel: state.user.classLevel || '10',
+          questions: questions,
+          totalQuestions: questions.length,
+          passingScore: Math.ceil(0.6 * questions.length),
+          createdAt: new Date().toISOString(),
+          durationMinutes: 60,
+          autoSubmitEnabled: true
+      };
+      setActiveWeeklyTest(test);
+      localStorage.setItem('nst_last_weekly_auto_date', new Date().toDateString());
   };
 
   const goBack = () => {
