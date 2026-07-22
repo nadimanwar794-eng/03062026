@@ -65,6 +65,10 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
         qaSessionCreditsRef.current = 0;
     }, [subjectName, chapterTitle, subTopic]);
 
+    // Review screen state — declared here so the useEffect below can reference showReview in its dep array
+    const [showReview, setShowReview] = useState(false);
+    const [sessionResult, setSessionResult] = useState<any>(null);
+
     // Reset Q&A session start time when review opens
     useEffect(() => {
         if (showReview) {
@@ -135,10 +139,6 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [userAnswers, setUserAnswers] = useState<Record<number, number>>({}); // All selected answers
     const [notesRead, setNotesRead] = useState(false); // Track if user read notes
-
-    // Review screen state
-    const [showReview, setShowReview] = useState(false);
-    const [sessionResult, setSessionResult] = useState<any>(null);
 
     // Start Q&A credit session when review screen opens, stop when it closes
     useEffect(() => {
