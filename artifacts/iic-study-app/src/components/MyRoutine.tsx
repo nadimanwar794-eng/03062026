@@ -19,6 +19,7 @@ import {
   type RoutineCategory, type RoutineCategorySubject,
 } from '../utils/routineStorage';
 import { saveUserToLive } from '../firebase';
+import { getLevelInfo } from '../utils/levelSystem';
 import {
   isRoutineMcqDone, getAutoTrackSnapshot, getRoutineMcqScore,
   getStarRating, getMistakeCount, getMaskCount, getLessonTotalTime,
@@ -1600,7 +1601,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   const userId = user?.id || 'guest';
   const mcqHistory: any[] = user?.mcqHistory || [];
   const subTier: UserSubTier = getUserSubTier(user);
-  const userLevel = user?.level || 1;
+  const userLevel = getLevelInfo(user?.totalScore || 0).level;
   const allNotes: LucentEntry[] = useMemo(() => (lucentNotes || []), [lucentNotes]);
 
   // data must be declared before routineNotes useMemo — dep array references data.routineMode
