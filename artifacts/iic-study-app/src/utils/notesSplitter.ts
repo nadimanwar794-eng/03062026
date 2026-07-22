@@ -43,7 +43,12 @@ const HEADING_LABEL_G = /📌\s*([^\n]*)/g;
 
 export function splitNoteSections(raw: string): NoteSections | null {
   if (!raw) return null;
-  if (!BOOK_LABEL_RE.test(raw) || !SMART_LABEL_RE.test(raw) || !EXPLAIN_LABEL_RE.test(raw)) return null;
+  // Require at least ONE of the three section labels — any format is accepted.
+  // Notes that have none of the three labels fall through to single-page mode.
+  const hasBook = BOOK_LABEL_RE.test(raw);
+  const hasSmart = SMART_LABEL_RE.test(raw);
+  const hasExplain = EXPLAIN_LABEL_RE.test(raw);
+  if (!hasBook && !hasSmart && !hasExplain) return null;
 
   // Collect every labelled marker in document order (not a per-block search,
   // which only ever found the FIRST 📖/📝/💡 inside a block and silently
