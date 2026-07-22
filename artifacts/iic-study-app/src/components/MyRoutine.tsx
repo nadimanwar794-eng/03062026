@@ -1193,23 +1193,17 @@ function AddCategorySheet({ allNotes, existingCategories, routineMode, selectedC
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:border-blue-400" />
         </div>
 
-        {/* Subject Search */}
-        <div className="px-4 py-2.5 shrink-0">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Subjects Chuno</p>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Book ya subject search karo..."
-            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:border-blue-400" />
+        <div className="px-4 pt-1 pb-1 shrink-0">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subjects Chuno</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {filtered.length === 0 ? (
             <div className="text-center py-10">
               <p className="text-sm font-bold text-slate-400">
-                {search
-                  ? 'Koi match nahi mila'
-                  : sourceLabel
-                    ? `${sourceLabel.replace(' dikh rahe hain', '')} mein koi notes nahi — pehle notes add karo`
-                    : 'Sab subjects already add hain!'}
+                {sourceLabel
+                  ? `${sourceLabel.replace(' dikh rahe hain', '')} mein koi notes nahi — pehle notes add karo`
+                  : 'Sab subjects already add hain!'}
               </p>
             </div>
           ) : groupEntries.map(([groupLabel, items]) => (
