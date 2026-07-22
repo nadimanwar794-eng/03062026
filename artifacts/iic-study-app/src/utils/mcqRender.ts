@@ -60,13 +60,34 @@ const renderLine = (text: string) => renderMathInHtml(inlineMd(text));
  *  1. If `q.statements` is already populated → use it (just apply markdown + math)
  *  2. Otherwise scan `q.question` line-by-line and auto-extract numbered items
  */
+// Words that signal the closing "which of the above…?" line
+const SUFFIX_TRIGGER_RE = /(?:which\s+of\s+the|उपर्युक्त|उपरोक्त|choose\s+the|select\s+the|find\s+the|निम्नलिखित\s+में\s+से|कूट)/i;
+
 export const parseMcqQuestion = (q: MCQItem): ParsedMcq => {
   // ── Case 1: statements already in data ──────────────────────────────────
+  // q.question may hold:
+  //   (a) "intro text"
+  //   (b) "intro text\n\nउपर्युक्त में से…?"
+  //   (c) "उपर्युक्त में से…?"  (no intro — happens when question starts with statements)
+  // We split it so the closing question lands in suffixHtml (shown AFTER statement boxes),
+  // not in questionHtml (shown BEFORE them).
   if (q.statements && q.statements.length > 0) {
+    const rawQ  = q.question.replace(/<br\s*\/?>/gi, '\n');
+    const qLines = rawQ.split('\n').map(l => l.trim()).filter(Boolean);
+
+    const introLines: string[] = [];
+    const suffLines:  string[] = [];
+    let inSuffix = false;
+
+    for (const line of qLines) {
+      if (!inSuffix && SUFFIX_TRIGGER_RE.test(line)) inSuffix = true;
+      (inSuffix ? suffLines : introLines).push(line);
+    }
+
     return {
-      questionHtml: renderLine(q.question),
+      questionHtml: introLines.length ? renderLine(introLines.join('<br/>')) : '',
       statements:   q.statements.map(renderLine),
-      suffixHtml:   '',
+      suffixHtml:   suffLines.length  ? renderLine(suffLines.join('<br/>'))  : '',
     };
   }
 

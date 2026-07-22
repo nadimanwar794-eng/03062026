@@ -24,6 +24,8 @@ function normalizeMcqPaste(raw: string): string {
   txt = txt.replace(/\r\n/g, '\n');
   txt = txt.replace(/^---+\s*$/gm, '');
   txt = txt.replace(/^###\s+.+$/gm, '');
+  // Remove duplicate / orphan "**सही उत्तर:" lines (those with no answer value on same line)
+  txt = txt.replace(/^[ \t]*(?:\*{1,2})?\s*सही\s*उत्तर\s*:\s*(?:\*{1,2})?\s*$/gm, '');
   txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?))/gi, '');
   txt = txt.replace(/^\s*\[(?:[⚡🔥💡🎯⭐✨🏆⚠️🌟][^\]]*?|[^\]]{1,10})\]\s*/gm, '');
   txt = txt.replace(/^\*\*\s*कूट\s*:?\s*\*?\*?\s*$/gm, '');
