@@ -17,6 +17,7 @@ export const FreeSubjectLessonPopup: React.FC<Props> = ({ isOpen, subjectName, o
       return () => clearTimeout(t);
     } else {
       setVisible(false);
+      return;
     }
   }, [isOpen]);
 
