@@ -69,6 +69,15 @@ const App: React.FC = () => {
 
   useEffect(() => { initPerfMode(); }, []);
 
+  // ── Immortal Storage: 30-din purani history cleanup (app open hone par) ──
+  // Sirf _history subcollection ki expired entries delete hoti hain.
+  // Main lesson documents KABHI delete nahi hote.
+  useEffect(() => {
+    import('./utils/lessonStorage').then(({ runHistoryCleanup }) => {
+      runHistoryCleanup();
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!isAppLoading) {
       sessionStorage.setItem('nst_has_loaded', 'true');

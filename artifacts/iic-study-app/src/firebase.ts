@@ -1674,7 +1674,7 @@ export const bulkSaveLinks = async (updates: Record<string, any>) => {
 };
 
 // 4. Chapter Data Sync (Individual)
-export const saveChapterData = async (key: string, data: any) => {
+export const saveChapterData = async (key: string, data: any, _historyMeta?: { updatedBy?: string; reason?: string }) => {
   try {
     // 1. Sanitize Data
     const sanitizedData = sanitizeForFirestore(data);
@@ -1690,6 +1690,14 @@ export const saveChapterData = async (key: string, data: any) => {
     promises.push(setDoc(doc(db, "content_data", key), sanitizedData));
     // ── Backup mirror: RTDB __backup__/content_data/{key} — never deleted ────
     promises.push(set(ref(rtdb, `__backup__/content_data/${key}`), sanitizedData));
+
+    // ── V2 Immortal Storage: har mode ka alag Firestore document ─────────────
+    // Fire-and-forget — does not block the main save. Data kabhi delete nahi hoga.
+    import('./utils/lessonStorage').then(({ saveChapterDataV2 }) => {
+      saveChapterDataV2(key, sanitizedData, _historyMeta ?? {}).catch(e =>
+        console.warn('[V2] saveChapterDataV2 failed (non-fatal):', e)
+      );
+    }).catch(() => {});
 
     // 4. Update content_index for real-time stats on home screen
     if (key.startsWith('nst_content_')) {
