@@ -16,6 +16,8 @@ import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
 import { fireSessionComplete } from '../utils/sessionNotify';
 import { renderMathInHtml } from '../utils/mathUtils';
+import { inlineMd, parseMcqQuestion } from '../utils/mcqRender';
+import McqQuestionDisplay from './McqQuestionDisplay';
 
 interface Props {
   questions: MCQItem[];
@@ -682,17 +684,13 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 </button>
               </div>
 
-              <div className="text-base font-black text-slate-800 leading-snug flex-1 mb-3"
-                dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.question) }}
-              />
-
-              {activeQ!.statements && activeQ!.statements.length > 0 && (
-                <div className="mb-3 space-y-1 pl-3 border-l-2 border-slate-200">
-                  {activeQ!.statements.map((s, i) => (
-                    <p key={i} className="text-sm text-slate-600" dangerouslySetInnerHTML={{ __html: renderMathInHtml(s) }} />
-                  ))}
-                </div>
-              )}
+              <div className="flex-1 mb-3">
+                <McqQuestionDisplay
+                  q={activeQ!}
+                  questionClassName="text-base font-black text-slate-800 leading-snug"
+                  stmtClassName="bg-indigo-50/70 border-l-4 border-indigo-300 px-3 py-2 rounded-lg text-slate-700 text-sm font-medium leading-snug"
+                />
+              </div>
 
               <button
                 type="button"
@@ -1018,7 +1016,12 @@ export const FlashcardMcqView: React.FC<Props> = ({
               <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:14, padding:'16px 20px', flexShrink:0 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
-                  <div style={{ fontSize:20, fontWeight:700, color:'#0f172a', lineHeight:1.5 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
+                  <McqQuestionDisplay
+                    q={pq}
+                    questionClassName=""
+                    variant="default"
+                    stmtClassName="bg-slate-100 border-l-4 border-indigo-400 px-4 py-2.5 rounded-lg text-slate-800 font-semibold leading-snug"
+                  />
                 </div>
               </div>
               {/* Options */}

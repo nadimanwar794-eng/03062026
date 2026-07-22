@@ -19,6 +19,7 @@ import { SpeakButton } from './SpeakButton';
 import { McqSpeakButtons } from './McqSpeakButtons';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { renderMathInHtml } from '../utils/mathUtils';
+import McqQuestionDisplay from './McqQuestionDisplay';
 import { stopSpeaking } from '../utils/ttsHighlighter';
 import { speakText, stripHtml } from '../utils/textToSpeech';
 import jsPDF from 'jspdf';
@@ -3119,14 +3120,7 @@ export const LessonView: React.FC<Props> = ({
                                                                            Skip
                                                                        </span>
                                                                    )}
-                                                                   <div dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} className="prose prose-sm max-w-none" />
-                                                                   {q.statements && q.statements.length > 0 && (
-                                                                       <div className="mt-3 mb-2 flex flex-col space-y-2">
-                                                                           {q.statements.map((stmt, sIdx) => (
-                                                                               <div key={sIdx} className="bg-slate-50/80 p-3 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-sm font-medium" dangerouslySetInnerHTML={{ __html: renderMathInHtml(stmt) }} />
-                                                                           ))}
-                                                                       </div>
-                                                                   )}
+                                                                   <McqQuestionDisplay q={q} questionClassName="prose prose-sm max-w-none" />
                                                                </div>
                                                            </div>
                                                            <div className="flex items-center gap-1.5 shrink-0">
@@ -3233,14 +3227,7 @@ export const LessonView: React.FC<Props> = ({
                                            <div className="font-bold text-slate-800 flex gap-3 leading-relaxed flex-1">
                                                <span className="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 font-bold mt-0.5">{idx + 1}</span>
                                                <div className="w-full">
-                                                   <div dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} className="prose prose-sm max-w-none" />
-                                                   {q.statements && q.statements.length > 0 && (
-                                                       <div className="mt-3 mb-2 flex flex-col space-y-2">
-                                                           {q.statements.map((stmt, sIdx) => (
-                                                               <div key={sIdx} className="bg-slate-50/80 p-3 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-sm font-medium" dangerouslySetInnerHTML={{ __html: renderMathInHtml(stmt) }} />
-                                                           ))}
-                                                       </div>
-                                                   )}
+                                                   <McqQuestionDisplay q={q} questionClassName="prose prose-sm max-w-none" />
                                                </div>
                                            </div>
                                            <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -3486,14 +3473,7 @@ export const LessonView: React.FC<Props> = ({
                                             {idx + 1}
                                         </span>
                                         <div className="font-bold text-slate-800 text-sm w-full">
-                                            <div dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }}></div>
-                                            {q.statements && q.statements.length > 0 && (
-                                                <div className="mt-2 flex flex-col space-y-2">
-                                                    {q.statements.map((stmt, sIdx) => (
-                                                        <div key={sIdx} className="bg-slate-50/80 p-2 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-xs font-medium" dangerouslySetInnerHTML={{ __html: renderMathInHtml(stmt) }} />
-                                                    ))}
-                                                </div>
-                                            )}
+                                            <McqQuestionDisplay q={q} questionClassName="text-sm" stmtClassName="bg-slate-50/80 p-2 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-xs font-medium leading-snug" />
                                         </div>
                                     </div>
                                     <div className="ml-9 space-y-1 mb-2">
