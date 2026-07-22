@@ -36,8 +36,8 @@ export const inlineMd = (s: string): string => {
 // Statement detection helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** A line is a numbered statement: "1. text", "2) text", "Statement 1: text", "कथन 1", "I. text" */
-const STMT_LINE_RE = /^(?:\d+[.)]\s+|(?:Statement|कथन|Assertion|Reason)\s*\d*\s*[:.\-)]\s*|[IVX]+[.)]\s+).+/i;
+/** A line is a numbered statement: "1. text", "2) text", "Statement 1: text", "कथन I", "कथन 1", "I. text" */
+const STMT_LINE_RE = /^(?:\d+[.)]\s+|(?:Statement|कथन|Assertion|Reason)\s*(?:[0-9IVXivx]+)?\s*[:.\-)]\s*|[IVX]+[.)]\s+).+/i;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parsed MCQ result

@@ -43,7 +43,7 @@ function extractStatements(questionText: string): { statements: string[], cleane
     const tempQuestionLines: string[] = [];
     const endingQuestionLines: string[] = [];
 
-    const statementStartRegex = /^(?:Statement\s*\d+|कथन\s*\d+|\d+[\)\.])\s*[:\-\.]?(.*)/i;
+    const statementStartRegex = /^(?:(?:Statement|कथन)\s*(?:[0-9]+|[IVXivx]+)|\d+[\)\.])\s*[:\-\.]?(.*)/i;
     const endingQuestionRegex = /^(?:which of the|उपर्युक्त|उपरोक्त|choose the|select the|find the|निम्नलिखित में से|कूट\b|कूट का|उपर्युक्त कथनों|\*\*\s*कूट)/i;
 
     for (let i = 0; i < lines.length; i++) {
