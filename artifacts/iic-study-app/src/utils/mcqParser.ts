@@ -248,8 +248,8 @@ export function parseMCQText(text: string): { questions: MCQItem[], notes: {titl
     cleanText = cleanText.slice(0, start) + cleanText.slice(end);
   }
 
-  // ── Detect if text contains simple Q1./Q2. or प्रश्न 1. format ──────────
-  const hasSimpleFormat = /^\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)]|<TOPIC:)/im.test(cleanText);
+  // ── Detect if text contains simple Q1./Q2. or **प्रश्न 1.** format ──────
+  const hasSimpleFormat = /^\s*(?:\*{0,2}\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)])|<TOPIC:)/im.test(cleanText);
 
   if (hasSimpleFormat) {
     // ── SIMPLE FORMAT PARSER ─────────────────────────────────────────────────
