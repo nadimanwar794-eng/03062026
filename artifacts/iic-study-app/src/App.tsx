@@ -2219,6 +2219,22 @@ const App: React.FC = () => {
     setLoadingContentType(type);
     if (!tempSelectedChapter || !state.user) return;
 
+    // --- FREE SUBJECT LESSON — computed once, applied in all paths below ---
+    const _fsSubjectId = state.selectedSubject?.id || '';
+    const _fsFreeMap = state.user.subjectFreeLesson || {};
+    const _fsIsFreeLessonChapter = _fsSubjectId && _fsFreeMap[_fsSubjectId] === tempSelectedChapter.id;
+    const _fsIsFirstLesson = _fsSubjectId && !_fsFreeMap[_fsSubjectId] && state.user.role !== 'ADMIN' && !state.originalAdmin;
+    const _fsGrantFree = _fsIsFreeLessonChapter || _fsIsFirstLesson;
+
+    // If this is the first lesson in the subject, record it now (before any path branches)
+    if (_fsIsFirstLesson) {
+        const _fsUpdatedMap = { ..._fsFreeMap, [_fsSubjectId]: tempSelectedChapter.id };
+        const _fsUpdatedUser = { ...state.user, subjectFreeLesson: _fsUpdatedMap };
+        setState(prev => ({ ...prev, user: _fsUpdatedUser }));
+        localStorage.setItem('nst_current_user', JSON.stringify(_fsUpdatedUser));
+        saveUserToLive(_fsUpdatedUser);
+    }
+
     // --- SPECIFIC CONTENT LAUNCH (FROM NEW DASHBOARD) ---
     if (specificContent) {
         // 1. Determine Cost (Dynamic Check from Feature Config)
@@ -2260,6 +2276,8 @@ const App: React.FC = () => {
             cost = 0;
         }
 
+        // FREE SUBJECT LESSON — first lesson in subject is fully free (all content types)
+        if (_fsGrantFree) cost = 0;
 
         // 2. Check & Deduct
         if (cost > 0 && state.user.role !== 'ADMIN' && !state.originalAdmin) {
@@ -2326,11 +2344,11 @@ const App: React.FC = () => {
         } else if (type === 'NOTES_HTML_PREMIUM') {
             actualContent = contentData?.premiumNotesHtml;
             subtitle = 'Premium Notes (Rich Text)';
-            cost = 5;
+            cost = _fsGrantFree ? 0 : 5;
         } else if (type === 'NOTES_IMAGE_AI') {
             actualContent = contentData?.aiImageLink;
             subtitle = 'AI Generated Visual Notes';
-            cost = contentData?.aiImagePrice !== undefined ? contentData.aiImagePrice : 5;
+            cost = _fsGrantFree ? 0 : (contentData?.aiImagePrice !== undefined ? contentData.aiImagePrice : 5);
         }
 
         if (!actualContent) {
@@ -2518,22 +2536,8 @@ const App: React.FC = () => {
         cost = 0;
     }
 
-    // FREE SUBJECT LESSON — check if this chapter is the user's chosen free lesson for this subject
-    const _subjectId = state.selectedSubject?.id || '';
-    const _subjectFreeMap = state.user.subjectFreeLesson || {};
-    if (_subjectId && _subjectFreeMap[_subjectId] === tempSelectedChapter.id) {
-        cost = 0;
-    }
-
-    // FREE SUBJECT LESSON — if user hasn't used their free choice yet for this subject, grant it now
-    if (_subjectId && !_subjectFreeMap[_subjectId] && state.user.role !== 'ADMIN' && !state.originalAdmin) {
-        const updatedFreeMap = { ..._subjectFreeMap, [_subjectId]: tempSelectedChapter.id };
-        const updatedUser = { ...state.user, subjectFreeLesson: updatedFreeMap };
-        setState(prev => ({ ...prev, user: updatedUser }));
-        localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
-        saveUserToLive(updatedUser);
-        cost = 0;
-    }
+    // FREE SUBJECT LESSON — apply to main path (already recorded at top of function)
+    if (_fsGrantFree) cost = 0;
 
     // --- ACCESS CONTROL LOGIC (Unified) ---
     let hasAccess = false;
