@@ -154,6 +154,7 @@ export const AdminClassMcqManager: React.FC<Props> = ({ settings, onSave }) => {
         question: (q.question || '').replace(/<br\/?>/g, '\n').replace(/^Q?\s*\d+[.)]\s*/i, '').trim(),
         options: (q.options || ['', '', '', '']).slice(0, 4),
         correctAnswer: q.correctAnswer ?? 0,
+        statements: (q.statements && q.statements.length > 0) ? q.statements : undefined,
         topic: (q.topic || '').trim() || undefined,
         explanation: (q.explanation || '').trim() || undefined,
         concept: (q.concept || '').trim() || undefined,
@@ -715,6 +716,15 @@ function LessonCard({ lesson, onEdit, onDelete, onDeleteMcq, onMove, onCopy }: {
                 <p className="text-[10px] text-slate-700 font-medium leading-relaxed line-clamp-2">
                   {(q.question || '').replace(/<br\/?>/g, ' ')}
                 </p>
+                {q.statements && q.statements.length > 0 && (
+                  <div className="mt-1 flex flex-col gap-0.5">
+                    {q.statements.map((s: string, si: number) => (
+                      <div key={si} className="text-[9px] text-indigo-700 bg-indigo-50 border-l-2 border-indigo-300 px-1.5 py-0.5 rounded-r font-medium">
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="text-[9px] text-emerald-700 font-bold mt-0.5">
                   ✓ {String.fromCharCode(65 + q.correctAnswer)}. {q.options?.[q.correctAnswer] || ''}
                 </p>
