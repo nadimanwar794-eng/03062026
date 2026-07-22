@@ -1609,6 +1609,16 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   const userLevel = user?.level || 1;
   const allNotes: LucentEntry[] = useMemo(() => (lucentNotes || []), [lucentNotes]);
 
+  // In SCHOOL mode (class 6–12), exclude Competition-level notes so they never
+  // leak into school routine slots — even for "default" subjects that have no
+  // classLevel filter of their own.
+  const routineNotes = useMemo(() => {
+    if (data.routineMode === 'SCHOOL') {
+      return allNotes.filter(n => (n as any).classLevel !== 'COMPETITION');
+    }
+    return allNotes;
+  }, [allNotes, data.routineMode]);
+
   const [data, setDataRaw] = useState<RoutineData>(() => {
     const d = loadRoutineData(userId);
     const reset = checkAndResetDaily(d);
@@ -1644,11 +1654,11 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
 
   // Sync totalLessons for categories when notes load
   useEffect(() => {
-    if (!allNotes.length) return;
+    if (!routineNotes.length) return;
     setData(prev => {
       const cats = (prev.routineCategories || []).map(cat => {
         const subjects = cat.subjects.map(sub => {
-          const count = getNotesForSubject(sub, allNotes).length;
+          const count = getNotesForSubject(sub, routineNotes).length;
           return count !== sub.totalLessons ? { ...sub, totalLessons: count } : sub;
         });
         const changed = subjects.some((s, i) => s !== cat.subjects[i]);
@@ -1667,13 +1677,13 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     const result: LucentEntry[] = [];
     for (const cat of cats) {
       for (const sub of cat.subjects) {
-        for (const n of getNotesForSubject(sub, allNotes)) {
+        for (const n of getNotesForSubject(sub, routineNotes)) {
           if (!seen.has(n.id)) { seen.add(n.id); result.push(n); }
         }
       }
     }
     return result;
-  }, [data.routineCategories, allNotes, tick]);
+  }, [data.routineCategories, routineNotes, tick]);
 
   const subjectGroups = useMemo(() => buildSubjectGroups(allSlotNotes), [allSlotNotes]);
   const subjects = useMemo(() => buildSubjectConfigs(allSlotNotes, data.subjects), [allSlotNotes, data.subjects]);
@@ -1685,7 +1695,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
       id: `cat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       subjects: catData.subjects.map(sub => ({
         ...sub,
-        totalLessons: getNotesForSubject(sub, allNotes).length,
+        totalLessons: getNotesForSubject(sub, routineNotes).length,
         currentLessonIndex: 0,
       })),
     };
@@ -1752,7 +1762,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         const si = cat.currentSubjectIndex % subjects.length;
         const sub = { ...subjects[si] };
         // Advance lesson within this subject
-        const notes = getNotesForSubject(sub, allNotes);
+        const notes = getNotesForSubject(sub, routineNotes);
         const total = notes.length;
         let nextLesson = sub.currentLessonIndex + 1;
         if (total > 0 && nextLesson >= total) nextLesson = 0;
@@ -2059,7 +2069,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 {categories.map(cat => {
                   const si = cat.currentSubjectIndex % cat.subjects.length;
                   const sub = cat.subjects[si];
-                  const subNotes = getNotesForSubject(sub, allNotes);
+                  const subNotes = getNotesForSubject(sub, routineNotes);
                   const safeIdx = subNotes.length > 0 ? Math.min(sub.currentLessonIndex, subNotes.length - 1) : -1;
                   const lesson = safeIdx >= 0 ? subNotes[safeIdx] : null;
                   const meta = SUBJECT_META[sub.subjectId] || DEFAULT_META;
