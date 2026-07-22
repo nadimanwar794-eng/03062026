@@ -2,6 +2,8 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { RefreshCcw, Home, WifiOff } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { logErrorToFirebase } from '../utils/errorLogger';
+import { reportCrash } from '../utils/maintenanceManager';
+import { MaintenanceScreen } from './MaintenanceScreen';
 
 interface Props {
   children: ReactNode;
@@ -9,6 +11,14 @@ interface Props {
   resetKey?: string | number;
   onError?: (error: Error, info: ErrorInfo) => void;
   compact?: boolean;
+  /** When set, crash is auto-reported to Firebase RTDB and a maintenance screen is shown. */
+  crashTarget?: 'studentDashboard' | 'adminDashboard';
+  /** Override maintenance title shown when crashTarget is set */
+  maintenanceTitle?: string;
+  /** Override maintenance message shown when crashTarget is set */
+  maintenanceMessage?: string;
+  /** Override retry minutes shown when crashTarget is set */
+  maintenanceRetryMinutes?: number;
 }
 
 interface State {
@@ -45,6 +55,11 @@ export class ErrorBoundary extends Component<Props, State> {
       type: 'react',
       componentStack: errorInfo?.componentStack ?? undefined,
     }).catch(() => {});
+
+    // Smart Crash Protection: auto-report crash to Firebase so admin can see it
+    if (this.props.crashTarget) {
+      reportCrash(this.props.crashTarget, msg).catch(() => {});
+    }
 
     if (msg.includes('FIRESTORE') && msg.includes('INTERNAL ASSERTION FAILED')) {
       console.warn('[IIC] Firestore assertion — clearing cache & reloading…');
