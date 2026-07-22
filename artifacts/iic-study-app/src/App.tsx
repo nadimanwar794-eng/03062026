@@ -491,6 +491,13 @@ const App: React.FC = () => {
   const homeTabActiveRef = useRef(false);
   useEffect(() => { homeTabActiveRef.current = studentTab === 'HOME'; }, [studentTab]);
 
+  // Toast auto-dismiss
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 2800);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
+
   // MCQ session ko queue karo + agar HOME pe already hain to turant banner dikhao
   const enqueueMcqAndShow = (earned: number, earnedC: number, secs: number) => {
     // ── Credit calculation ─────────────────────────────────────────────────────
@@ -727,6 +734,7 @@ const App: React.FC = () => {
   }, [applySessionQueue]);
   
   // CUSTOM DIALOG STATE (GLOBAL)
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
 
@@ -3732,6 +3740,16 @@ const App: React.FC = () => {
               onConfirm={creditModal.onConfirm}
               onCancel={() => setCreditModal(null)}
           />
+      )}
+
+      {/* SIMPLE TOAST */}
+      {toastMessage && (
+          <div
+              className="fixed bottom-24 left-1/2 z-[9999] -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl pointer-events-none"
+              style={{ background: 'rgba(30,30,50,0.92)', backdropFilter: 'blur(8px)', maxWidth: '90vw', textAlign: 'center' }}
+          >
+              {toastMessage}
+          </div>
       )}
 
       {/* GLOBAL DIALOGS */}
