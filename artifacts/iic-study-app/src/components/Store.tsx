@@ -936,7 +936,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
 
                   const ffGold = '#FFD700';
                   const ffGoldDim = 'rgba(255,215,0,0.65)';
-                  const ffCardBg = '#0c0d10';
+                  const ffCardBg = isPro ? '#071824' : '#10091e';
                   const ffBorder = isPro ? '#22d3ee' : '#c084fc';
                   const ffStripe = isPro ? 'rgba(34,211,238,0.18)' : 'rgba(192,132,252,0.18)';
 
