@@ -109,8 +109,32 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
         || lines[0].match(/^(?:Q\s*\d+[\.\)]\s*)?([\s\S]+)/i);
     if (!questionLineMatch) return null;
 
-    const questionText = questionLineMatch[1].trim();
+    let questionText = questionLineMatch[1].trim();
     if (!questionText) return null;
+
+    // ── Collect multi-line question body ─────────────────────────────────────
+    // Lines between the Q-marker and the first option/answer may contain:
+    //   • Statement lines  (कथन I: …, कथन II: …, 1. …, 2. …)
+    //   • Intro context    (निम्नलिखित कथनों पर विचार कीजिए:)
+    //   • Closing question (उपर्युक्त में से कौन-सा/से …?)
+    // All of them belong to the question body — collect them here.
+    const isOptionLine   = (l: string) => /^(\*?)\s*([A-D])[:.)\s]\s*.+/i.test(l);
+    const isAnswerLine   = (l: string) => /^(?:Ans|Answer|सही\s*उत्तर)\s*:/i.test(l) || /^✅\s*Correct\s+Answer\s*:/i.test(l);
+    const isExplainLine  = (l: string) => /^(?:Explanation|Exp|व्याख्या)\s*:/i.test(l);
+
+    let bodyStart = 1; // index of first option/answer/explanation line
+    const extraBodyLines: string[] = [];
+    for (let i = 1; i < lines.length; i++) {
+        if (isOptionLine(lines[i]) || isAnswerLine(lines[i]) || isExplainLine(lines[i])) {
+            bodyStart = i;
+            break;
+        }
+        extraBodyLines.push(lines[i]);
+        bodyStart = i + 1; // will be reset each iteration; final value = past last extra line
+    }
+    if (extraBodyLines.length > 0) {
+        questionText = questionText + '\n' + extraBodyLines.join('\n');
+    }
 
     // Collect option lines
     const optionMap: Record<number, string> = {};
@@ -119,7 +143,7 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
     let explanationLines: string[] = [];
     let collectingExplanation = false;
 
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = bodyStart; i < lines.length; i++) {
         const line = lines[i];
 
         // Option lines: *A) / *A: / A) / A. / A:
