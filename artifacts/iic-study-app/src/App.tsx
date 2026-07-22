@@ -486,6 +486,9 @@ const App: React.FC = () => {
   const [streakLoginPopup, setStreakLoginPopup] = useState<{newStreak: number; prevStreak: number; isNewRecord: boolean} | null>(null);
   const [levelUpNotif, setLevelUpNotif] = useState<{level: number; label: string; emoji: string; color: string} | null>(null);
 
+  // Toast state — must be declared BEFORE any useEffect that references it (TDZ guard)
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   // ── MCQ session queue helpers ─────────────────────────────────────────────
   // homeTabActiveRef: track karo ki user HOME pe hai (MCQ race-condition fix)
   const homeTabActiveRef = useRef(false);
@@ -734,7 +737,6 @@ const App: React.FC = () => {
   }, [applySessionQueue]);
   
   // CUSTOM DIALOG STATE (GLOBAL)
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
 
