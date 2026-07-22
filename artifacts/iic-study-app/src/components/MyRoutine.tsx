@@ -1609,6 +1609,14 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   const userLevel = user?.level || 1;
   const allNotes: LucentEntry[] = useMemo(() => (lucentNotes || []), [lucentNotes]);
 
+  // data must be declared before routineNotes useMemo — dep array references data.routineMode
+  // (declaring after causes TDZ crash in production builds)
+  const [data, setDataRaw] = useState<RoutineData>(() => {
+    const d = loadRoutineData(userId);
+    const reset = checkAndResetDaily(d);
+    return ensureTodayClaimEntry(reset, getUserSubTier(user));
+  });
+
   // In SCHOOL mode (class 6–12), exclude Competition-level notes so they never
   // leak into school routine slots — even for "default" subjects that have no
   // classLevel filter of their own.
@@ -1618,12 +1626,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     }
     return allNotes;
   }, [allNotes, data.routineMode]);
-
-  const [data, setDataRaw] = useState<RoutineData>(() => {
-    const d = loadRoutineData(userId);
-    const reset = checkAndResetDaily(d);
-    return ensureTodayClaimEntry(reset, getUserSubTier(user));
-  });
   const [showCatManager, setShowCatManager] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
