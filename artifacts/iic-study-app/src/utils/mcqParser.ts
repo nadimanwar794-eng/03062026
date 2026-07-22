@@ -104,8 +104,8 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
     const lines = block.split('\n').map(l => l.trim()).filter(l => l);
     if (lines.length < 3) return null;
 
-    // First line: Q: / Q1. / Q1) / plain question text
-    const questionLineMatch = lines[0].match(/^(?:\*?\s*)?(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.])\s*([\s\S]+)/i)
+    // First line: **Q1:** / Q1. / Q1) / **प्रश्न 1:** / प्रश्न 1. / plain question text
+    const questionLineMatch = lines[0].match(/^\*{0,2}\s*(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.])\*{0,2}\s*([\s\S]+)/i)
         || lines[0].match(/^(?:Q\s*\d+[\.\)]\s*)?([\s\S]+)/i);
     if (!questionLineMatch) return null;
 
@@ -289,15 +289,15 @@ export function parseMCQText(text: string): { questions: MCQItem[], notes: {titl
 
     // For each topic section, split by Q1. / Q2. / प्रश्न 1. markers and parse each block
     for (const { topic, content } of topicParts) {
-      // Split by Q<number>. or Q<number>) or प्रश्न <number>:
-      const qBlocks = content.split(/(?=^\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)]))/im).filter(b => b.trim());
+      // Split by Q<number>. or Q<number>) or **प्रश्न <number>: markers
+      const qBlocks = content.split(/(?=^\s*\*{0,2}\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)]))/im).filter(b => b.trim());
 
       for (const block of qBlocks) {
         const trimmed = block.trim();
         if (!trimmed) continue;
 
-        // Skip if this block doesn't start with Q<number> or प्रश्न <number>
-        if (!/^(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)])/i.test(trimmed)) continue;
+        // Skip if this block doesn't start with Q<number> or (optional **) प्रश्न <number>
+        if (!/^\*{0,2}\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)])/i.test(trimmed)) continue;
 
         const parsed = parseSimpleFormatBlock(trimmed, topic);
         if (parsed && parsed.question && parsed.options && parsed.options.length >= 2 && parsed.correctAnswer !== undefined) {
