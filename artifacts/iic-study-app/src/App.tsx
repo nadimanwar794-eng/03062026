@@ -10,7 +10,7 @@ import { ref as rtdbRef, set as rtdbSet } from 'firebase/database';
 import { doc as fsDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { storage } from './utils/storage';
 import { recalculateSubscriptionStatus, addSubscription } from './utils/subscriptionUtils';
-import { getLevelInfo, getLevelLimitBonus } from './utils/levelSystem';
+import { getLevelInfo, getLevelLimitBonus, getEffectiveDailyLimit, UNLIMITED } from './utils/levelSystem';
 import { fireCreditNotify, setHomeTabActive } from './utils/creditNotify';
 import { onSessionComplete, queueSession, consumeSessionQueue, SessionCompletePayload } from './utils/sessionNotify';
 import { SessionSummaryBanner } from './components/SessionSummaryBanner';
@@ -46,6 +46,7 @@ import { CreditConfirmationModal } from './components/CreditConfirmationModal';
 import { CustomAlert, CustomConfirm } from './components/CustomDialogs';
 import { UpdatePopup } from './components/UpdatePopup';
 import { FreeSubjectLessonPopup } from './components/FreeSubjectLessonPopup';
+import { McqLimitLockedPopup } from './components/McqLimitLockedPopup';
 
 import { StreakLoginPopup } from './components/StreakLoginPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -773,6 +774,7 @@ const App: React.FC = () => {
   const [showUpdatePopup, setShowUpdatePopup] = useState(false); // NEW
   const [loadingContentType, setLoadingContentType] = useState<ContentType | undefined>(undefined); // NEW
   const [showFreeSubjectPopup, setShowFreeSubjectPopup] = useState(false); // FREE LESSON POPUP
+  const [mcqLimitPopup, setMcqLimitPopup] = useState<{ used: number; limit: number; creditCost: number } | null>(null); // MCQ LIMIT POPUP
 
   // --- VERSION CONTROL INIT ---
   useEffect(() => {
@@ -2218,6 +2220,26 @@ const App: React.FC = () => {
     setShowPremiumModal(false);
     setLoadingContentType(type);
     if (!tempSelectedChapter || !state.user) return;
+
+    // --- MCQ DAILY LIMIT GATE — block session launch if limit exceeded ---
+    if ((type === 'MCQ_SIMPLE' || type === 'MCQ_PRACTICE' || type === 'MCQ_TEST') &&
+        state.user.role !== 'ADMIN' && !state.originalAdmin && !forcePay) {
+        const _today = new Date().toISOString().split('T')[0];
+        const _mcqKey = `nst_mcq_daily_total_${_today}_${state.user.id}`;
+        const _mcqUsed = parseInt(localStorage.getItem(_mcqKey) || '0', 10);
+        // Determine tier
+        const _mcqSubValid = state.user.isPremium && state.user.subscriptionEndDate && new Date(state.user.subscriptionEndDate) > new Date();
+        const _mcqTier: 'FREE' | 'BASIC' | 'ULTRA' =
+            _mcqSubValid && state.user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+            _mcqSubValid && state.user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+        const _mcqLimit = getEffectiveDailyLimit('mcq', getLevelInfo(state.user.totalScore || 0).level, _mcqTier, state.settings);
+        if (_mcqLimit < UNLIMITED && _mcqUsed >= _mcqLimit) {
+            const _mcqCreditCost = (state.settings as any).mcqOverLimitCreditCost || 5;
+            setMcqLimitPopup({ used: _mcqUsed, limit: _mcqLimit, creditCost: _mcqCreditCost });
+            setLoadingContentType(undefined);
+            return;
+        }
+    }
 
     // --- FREE SUBJECT LESSON — computed once, applied in all paths below ---
     const _fsSubjectId = state.selectedSubject?.id || '';
@@ -3722,6 +3744,37 @@ const App: React.FC = () => {
                   <span className="px-4">✦ &nbsp;{state.settings.bannerConfig.bottom.text}&nbsp; ✦ &nbsp;{state.settings.bannerConfig.bottom.text}&nbsp;</span>
               </div>
           </div>
+      )}
+
+      {/* MCQ LIMIT LOCKED POPUP */}
+      {mcqLimitPopup && state.user && (
+        <McqLimitLockedPopup
+          isOpen={true}
+          used={mcqLimitPopup.used}
+          limit={mcqLimitPopup.limit}
+          creditCost={mcqLimitPopup.creditCost}
+          userCredits={getTotalCredits(state.user)}
+          onPayCredits={() => {
+            // Deduct credits and allow MCQ session
+            const _updated = applyDeduction(state.user!, mcqLimitPopup.creditCost) ?? state.user!;
+            localStorage.setItem('nst_current_user', JSON.stringify(_updated));
+            saveUserToLive(_updated);
+            setState(prev => ({ ...prev, user: _updated }));
+            setMcqLimitPopup(null);
+            // Re-launch with forcePay=true to skip the gate
+            handleContentGeneration(
+              tempSelectedChapter ? ('MCQ_SIMPLE' as any) : 'MCQ_SIMPLE',
+              undefined,
+              true
+            );
+          }}
+          onGoHome={() => {
+            setMcqLimitPopup(null);
+            // Navigate to student dashboard home tab
+            setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD', lessonContent: null }));
+            setIsFullScreen(false);
+          }}
+        />
       )}
 
       {/* FREE SUBJECT LESSON POPUP */}
