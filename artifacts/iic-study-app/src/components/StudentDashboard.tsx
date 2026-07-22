@@ -12101,6 +12101,9 @@ export const StudentDashboard: React.FC<Props> = ({
             >
               <Menu size={20} className="text-white" />
             </button>
+            <span className="font-black text-[19px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
+              {settings?.appShortName || settings?.appName || "IIC"}
+            </span>
             <span className="font-black text-[19px] leading-tight tracking-tight text-white whitespace-nowrap">
               {(user.name || user.displayName || '').split(' ')[0]}
             </span>
