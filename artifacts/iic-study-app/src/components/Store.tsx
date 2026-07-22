@@ -742,16 +742,12 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                   const isActive = tierType === tab.id;
                   return (
                     <button key={tab.id} onClick={() => setTierType(tab.id)}
-                      className="py-3 rounded-2xl font-black transition-all flex flex-col items-center gap-1 relative overflow-hidden"
+                      className="py-1.5 rounded-xl font-black transition-all flex items-center justify-center gap-1 relative overflow-hidden"
                       style={isActive
-                        ? { background: tab.bg, border: `2px solid ${tab.border}`, boxShadow: `0 0 14px ${tab.glow}, inset 0 1px 0 rgba(255,255,255,0.08)` }
+                        ? { background: tab.bg, border: `2px solid ${tab.border}` }
                         : { background: C.surfaceHigh, border: `1.5px solid ${C.border}` }}>
-                      {isActive && (
-                        <div className="absolute inset-0 pointer-events-none"
-                          style={{ background: `radial-gradient(ellipse at 50% 0%, ${tab.glow} 0%, transparent 70%)` }} />
-                      )}
-                      <span className="text-lg leading-none relative z-10">{tab.emoji}</span>
-                      <span className="text-[11px] relative z-10" style={{ color: isActive ? tab.color : C.textMuted }}>{tab.label}</span>
+                      <span className="text-sm leading-none relative z-10">{tab.emoji}</span>
+                      <span className="text-[10px] relative z-10" style={{ color: isActive ? tab.color : C.textMuted }}>{tab.label}</span>
                     </button>
                   );
                 })}
