@@ -41,6 +41,16 @@ A student exam-prep platform (school boards + competitive/government exams) with
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
+## Smart Crash Protection System
+
+Files: `src/utils/maintenanceManager.ts`, `src/components/MaintenanceScreen.tsx`
+
+- When **Student Dashboard crashes** → user sees a professional maintenance screen (not React error), crash is auto-logged to Firebase RTDB at `admin_maintenance/crashes/studentDashboard`
+- When **Admin Dashboard crashes** → admin is silently redirected to Student Dashboard, a popup appears showing crash details + "Mark as Fixed" button
+- **Admin control** (in Admin Dashboard → DASHBOARD tab → "Emergency Maintenance Announcement" section): write title/message/retry time, activate/deactivate maintenance, mark crashes fixed
+- **Maintenance banner** shown on Student Dashboard home when maintenance is active (for non-admin users)
+- Firebase RTDB path: `admin_maintenance/` → `config` (message/timer/active) + `crashes/{studentDashboard,adminDashboard}`
+
 ## Gotchas
 
 - Firestore permission-denied errors in the browser console when not logged in / in anonymous mode are expected — the app still renders the auth screen correctly.

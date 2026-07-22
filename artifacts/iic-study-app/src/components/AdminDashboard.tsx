@@ -12,6 +12,7 @@ import { saveTopicNotes } from '../utils/revisionTrackerV2';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
 import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson, subscribeSuggestions, adminReplySuggestion, deleteSuggestion, reactToSuggestion, resolvesuggestion, applyNoteCorrection, applyMcqCorrection, applyMcqFullEdit, saveMcqLesson, deleteMcqLesson } from '../firebase'; // IMPORT FIREBASE
+import { subscribeToMaintenance, saveMaintenance, clearMaintenance, markCrashFixed, MaintenanceState, MaintenanceTarget } from '../utils/maintenanceManager';
 import { ref, set, onValue, update, push, get, query as rtdbQueryAdmin, orderByChild as obcAdmin, limitToLast as ltlAdmin } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
 import { storage } from '../utils/storage';
@@ -414,6 +415,25 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
   const [effectsSubTab, setEffectsSubTab] = useState<'TOPBAR' | 'PROFILE'>('TOPBAR');
+
+  // --- SMART CRASH PROTECTION: Maintenance State ---
+  const [maintenanceData, setMaintenanceData] = useState<MaintenanceState | null>(null);
+  const [maintForm, setMaintForm] = useState({ title: '', message: '', retryMinutes: 30, target: 'ALL' as MaintenanceTarget, active: false });
+  const [maintSaving, setMaintSaving] = useState(false);
+  useEffect(() => {
+    return subscribeToMaintenance(setMaintenanceData);
+  }, []);
+  useEffect(() => {
+    if (maintenanceData?.config) {
+      setMaintForm({
+        title: maintenanceData.config.title || '',
+        message: maintenanceData.config.message || '',
+        retryMinutes: maintenanceData.config.retryMinutes || 30,
+        target: maintenanceData.config.target || 'ALL',
+        active: maintenanceData.config.active || false,
+      });
+    }
+  }, [maintenanceData?.config?.updatedAt]);
   const [colorPaletteOpen, setColorPaletteOpen] = useState(true);
   const [customColor, setCustomColor] = useState('#a78bfa');
   const [activeNoteTab, setActiveNoteTab] = useState<'PREMIUM' | 'DEEP_DIVE' | 'ADDITIONAL' | 'TEACHER' | 'MULTI_HTML'>('PREMIUM');
@@ -4230,6 +4250,134 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       </span>
                     </button>
                   )}
+
+                  {/* ══ SMART CRASH PROTECTION: Maintenance Control Panel ══ */}
+                  <div className="w-full mt-3">
+                    {/* Crash alerts */}
+                    {(maintenanceData?.crashes?.studentDashboard?.detected || maintenanceData?.crashes?.adminDashboard?.detected) && (
+                      <div className="mb-3 space-y-2">
+                        {maintenanceData?.crashes?.studentDashboard?.detected && (
+                          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-2.5">
+                            <span className="text-base shrink-0">🚨</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-red-700">Student Dashboard Crashed!</p>
+                              <p className="text-[10px] text-red-400 line-clamp-1">{maintenanceData.crashes.studentDashboard.errorMessage}</p>
+                            </div>
+                            <button
+                              onClick={() => markCrashFixed('studentDashboard').catch(() => {})}
+                              className="shrink-0 text-[10px] font-black text-white bg-green-600 px-3 py-1.5 rounded-xl hover:bg-green-700 transition-colors"
+                            >
+                              ✅ Fixed
+                            </button>
+                          </div>
+                        )}
+                        {maintenanceData?.crashes?.adminDashboard?.detected && (
+                          <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-2.5">
+                            <span className="text-base shrink-0">⚠️</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-orange-700">Admin Dashboard Crashed!</p>
+                              <p className="text-[10px] text-orange-400 line-clamp-1">{maintenanceData.crashes.adminDashboard.errorMessage}</p>
+                            </div>
+                            <button
+                              onClick={() => markCrashFixed('adminDashboard').catch(() => {})}
+                              className="shrink-0 text-[10px] font-black text-white bg-green-600 px-3 py-1.5 rounded-xl hover:bg-green-700 transition-colors"
+                            >
+                              ✅ Fixed
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Maintenance message form */}
+                    <details className="group">
+                      <summary className="flex items-center gap-2 cursor-pointer bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2.5 hover:bg-amber-100 transition-colors list-none">
+                        <span className="text-sm">🔧</span>
+                        <span className="text-xs font-black text-amber-800 flex-1">Emergency Maintenance Announcement</span>
+                        {maintenanceData?.config?.active && (
+                          <span className="text-[9px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full animate-pulse">ACTIVE</span>
+                        )}
+                        <span className="text-amber-500 text-xs group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+                      <div className="mt-2 bg-white border border-amber-200 rounded-2xl p-4 space-y-3">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Title</label>
+                          <input
+                            value={maintForm.title}
+                            onChange={e => setMaintForm(f => ({ ...f, title: e.target.value }))}
+                            placeholder="System Upgrade in Progress"
+                            className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Message</label>
+                          <textarea
+                            value={maintForm.message}
+                            onChange={e => setMaintForm(f => ({ ...f, message: e.target.value }))}
+                            placeholder="We are updating our system to improve your experience. Please try again after 30 minutes."
+                            rows={3}
+                            className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-400 resize-none"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Retry Time</label>
+                            <select
+                              value={maintForm.retryMinutes}
+                              onChange={e => setMaintForm(f => ({ ...f, retryMinutes: Number(e.target.value) }))}
+                              className="w-full text-xs border border-slate-200 rounded-xl px-2 py-2 focus:outline-none focus:border-blue-400"
+                            >
+                              <option value={15}>15 min</option>
+                              <option value={30}>30 min</option>
+                              <option value={60}>1 hour</option>
+                              <option value={120}>2 hours</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Target</label>
+                            <select
+                              value={maintForm.target}
+                              onChange={e => setMaintForm(f => ({ ...f, target: e.target.value as MaintenanceTarget }))}
+                              className="w-full text-xs border border-slate-200 rounded-xl px-2 py-2 focus:outline-none focus:border-blue-400"
+                            >
+                              <option value="ALL">All Users</option>
+                              <option value="STUDENT_DASHBOARD">Student Dashboard</option>
+                              <option value="ROUTINE">Routine</option>
+                              <option value="REVISION_HUB">Revision Hub</option>
+                              <option value="MCQ">MCQ</option>
+                              <option value="VIDEOS">Videos</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            disabled={maintSaving}
+                            onClick={async () => {
+                              setMaintSaving(true);
+                              try {
+                                await saveMaintenance({ ...maintForm, active: true });
+                              } finally { setMaintSaving(false); }
+                            }}
+                            className="flex-1 bg-red-600 text-white font-black text-xs py-2.5 rounded-2xl hover:bg-red-700 transition-colors disabled:opacity-60"
+                          >
+                            🚨 Activate Maintenance
+                          </button>
+                          {maintenanceData?.config?.active && (
+                            <button
+                              disabled={maintSaving}
+                              onClick={async () => {
+                                setMaintSaving(true);
+                                try { await clearMaintenance(); } finally { setMaintSaving(false); }
+                              }}
+                              className="flex-1 bg-green-600 text-white font-black text-xs py-2.5 rounded-2xl hover:bg-green-700 transition-colors disabled:opacity-60"
+                            >
+                              ✅ Maintenance Complete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </details>
+                  </div>
 
                   {/* TOOLBAR: utility actions (left) + system links (right), visually separated */}
                   <div className="w-full flex flex-col lg:flex-row lg:items-stretch gap-2.5 lg:gap-3 justify-center">

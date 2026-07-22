@@ -49,6 +49,8 @@ import { UpdatePopup } from './components/UpdatePopup';
 import { StreakLoginPopup } from './components/StreakLoginPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { logErrorToFirebase, setErrorLoggerUser } from './utils/errorLogger';
+import { MaintenanceBanner, AdminCrashPopup } from './components/MaintenanceScreen';
+import { subscribeToMaintenance, markCrashFixed, reportCrash as reportMaintenanceCrash } from './utils/maintenanceManager';
 import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
 import { HomeStatsToast } from './components/HomeStatsToast';
@@ -62,6 +64,9 @@ import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from '
 
 const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [maintenanceState, setMaintenanceState] = useState<any>(null);
+  const [adminDashCrashed, setAdminDashCrashed] = useState(false);
+  const [showAdminCrashPopup, setShowAdminCrashPopup] = useState(false);
 
   const [appMcqCommunityDraft, setAppMcqCommunityDraft] = useState<{question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string} | null>(null);
 
@@ -1083,6 +1088,11 @@ const App: React.FC = () => {
           }
       }
   }, [state.user?.id, state.user?.lastLoginRewardDate, state.originalAdmin]);
+
+  // --- SMART CRASH PROTECTION: Subscribe to maintenance state ---
+  useEffect(() => {
+    return subscribeToMaintenance(setMaintenanceState);
+  }, []);
 
   // --- GLOBAL ERROR HANDLERS (app crash prevention) ---
   useEffect(() => {
@@ -3144,6 +3154,21 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {/* ── SMART CRASH PROTECTION: Admin Crash Popup ── */}
+      {showAdminCrashPopup && state.user && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && (
+        <AdminCrashPopup
+          errorMessage={maintenanceState?.crashes?.adminDashboard?.errorMessage || 'Admin dashboard crash hua'}
+          crashedAt={maintenanceState?.crashes?.adminDashboard?.crashedAt || Date.now()}
+          onMarkFixed={() => {
+            markCrashFixed('adminDashboard').catch(() => {});
+            setAdminDashCrashed(false);
+            setShowAdminCrashPopup(false);
+            setState(prev => ({ ...prev, view: 'ADMIN_DASHBOARD' as any }));
+          }}
+          onDismiss={() => setShowAdminCrashPopup(false)}
+        />
+      )}
+
       {/* LOGOUT OVERLAY */}
       {logoutPending && (
           <div className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white">
@@ -3382,8 +3407,17 @@ const App: React.FC = () => {
         ) : (
             <ErrorBoundary resetKey={state.view}>
             <>
-                {state.view === 'ADMIN_DASHBOARD' && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && (
-                  <ErrorBoundary fallbackLabel="Admin Dashboard" resetKey={state.view}>
+                {state.view === 'ADMIN_DASHBOARD' && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && !adminDashCrashed && (
+                  <ErrorBoundary
+                    fallbackLabel="Admin Dashboard"
+                    resetKey={state.view}
+                    onError={(error) => {
+                      reportMaintenanceCrash('adminDashboard', error?.message || 'Unknown error').catch(() => {});
+                      setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD' as any }));
+                      setAdminDashCrashed(true);
+                      setShowAdminCrashPopup(true);
+                    }}
+                  >
                     <Suspense fallback={<div className="min-h-screen flex items-center justify-center" aria-label="Loading admin dashboard" aria-busy="true"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
                       <AdminDashboard user={state.user} onNavigate={(v) => setState(prev => ({...prev, view: v}))} settings={state.settings} onUpdateSettings={updateSettings} onImpersonate={handleImpersonate} logActivity={logActivity} isDarkMode={darkMode} onToggleDarkMode={setDarkMode} />
                     </Suspense>
@@ -3442,7 +3476,23 @@ const App: React.FC = () => {
                     </ErrorBoundary>
                 ) : (
                     state.view === 'STUDENT_DASHBOARD' as any && (
-                        <ErrorBoundary fallbackLabel="Student Dashboard" resetKey={studentTab}>
+                        <>
+                        {/* ── SMART CRASH PROTECTION: Maintenance Banner (student home) ── */}
+                        {maintenanceState?.config?.active && state.user?.role !== 'ADMIN' && state.user?.role !== 'SUB_ADMIN' && (
+                          <MaintenanceBanner
+                            title={maintenanceState.config.title || 'System Maintenance'}
+                            message={maintenanceState.config.message || 'We are updating our system.'}
+                            onClick={() => {/* scroll into view handled by MaintenanceScreen */}}
+                          />
+                        )}
+                        <ErrorBoundary
+                          fallbackLabel="Student Dashboard"
+                          resetKey={studentTab}
+                          crashTarget="studentDashboard"
+                          maintenanceTitle={maintenanceState?.config?.title}
+                          maintenanceMessage={maintenanceState?.config?.message}
+                          maintenanceRetryMinutes={maintenanceState?.config?.retryMinutes}
+                        >
                           <StudentDashboard 
                               user={state.user} 
                               dailyStudySeconds={dailyStudySeconds} 
@@ -3471,6 +3521,7 @@ const App: React.FC = () => {
                               onOpenCoaching={() => setState(prev => ({...prev, view: 'COACHING_ECOSYSTEM' as any}))}
                           />
                         </ErrorBoundary>
+                        </>
                     )
                 )}
 

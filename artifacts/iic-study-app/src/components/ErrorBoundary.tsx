@@ -120,6 +120,18 @@ export class ErrorBoundary extends Component<Props, State> {
     const isOffline = !navigator.onLine;
     const label = this.props.fallbackLabel ?? 'page';
 
+    // Smart Crash Protection: show professional maintenance screen instead of React error
+    if (this.props.crashTarget === 'studentDashboard' && !isOffline) {
+      return (
+        <MaintenanceScreen
+          title={this.props.maintenanceTitle}
+          message={this.props.maintenanceMessage}
+          retryMinutes={this.props.maintenanceRetryMinutes}
+          onRetry={this.handleRetry}
+        />
+      );
+    }
+
     if (this.props.compact) {
       return (
         <div
