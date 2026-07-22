@@ -248,6 +248,7 @@ export interface User {
   unlockedContent?: string[];
   timedUnlocks?: { contentId: string; expiresAt: string }[];
   dailyRoutine?: DailyRoutine;
+  subjectFreeLesson?: Record<string, string>; // subjectId → chapterId (first free lesson per subject)
 }
 
 export interface ActiveSubscription {

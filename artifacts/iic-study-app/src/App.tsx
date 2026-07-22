@@ -45,6 +45,7 @@ const MarksheetCard = lazy(() => import('./components/MarksheetCard').then(m => 
 import { CreditConfirmationModal } from './components/CreditConfirmationModal';
 import { CustomAlert, CustomConfirm } from './components/CustomDialogs';
 import { UpdatePopup } from './components/UpdatePopup';
+import { FreeSubjectLessonPopup } from './components/FreeSubjectLessonPopup';
 
 import { StreakLoginPopup } from './components/StreakLoginPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -771,6 +772,7 @@ const App: React.FC = () => {
   const [popupQueue, setPopupQueue] = useState<('TRACKER' | 'CHALLENGE' | 'WELCOME')[]>([]);
   const [showUpdatePopup, setShowUpdatePopup] = useState(false); // NEW
   const [loadingContentType, setLoadingContentType] = useState<ContentType | undefined>(undefined); // NEW
+  const [showFreeSubjectPopup, setShowFreeSubjectPopup] = useState(false); // FREE LESSON POPUP
 
   // --- VERSION CONTROL INIT ---
   useEffect(() => {
@@ -2176,6 +2178,15 @@ const App: React.FC = () => {
       if (state.selectedClass && state.selectedBoard) {
         const chapters = await fetchChapters(state.selectedBoard, state.selectedClass, state.selectedStream, subject, state.language);
         setState(prev => ({ ...prev, chapters, view: 'CHAPTERS', loading: false }));
+
+        // FREE SUBJECT LESSON POPUP — show once per user per subject
+        if (state.user) {
+          const popupKey = `nst_subject_intro_${state.user.id}_${subject.id}`;
+          if (!localStorage.getItem(popupKey)) {
+            localStorage.setItem(popupKey, '1');
+            setShowFreeSubjectPopup(true);
+          }
+        }
       }
     } catch (err) { setState(prev => ({ ...prev, chapters: [], view: 'CHAPTERS', loading: false })); }
   };
@@ -2507,6 +2518,22 @@ const App: React.FC = () => {
         cost = 0;
     }
 
+    // FREE SUBJECT LESSON — check if this chapter is the user's chosen free lesson for this subject
+    const _subjectId = state.selectedSubject?.id || '';
+    const _subjectFreeMap = state.user.subjectFreeLesson || {};
+    if (_subjectId && _subjectFreeMap[_subjectId] === tempSelectedChapter.id) {
+        cost = 0;
+    }
+
+    // FREE SUBJECT LESSON — if user hasn't used their free choice yet for this subject, grant it now
+    if (_subjectId && !_subjectFreeMap[_subjectId] && state.user.role !== 'ADMIN' && !state.originalAdmin) {
+        const updatedFreeMap = { ..._subjectFreeMap, [_subjectId]: tempSelectedChapter.id };
+        const updatedUser = { ...state.user, subjectFreeLesson: updatedFreeMap };
+        setState(prev => ({ ...prev, user: updatedUser }));
+        localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
+        saveUserToLive(updatedUser);
+        cost = 0;
+    }
 
     // --- ACCESS CONTROL LOGIC (Unified) ---
     let hasAccess = false;
@@ -3692,6 +3719,13 @@ const App: React.FC = () => {
               </div>
           </div>
       )}
+
+      {/* FREE SUBJECT LESSON POPUP */}
+      <FreeSubjectLessonPopup
+        isOpen={showFreeSubjectPopup}
+        subjectName={state.selectedSubject?.title || state.selectedSubject?.name || 'This Subject'}
+        onClose={() => setShowFreeSubjectPopup(false)}
+      />
 
       {state.loading && <LoadingOverlay dataReady={generationDataReady} customMessage={loadingMessage} type={loadingContentType} onComplete={handleLoadingAnimationComplete} />}
       {showPremiumModal && tempSelectedChapter && state.user && (
