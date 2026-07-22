@@ -12114,7 +12114,14 @@ export const StudentDashboard: React.FC<Props> = ({
               <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
                 {settings?.appShortName || settings?.appName || "IIC"}
               </span>
-              <BadgeCheck size={16} className="text-blue-200 shrink-0" fill="rgba(191,219,254,0.35)" />
+              <button
+                onClick={() => setShowStreakPopup(true)}
+                className={`inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-black shrink-0 active:scale-90 transition-all text-white${topBarBtnGlow ? ' nst-topbar-btn-glow' : ''}`}
+                title={`Login streak: ${user.streak} day${user.streak === 1 ? '' : 's'}`}
+              >
+                <span className="text-[13px] leading-none">🔥</span>
+                <span>{user.streak}d</span>
+              </button>
             </div>
           </div>
 
@@ -12516,15 +12523,6 @@ export const StudentDashboard: React.FC<Props> = ({
               );
             })()}
 
-            {/* Streak pill — shows AFTER event badge */}
-            <button
-              onClick={() => setShowStreakPopup(true)}
-              className={`inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-black shrink-0 active:scale-90 transition-all text-white${topBarBtnGlow ? ' nst-topbar-btn-glow' : ''}`}
-              title={`Login streak: ${user.streak} day${user.streak === 1 ? '' : 's'}`}
-            >
-              <span className="text-[13px] leading-none">🔥</span>
-              <span>{user.streak}d</span>
-            </button>
 
             {/* Mail */}
             {(() => {
