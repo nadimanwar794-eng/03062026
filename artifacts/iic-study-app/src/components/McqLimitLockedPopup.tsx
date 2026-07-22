@@ -23,6 +23,7 @@ export const McqLimitLockedPopup: React.FC<Props> = ({
       return () => clearTimeout(t);
     } else {
       setVisible(false);
+      return;
     }
   }, [isOpen]);
 
