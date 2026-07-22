@@ -13,6 +13,7 @@ import rehypeKatex from 'rehype-katex';
 import { decodeHtml } from '../utils/htmlDecoder';
 import { storage } from '../utils/storage';
 import { getChapterData, saveUserHistory, saveTestResult, saveUserToLive, saveAdminMark2Topics, subscribeAdminMark2Topics, saveSuggestion } from '../firebase';
+import { getRoutineLessonCreditGiven, setRoutineLessonCreditGiven } from '../utils/routineFirebase';
 import { WriteModeCorrection } from "./WriteModeCorrection";
 import { SpeakButton } from './SpeakButton';
 import { McqSpeakButtons } from './McqSpeakButtons';
@@ -156,6 +157,25 @@ export const LessonView: React.FC<Props> = ({
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
+  // ── Routine credit gating ─────────────────────────────────────────────────
+  // isFirstTimeRef: true  → credits flow normally (first-ever visit)
+  // isFirstTimeRef: false → pts only, no credits (repeat visit)
+  // Firebase check runs on mount; pessimistic default = true (first time).
+  // creditsEarnedThisSessionRef tracks whether this session actually earned anything
+  // so we only write to Firebase if the user actually did something.
+  const isFirstTimeRef = useRef(true);
+  const creditsEarnedThisSessionRef = useRef(false);
+
+  useEffect(() => {
+    const uid = user?.id;
+    const lid = chapter?.id;
+    if (!uid || !lid) return;
+    getRoutineLessonCreditGiven(uid, lid).then(alreadyGiven => {
+      isFirstTimeRef.current = !alreadyGiven;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, chapter?.id]);
+
   // ── Session-complete accumulation (pts + credits per mode) ──────────────────
   const sessionReadingPtsRef = useRef(0);
   const sessionWritingPtsRef = useRef(0);
@@ -270,9 +290,20 @@ export const LessonView: React.FC<Props> = ({
       pendingSessionCreditsRef.current = 0;
       setPendingCreditDisplay(0);
     }
+    // ── Routine Firebase: mark credits given after first session ──────────────
+    // If this was a first-time session and the user actually earned credits/pts,
+    // write to Firebase so the next visit knows to give pts only (no credits).
+    if (isFirstTimeRef.current && creditsEarnedThisSessionRef.current) {
+      const uid = userRef.current?.id;
+      const lid = chapter?.id;
+      if (uid && lid) {
+        isFirstTimeRef.current = false; // prevent double-write if back is called again
+        setRoutineLessonCreditGiven(uid, lid).catch(() => {});
+      }
+    }
     onBack();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flushSessionEvents, onBack, onSessionCreditsEarned]);
+  }, [flushSessionEvents, onBack, onSessionCreditsEarned, chapter?.id]);
 
   // ── Coin accumulation: fractional carry-over prevents small events losing coins ──
   // Reading coins are awarded immediately per interval but fractional amounts
@@ -302,10 +333,15 @@ export const LessonView: React.FC<Props> = ({
     const _onUpdateUser = onUpdateUserRef.current;
     if (!_user || !_onUpdateUser) return;
 
+    // ── Routine credit gating: MCQ coins only on first visit ─────────────────
+    if (!isFirstTimeRef.current) return;
+
     const userLevel = getLevelFromScore(_user.totalScore || 0);
     const ratio = userLevel >= 5 ? (1 / 6) : 0.125;
     const coins = Math.floor(totalPts * ratio);
     if (coins <= 0) return;
+
+    creditsEarnedThisSessionRef.current = true;
 
     // Save coins so flushSessionEvents can include them in MCQ session payload
     mcqFlushCrRef.current += coins;
@@ -350,18 +386,23 @@ export const LessonView: React.FC<Props> = ({
     // Update totalScore immediately — reading/MCQ pts only
     const scoreUpdated = { ..._user, totalScore: (_user.totalScore || 0) + pts };
 
-    // Fractional coin accumulator: add this event's coin-value to running total,
-    // then award only the integer part — remainder carries to the next event.
-    const userLevel = getLevelFromScore(_user.totalScore || 0);
-    const ratio = userLevel >= 5 ? (1 / 6) : 0.125;
-    coinFracAccumRef.current += pts * ratio;
-    const coins = Math.floor(coinFracAccumRef.current);
-    coinFracAccumRef.current -= coins;
+    // ── Routine credit gating: coins only on first visit ─────────────────────
+    // If isFirstTimeRef is false (repeat visit), skip coin accumulation — pts only.
+    if (isFirstTimeRef.current) {
+      // Fractional coin accumulator: add this event's coin-value to running total,
+      // then award only the integer part — remainder carries to the next event.
+      const userLevel = getLevelFromScore(_user.totalScore || 0);
+      const ratio = userLevel >= 5 ? (1 / 6) : 0.125;
+      coinFracAccumRef.current += pts * ratio;
+      const coins = Math.floor(coinFracAccumRef.current);
+      coinFracAccumRef.current -= coins;
 
-    // Coins deferred — accumulate for session-end (no immediate balance update / notification)
-    if (coins > 0) {
-      pendingSessionCreditsRef.current += coins;
-      setPendingCreditDisplay(pendingSessionCreditsRef.current);
+      // Coins deferred — accumulate for session-end (no immediate balance update / notification)
+      if (coins > 0) {
+        pendingSessionCreditsRef.current += coins;
+        setPendingCreditDisplay(pendingSessionCreditsRef.current);
+        creditsEarnedThisSessionRef.current = true;
+      }
     }
     _onUpdateUser(scoreUpdated);
     saveUserToLive(scoreUpdated);
@@ -379,9 +420,13 @@ export const LessonView: React.FC<Props> = ({
       sessionWritingCrRef.current += credits; markModeActive('Writing');
     }
 
+    // ── Routine credit gating: credits only on first visit ────────────────────
+    if (!isFirstTimeRef.current) return;
+
     // Defer — collect in session box, apply 4s after HOME
     pendingSessionCreditsRef.current += credits;
     setPendingCreditDisplay(pendingSessionCreditsRef.current);
+    creditsEarnedThisSessionRef.current = true;
   }, []);
 
   // Award MCQ coins once when results are shown (session over)

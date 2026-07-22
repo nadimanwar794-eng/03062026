@@ -12,8 +12,9 @@ import { PerformanceGraph } from './PerformanceGraph';
 import { subscribeMcqLessons, saveUserToLive } from '../firebase';
 import { useAppTheme } from '../utils/themeContext';
 import {
-  recordAttempt, applyInitialSchedule, bucketKey,
+  recordAttempt, applyInitialSchedule, bucketKey, getAllBuckets,
 } from '../utils/revisionTrackerV2';
+import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
 
@@ -311,6 +312,17 @@ export const RevisionHubScreen: React.FC<Props> = ({
         applyInitialSchedule(bk, accuracy, revCfg);
       } catch (_) {}
     });
+
+    // ── Sync all revision buckets to Firebase after session (fire-and-forget) ──
+    try {
+      const allBuckets = getAllBuckets();
+      const bucketMap: Record<string, any> = {};
+      allBuckets.forEach((b: any) => {
+        const k = `${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`;
+        bucketMap[k] = b;
+      });
+      syncAllRevisionBuckets(user.id, bucketMap);
+    } catch (_) {}
 
     // ── Save to mcqHistory so My Routine + score tracking can see it ──────────
     if (totalAnswered > 0 && onUpdateUser) {
