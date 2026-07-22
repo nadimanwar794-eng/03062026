@@ -115,12 +115,21 @@ const applyDegrees = (text: string): string =>
 // ─────────────────────────────────────────────────────────────────────────────
 const applyArrows = (text: string): string =>
   text
-    .replace(/&lt;=&gt;/g, '⇌')
-    .replace(/<=/g,        '⇌')   // already unescaped in text nodes
-    .replace(/--&gt;/g,   '→')
-    .replace(/&lt;--/g,   '←')
-    .replace(/\b-&gt;\b/g,'→')
-    .replace(/\b&lt;-\b/g,'←');
+    // HTML-escaped variants (produced by renderMathInText or pre-escaped HTML)
+    .replace(/&lt;=&gt;/g,  '⇌')   // <=>
+    .replace(/--&gt;/g,     '→')   // -->
+    .replace(/&lt;--/g,     '←')   // <--
+    .replace(/\b-&gt;\b/g,  '→')   // ->
+    .replace(/\b&lt;-\b/g,  '←')   // <-
+    // Literal variants (text nodes in raw HTML where < > appear unescaped)
+    .replace(/<==>/g,        '⇌')   // <==>
+    .replace(/<==>/g,        '⇌')
+    .replace(/<=>/g,         '⇌')   // <=>  (must come BEFORE <- to avoid partial match)
+    .replace(/-->/g,         '→')   // -->
+    .replace(/<--/g,         '←')   // <--
+    .replace(/\B->\B/g,      '→')   // ->  (not at word boundary to avoid breaking other tokens)
+    .replace(/(?<!\S)->/g,   '→')   // -> after whitespace
+    .replace(/->(?!\S)/g,    '→');  // -> before whitespace
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main export — renders ALL supported math/science notations in an HTML string.

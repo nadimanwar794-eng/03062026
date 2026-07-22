@@ -1238,9 +1238,9 @@ export const LessonView: React.FC<Props> = ({
                                           }
                                           if (!readableText) return null;
                                           return (
-                                              <div className="notes-html-content p-4 sm:p-6 border-b border-slate-100 whitespace-pre-wrap text-slate-700" style={{ fontSize: '15px', lineHeight: '1.8' }}>
-                                                  {readableText}
-                                              </div>
+                                              <div className="notes-html-content p-4 sm:p-6 border-b border-slate-100 text-slate-700" style={{ fontSize: '15px', lineHeight: '1.8' }}
+                                                  dangerouslySetInnerHTML={{ __html: renderMathInHtml(readableText) }}
+                                              />
                                           );
                                       })()}
                                       {/* Write mode HTML */}
@@ -3208,7 +3208,7 @@ export const LessonView: React.FC<Props> = ({
                                                <h4 className="font-bold text-amber-900 flex items-center gap-2 mb-2">
                                                    <Lightbulb size={18} /> {topic} Revision Note
                                                </h4>
-                                               <div className="prose prose-sm max-w-none w-full text-amber-800" dangerouslySetInnerHTML={{ __html: decodeHtml(topicNote.content || topicNote.html || '') }} />
+                                               <div className="prose prose-sm max-w-none w-full text-amber-800" dangerouslySetInnerHTML={{ __html: renderMathInHtml(decodeHtml(topicNote.content || topicNote.html || '')) }} />
                                            </div>
                                        )}
                                    </div>

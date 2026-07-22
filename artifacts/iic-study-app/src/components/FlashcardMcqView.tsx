@@ -15,6 +15,7 @@ import { useAppTheme } from '../utils/themeContext';
 import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
 import { fireSessionComplete } from '../utils/sessionNotify';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 interface Props {
   questions: MCQItem[];
@@ -681,14 +682,14 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 </button>
               </div>
 
-              <p className="text-base font-black text-slate-800 leading-snug flex-1 mb-3">
-                {activeQ!.question}
-              </p>
+              <div className="text-base font-black text-slate-800 leading-snug flex-1 mb-3"
+                dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.question) }}
+              />
 
               {activeQ!.statements && activeQ!.statements.length > 0 && (
                 <div className="mb-3 space-y-1 pl-3 border-l-2 border-slate-200">
                   {activeQ!.statements.map((s, i) => (
-                    <p key={i} className="text-sm text-slate-600">{s}</p>
+                    <p key={i} className="text-sm text-slate-600" dangerouslySetInnerHTML={{ __html: renderMathInHtml(s) }} />
                   ))}
                 </div>
               )}
@@ -822,33 +823,33 @@ export const FlashcardMcqView: React.FC<Props> = ({
               )}
 
               <div className="bg-white border-2 border-emerald-300 rounded-2xl p-4 mb-3">
-                <p className="text-base font-black text-emerald-900 leading-snug">
-                  {activeQ!.options?.[activeQ!.correctAnswer] || '—'}
-                </p>
+                <div className="text-base font-black text-emerald-900 leading-snug"
+                  dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.options?.[activeQ!.correctAnswer] || '—') }}
+                />
               </div>
 
               {activeQ!.explanation && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-2">
                   <p className="text-[10px] font-black uppercase tracking-wider text-blue-700 mb-1">Explanation</p>
-                  <p className="text-sm text-blue-900 leading-relaxed">{activeQ!.explanation}</p>
+                  <div className="text-sm text-blue-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.explanation) }} />
                 </div>
               )}
               {activeQ!.concept && (
                 <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-2">
                   <p className="text-[10px] font-black uppercase tracking-wider text-purple-700 mb-1">Concept</p>
-                  <p className="text-sm text-purple-900 leading-relaxed">{activeQ!.concept}</p>
+                  <div className="text-sm text-purple-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.concept) }} />
                 </div>
               )}
               {activeQ!.examTip && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-2">
                   <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 mb-1">Exam Tip</p>
-                  <p className="text-sm text-amber-900 leading-relaxed">{activeQ!.examTip}</p>
+                  <div className="text-sm text-amber-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.examTip) }} />
                 </div>
               )}
               {activeQ!.mnemonic && (
                 <div className="bg-pink-50 border border-pink-200 rounded-xl p-3 mb-2">
                   <p className="text-[10px] font-black uppercase tracking-wider text-pink-700 mb-1">Memory Trick</p>
-                  <p className="text-sm text-pink-900 leading-relaxed">{activeQ!.mnemonic}</p>
+                  <div className="text-sm text-pink-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.mnemonic) }} />
                 </div>
               )}
 
@@ -1017,7 +1018,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:14, padding:'16px 20px', flexShrink:0 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
-                  <div style={{ fontSize:20, fontWeight:700, color:'#0f172a', lineHeight:1.5 }}>{pq.question}</div>
+                  <div style={{ fontSize:20, fontWeight:700, color:'#0f172a', lineHeight:1.5 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
                 </div>
               </div>
               {/* Options */}
@@ -1075,7 +1076,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                         transition:'background 0.2s, border 0.2s'
                       }}>
                       <span style={{ background: dotBg, color:'#fff', borderRadius:999, width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{optionLetters[oi]}</span>
-                      <div style={{ fontSize:18, fontWeight:600, color: textColor, lineHeight:1.35, flex:1 }}>{opt}</div>
+                      <div style={{ fontSize:18, fontWeight:600, color: textColor, lineHeight:1.35, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                       {icon}
                     </div>
                   );
@@ -1084,7 +1085,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               {/* Explanation after answering */}
               {projectorSelected !== null && pq.explanation && (
                 <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize:16, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>
-                  💡 <strong>Explanation:</strong> {pq.explanation}
+                  💡 <strong>Explanation:</strong> <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.explanation) }} />
                 </div>
               )}
             </div>
