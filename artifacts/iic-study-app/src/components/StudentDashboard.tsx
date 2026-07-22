@@ -12104,9 +12104,6 @@ export const StudentDashboard: React.FC<Props> = ({
             <span className="font-black text-[19px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
               {settings?.appShortName || settings?.appName || "IIC"}
             </span>
-            <span className="font-black text-[19px] leading-tight tracking-tight text-white whitespace-nowrap">
-              {(user.name || user.displayName || '').split(' ')[0]}
-            </span>
             <button
               onClick={() => setShowStreakPopup(true)}
               className={'inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-black shrink-0 active:scale-90 transition-all text-white' + (topBarBtnGlow ? ' nst-topbar-btn-glow' : '')}
