@@ -12093,36 +12093,25 @@ export const StudentDashboard: React.FC<Props> = ({
       >
         {/* Main Header Row */}
         <div className="flex items-center justify-between w-full px-3 pt-1.5 pb-1">
-          {/* LEFT: hamburger + logo + app name */}
-          <div
-            className="flex items-center gap-2 shrink-0 cursor-pointer"
-            onClick={() => setShowSidebar(true)}
-          >
-            <button className="p-1 rounded-lg transition-colors hover:bg-white/20 -ml-1 shrink-0">
+          {/* LEFT: hamburger + first name + streak */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              className="p-1 rounded-lg transition-colors hover:bg-white/20 -ml-1 shrink-0"
+              onClick={() => setShowSidebar(true)}
+            >
               <Menu size={20} className="text-white" />
             </button>
-            {user.photoURL && user.avatarChoice === 'gmail' ? (
-              <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
-            ) : settings?.appLogo ? (
-              <img src={settings.appLogo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-white shrink-0 shadow" />
-            ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 border-2 border-white text-white shrink-0 shadow">
-                <BrainCircuit size={16} />
-              </div>
-            )}
-            <div className="flex items-center gap-1 min-w-0">
-              <span className="font-black text-[19px] leading-tight tracking-tight uppercase whitespace-nowrap text-white">
-                {settings?.appShortName || settings?.appName || "IIC"}
-              </span>
-              <button
-                onClick={() => setShowStreakPopup(true)}
-                className={`inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-black shrink-0 active:scale-90 transition-all text-white${topBarBtnGlow ? ' nst-topbar-btn-glow' : ''}`}
-                title={`Login streak: ${user.streak} day${user.streak === 1 ? '' : 's'}`}
-              >
-                <span className="text-[13px] leading-none">🔥</span>
-                <span>{user.streak}d</span>
-              </button>
-            </div>
+            <span className="font-black text-[19px] leading-tight tracking-tight text-white whitespace-nowrap">
+              {(user.name || user.displayName || '').split(' ')[0]}
+            </span>
+            <button
+              onClick={() => setShowStreakPopup(true)}
+              className={'inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-black shrink-0 active:scale-90 transition-all text-white' + (topBarBtnGlow ? ' nst-topbar-btn-glow' : '')}
+              title={'Login streak: ' + user.streak + ' day' + (user.streak === 1 ? '' : 's')}
+            >
+              <span className="text-[13px] leading-none">🔥</span>
+              <span>{user.streak}d</span>
+            </button>
           </div>
 
           {/* RIGHT: streak + search + mail + dots */}
