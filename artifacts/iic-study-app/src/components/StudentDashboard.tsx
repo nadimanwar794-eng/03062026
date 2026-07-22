@@ -17938,13 +17938,12 @@ export const StudentDashboard: React.FC<Props> = ({
                 const planRows: PlanRow[] = [
                   { icon: '📖', label: 'Notes', free: '✓ Unlimited', basic: '✓ Unlimited', ultra: '✓ Unlimited' },
                   { icon: '📝', label: 'MCQ Practice', free: `${mcqFreeLimit}/day`, basic: `${mcqBasicLimit}/day`, ultra: `${mcqUltraLimit}/day` },
-                  { icon: '🎬', label: 'Video Lectures', free: 'Coins needed', basic: `${vidBasic}/day free`, ultra: `${vidUltra}/day free` },
+                  { icon: '🎬', label: 'Video Lectures', free: '🔒 Locked', basic: `${vidBasic}/day free`, ultra: `${vidUltra}/day free` },
                   { icon: '📄', label: 'PDF Access', free: 'L1-L4: 🔒, L5: 1/day → grows with level', basic: 'L1: 1/day → grows with level', ultra: 'L1: 3/day → grows with level' },
                   { icon: '✍️', label: 'Write Mode (free views)', free: `${htmlCost} CR/view (no free)`, basic: `${basicHtmlLimit}/day free, then CR`, ultra: `${ultraHtmlLimitModal}/day free, then CR` },
                   { icon: '💎', label: 'Write Mode (after limit)', free: `${htmlCost} CR/use`, basic: `10 CR/use`, ultra: `10 CR/use` },
                   { icon: '📥', label: 'HTML Downloads', free: `${dlFree}/day`, basic: `${dlBasic}/day`, ultra: `${dlUltra}/day` },
                   { icon: '🗓️', label: 'Sunday Bonus (on streak break)', free: `+${freeBonus} CR`, basic: `+${basicBonus} CR`, ultra: `+${ultraBonus} CR` },
-                  { icon: '🔊', label: 'Audio / TTS', free: '✓ Free', basic: '✓ Free', ultra: '✓ Free' },
                 ];
 
                 return (
@@ -22865,7 +22864,6 @@ RULES:
                   ) || '0', 10) : 0;
                   const _paidWriteUsed = _isOwnTier ? parseInt(localStorage.getItem(`nst_paid_write_${user.id}_${todayStr}`) || '0', 10) : 0;
                   const _cnUsed    = _isOwnTier ? parseInt(localStorage.getItem(`nst_cn_daily_${user.id}_${todayStr}`) || '0', 10) : 0;
-                  const _ttsUsed   = _isOwnTier ? parseInt(localStorage.getItem(`nst_tts_daily_${user.id}_${todayStr}`) || '0', 10) : 0;
                   const _fcUsed    = _isOwnTier ? parseInt(localStorage.getItem(`nst_fc_daily_${user.id}_${new Date().toDateString()}`) || '0', 10) : 0;
                   const _vidUsed   = _isOwnTier ? parseInt(localStorage.getItem(`nst_vid_daily_${user.id}_${todayStr}`) || '0', 10) : 0;
                   const _pdfUsed   = _isOwnTier ? parseInt(localStorage.getItem(`nst_pdf_daily_${user.id}_${todayStr}`) || '0', 10) : 0;
@@ -23012,7 +23010,6 @@ RULES:
                   const _vidLim  = _tier === 'ULTRA' ? _ld.video.ultra : _tier === 'BASIC' ? _ld.video.basic : _ld.video.free;
                   const _pdfLim  = _tier === 'ULTRA' ? _ld.pdf.ultra  : _tier === 'BASIC' ? _ld.pdf.basic  : _ld.pdf.free;
                   const _conLim  = _tier === 'ULTRA' ? _ld.concept.ultra : _tier === 'BASIC' ? _ld.concept.basic : 0;
-                  const _retLim  = _tier === 'ULTRA' ? _ld.retention.ultra : _tier === 'BASIC' ? _ld.retention.basic : 0;
 
                   const _mcqNext  = _ldNext ? (_tier === 'ULTRA' ? _ldNext.mcq.ultra  : _tier === 'BASIC' ? _ldNext.mcq.basic  : _ldNext.mcq.free) : null;
                   const _dlNext   = _ldNext ? (_tier === 'ULTRA' ? _ldNext.dl.ultra   : _tier === 'BASIC' ? _ldNext.dl.basic   : _ldNext.dl.free) : null;
@@ -23096,21 +23093,11 @@ RULES:
                               _ldNext ? (_tier === 'ULTRA' ? _ldNext.notes.ultra : _tier === 'BASIC' ? _ldNext.notes.basic : _ldNext.notes.free) : null,
                               true)}
 
-                        {/* Audio / TTS */}
-                        {_isUnlimNotes
-                          ? _renderCard('🎧', 'Audio / TTS', null, _ttsUsed, true, 'free', null, true)
-                          : _renderCard('🎧', 'Audio / TTS',
-                              _tier === 'ULTRA' ? _ld.tts.ultra : _tier === 'BASIC' ? _ld.tts.basic : _ld.tts.free,
-                              _ttsUsed, false, 'free',
-                              _ldNext ? (_tier === 'ULTRA' ? _ldNext.tts.ultra : _tier === 'BASIC' ? _ldNext.tts.basic : _ldNext.tts.free) : null,
-                              true)}
-
-                        {/* Flashcards */}
-                        {_renderCard('🃏', 'Flashcards',
-                            _tier === 'ULTRA' ? _ld.flashcard.ultra : _tier === 'BASIC' ? _ld.flashcard.basic : _ld.flashcard.free,
-                            _fcUsed, false, 'free',
-                            _ldNext ? (_tier === 'ULTRA' ? _ldNext.flashcard.ultra : _tier === 'BASIC' ? _ldNext.flashcard.basic : _ldNext.flashcard.free) : null,
-                            true)}
+                        {/* Flashcards — only Ultra gets free quota; free/basic = locked */}
+                        {_tier === 'ULTRA'
+                          ? _renderCard('🃏', 'Flashcards', _ld.flashcard.ultra, _fcUsed, false, 'free',
+                              _ldNext ? _ldNext.flashcard.ultra : null, true)
+                          : _renderCard('🃏', 'Flashcards', null, _fcUsed, false, 'locked', null, false)}
 
                         {/* ── CREDIT features (blue) ── */}
                         {/* Video Lectures */}
@@ -23129,13 +23116,6 @@ RULES:
                           : _tier === 'FREE'
                             ? _renderCard('💡', 'Concept Notes', null, _cnUsed, false, 'locked', null, false)
                             : _renderCard('💡', 'Concept Notes', null, _cnUsed, false, 'credit', null, false, _wrtCrCost)}
-
-                        {/* Retention Notes: locked on FREE, credit on BASIC/ULTRA */}
-                        {_retLim > 0
-                          ? _renderCard('🔁', 'Retention Notes', _retLim, 0, false, 'free', null, false)
-                          : _tier === 'FREE'
-                            ? _renderCard('🔁', 'Retention Notes', null, 0, false, 'locked', null, false)
-                            : _renderCard('🔁', 'Retention Notes', null, 0, false, 'credit', null, false, _wrtCrCost)}
 
                         {/* Write (Credits) — always credit (blue) */}
                         {_renderCard('✏️', 'Write Mode (Credits)', _creditMax, _paidWriteUsed, false, 'credit', null, true, _wrtCrCost)}
@@ -23171,7 +23151,6 @@ RULES:
                             'PDF Access':    _pdfUsed,
                             'Video':         _vidUsed,
                             'Notes Reading': _cnUsed,
-                            'Audio / TTS':   _ttsUsed,
                             'Flashcards':    _fcUsed,
                             'Write Mode':    _writeUsed,
                             'Spin Wheel':    _spinUsed,
@@ -23182,11 +23161,9 @@ RULES:
                             { icon: '📄', label: 'PDF Access',     f: _ld.pdf.free,       b: _ld.pdf.basic,       u: _ld.pdf.ultra },
                             { icon: '🎬', label: 'Video',          f: _ld.video.free,     b: _ld.video.basic,     u: _ld.video.ultra },
                             { icon: '📖', label: 'Notes Reading',  f: _ld.notes.free,     b: _ld.notes.basic,     u: _ld.notes.ultra },
-                            { icon: '🎧', label: 'Audio / TTS',    f: _ld.tts.free,       b: _ld.tts.basic,       u: _ld.tts.ultra },
                             { icon: '🃏', label: 'Flashcards',     f: _ld.flashcard.free, b: _ld.flashcard.basic, u: _ld.flashcard.ultra },
                             { icon: '✍️', label: 'Write Mode',     f: _ld.write.free,     b: _ld.write.basic,     u: _ld.write.ultra },
                             { icon: '💡', label: 'Concept Notes',  f: _ld.concept.free,   b: _ld.concept.basic,   u: _ld.concept.ultra },
-                            { icon: '🔁', label: 'Retention',      f: _ld.retention.free, b: _ld.retention.basic, u: _ld.retention.ultra },
                             { icon: '🎰', label: 'Spin Wheel',     f: _spinF,             b: _spinB,              u: _spinU },
                           ];
                           const fmt = (v: number) => v >= UNLIMITED ? '∞' : v === 0 ? '🔒' : String(v);
@@ -23958,18 +23935,10 @@ RULES:
                       unlimitedAt: 9,
                     },
                     {
-                      icon: '🔊', label: 'Audio / TTS',
-                      free:  fmt(ld.tts.free),
-                      basic: fmt(ld.tts.basic),
-                      ultra: fmt(ld.tts.ultra),
-                      unlimitedAt: 9,
-                    },
-                    {
                       icon: '🃏', label: 'Flashcards',
                       free:  fmt(ld.flashcard.free),
                       basic: fmt(ld.flashcard.basic),
                       ultra: fmt(ld.flashcard.ultra),
-                      freeNote: '+10/level',
                     },
                     {
                       icon: '💰', label: 'Login Bonus CR',
@@ -24234,7 +24203,6 @@ RULES:
 
         const unlimitedRows: LimitRow[] = [
           mkRow('📖','Notes Reading', null, 0, true, false, 'Unlimited', 'No daily cap', 'text-emerald-600', '#10b981', false),
-          mkRow('🔊','Audio / TTS', null, 0, true, false, 'Unlimited', 'No daily cap', 'text-emerald-600', '#10b981', false),
           ...(isOwnPlan ? [
             mkRow('🏬','Store Visits', null, storeVisits, true, false, 'Unlimited', `${storeVisits} visits aaj`, 'text-slate-600', '#94a3b8', false),
             mkRow('💰','Credits Balance', null, 0, true, false, 'Earn daily', `${(user.credits || 0).toLocaleString('en-IN')} CR available`, (user.credits||0) >= 20 ? 'text-emerald-600' : (user.credits||0) > 0 ? 'text-amber-600' : 'text-rose-600', (user.credits||0) >= 20 ? '#10b981' : (user.credits||0) > 0 ? '#f59e0b' : '#ef4444', false),

@@ -1021,7 +1021,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                           const mcqLimit = ld?.mcq?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 70 : 100);
                           const pdfLimit = ld?.pdf?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 5 : 10);
                           const videoLimit = ld?.video?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 4 : 7);
-                          const flashLimit = ld?.flashcard?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 15 : 20);
+                          const flashLimit = ld?.flashcard?.['ultra'] ?? 20;
                           const fmtLim = (v: number) => v === UNLIMITED ? '∞' : v.toLocaleString('en-IN');
 
                           const topStats = [
