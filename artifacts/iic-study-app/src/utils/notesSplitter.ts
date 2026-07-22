@@ -26,18 +26,18 @@ export interface NoteSections {
 // Require the actual labels (not just a stray emoji somewhere) before we
 // treat a note as "Suno 3-section" format, so ordinary single-section notes
 // that merely happen to contain 📖/📝/💡 characters are left untouched.
-const BOOK_LABEL_RE = /📖\s*Book\s*Text\s*:/i;
-const SMART_LABEL_RE = /📝\s*Smart\s*Notes?\s*:/i;
-const EXPLAIN_LABEL_RE = /💡\s*(?:आसान\s*समझ)?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:/i;
+const BOOK_LABEL_RE = /📖\s*Book\s*Text\s*:?/i;
+const SMART_LABEL_RE = /📝\s*Smart\s*Notes?\s*:?/i;
+const EXPLAIN_LABEL_RE = /💡\s*(?:आसान\s*समझ)?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:?/i;
 
 // Global variants of the same labels, used to find every occurrence and where
 // its label text ends (so the body segment can start right after the label
 // without a separate strip pass). Anchoring on the full label — not just the
 // bare emoji — means a 📖/📝/💡 that shows up inside normal body text (e.g. as
 // decoration on an unrelated line) is never mistaken for a section boundary.
-const BOOK_LABEL_G = /📖\s*Book\s*Text\s*:\s*/gi;
-const SMART_LABEL_G = /📝\s*Smart\s*Notes?\s*:\s*/gi;
-const EXPLAIN_LABEL_G = /💡\s*(?:आसान\s*समझ)?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:\s*/gi;
+const BOOK_LABEL_G = /📖\s*Book\s*Text\s*:?\s*/gi;
+const SMART_LABEL_G = /📝\s*Smart\s*Notes?\s*:?\s*/gi;
+const EXPLAIN_LABEL_G = /💡\s*(?:आसान\s*समझ)?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:?\s*/gi;
 // Heading lines: "📌 <heading text>" up to the end of that line.
 const HEADING_LABEL_G = /📌\s*([^\n]*)/g;
 
