@@ -6567,8 +6567,15 @@ export const StudentDashboard: React.FC<Props> = ({
         });
         return m === Infinity ? 99999 : m;
       };
+      // Also match by bookName for custom books — admin sets bookName = custom book name
+      // so entries appear under the correct custom book in student view.
+      const _customBookForView = customBooksFromSettings.find(b => b.id === homeworkSubjectView);
       const subjectLucentLessons = ((settings?.lucentNotes || []) as LucentNoteEntry[])
-        .filter(n => n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim() && (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || !n.board))
+        .filter(n => {
+          const bySubject = n.subject?.toLowerCase().trim() === homeworkSubjectView?.toLowerCase().trim();
+          const byBookName = _customBookForView && n.bookName?.trim().toLowerCase() === _customBookForView.name?.trim().toLowerCase();
+          return (bySubject || byBookName) && (n.classLevel === 'COMPETITION' || !n.classLevel) && (n.board === _curBoard || !n.board);
+        })
         .sort((a, b) => _subjLucentMinPg(a) - _subjLucentMinPg(b));
       const showLucentSection = subjectLucentLessons.length > 0
         && hwYear === null && hwMonth === null && hwWeek === null && !hwActiveHwId;
@@ -18674,7 +18681,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     </button>
                     <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden">
                       <span className="shrink-0 text-[10px] font-bold opacity-60 uppercase tracking-widest whitespace-nowrap">
-                        {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject); return _cat ? `📘 ${_cat.name}` : '📘 Lucent'; })()}
+                        {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject) || (customBooksFromSettings as any[]).find((b: any) => b.id === entry.subject); return _cat ? `📗 ${_cat.name}` : entry.bookName ? `📗 ${entry.bookName}` : '📘 Lucent'; })()}
                       </span>
                       <span className="text-white/40 shrink-0">·</span>
                       <span className="font-black text-sm leading-tight truncate">{entry.lessonTitle}</span>
@@ -18781,7 +18788,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-bold opacity-75 uppercase tracking-widest truncate flex items-center gap-1.5">
                       <span className="truncate">
-                        {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject); return _cat ? `📘 ${_cat.name}` : '📘 Lucent Book'; })()}
+                        {(() => { const _cat = LUCENT_CATEGORIES.find(c => c.id === entry.subject) || (customBooksFromSettings as any[]).find((b: any) => b.id === entry.subject); return _cat ? `📗 ${_cat.name}` : entry.bookName ? `📗 ${entry.bookName}` : '📘 Lucent Book'; })()}
                       </span>
                       {currentPage?.date && (
                         <span className="bg-white/25 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide whitespace-nowrap shrink-0">

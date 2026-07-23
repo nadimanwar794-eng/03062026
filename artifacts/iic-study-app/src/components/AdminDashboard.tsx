@@ -1065,7 +1065,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   // Dynamic subject options — changes based on which classLevel admin selected.
   // For COMPETITION: competition subjects (built-in + custom). For class 6-12: all subjects of that class.
   const activeLucentSubjectOptions: { id: string; name: string }[] = (() => {
-    if (newLucent.classLevel === 'COMPETITION') return [...LUCENT_SUBJECT_OPTIONS_BASE.filter(s => !hiddenLucentSubjectIds.has(s.id)), ...customLucentSubjectsList.filter(s => !(s as any).bookId)];
+    if (newLucent.classLevel === 'COMPETITION') return [...LUCENT_SUBJECT_OPTIONS_BASE.filter(s => !hiddenLucentSubjectIds.has(s.id)), ...customLucentSubjectsList.filter(s => !(s as any).bookId), ...customBooksList.map(b => ({ id: b.id, name: `📗 ${b.name}` }))];
     try {
       const seen = new Set<string>();
       const results: { id: string; name: string }[] = [];
@@ -13061,61 +13061,78 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               )}
                                           </div>
                                       </div>
-                                      <div>
-                                          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">📚 Kis Book ka Content Hai?</label>
-                                          <div className="flex gap-1.5">
-                                              <input
-                                                  type="text"
-                                                  list="admin-book-name-list-2"
-                                                  value={newLucent.bookName}
-                                                  onChange={e => setNewLucent({...newLucent, bookName: e.target.value})}
-                                                  className="flex-1 p-2 border border-slate-200 rounded text-sm outline-none focus:border-indigo-500"
-                                                  placeholder="Book chuniye ya khud likhiye..."
-                                              />
-                                              <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                      const name = newLucent.bookName.trim();
-                                                      if (!name) return;
-                                                      if (customLucentBooksList.includes(name)) return;
-                                                      setLocalSettings({ ...localSettings, customLucentBooks: [...customLucentBooksList, name] });
-                                                  }}
-                                                  title="Is book ko save karo future use ke liye"
-                                                  className="px-2.5 py-1.5 bg-indigo-600 text-white rounded text-[11px] font-black hover:bg-indigo-700 active:scale-95 whitespace-nowrap"
-                                              >＋ Save</button>
-                                          </div>
-                                          <datalist id="admin-book-name-list-2">
-                                              <option value="Lucent" />
-                                              <option value="Speedy Science" />
-                                              <option value="Speedy Social Science" />
-                                              <option value="Sar Sangrah" />
-                                              {customLucentBooksList.map(b => <option key={b} value={b} />)}
-                                          </datalist>
-                                          {/* Saved custom books chips */}
-                                          {customLucentBooksList.length > 0 && (
-                                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                                  {customLucentBooksList.map(b => (
-                                                      <div key={b} className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 rounded-full pl-2 pr-1 py-0.5">
-                                                          <button
-                                                              type="button"
-                                                              onClick={() => setNewLucent({...newLucent, bookName: b})}
-                                                              className="text-[11px] font-bold text-indigo-800 hover:text-indigo-600"
-                                                          >{b}</button>
-                                                          <button
-                                                              type="button"
-                                                              onClick={() => setLocalSettings({ ...localSettings, customLucentBooks: customLucentBooksList.filter(x => x !== b) })}
-                                                              className="text-[10px] text-red-400 hover:text-red-600 font-black px-0.5"
-                                                              title="Remove"
-                                                          >✕</button>
-                                                      </div>
-                                                  ))}
-                                              </div>
-                                          )}
-                                          <p className="text-[10px] text-indigo-600 font-bold mt-1">
-                                              ⚠️ Yahan jo naam likhoge, student app mein usi naam ka alag book card banega.
-                                              Khaali chhodne par "Lucent" card mein jayega.
-                                          </p>
-                                      </div>
+                                       <div>
+                                           <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">📚 Kis Book ka Content Hai?</label>
+                                           {/* Custom Books quick-select */}
+                                           {customBooksList.length > 0 && (
+                                               <div className="flex flex-wrap gap-1 mb-1.5">
+                                                   {customBooksList.map(b => (
+                                                       <button
+                                                           key={b.id}
+                                                           type="button"
+                                                           onClick={() => setNewLucent({...newLucent, bookName: b.name})}
+                                                           className={`px-2.5 py-1 rounded-full border-2 text-[11px] font-black transition-all ${newLucent.bookName === b.name ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-teal-700 border-teal-300 hover:border-teal-500'}`}
+                                                       >📗 {b.name}</button>
+                                                   ))}
+                                                   <button
+                                                       type="button"
+                                                       onClick={() => setNewLucent({...newLucent, bookName: 'Lucent'})}
+                                                       className={`px-2.5 py-1 rounded-full border-2 text-[11px] font-black transition-all ${newLucent.bookName === 'Lucent' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-300 hover:border-indigo-500'}`}
+                                                   >📘 Lucent</button>
+                                               </div>
+                                           )}
+                                           <div className="flex gap-1.5">
+                                               <input
+                                                   type="text"
+                                                   list="admin-book-name-list-2"
+                                                   value={newLucent.bookName}
+                                                   onChange={e => setNewLucent({...newLucent, bookName: e.target.value})}
+                                                   className="flex-1 p-2 border border-slate-200 rounded text-sm outline-none focus:border-indigo-500"
+                                                   placeholder="Book chuniye ya khud likhiye..."
+                                               />
+                                               <button
+                                                   type="button"
+                                                   onClick={() => {
+                                                       const name = newLucent.bookName.trim();
+                                                       if (!name) return;
+                                                       if (customLucentBooksList.includes(name)) return;
+                                                       setLocalSettings({ ...localSettings, customLucentBooks: [...customLucentBooksList, name] });
+                                                   }}
+                                                   title="Is book ko save karo future use ke liye"
+                                                   className="px-2.5 py-1.5 bg-indigo-600 text-white rounded text-[11px] font-black hover:bg-indigo-700 active:scale-95 whitespace-nowrap"
+                                               >＋ Save</button>
+                                           </div>
+                                           <datalist id="admin-book-name-list-2">
+                                               <option value="Lucent" />
+                                               <option value="Speedy Science" />
+                                               <option value="Speedy Social Science" />
+                                               <option value="Sar Sangrah" />
+                                               {customBooksList.map(b => <option key={b.id} value={b.name} />)}
+                                               {customLucentBooksList.map(b => <option key={b} value={b} />)}
+                                           </datalist>
+                                           {customLucentBooksList.length > 0 && (
+                                               <div className="flex flex-wrap gap-1 mt-1.5">
+                                                   {customLucentBooksList.map(b => (
+                                                       <div key={b} className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 rounded-full pl-2 pr-1 py-0.5">
+                                                           <button
+                                                               type="button"
+                                                               onClick={() => setNewLucent({...newLucent, bookName: b})}
+                                                               className="text-[11px] font-bold text-indigo-800 hover:text-indigo-600"
+                                                           >{b}</button>
+                                                           <button
+                                                               type="button"
+                                                               onClick={() => setLocalSettings({ ...localSettings, customLucentBooks: customLucentBooksList.filter(x => x !== b) })}
+                                                               className="text-[10px] text-red-400 hover:text-red-600 font-black px-0.5"
+                                                               title="Remove"
+                                                           >✕</button>
+                                                       </div>
+                                                   ))}
+                                               </div>
+                                           )}
+                                           <p className="text-[10px] text-indigo-600 font-bold mt-1">
+                                               💡 Custom Book select karne par usi book mein notes dikhenge. Khaali chhodne par "Lucent" card mein jayega.
+                                           </p>
+                                       </div>
                                       {/* ── Smart Paste ───────────────────────────────────────────────────── */}
                                       <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
                                           <button
