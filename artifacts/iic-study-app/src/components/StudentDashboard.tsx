@@ -6779,6 +6779,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             title: lesson.lessonTitle || 'MCQ Practice',
                             subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
                             subject: 'mcq',
+                            startInProjectorMode: true,
                           });
                         }}
                         className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
