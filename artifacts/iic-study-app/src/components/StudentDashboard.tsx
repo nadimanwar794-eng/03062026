@@ -12230,9 +12230,6 @@ export const StudentDashboard: React.FC<Props> = ({
             className="flex items-center gap-2 shrink-0 active:opacity-70 transition-opacity"
             onClick={() => onTabChange("CUSTOM_PAGE")}
           >
-            {settings?.appLogo && (
-              <img src={settings.appLogo} alt="logo" className="w-9 h-9 rounded-lg object-cover shrink-0" />
-            )}
             <span className="font-black text-[23px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
               {settings?.appShortName || settings?.appName || "IIC"}
             </span>
