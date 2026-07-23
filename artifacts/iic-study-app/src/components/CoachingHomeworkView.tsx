@@ -536,8 +536,10 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user, onR
   const total = notes.length + mcqs.length + pdfs.length;
   if (total === 0) return null;
 
-  // MCQ category — tap opens full-page overlay
-  if (catKey === 'mcq' && mcqs.length > 0) {
+  // Any coaching book that contains only MCQs opens the one-question viewer.
+  // This is intentionally not limited to the legacy `mcq` category because
+  // Speedy Science, Lucent, Sar Sangrah, etc. can also contain MCQs.
+  if (mcqs.length > 0 && notes.length === 0 && pdfs.length === 0) {
     return (
       <div className="mb-3">
         <button
@@ -572,7 +574,20 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user, onR
       {open && (
         <div className="space-y-2 pl-1">
           {notes.map(n => <NoteCard key={n.id} note={n} accent={meta.color} directOpen={catKey !== 'lucent'} user={user} onReaderOpenChange={onReaderOpenChange} />)}
-          {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={meta.color} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />)}
+          {mcqs.length > 0 && (
+            <button
+              className="w-full flex items-center gap-2 px-3 py-3 rounded-xl border active:scale-[0.99] transition-all"
+              style={{ borderColor: `${meta.color}35`, background: `${meta.color}08` }}
+              onClick={() => { hapticMedium(); setMcqPageOpen(true); }}
+            >
+              <HelpCircle size={15} style={{ color: meta.color }} />
+              <span className="flex-1 text-left">
+                <span className="block text-[12px] font-black text-slate-800">MCQ Viewer mein kholen</span>
+                <span className="block text-[10px] font-medium text-slate-500">Ek baar mein ek question · {mcqs.length} MCQs</span>
+              </span>
+              <ChevronRight size={16} style={{ color: meta.color }} />
+            </button>
+          )}
           {pdfs.map(p => (
             <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 rounded-xl border active:scale-[0.99] transition-all"
@@ -584,6 +599,9 @@ function CategorySection({ catKey, data, accent, onSendToMcqCommunity, user, onR
               <span className="text-[10px] font-bold" style={{ color: meta.color }}>Open →</span>
             </a>
           ))}
+          {mcqPageOpen && mcqs.length > 0 && (
+            <McqFullPage mcqs={mcqs} accent={meta.color} label={meta.label} onClose={() => setMcqPageOpen(false)} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />
+          )}
         </div>
       )}
     </div>
