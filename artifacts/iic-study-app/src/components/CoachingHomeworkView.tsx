@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ref, onValue, off } from 'firebase/database';
 import { rtdb } from '../firebase';
 import { getCoaching } from '../coaching-firebase';
-import { ChevronRight, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send, Plus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, SkipForward, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send, Plus } from 'lucide-react';
 import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
@@ -249,7 +249,7 @@ function NoteCard({ note, accent, directOpen = false, user, onReaderOpenChange }
 // ──────────────────────────────────────────────────────────────────────────────
 type McqCommunityDraft = { question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string };
 
-function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any }) {
+function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq: CoachingMcq; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any; onAnswered?: (id: string) => void }) {
   const correctSet = getCorrectSet(mcq);
   const isMultiple = correctSet.size > 1;
 
@@ -271,6 +271,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq
     hapticMedium();
     setSelected(i);
     awardMcqXp(correctSet.has(i));
+    onAnswered?.(mcq.id);
   };
 
   const handleMultiToggle = (i: number) => {
@@ -293,6 +294,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq
       const noWrongPicked    = [...multiSelected].every(i => correctSet.has(i));
       awardMcqXp(allCorrectPicked && noWrongPicked);
     }
+    onAnswered?.(mcq.id);
   };
 
   const isAnswered = isMultiple ? submitted : selected !== null;
@@ -420,6 +422,45 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user }: { mcq: CoachingMcq
 }
 
 function McqFullPage({ mcqs, accent, label, onClose, onSendToMcqCommunity, user }: { mcqs: CoachingMcq[]; accent: string; label: string; onClose: () => void; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set());
+  const currentMcq = mcqs[currentIndex];
+  const isCurrentAnswered = !!currentMcq && answeredIds.has(currentMcq.id);
+
+  const markAnswered = (id: string) => {
+    setAnsweredIds(prev => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
+  const goNext = () => {
+    if (!isCurrentAnswered) return;
+    hapticMedium();
+    if (currentIndex >= mcqs.length - 1) {
+      onClose();
+    } else {
+      setCurrentIndex(index => index + 1);
+    }
+  };
+
+  const skipQuestion = () => {
+    hapticMedium();
+    if (currentIndex >= mcqs.length - 1) {
+      onClose();
+    } else {
+      setCurrentIndex(index => index + 1);
+    }
+  };
+
+  const goBack = () => {
+    if (currentIndex === 0) return;
+    hapticMedium();
+    setCurrentIndex(index => index - 1);
+  };
+
   return createPortal(
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, background: '#f8fafc' }}>
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 shadow-sm" style={{ background: accent }}>
@@ -427,10 +468,58 @@ function McqFullPage({ mcqs, accent, label, onClose, onSendToMcqCommunity, user 
           <ArrowLeft size={18} className="text-white" />
         </button>
         <span className="text-white font-black text-base flex-1">🧠 {label}</span>
-        <span className="text-white/70 text-[11px] font-bold">{mcqs.length} MCQ</span>
+        <span className="text-white/90 text-[11px] font-black">{currentIndex + 1} / {mcqs.length}</span>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ paddingBottom: 100 }}>
-        {mcqs.map(m => <McqCard key={m.id} mcq={m} accent={accent} onSendToMcqCommunity={onSendToMcqCommunity} user={user} />)}
+      <div className="shrink-0 px-4 pt-3">
+        <div className="h-1.5 rounded-full overflow-hidden bg-slate-200">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${((currentIndex + 1) / Math.max(mcqs.length, 1)) * 100}%`, background: accent }}
+          />
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-3" style={{ paddingBottom: 112 }}>
+        {mcqs.map((m, index) => (
+          <div key={m.id} style={{ display: index === currentIndex ? 'block' : 'none' }}>
+            <McqCard
+              mcq={m}
+              accent={accent}
+              onSendToMcqCommunity={onSendToMcqCommunity}
+              user={user}
+              onAnswered={markAnswered}
+            />
+          </div>
+        ))}
+      </div>
+      <div
+        className="shrink-0 grid grid-cols-3 gap-2 px-4 pt-3 bg-white border-t border-slate-200"
+        style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}
+      >
+        <button
+          onClick={goBack}
+          disabled={currentIndex === 0}
+          className="flex items-center justify-center gap-1.5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black disabled:opacity-35 active:scale-[0.98] transition-all"
+        >
+          <ChevronLeft size={15} />
+          Back
+        </button>
+        <button
+          onClick={skipQuestion}
+          className="flex items-center justify-center gap-1.5 py-3 rounded-xl border text-xs font-black active:scale-[0.98] transition-all"
+          style={{ borderColor: `${accent}45`, color: accent, background: `${accent}08` }}
+        >
+          <SkipForward size={14} />
+          Skip
+        </button>
+        <button
+          onClick={goNext}
+          disabled={!isCurrentAnswered}
+          className="flex items-center justify-center gap-1.5 py-3 rounded-xl text-white text-xs font-black disabled:opacity-40 active:scale-[0.98] transition-all"
+          style={{ background: accent }}
+        >
+          {currentIndex === mcqs.length - 1 ? 'Finish' : 'Next'}
+          <ChevronRight size={15} />
+        </button>
       </div>
     </div>,
     document.body
