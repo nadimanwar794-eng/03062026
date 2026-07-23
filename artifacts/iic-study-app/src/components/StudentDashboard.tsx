@@ -12197,14 +12197,8 @@ export const StudentDashboard: React.FC<Props> = ({
       >
         {/* Main Header Row */}
         <div className="flex items-center justify-between w-full px-3 pt-1.5 pb-1">
-          {/* LEFT: hamburger + logo + app name + verified badge */}
+          {/* LEFT: logo + app name + verified badge */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              className="p-1 rounded-lg transition-colors hover:bg-white/20 -ml-1 shrink-0"
-              onClick={() => setShowSidebar(true)}
-            >
-              <Menu size={20} className="text-white" />
-            </button>
             {settings?.appLogo && (
               <img src={settings.appLogo} alt="logo" className="w-7 h-7 rounded-lg object-cover shrink-0" />
             )}
@@ -12671,7 +12665,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       onTouchStart={() => setShowDotsMenu(false)}
                     />
                     {/* Dropdown panel — compact */}
-                    <div data-no-topbar-swipe className="fixed top-[100px] right-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+                    <div data-no-topbar-swipe className="fixed top-[100px] right-2 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[99999] animate-in fade-in zoom-in-95 duration-150 overflow-y-auto max-h-[calc(100dvh-120px)]">
                       {/* Header */}
                       <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5 border-b border-slate-100">
                         {/* Level pill */}
@@ -12715,6 +12709,178 @@ export const StudentDashboard: React.FC<Props> = ({
                           >BSEB</button>
                         </div>
                       </div>
+
+                      {/* Essential / Premium / Utilities (moved from sidebar) */}
+                      {(() => {
+                        const hwAccess = getFeatureAccess('HOMEWORK');
+                        const inboxAccess = getFeatureAccess('INBOX');
+                        const planAccess = getFeatureAccess('MY_PLAN');
+                        const redeemAccess = getFeatureAccess('REDEEM_CODE');
+                        const requestAccess = getFeatureAccess('REQUEST_CONTENT');
+                        const supportAccess = getFeatureAccess('SUPPORT');
+
+                        type SideBtn2 = { label: string; desc: string; icon: React.ElementType; color: string; action: () => void; locked: boolean; badge?: boolean };
+
+                        const essentialItems2: SideBtn2[] = [
+                          {
+                            label: 'Score History', desc: 'Points & progress', icon: TrendingUp, color: 'cyan',
+                            action: () => { setShowScoreHistoryDirect(true); setShowDotsMenu(false); },
+                            locked: false,
+                          },
+                          ...(!hwAccess.isHidden && !(settings?.hiddenBottomNavButtons || []).includes('HOMEWORK') ? [{
+                            label: 'Homework', desc: 'Assigned tasks', icon: GraduationCap, color: 'emerald',
+                            action: () => { onTabChange("HOMEWORK"); setShowDotsMenu(false); },
+                            locked: !hwAccess.hasAccess,
+                          }] : []),
+                          ...(!inboxAccess.isHidden ? [{
+                            label: 'Inbox', desc: 'Messages & alerts', icon: Mail, color: 'indigo',
+                            action: () => { setShowInbox(true); setShowDotsMenu(false); },
+                            locked: !inboxAccess.hasAccess,
+                            badge: (unreadCount + unreadNotifCount) > 0,
+                          }] : []),
+                          ...(!requestAccess.isHidden ? [{
+                            label: 'Demand', desc: 'Request content', icon: Megaphone, color: 'violet',
+                            action: () => { setShowRequestModal(true); setShowDotsMenu(false); },
+                            locked: !requestAccess.hasAccess,
+                          }] : []),
+                        ];
+
+                        const premiumItems2: SideBtn2[] = [
+                          ...(!planAccess.isHidden ? [{
+                            label: 'My Plan', desc: 'Subscription info', icon: CreditCard, color: 'purple',
+                            action: () => { onTabChange("SUB_HISTORY" as any); setShowDotsMenu(false); },
+                            locked: !planAccess.hasAccess,
+                          }] : []),
+                          ...(!redeemAccess.isHidden ? [{
+                            label: 'Redeem', desc: 'Use gift code', icon: Gift, color: 'pink',
+                            action: () => { onTabChange("REDEEM"); setShowDotsMenu(false); },
+                            locked: !redeemAccess.hasAccess,
+                          }] : []),
+                          ...(!supportAccess.isHidden ? [{
+                            label: 'Support', desc: 'Help & contact', icon: MessageSquare, color: 'rose',
+                            action: () => { handleSupportEmail(); setShowDotsMenu(false); },
+                            locked: !supportAccess.hasAccess,
+                          }] : []),
+                        ];
+
+                        const colorMap2: Record<string, string> = {
+                          emerald: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+                          teal:    'bg-teal-50 text-teal-700 hover:bg-teal-100',
+                          indigo:  'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
+                          purple:  'bg-purple-50 text-purple-700 hover:bg-purple-100',
+                          pink:    'bg-pink-50 text-pink-700 hover:bg-pink-100',
+                          violet:  'bg-violet-50 text-violet-700 hover:bg-violet-100',
+                          rose:    'bg-rose-50 text-rose-700 hover:bg-rose-100',
+                          cyan:    'bg-cyan-50 text-cyan-700 hover:bg-cyan-100',
+                        };
+
+                        const renderBtn2 = (item: SideBtn2) => (
+                          <button
+                            key={item.label}
+                            onClick={() => {
+                              if (item.locked) { showAlert('🔒 Locked by Admin. Upgrade your plan to access.', 'ERROR'); return; }
+                              item.action();
+                            }}
+                            className={`flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl font-bold transition-all relative active:scale-95 ${item.locked ? 'opacity-50 grayscale cursor-not-allowed' : colorMap2[item.color] || 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                          >
+                            <item.icon size={14} />
+                            <span className="text-[10px] font-black leading-tight">{item.label}</span>
+                            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">{item.desc}</span>
+                            {item.locked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-400" /></span>}
+                            {item.badge && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
+                          </button>
+                        );
+
+                        const themeType2 = localStorage.getItem("nst_dark_theme_type");
+                        const isBlue2 = isDarkMode && themeType2 === "blue";
+                        const themeLabel2 = isBlue2 ? 'Blue Dark' : isDarkMode ? 'Black Dark' : 'Light Mode';
+
+                        const themeBtn2 = (
+                          <button
+                            key="theme2"
+                            onClick={() => {
+                              if (!isDarkMode) {
+                                localStorage.setItem("nst_dark_theme_type", "black");
+                                document.documentElement.classList.remove('dark-mode-blue', 'dark-mode-black');
+                                document.documentElement.classList.add('dark-mode', 'dark-mode-black');
+                                onToggleDarkMode?.(true);
+                              } else {
+                                const cur = localStorage.getItem("nst_dark_theme_type");
+                                if (cur === "black") {
+                                  localStorage.setItem("nst_dark_theme_type", "blue");
+                                  document.documentElement.classList.remove('dark-mode-black');
+                                  document.documentElement.classList.add('dark-mode', 'dark-mode-blue');
+                                  onToggleDarkMode?.(true);
+                                } else {
+                                  document.documentElement.classList.remove('dark-mode', 'dark-mode-blue', 'dark-mode-black');
+                                  onToggleDarkMode?.(false);
+                                }
+                              }
+                            }}
+                            className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold transition-all active:scale-95"
+                          >
+                            {isDarkMode
+                              ? <Sparkles size={14} className={isBlue2 ? "text-blue-500" : "text-amber-500"} />
+                              : <Zap size={14} className="text-amber-500" />}
+                            <span className="text-[10px] font-black leading-tight">{themeLabel2}</span>
+                            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">Switch theme</span>
+                          </button>
+                        );
+
+                        const guideBtn2 = (
+                          <button
+                            key="guide2"
+                            onClick={() => { setShowUserGuide(true); setShowDotsMenu(false); }}
+                            className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold transition-all active:scale-95"
+                          >
+                            <Smartphone size={14} className="text-blue-500" />
+                            <span className="text-[10px] font-black leading-tight">How to Use</span>
+                            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">App guide</span>
+                          </button>
+                        );
+
+                        const hasExternalApps2 = settings?.externalApps && settings.externalApps.length > 0;
+                        const externalBtns2 = hasExternalApps2 ? settings!.externalApps!.map((app) => (
+                          <button
+                            key={app.id}
+                            onClick={() => { handleExternalAppClick(app); setShowDotsMenu(false); }}
+                            className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-cyan-50 text-cyan-700 font-bold transition-all active:scale-95 relative"
+                          >
+                            {app.icon ? <img src={app.icon} alt="" className="w-4 h-4 rounded" /> : <Smartphone size={14} />}
+                            <span className="text-[10px] font-black leading-tight truncate w-full text-center">{app.name}</span>
+                            {app.isLocked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-500" /></span>}
+                          </button>
+                        )) : [];
+
+                        const utilsRow2 = [...externalBtns2, themeBtn2, guideBtn2];
+
+                        return (
+                          <>
+                            {essentialItems2.length > 0 && (
+                              <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Essential</p>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  {essentialItems2.map(renderBtn2)}
+                                </div>
+                              </div>
+                            )}
+                            {premiumItems2.length > 0 && (
+                              <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Premium</p>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  {premiumItems2.map(renderBtn2)}
+                                </div>
+                              </div>
+                            )}
+                            <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Utilities</p>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {utilsRow2}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       {/* Quick Actions — 3 col with descriptions */}
                       <div className="px-3 pt-2 pb-2.5">
@@ -17446,8 +17612,8 @@ export const StudentDashboard: React.FC<Props> = ({
         </div>
       </nav>
 
-      {/* SIDEBAR POPUP (3-dot style) */}
-      {showSidebar && (() => {
+      {/* SIDEBAR POPUP removed — content merged into 3-dot menu */}
+      {false && (() => {
         const hwAccess = getFeatureAccess('HOMEWORK');
         const inboxAccess = getFeatureAccess('INBOX');
         const planAccess = getFeatureAccess('MY_PLAN');
