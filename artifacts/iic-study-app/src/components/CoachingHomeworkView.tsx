@@ -189,7 +189,7 @@ function QuestionText({ question, accent, statements }: { question: string; acce
         />
       )}
       {!parts.intro && !hasStatements && !parts.suffix && (
-        <p className="text-[12px] font-bold text-slate-800 leading-relaxed">{question}</p>
+        <p className="text-[12px] font-bold text-slate-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: render(question) }} />
       )}
     </div>
   );
@@ -460,7 +460,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
                       </svg>
                     )}
                   </span>
-                  <span><span className="font-black">{String.fromCharCode(65 + i)}.</span> {opt}</span>
+                  <span><span className="font-black">{String.fromCharCode(65 + i)}.</span> <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} /></span>
                 </button>
               );
             } else {
@@ -477,7 +477,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
                   onClick={() => handleSingleSelect(i)}
                   className={`w-full text-left px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${bg}`}
                 >
-                  <span className="font-black mr-1">{String.fromCharCode(65 + i)}.</span> {opt}
+                  <span className="font-black mr-1">{String.fromCharCode(65 + i)}.</span> <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                 </button>
               );
             }

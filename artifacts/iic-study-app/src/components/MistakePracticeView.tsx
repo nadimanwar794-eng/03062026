@@ -5,6 +5,7 @@ import { MistakeEntry, removeMistakes } from '../utils/mistakeBank';
 import { saveMistakeSession } from '../utils/mistakeAnalytics';
 import type { User } from '../types';
 import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 interface Props {
   mistakes: MistakeEntry[];
@@ -309,7 +310,7 @@ export const MistakePracticeView: React.FC<Props> = ({ mistakes, onClose, onComp
                   }`}>
                     {revealed && isCorrectOpt ? <Check size={14} /> : String.fromCharCode(65 + oi)}
                   </span>
-                  <span className="text-sm text-slate-800 leading-snug flex-1">{opt}</span>
+                  <span className="text-sm text-slate-800 leading-snug flex-1" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                 </button>
               );
             })}

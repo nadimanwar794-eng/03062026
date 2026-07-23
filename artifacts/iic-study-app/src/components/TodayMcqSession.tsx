@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, MCQItem, MCQResult, TopicItem, SystemSettings } from '../types';
 import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
+import { renderMathInHtml } from '../utils/mathUtils';
 import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
 import { storage } from '../utils/storage';
@@ -810,11 +811,11 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 </div>
 
                 <div className="text-lg font-bold text-slate-800 mb-8 leading-relaxed">
-                    <span dangerouslySetInnerHTML={{ __html: question.question }} />
+                    <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(question.question) }} />
                     {question.statements && question.statements.length > 0 && (
                         <div className="mt-4 mb-2 flex flex-col space-y-2">
                             {question.statements.map((stmt: string, sIdx: number) => (
-                                <div key={sIdx} className="bg-slate-50/80 p-3 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-base font-medium" dangerouslySetInnerHTML={{ __html: stmt }} />
+                                <div key={sIdx} className="bg-slate-50/80 p-3 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-base font-medium" dangerouslySetInnerHTML={{ __html: renderMathInHtml(stmt) }} />
                             ))}
                         </div>
                     )}
@@ -840,7 +841,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                 }`}>
                                     {['A','B','C','D'][idx]}
                                 </div>
-                                <span className="flex-1">{opt}</span>
+                                <span className="flex-1" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                             </button>
                         );
                     })}
@@ -906,7 +907,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px' : '18px 24px 12px', display:'flex', flexDirection:'column', gap:14, minHeight:0 }}>
                             <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                                 <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIdx + 1}</span>
-                                <p style={{ fontSize:20, fontWeight:800, color:'#1e293b', lineHeight:1.45, flex:1 }} dangerouslySetInnerHTML={{ __html: pq.question }} />
+                                <p style={{ fontSize:20, fontWeight:800, color:'#1e293b', lineHeight:1.45, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
                             </div>
                             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                                 {pq.options.map((opt: string, oi: number) => {
@@ -928,13 +929,13 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                             }}
                                             style={{ textAlign:'left', padding:'14px 18px', borderRadius:12, border:`2px solid ${border}`, background:bg, color, fontSize:17, fontWeight:700, cursor: answered ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:12, transition:'all 0.15s' }}>
                                             <span style={{ width:32, height:32, borderRadius:999, background: answered && isCorrect ? '#4ade80' : answered && isSelected ? '#f87171' : '#e2e8f0', color: answered && (isCorrect || isSelected) ? '#fff' : '#475569', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:14, flexShrink:0 }}>{optionLetters[oi]}</span>
-                                            {opt}
+                                            <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                                         </button>
                                     );
                                 })}
                             </div>
                             {pq.explanation && projectorSelected !== null && (
-                                <p style={{ fontSize:14, color:'#64748b', fontStyle:'italic', marginTop:4 }}>{pq.explanation}</p>
+                                <p style={{ fontSize:14, color:'#64748b', fontStyle:'italic', marginTop:4 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.explanation) }} />
                             )}
                         </div>
                         {/* Nav footer */}
