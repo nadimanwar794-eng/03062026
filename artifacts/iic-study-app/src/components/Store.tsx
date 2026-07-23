@@ -1156,52 +1156,57 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                         </div>
 
 
-                        {/* ▌▌ Feature list ▌▌ */}
-                        <div className="px-4 py-3 grid grid-cols-2 gap-x-3 gap-y-2" style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
-                          {featuresList.map((f, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                                style={{ background: 'rgba(255,215,0,0.1)', border: `1px solid rgba(255,215,0,0.3)` }}>
-                                <Check size={9} color={ffGold} strokeWidth={3.5} />
-                              </div>
-                              <span className="text-[11px] font-semibold leading-tight" style={{ color: 'rgba(255,255,255,0.55)' }}>{f}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* ▌▌ Level discount row ▌▌ */}
+                        {/* ▌▌ Feature list — category-wise, one per row ▌▌ */}
                         <div style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <span className="text-[16px] leading-none shrink-0">{levelInfo.emoji}</span>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[12px] font-black" style={{ color: '#e2e8f0' }}>
-                                    Level {levelInfo.level} {levelInfo.label}
-                                  </span>
-                                  <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                    {score.toLocaleString('en-IN')} pts
+                          {DEFAULT_PLAN_COMPARISON.map((category) => {
+                            const tierKey = isPro ? 'basic' : 'ultra';
+                            const visibleFeatures = category.features.filter(f => {
+                              const val: string = f[tierKey];
+                              return !val.startsWith('❌');
+                            });
+                            if (visibleFeatures.length === 0) return null;
+                            return (
+                              <div key={category.name}>
+                                {/* Category header */}
+                                <div className="px-4 pt-3 pb-1">
+                                  <span className="text-[9px] font-black uppercase tracking-[0.18em]"
+                                    style={{ color: isPro ? 'rgba(34,211,238,0.55)' : 'rgba(192,132,252,0.55)' }}>
+                                    {category.name.replace(/^\d+\.\s*/, '')}
                                   </span>
                                 </div>
+                                {/* Feature rows */}
+                                {visibleFeatures.map((feat, fi) => {
+                                  const val: string = feat[tierKey];
+                                  const isGood = val.startsWith('✅');
+                                  const isLimited = val.startsWith('⚠️') || val.startsWith('🔒');
+                                  const cleanVal = val.replace(/^[✅⚠️🔒📝💡📖]\s*/, '');
+                                  return (
+                                    <div key={feat.id}
+                                      className="flex items-center justify-between px-4 py-2"
+                                      style={{ borderTop: fi === 0 ? 'none' : `1px solid rgba(255,255,255,0.04)` }}>
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                                          style={{
+                                            background: isGood ? 'rgba(255,215,0,0.1)' : isLimited ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)',
+                                            border: `1px solid ${isGood ? 'rgba(255,215,0,0.3)' : isLimited ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.10)'}`,
+                                          }}>
+                                          {isGood
+                                            ? <Check size={9} color={ffGold} strokeWidth={3.5} />
+                                            : <span className="text-[8px] leading-none">{isLimited ? '~' : '·'}</span>}
+                                        </div>
+                                        <span className="text-[11px] font-semibold leading-tight truncate"
+                                          style={{ color: 'rgba(255,255,255,0.65)' }}>{feat.name}</span>
+                                      </div>
+                                      <span className="text-[10px] font-black ml-2 shrink-0"
+                                        style={{ color: isGood ? ffGold : isLimited ? '#fbbf24' : 'rgba(255,255,255,0.35)' }}>
+                                        {cleanVal || val}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            </div>
-                            {scoreDiscount > 0 && (
-                              <span className="text-[11px] font-black px-2.5 py-1 rounded-lg shrink-0 ml-2"
-                                style={{ background: levelInfo.color, color: '#000', boxShadow: `0 0 8px ${levelInfo.color}55` }}>
-                                {scoreDiscount}% OFF
-                              </span>
-                            )}
-                          </div>
-                          {nextLvl && (
-                            <div className="px-4 pb-3 -mt-1">
-                              <div className="h-1.5 rounded-full mb-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                                <div className="h-full rounded-full transition-all" style={{ width: `${lvlProgress}%`, background: 'linear-gradient(90deg,#d97706,#fbbf24,#fde68a)' }} />
-                              </div>
-                              <p className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                                {ptsNeeded.toLocaleString('en-IN')} aur → Level {nextLvl.level} {nextLvl.emoji} ({nextLvl.discount}% OFF)
-                              </p>
-                            </div>
-                          )}
+                            );
+                          })}
                         </div>
 
                         {/* ▌▌ Flash Sale row ▌▌ */}
