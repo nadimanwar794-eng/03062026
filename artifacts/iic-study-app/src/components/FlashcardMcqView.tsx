@@ -16,7 +16,7 @@ import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
 import { fireSessionComplete } from '../utils/sessionNotify';
 import { renderMathInHtml } from '../utils/mathUtils';
-import { inlineMd, parseMcqQuestion, shouldShowMcqOptions } from '../utils/mcqRender';
+import { inlineMd, parseMcqQuestion } from '../utils/mcqRender';
 import McqQuestionDisplay from './McqQuestionDisplay';
 
 interface Props {
@@ -1028,7 +1028,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 </div>
               </div>
               {/* Options */}
-              {shouldShowMcqOptions(pq) && <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {(pq.options || []).length > 0 && <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {(pq.options || []).map((opt, oi) => {
                   const isCorrect = oi === pq.correctAnswer;
                   const isSelected = projectorSelected === oi;
