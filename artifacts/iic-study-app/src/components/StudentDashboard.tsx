@@ -12197,8 +12197,11 @@ export const StudentDashboard: React.FC<Props> = ({
       >
         {/* Main Header Row */}
         <div className="flex items-center justify-between w-full px-3 pt-1.5 pb-1">
-          {/* LEFT: logo + app name + verified badge */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* LEFT: logo + app name + verified badge — tap opens What's New */}
+          <button
+            className="flex items-center gap-2 shrink-0 active:opacity-70 transition-opacity"
+            onClick={() => onTabChange("CUSTOM_PAGE")}
+          >
             {settings?.appLogo && (
               <img src={settings.appLogo} alt="logo" className="w-7 h-7 rounded-lg object-cover shrink-0" />
             )}
@@ -12206,7 +12209,7 @@ export const StudentDashboard: React.FC<Props> = ({
               {settings?.appShortName || settings?.appName || "IIC"}
             </span>
             <BadgeCheck size={16} className="text-blue-300 shrink-0" />
-          </div>
+          </button>
 
           {/* RIGHT: event + streak + mail + bulb + dots */}
           <div className="flex items-center gap-1 shrink-0">
@@ -12924,15 +12927,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             <span className="text-[7.5px] opacity-60 leading-tight text-center">Landscape</span>
                           </button>
                           <button
-                            onClick={() => { onTabChange("CUSTOM_PAGE"); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-teal-50 text-teal-700 font-bold active:bg-teal-100 transition-all relative"
-                          >
-                            <Zap size={13} />
-                            <span className="text-[10px] font-black leading-tight">What's New</span>
-                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Updates</span>
-                            {hasNewUpdate && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
-                          </button>
-                          <button
                             onClick={() => { switchToLogicalTab("PROFILE"); setShowDotsMenu(false); }}
                             className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-slate-100 text-slate-600 font-bold active:bg-slate-200 transition-all"
                           >
@@ -12957,20 +12951,27 @@ export const StudentDashboard: React.FC<Props> = ({
         {/* SECOND LINE: greeting + Level / Credits / Subscription pills */}
         <div className="flex items-center justify-between w-full mt-0 pt-0.5 px-4 pb-1">
 
-          {/* Left: two-line greeting */}
+          {/* Left: logo (row 2) + two-line greeting */}
           {(() => {
             const fullName = user.name || "Student";
             const isLong = fullName.length > 10;
             const overflowPx = isLong ? Math.min(90, (fullName.length - 10) * 7) : 0;
             return (
-              <div className="flex flex-col shrink-0 min-w-0">
-                <div className="overflow-hidden" style={isLong ? { maskImage: 'linear-gradient(to right, black 72%, transparent 100%)', maxWidth: '168px' } : {}}>
-                  <span
-                    className={`text-[13px] font-black text-white leading-tight whitespace-nowrap inline-block${isLong ? ' nst-name-scroll' : ''}`}
-                    style={isLong ? { '--nst-scroll': `-${overflowPx}px` } as React.CSSProperties : {}}
-                  >
-                    Hey, {fullName} 👋
-                  </span>
+              <div className="flex items-center gap-2 shrink-0 min-w-0">
+                {settings?.appLogo && (
+                  <button onClick={() => onTabChange("CUSTOM_PAGE")} className="active:opacity-70 transition-opacity shrink-0">
+                    <img src={settings.appLogo} alt="logo" className="w-6 h-6 rounded-md object-cover" />
+                  </button>
+                )}
+                <div className="flex flex-col shrink-0 min-w-0">
+                  <div className="overflow-hidden" style={isLong ? { maskImage: 'linear-gradient(to right, black 72%, transparent 100%)', maxWidth: '168px' } : {}}>
+                    <span
+                      className={`text-[13px] font-black text-white leading-tight whitespace-nowrap inline-block${isLong ? ' nst-name-scroll' : ''}`}
+                      style={isLong ? { '--nst-scroll': `-${overflowPx}px` } as React.CSSProperties : {}}
+                    >
+                      Hey, {fullName} 👋
+                    </span>
+                  </div>
                 </div>
               </div>
             );
