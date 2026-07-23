@@ -1016,12 +1016,14 @@ export const FlashcardMcqView: React.FC<Props> = ({
               <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:14, padding:'16px 20px', flexShrink:0 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
-                  <McqQuestionDisplay
-                    q={pq}
-                    questionClassName=""
-                    variant="default"
-                    stmtClassName="bg-slate-100 border-l-4 border-indigo-400 px-4 py-2.5 rounded-lg text-slate-800 font-semibold leading-snug"
-                  />
+                  <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column' }}>
+                    <McqQuestionDisplay
+                      q={pq}
+                      questionClassName=""
+                      variant="default"
+                      stmtClassName="bg-slate-100 border-l-4 border-indigo-400 px-4 py-2.5 rounded-lg text-slate-800 font-semibold leading-snug"
+                    />
+                  </div>
                 </div>
               </div>
               {/* Options */}
