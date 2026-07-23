@@ -12929,14 +12929,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             <span className="text-[10px] font-black leading-tight">Rotate</span>
                             <span className="text-[7.5px] opacity-60 leading-tight text-center">Landscape</span>
                           </button>
-                          <button
-                            onClick={() => { switchToLogicalTab("PROFILE"); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-slate-100 text-slate-600 font-bold active:bg-slate-200 transition-all"
-                          >
-                            <UserIcon size={13} />
-                            <span className="text-[10px] font-black leading-tight">Profile</span>
-                            <span className="text-[7.5px] opacity-60 leading-tight text-center">My account</span>
-                          </button>
                         </div>
                       </div>
 
