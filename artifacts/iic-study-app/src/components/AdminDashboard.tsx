@@ -5,6 +5,7 @@ import { User, ViewState, SystemSettings, Subject, Chapter, MCQItem, RecoveryReq
 import { List, GraduationCap, LayoutDashboard, Users, Search, Trash2, Save, X, Eye, EyeOff, Shield, Megaphone, CheckCircle, ListChecks, Database, FileText, Monitor, Sparkles, Banknote, BrainCircuit, AlertOctagon, ArrowLeft, ArrowRight, Key, Bell, ShieldCheck, Lock, Globe, Layers, Zap, PenTool, RefreshCw, RotateCcw, Plus, LogOut, Download, Upload, CreditCard, Ticket, Video, Image as ImageIcon, Type, Link, FileJson, Activity, AlertTriangle, Gift, Book, Mail, Edit3, MessageSquare, ShoppingBag, Cloud, Rocket, Code2, Layers as LayersIcon, Wifi, WifiOff, Copy, Crown, Gamepad2, Calendar, BookOpen, Image, HelpCircle, Youtube, Play, Star, Trophy, Palette, Settings, Headphones, Layout, Bot, LayoutDashboard as DashboardIcon, Loader2, Gauge, LayoutGrid, ArrowUpCircle, KeyRound, Award, Send, GitCompare, Lightbulb, ThumbsUp, ThumbsDown, Building2, TrendingUp } from 'lucide-react';
 import { getSubjectsList, DEFAULT_SUBJECTS, DEFAULT_APP_FEATURES, ALL_APP_FEATURES, STUDENT_APP_FEATURES, DEFAULT_CONTENT_INFO_CONFIG, ADMIN_PERMISSIONS, APP_VERSION, STATIC_SYLLABUS, LEVEL_UNLOCKABLE_FEATURES, LUCENT_SUBJECT_OPTIONS_BASE, getClassSubjectOptions, SUPPORT_PHONE } from '../constants';
 import { AdminClassMcqManager } from './AdminClassMcqManager';
+import { CoachingMcqEditor } from './CoachingMcqEditor';
 import { fetchChapters, fetchLessonContent } from '../services/groq';
 import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { parseMCQText } from '../utils/mcqParser';
@@ -734,7 +735,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [newBookNoteMode, setNewBookNoteMode] = useState<'single' | 'multi' | 'mcq'>('single');
   // Type selector for new custom book being created in Settings
   const [newCustomBookType, setNewCustomBookType] = useState<'single' | 'multi'>('single');
-  const [newBookNoteMcqs, setNewBookNoteMcqs] = useState<Array<{ id: string; question: string; options: string[]; correctAnswer: number }>>([]);
+  const [newBookNoteMcqs, setNewBookNoteMcqs] = useState<any[]>([]);
   const [newBookNoteBulk, setNewBookNoteBulk] = useState<string | undefined>(undefined);
   // ── Compre Book Notes (stored in Firestore compre_notes, shown in Compare → Book Notes tab) ──
   const [cnTitle, setCnTitle] = useState('');
@@ -13693,53 +13694,23 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                   <label className="text-[10px] font-black text-emerald-700 uppercase block mb-1">📌 Title *</label>
                                                   <input type="text" value={newBookNote.title} onChange={e => setNewBookNote({...newBookNote, title: e.target.value})} className="w-full p-2 border border-emerald-300 rounded-lg text-sm outline-none focus:border-emerald-500 bg-white" placeholder="e.g. Chapter 5 MCQ, Biology Set 1…" />
                                               </div>
-                                              <div className="bg-white border border-emerald-200 rounded-xl p-3 space-y-2">
-                                                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                      <label className="text-[10px] font-bold text-emerald-700 uppercase flex items-center gap-1">📝 MCQs ({newBookNoteMcqs.length})</label>
-                                                      <div className="flex gap-1">
-                                                          <button type="button" onClick={() => setNewBookNoteBulk(prev => prev === undefined ? '' : undefined)} className="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-amber-600">📋 Bulk Paste</button>
-                                                          <button type="button" onClick={() => setNewBookNoteMcqs(prev => [...prev, { id: `mcq_${Date.now()}_${Math.random()}`, question: '', options: ['', '', '', ''], correctAnswer: 0 }])} className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-emerald-700 flex items-center gap-1"><Plus size={10}/> Add MCQ</button>
-                                                      </div>
-                                                  </div>
-                                                  {newBookNoteBulk !== undefined && (
-                                                      <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-1.5">
-                                                          <textarea value={newBookNoteBulk} onChange={e => setNewBookNoteBulk(e.target.value)} placeholder={"**प्रश्न:** ... ?\nA) ...\nB) ...\nC) ...\nD) ...\n**सही उत्तर:** B) ..."} className="w-full p-1.5 border border-amber-300 rounded text-[11px] font-mono outline-none h-32 focus:border-amber-500" />
-                                                          <div className="flex gap-1">
-                                                              <button type="button" onClick={() => {
-                                                                  const raw = (newBookNoteBulk || '').trim();
-                                                                  if (!raw) return alert('Text khaali hai.');
-                                                                  const parsed = parseMCQText(normalizeMcqPaste(raw));
-                                                                  if (!parsed.questions?.length) return alert('Parse fail. Format check karein.');
-                                                                  const added = parsed.questions.map(q => ({ id: `mcq_${Date.now()}_${Math.random()}`, question: (q.question || '').replace(/<br\/?>/g, '\n').trim(), options: (q.options || ['', '', '', '']).slice(0, 4), correctAnswer: q.correctAnswer ?? 0 }));
-                                                                  setNewBookNoteMcqs(prev => [...prev, ...added]);
-                                                                  setNewBookNoteBulk(undefined);
-                                                                  setAlertConfig({ isOpen: true, message: `✅ ${added.length} MCQ add ho gaye!` });
-                                                              }} className="flex-1 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-700">Parse & Add All</button>
-                                                              <button type="button" onClick={() => setNewBookNoteBulk(undefined)} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300">Cancel</button>
-                                                          </div>
-                                                      </div>
-                                                  )}
-                                                  {newBookNoteMcqs.map((mcq, mIdx) => (
-                                                      <div key={mcq.id} className="bg-emerald-50 border border-emerald-100 rounded p-2 space-y-1.5 relative">
-                                                          <button type="button" onClick={() => setNewBookNoteMcqs(prev => prev.filter((_, i) => i !== mIdx))} className="absolute top-1 right-1 p-0.5 text-red-400 hover:text-red-600 rounded"><Trash2 size={11}/></button>
-                                                          <input type="text" value={mcq.question} onChange={e => setNewBookNoteMcqs(prev => { const cp=[...prev]; cp[mIdx]={...cp[mIdx],question:e.target.value}; return cp; })} className="w-full p-1.5 pr-6 border border-slate-200 rounded text-xs outline-none focus:border-emerald-500 bg-white" placeholder={`Q${mIdx+1}: Question?`} />
-                                                          <div className="grid grid-cols-2 gap-1">
-                                                              {(mcq.options || ['', '', '', '']).map((opt, oi) => (
-                                                                  <div key={oi} className="flex items-center gap-1">
-                                                                      <input type="radio" name={`bn-mcqonly-${mcq.id}-${mIdx}`} checked={(mcq.correctAnswer ?? 0) === oi} onChange={() => setNewBookNoteMcqs(prev => { const cp=[...prev]; cp[mIdx]={...cp[mIdx],correctAnswer:oi}; return cp; })} className="shrink-0" />
-                                                                      <input type="text" value={opt} onChange={e => setNewBookNoteMcqs(prev => { const cp=[...prev]; const opts=[...(cp[mIdx].options||['','','',''])]; opts[oi]=e.target.value; cp[mIdx]={...cp[mIdx],options:opts}; return cp; })} className="w-full p-1 border border-slate-200 rounded text-[11px] outline-none focus:border-emerald-500 bg-white" placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
-                                                                  </div>
-                                                              ))}
-                                                          </div>
-                                                      </div>
-                                                  ))}
-                                              </div>
+                                               <CoachingMcqEditor
+                                                   value={newBookNoteMcqs}
+                                                   onChange={setNewBookNoteMcqs}
+                                               />
                                               <button onClick={() => {
                                                   const titleVal = newBookNote.title.trim();
                                                   if (!titleVal) return alert('Title zaroori hai.');
-                                                  const structuredMcqs = newBookNoteMcqs
-                                                      .filter(m => m.question.trim() && m.options.some(o => o.trim()))
-                                                      .map(m => ({ question: m.question.trim(), options: m.options, correctAnswer: m.correctAnswer, topic: 'General' }));
+                                                   const structuredMcqs = newBookNoteMcqs
+                                                       .filter(m => m.question.trim() && m.options.some(o => o.trim()))
+                                                       .map(m => ({
+                                                           ...m,
+                                                           question: m.question.trim(),
+                                                           options: m.options.map((o: string) => o.trim()),
+                                                           statements: m.statements?.filter((s: string) => s.trim()),
+                                                           topic: m.topic?.trim() || 'General',
+                                                           explanation: m.explanation?.trim() || undefined,
+                                                       }));
                                                   if (!structuredMcqs.length) return alert('Kam se kam ek MCQ add karein.');
                                                   const hwItem: any = {
                                                       id: Date.now().toString(),
@@ -13964,47 +13935,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           })()}
                                       </div>
 
-                                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
-                                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                                              <label className="text-[10px] font-bold text-emerald-700 uppercase flex items-center gap-1">📝 MCQs ({newBookNoteMcqs.length})</label>
-                                              <div className="flex gap-1">
-                                                  <button type="button" onClick={() => setNewBookNoteBulk(prev => prev === undefined ? '' : undefined)} className="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-amber-600">📋 Bulk Paste</button>
-                                                  <button type="button" onClick={() => setNewBookNoteMcqs(prev => [...prev, { id: `mcq_${Date.now()}_${Math.random()}`, question: '', options: ['', '', '', ''], correctAnswer: 0 }])} className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-emerald-700 flex items-center gap-1"><Plus size={10}/> Add MCQ</button>
-                                              </div>
-                                          </div>
-                                          {newBookNoteBulk !== undefined && (
-                                              <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-1.5">
-                                                  <textarea value={newBookNoteBulk} onChange={e => setNewBookNoteBulk(e.target.value)} placeholder={"**प्रश्न:** ... ?\nA) ...\nB) ...\nC) ...\nD) ...\n**सही उत्तर:** B) ..."} className="w-full p-1.5 border border-amber-300 rounded text-[11px] font-mono outline-none h-32 focus:border-amber-500" />
-                                                  <div className="flex gap-1">
-                                                      <button type="button" onClick={() => {
-                                                          const raw = (newBookNoteBulk || '').trim();
-                                                          if (!raw) return alert('Text khaali hai.');
-                                                          const parsed = parseMCQText(normalizeMcqPaste(raw));
-                                                          if (!parsed.questions?.length) return alert('Parse fail. Format check karein.');
-                                                          const added = parsed.questions.map(q => ({ id: `mcq_${Date.now()}_${Math.random()}`, question: (q.question || '').replace(/<br\/?>/g, '\n').trim(), options: (q.options || ['', '', '', '']).slice(0, 4), correctAnswer: q.correctAnswer ?? 0 }));
-                                                          setNewBookNoteMcqs(prev => [...prev, ...added]);
-                                                          setNewBookNoteBulk(undefined);
-                                                          setAlertConfig({ isOpen: true, message: `✅ ${added.length} MCQ add ho gaye!` });
-                                                      }} className="flex-1 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-700">Parse & Add All</button>
-                                                      <button type="button" onClick={() => setNewBookNoteBulk(undefined)} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300">Cancel</button>
-                                                  </div>
-                                              </div>
-                                          )}
-                                          {newBookNoteMcqs.map((mcq, mIdx) => (
-                                              <div key={mcq.id} className="bg-white border border-emerald-100 rounded p-2 space-y-1.5 relative">
-                                                  <button type="button" onClick={() => setNewBookNoteMcqs(prev => prev.filter((_, i) => i !== mIdx))} className="absolute top-1 right-1 p-0.5 text-red-400 hover:text-red-600 rounded"><Trash2 size={11}/></button>
-                                                  <input type="text" value={mcq.question} onChange={e => setNewBookNoteMcqs(prev => { const cp=[...prev]; cp[mIdx]={...cp[mIdx],question:e.target.value}; return cp; })} className="w-full p-1.5 pr-6 border border-slate-200 rounded text-xs outline-none focus:border-emerald-500" placeholder={`Q${mIdx+1}: Question?`} />
-                                                  <div className="grid grid-cols-2 gap-1">
-                                                      {(mcq.options || ['', '', '', '']).map((opt, oi) => (
-                                                          <div key={oi} className="flex items-center gap-1">
-                                                              <input type="radio" name={`bn-mcq-${mcq.id}-${mIdx}`} checked={(mcq.correctAnswer ?? 0) === oi} onChange={() => setNewBookNoteMcqs(prev => { const cp=[...prev]; cp[mIdx]={...cp[mIdx],correctAnswer:oi}; return cp; })} className="shrink-0" />
-                                                              <input type="text" value={opt} onChange={e => setNewBookNoteMcqs(prev => { const cp=[...prev]; const opts=[...(cp[mIdx].options||['','','',''])]; opts[oi]=e.target.value; cp[mIdx]={...cp[mIdx],options:opts}; return cp; })} className="w-full p-1 border border-slate-200 rounded text-[11px] outline-none focus:border-emerald-500" placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
-                                                          </div>
-                                                      ))}
-                                                  </div>
-                                              </div>
-                                          ))}
-                                      </div>
+                                      <CoachingMcqEditor
+                                          value={newBookNoteMcqs}
+                                          onChange={setNewBookNoteMcqs}
+                                      />
                                       <div>
                                           <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">🎬 Video URL (Optional)</label>
                                           <input type="text" value={newBookNote.videoUrl} onChange={e => setNewBookNote({...newBookNote, videoUrl: e.target.value})} className="w-full p-2 border border-slate-200 rounded text-sm outline-none focus:border-amber-500" placeholder="Video link" />
@@ -14019,7 +13953,14 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           if (!newBookNote.chunkNotes.trim() && !newBookNote.htmlNotes.trim() && !newBookNote.notes.trim()) return alert('Read Mode ya Write Mode mein kuch notes likhein.');
                                           const structuredMcqs = newBookNoteMcqs
                                               .filter(m => m.question.trim() && m.options.some(o => o.trim()))
-                                              .map(m => ({ question: m.question.trim(), options: m.options, correctAnswer: m.correctAnswer, topic: 'General' }));
+                                               .map(m => ({
+                                                   ...m,
+                                                   question: m.question.trim(),
+                                                   options: m.options.map((o: string) => o.trim()),
+                                                   statements: m.statements?.filter((s: string) => s.trim()),
+                                                   topic: m.topic?.trim() || 'General',
+                                                   explanation: m.explanation?.trim() || undefined,
+                                               }));
                                           const baseItem: any = {
                                               date: newBookNote.date,
                                               title: `Page ${pg}`,
@@ -14515,7 +14456,18 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           classTarget: (hw as any).classTarget || 'ALL',
                                           board: (hw as any).board || '' as '' | 'NCERT_EN' | 'NCERT_HI' | 'BSEB',
                                       });
-                                      setNewBookNoteMcqs(mcqs.map(m => ({ id: m.id || `mcq_${Date.now()}_${Math.random()}`, question: m.question || '', options: m.options || ['', '', '', ''], correctAnswer: m.correctAnswer ?? 0 })));
+                                       setNewBookNoteMcqs(mcqs.map(m => ({
+                                           id: m.id || `mcq_${Date.now()}_${Math.random()}`,
+                                           topic: (m as any).topic || '',
+                                           question: m.question || '',
+                                           statements: (m as any).statements || [],
+                                           options: m.options || ['', '', '', ''],
+                                           correctAnswer: m.correctAnswer ?? 0,
+                                           explanation: (m as any).explanation || '',
+                                           concept: (m as any).concept || '',
+                                           examTip: (m as any).examTip || '',
+                                           difficultyLevel: (m as any).difficultyLevel || '',
+                                       })));
                                       setBnEditingId(hw.id || null);
                                       setBookNotesTab('ADD');
                                       document.querySelector('.bg-amber-50.border-amber-200.rounded-2xl')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -14771,38 +14723,16 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           </div>
                                           <p className="text-[8px] text-rose-600">💡 Google Drive links: File ko "Anyone with the link" se share karein. App ke andar hi play hoga — user bahar nahi jayega.</p>
                                       </div>
-                                      {/* MCQ Section */}
                                       <div className="border-t border-slate-200 pt-2">
-                                          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-                                              <label className="text-[9px] font-bold text-emerald-700 uppercase">📝 Page MCQs ({(pg.mcqs||[]).length})</label>
-                                              <div className="flex gap-1">
-                                                  <button type="button" onClick={() => setLucentPageBulk(prev => { const cp={...prev}; cp[pg.id]===undefined ? cp[pg.id]='' : delete cp[pg.id]; return cp; })} className="bg-amber-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-amber-600">📋 Bulk Paste</button>
-                                                  <button type="button" onClick={() => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],mcqs:[...(u[pgIdx].mcqs||[]),{id:`mcq_${Date.now()}_${Math.random()}`,question:'',options:['','','',''],correctAnswer:0} as any]}; setNewLucent({...newLucent,pages:u}); }} className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-emerald-700 flex items-center gap-1"><Plus size={10}/> Add MCQ</button>
-                                              </div>
-                                          </div>
-                                          {lucentPageBulk[pg.id] !== undefined && (
-                                              <div className="bg-amber-50 border border-amber-200 rounded p-2 mb-2 space-y-1.5">
-                                                  <textarea value={lucentPageBulk[pg.id]} onChange={e => setLucentPageBulk(prev=>({...prev,[pg.id]:e.target.value}))} placeholder={"**प्रश्न:** ...?\nA) ...\nB) ...\nC) ...\nD) ...\n**सही उत्तर:** B) ..."} className="w-full p-1.5 border border-amber-300 rounded text-[11px] font-mono outline-none h-32 focus:border-amber-500" />
-                                                  <div className="flex gap-1">
-                                                      <button type="button" onClick={() => { const raw=(lucentPageBulk[pg.id]||'').trim(); if(!raw)return alert('Text khaali hai.'); const parsed=parseMCQText(normalizeMcqPaste(raw)); if(!parsed.questions?.length)return alert('Parse fail.'); const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],mcqs:[...(u[pgIdx].mcqs||[]),...parsed.questions.map(q=>({id:`mcq_${Date.now()}_${Math.random()}`,question:(q.question||'').replace(/<br\/?>/g,'\n').trim(),options:(q.options||['','','','']).slice(0,4),correctAnswer:q.correctAnswer??0})) as any[]]}; setNewLucent({...newLucent,pages:u}); setLucentPageBulk(prev=>{const cp={...prev};delete cp[pg.id];return cp;}); setAlertConfig({isOpen:true,message:'✅ MCQs add ho gaye!'}); }} className="flex-1 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-amber-700">Parse & Add All</button>
-                                                      <button type="button" onClick={() => setLucentPageBulk(prev=>{const cp={...prev};delete cp[pg.id];return cp;})} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300">Cancel</button>
-                                                  </div>
-                                              </div>
-                                          )}
-                                          {(pg.mcqs||[]).map((mcq,mIdx) => (
-                                              <div key={(mcq as any).id||mIdx} className="bg-white border border-emerald-100 rounded p-2 mb-2 space-y-1.5 relative">
-                                                  <button type="button" onClick={() => { const u=[...newLucent.pages]; u[pgIdx]={...u[pgIdx],mcqs:(u[pgIdx].mcqs||[]).filter((_,i)=>i!==mIdx)}; setNewLucent({...newLucent,pages:u}); }} className="absolute top-1 right-1 p-0.5 text-red-400 hover:text-red-600 rounded"><Trash2 size={11}/></button>
-                                                  <input type="text" value={mcq.question} onChange={e => { const u=[...newLucent.pages]; const ms=[...(u[pgIdx].mcqs||[])]; ms[mIdx]={...ms[mIdx],question:e.target.value}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setNewLucent({...newLucent,pages:u}); }} className="w-full p-1.5 pr-6 border border-slate-200 rounded text-xs outline-none focus:border-emerald-500" placeholder={`Q${mIdx+1}: Question?`} />
-                                                  <div className="grid grid-cols-2 gap-1">
-                                                      {(mcq.options||['','','','']).map((opt,oi) => (
-                                                          <div key={oi} className="flex items-center gap-1">
-                                                              <input type="radio" name={`cn612-correct-${pg.id}-${mIdx}`} checked={(mcq.correctAnswer??0)===oi} onChange={() => { const u=[...newLucent.pages]; const ms=[...(u[pgIdx].mcqs||[])]; ms[mIdx]={...ms[mIdx],correctAnswer:oi}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setNewLucent({...newLucent,pages:u}); }} className="shrink-0" />
-                                                              <input type="text" value={opt} onChange={e => { const u=[...newLucent.pages]; const ms=[...(u[pgIdx].mcqs||[])]; const opts=[...(ms[mIdx].options||['','','',''])]; opts[oi]=e.target.value; ms[mIdx]={...ms[mIdx],options:opts}; u[pgIdx]={...u[pgIdx],mcqs:ms}; setNewLucent({...newLucent,pages:u}); }} className="w-full p-1 border border-slate-200 rounded text-[11px] outline-none focus:border-emerald-500" placeholder={`Option ${String.fromCharCode(65+oi)}`} />
-                                                          </div>
-                                                      ))}
-                                                  </div>
-                                              </div>
-                                          ))}
+                                          <CoachingMcqEditor
+                                              value={(pg.mcqs || []) as any[]}
+                                              onChange={(mcqs) => {
+                                                  const updated = [...newLucent.pages];
+                                                  updated[pgIdx] = { ...updated[pgIdx], mcqs };
+                                                  setNewLucent({ ...newLucent, pages: updated });
+                                              }}
+                                              accent="green"
+                                          />
                                       </div>
                                   </div>
                               ))}

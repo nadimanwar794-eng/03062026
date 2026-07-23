@@ -21,6 +21,7 @@ interface CoachingMcq {
   id: string;
   question: string;
   options: string[];
+  statements?: string[];
   /** Single correct answer (legacy) */
   correctAnswer?: number;
   /** Multiple correct answers (new) */
@@ -152,10 +153,12 @@ function splitCoachingQuestion(question: string): CoachingQuestionParts {
   return { intro, statements, suffix };
 }
 
-function QuestionText({ question, accent }: { question: string; accent: string }) {
+function QuestionText({ question, accent, statements }: { question: string; accent: string; statements?: string[] }) {
   const parts = splitCoachingQuestion(question);
   const render = (value: string) => renderMathInHtml(inlineMd(value));
-  const hasStatements = parts.statements.length > 0;
+  const explicitStatements = (statements || []).map(s => s.trim()).filter(Boolean);
+  const displayStatements = explicitStatements.length > 0 ? explicitStatements : parts.statements;
+  const hasStatements = displayStatements.length > 0;
 
   return (
     <div className="space-y-2">
@@ -167,7 +170,7 @@ function QuestionText({ question, accent }: { question: string; accent: string }
       )}
       {hasStatements && (
         <div className="space-y-1.5">
-          {parts.statements.map((statement, index) => (
+          {displayStatements.map((statement, index) => (
             <div
               key={`${statement}-${index}`}
               className="rounded-lg border px-2.5 py-2 text-[11px] font-medium leading-relaxed text-slate-700"
@@ -397,7 +400,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
         <div className="flex items-start gap-2 mb-2">
           <HelpCircle size={13} style={{ color: accent }} className="shrink-0 mt-0.5" />
           <div className="flex-1">
-            <QuestionText question={mcq.question} accent={accent} />
+            <QuestionText question={mcq.question} accent={accent} statements={mcq.statements} />
             {isMultiple && (
               <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5 inline-block"
                 style={{ background: `${accent}20`, color: accent }}>
