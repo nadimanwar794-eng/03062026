@@ -8,7 +8,6 @@ import {
   Package, Wallet, X
 } from 'lucide-react';
 import { saveUserToLive } from '../firebase';
-import { DEFAULT_PLAN_COMPARISON } from '../constants';
 import { getLevelInfo, getScoreDiscountFromScore, getNextLevelInfo, getLevelProgress, getLevelDailyLimitsWithOverride, UNLIMITED } from '../utils/levelSystem';
 import { SCORE_MULTIPLIERS, getDailyScoreLimit } from '../utils/scoreSystem';
 import { addSubscription } from '../utils/subscriptionUtils';
@@ -282,7 +281,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
     textMuted: 'color-mix(in srgb, #f8fafc 62%, transparent)',
     textDim: 'color-mix(in srgb, #f8fafc 38%, transparent)',
   });
-  const [tierType, setTierType] = useState<'BASIC' | 'ULTRA' | 'EARN' | 'CREDITS' | 'HISTORY' | 'PLANS'>('BASIC');
+  const [tierType, setTierType] = useState<'BASIC' | 'ULTRA' | 'EARN' | 'CREDITS' | 'HISTORY'>('BASIC');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const packages = settings?.packages || [];
@@ -464,7 +463,6 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
     : { color: C.max, bg: C.maxBg, border: C.maxBorder, glow: C.maxGlow, grad: C.maxGrad, pill: 'rgba(192,132,252,0.14)', label: 'MAX', emoji: '⚡' };
 
   const allTabs = [
-    { id: 'PLANS'   as const, label: 'Plans',   emoji: '📋', color: '#a3e635', bg: 'rgba(163,230,53,0.09)', border: 'rgba(163,230,53,0.35)', glow: 'rgba(163,230,53,0.18)' },
     { id: 'BASIC'   as const, label: 'Pro',     emoji: '⭐', color: C.pro,  bg: C.proBg,  border: C.proBorder,  glow: C.proGlow  },
     { id: 'ULTRA'   as const, label: 'Max',     emoji: '⚡', color: C.max,  bg: C.maxBg,  border: C.maxBorder,  glow: C.maxGlow  },
     ...(packages.length > 0 ? [{ id: 'CREDITS' as const, label: 'Credits', emoji: '🪙', color: C.gold, bg: C.goldBg, border: C.goldBorder, glow: 'rgba(251,191,36,0.18)' }] : []),
@@ -601,8 +599,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                   </div>
                   <button onClick={() => setShowPaymentChooser(false)}
                     className="w-9 h-9 rounded-full flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                    <X size={14} color="rgba(255,255,255,0.6)" />
+                    style={{ background: C.surfaceHigh }}>
+                    <X size={14} color={C.textMuted} />
                   </button>
                 </div>
                 <div className="p-4 space-y-3">
@@ -765,9 +763,9 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       className="py-1.5 rounded-xl font-black transition-all flex items-center justify-center gap-1 relative overflow-hidden"
                       style={isActive
                         ? { background: tab.bg, border: `2px solid ${tab.border}` }
-                        : { background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)' }}>
+                        : { background: C.surfaceHigh, border: `1.5px solid ${C.border}` }}>
                       <span className="text-sm leading-none relative z-10">{tab.emoji}</span>
-                      <span className="text-[10px] relative z-10" style={{ color: isActive ? tab.color : 'rgba(255,255,255,0.55)' }}>{tab.label}</span>
+                      <span className="text-[10px] relative z-10" style={{ color: isActive ? tab.color : C.textMuted }}>{tab.label}</span>
                     </button>
                   );
                 })}
@@ -776,8 +774,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                   className="py-1.5 rounded-xl font-black transition-all flex items-center justify-center"
                   style={tierType === 'HISTORY'
                     ? { background: 'rgba(251,191,36,0.10)', border: `2px solid rgba(251,191,36,0.35)` }
-                    : { background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)' }}>
-                  <span className="text-[10px]" style={{ color: tierType === 'HISTORY' ? C.gold : 'rgba(255,255,255,0.55)' }}>History</span>
+                    : { background: C.surfaceHigh, border: `1.5px solid ${C.border}` }}>
+                  <span className="text-[10px]" style={{ color: tierType === 'HISTORY' ? C.gold : C.textMuted }}>History</span>
                 </button>
               </div>
             );
@@ -860,129 +858,6 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* ── PLANS COMPARISON TAB ── */}
-        {tierType === 'PLANS' && (() => {
-          const cols = [
-            { key: 'free',  label: 'Free',  emoji: '🆓', color: C.green,  bg: C.greenBg,  border: C.greenBorder  },
-            { key: 'basic', label: 'Pro',   emoji: '⭐', color: C.pro,    bg: C.proBg,    border: C.proBorder    },
-            { key: 'ultra', label: 'Max',   emoji: '⚡', color: C.max,    bg: C.maxBg,    border: C.maxBorder    },
-          ] as const;
-          const isFreePlan = userSubTier === 'FREE';
-          const isBasicPlan = userSubTier === 'BASIC';
-          const isUltraPlan = userSubTier === 'ULTRA';
-          const planMatch = { free: isFreePlan, basic: isBasicPlan, ultra: isUltraPlan };
-          return (
-            <div className="animate-in fade-in duration-200 space-y-5 pb-4">
-
-              {/* Current plan banner */}
-              <div className="rounded-2xl p-4 flex items-center gap-3"
-                style={{ background: isUltraPlan ? C.maxBg : isBasicPlan ? C.proBg : C.greenBg,
-                         border: `1.5px solid ${isUltraPlan ? C.maxBorder : isBasicPlan ? C.proBorder : C.greenBorder}` }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-                  style={{ background: isUltraPlan ? C.maxBg : isBasicPlan ? C.proBg : C.greenBg }}>
-                  {isUltraPlan ? '⚡' : isBasicPlan ? '⭐' : '🆓'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-sm" style={{ color: C.text }}>
-                    Aapka Plan: {isUltraPlan ? 'Max (Ultra)' : isBasicPlan ? 'Pro (Basic)' : 'Free'}
-                  </p>
-                  <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>
-                    {isFreePlan ? 'Upgrade karo — aur features unlock karo!' : 'Neeche compare karo ki kya mil raha hai'}
-                  </p>
-                </div>
-                <span className="text-[10px] font-black px-2.5 py-1 rounded-full shrink-0"
-                  style={{ background: isUltraPlan ? C.maxBg : isBasicPlan ? C.proBg : C.greenBg,
-                           color: isUltraPlan ? C.max : isBasicPlan ? C.pro : C.green,
-                           border: `1px solid ${isUltraPlan ? C.maxBorder : isBasicPlan ? C.proBorder : C.greenBorder}` }}>
-                  Current Plan
-                </span>
-              </div>
-
-              {/* Column headers */}
-              <div className="grid grid-cols-3 gap-2">
-                {cols.map(col => (
-                  <div key={col.key} className="rounded-2xl py-3 px-2 text-center relative"
-                    style={{ background: planMatch[col.key] ? col.bg : C.surface,
-                             border: `2px solid ${planMatch[col.key] ? col.border : C.border}` }}>
-                    <div className="text-xl mb-1">{col.emoji}</div>
-                    <p className="text-[11px] font-black" style={{ color: planMatch[col.key] ? col.color : C.textMuted }}>
-                      {col.label}
-                    </p>
-                    {planMatch[col.key] && (
-                      <p className="text-[8px] font-black mt-0.5" style={{ color: col.color }}>✓ Current</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Feature categories */}
-              {DEFAULT_PLAN_COMPARISON.filter(cat => !cat.name.includes('ADMIN POWER')).map(category => {
-                const ADMIN_FEATURE_IDS = ['GHOST_LOGIN','LIVE_SPY','LOGIN_AS','NOTIFICATIONS','FLASH_SALE','ABANDON_DISC','CREDIT_PANEL'];
-                const studentFeatures = category.features.filter(f => !ADMIN_FEATURE_IDS.includes(f.id));
-                return (
-                <div key={category.name} className="rounded-2xl overflow-hidden"
-                  style={{ border: `1px solid ${C.border}` }}>
-                  {/* Category header */}
-                  <div className="px-4 py-2.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                    <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: C.textMuted }}>
-                      {category.name.replace(/^\d+\.\s*/, '')}
-                    </p>
-                  </div>
-                  {/* Feature rows */}
-                  {studentFeatures.map((feat, fi) => (
-                    <div key={feat.id} className="grid grid-cols-3 divide-x"
-                      style={{ background: fi % 2 === 0 ? C.surface : C.surfaceMid,
-                               borderTop: `1px solid ${C.border}`,
-                               ['--tw-divide-opacity' as any]: 1 }}>
-                      {/* Feature name spans full width above the values on mobile */}
-                      <div className="col-span-3 px-3 pt-2 pb-0.5">
-                        <p className="text-[10px] font-bold" style={{ color: C.textMuted }}>{feat.name}</p>
-                      </div>
-                      {cols.map(col => {
-                        const val: string = feat[col.key];
-                        const isLocked = val.startsWith('❌');
-                        const isGood = val.startsWith('✅');
-                        const isLimited = val.startsWith('⚠️') || val.startsWith('🔒');
-                        return (
-                          <div key={col.key} className="px-2 pb-2 pt-0.5 text-center"
-                            style={{ borderLeft: `1px solid ${C.border}` }}>
-                            <p className={`text-[10px] font-black leading-snug`}
-                              style={{ color: isLocked ? C.textDim : isGood ? col.color : isLimited ? C.gold : C.text }}>
-                              {val}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-                );
-              })}
-
-              {/* CTA for free users */}
-              {isFreePlan && (
-                <div className="rounded-2xl p-5 text-center"
-                  style={{ background: C.proBg, border: `1.5px solid ${C.proBorder}` }}>
-                  <p className="font-black text-sm mb-1" style={{ color: C.text }}>Pro ya Max lo — aur unlock karo!</p>
-                  <p className="text-[11px] mb-3" style={{ color: C.textMuted }}>⭐ Pro tab → Max tab pe jao aur plan choose karo</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setTierType('BASIC')}
-                      className="flex-1 py-2.5 rounded-xl font-black text-sm active:scale-95 transition"
-                      style={{ background: C.proGrad, color: '#000' }}>
-                      ⭐ Pro Dekho
-                    </button>
-                    <button onClick={() => setTierType('ULTRA')}
-                      className="flex-1 py-2.5 rounded-xl font-black text-sm active:scale-95 transition"
-                      style={{ background: C.maxGrad, color: '#fff' }}>
-                      ⚡ Max Dekho
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -1159,62 +1034,110 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                           </div>
                         </div>
 
+                        {/* ▌▌ Stat bars — FF-style (dynamic from level system) ▌▌ */}
+                        {(() => {
+                          const userLevel = getLevelInfo(user.totalScore || 0).level;
+                          const ld = getLevelDailyLimitsWithOverride(userLevel, settings);
+                          const tier = isPro ? 'BASIC' : 'ULTRA';
+                          const dailyScore = getDailyScoreLimit(tier, true);
+                          const multiplier = SCORE_MULTIPLIERS[tier] ?? 1.0;
+                          const mcqLimit = ld?.mcq?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 70 : 100);
+                          const pdfLimit = ld?.pdf?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 5 : 10);
+                          const videoLimit = ld?.video?.[isPro ? 'basic' : 'ultra'] ?? (isPro ? 4 : 7);
+                          const flashLimit = ld?.flashcard?.['ultra'] ?? 20;
+                          const fmtLim = (v: number) => v === UNLIMITED ? '∞' : v.toLocaleString('en-IN');
 
-                        {/* ▌▌ Feature list — category-wise, one per row ▌▌ */}
+                          const topStats = [
+                            { icon: '📅', value: dailyScore.toLocaleString('en-IN'), sub: 'PTS/DIN' },
+                            { icon: '⚡', value: `${multiplier}×`, sub: 'SCORE BOOST' },
+                            { icon: '❓', value: fmtLim(mcqLimit), sub: 'MCQ/DIN' },
+                          ];
+                          const bottomStats = [
+                            { icon: '📄', label: 'PDF / Notes', value: fmtLim(pdfLimit) + '/day' },
+                            { icon: '🎬', label: 'Video',       value: fmtLim(videoLimit) + '/day' },
+                            { icon: '🃏', label: 'Flashcard',   value: fmtLim(flashLimit) + '/day' },
+                          ];
+
+                          return (
+                            <div className="relative" style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
+                              <div className="px-3 py-1.5 flex items-center gap-1.5"
+                                style={{ background: 'rgba(255,255,255,0.035)', borderBottom: `1px solid rgba(255,255,255,0.055)` }}>
+                                <Zap size={9} color={ffBorder} />
+                                <span className="text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: ffBorder }}>
+                                  {isPro ? 'PRO' : 'MAX'} PLAN LIMITS — Level {userLevel}
+                                </span>
+                              </div>
+                              {/* Top 3 main stats */}
+                              <div className="grid grid-cols-3" style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                                {topStats.map((item, i) => (
+                                  <div key={i} className="flex flex-col items-center py-3 gap-0.5 relative"
+                                    style={{ borderRight: i < 2 ? `1px solid rgba(255,255,255,0.06)` : 'none' }}>
+                                    <span className="text-[17px] leading-none mb-0.5">{item.icon}</span>
+                                    <span className="text-[13px] font-black tabular-nums" style={{ color: ffGold }}>{item.value}</span>
+                                    <span className="text-[8px] font-black uppercase tracking-wide text-center leading-tight" style={{ color: 'rgba(255,255,255,0.28)' }}>{item.sub}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Bottom activity limits row */}
+                              <div className="grid grid-cols-3" style={{ background: 'rgba(0,0,0,0.18)' }}>
+                                {bottomStats.map((item, i) => (
+                                  <div key={i} className="flex items-center justify-center gap-1 py-2 px-1"
+                                    style={{ borderRight: i < 2 ? `1px solid rgba(255,255,255,0.05)` : 'none' }}>
+                                    <span className="text-[11px] leading-none">{item.icon}</span>
+                                    <span className="text-[10px] font-black tabular-nums" style={{ color: ffGoldDim }}>{item.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* ▌▌ Feature list ▌▌ */}
+                        <div className="px-4 py-3 grid grid-cols-2 gap-x-3 gap-y-2" style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
+                          {featuresList.map((f, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                                style={{ background: 'rgba(255,215,0,0.1)', border: `1px solid rgba(255,215,0,0.3)` }}>
+                                <Check size={9} color={ffGold} strokeWidth={3.5} />
+                              </div>
+                              <span className="text-[11px] font-semibold leading-tight" style={{ color: 'rgba(255,255,255,0.55)' }}>{f}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* ▌▌ Level discount row ▌▌ */}
                         <div style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
-                          {DEFAULT_PLAN_COMPARISON.map((category) => {
-                            // Hide admin-only category from student store
-                            if (category.name.includes('ADMIN POWER')) return null;
-                            const tierKey = isPro ? 'basic' : 'ultra';
-                            const ADMIN_FEATURE_IDS = ['GHOST_LOGIN', 'LIVE_SPY', 'LOGIN_AS', 'NOTIFICATIONS', 'FLASH_SALE', 'ABANDON_DISC', 'CREDIT_PANEL'];
-                            const visibleFeatures = category.features.filter(f => {
-                              if (ADMIN_FEATURE_IDS.includes(f.id)) return false;
-                              const val: string = f[tierKey];
-                              return !val.startsWith('❌');
-                            });
-                            if (visibleFeatures.length === 0) return null;
-                            return (
-                              <div key={category.name}>
-                                {/* Category header */}
-                                <div className="px-4 pt-3 pb-1">
-                                  <span className="text-[9px] font-black uppercase tracking-[0.18em]"
-                                    style={{ color: isPro ? 'rgba(34,211,238,0.55)' : 'rgba(192,132,252,0.55)' }}>
-                                    {category.name.replace(/^\d+\.\s*/, '')}
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <span className="text-[16px] leading-none shrink-0">{levelInfo.emoji}</span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[12px] font-black" style={{ color: '#e2e8f0' }}>
+                                    Level {levelInfo.level} {levelInfo.label}
+                                  </span>
+                                  <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                    {score.toLocaleString('en-IN')} pts
                                   </span>
                                 </div>
-                                {/* Feature rows */}
-                                {visibleFeatures.map((feat, fi) => {
-                                  const val: string = feat[tierKey];
-                                  const isGood = val.startsWith('✅');
-                                  const isLimited = val.startsWith('⚠️') || val.startsWith('🔒');
-                                  const cleanVal = val.replace(/^[✅⚠️🔒📝💡📖]\s*/, '');
-                                  return (
-                                    <div key={feat.id}
-                                      className="flex items-center justify-between px-4 py-2"
-                                      style={{ borderTop: fi === 0 ? 'none' : `1px solid rgba(255,255,255,0.04)` }}>
-                                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                                          style={{
-                                            background: isGood ? 'rgba(255,215,0,0.1)' : isLimited ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)',
-                                            border: `1px solid ${isGood ? 'rgba(255,215,0,0.3)' : isLimited ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.10)'}`,
-                                          }}>
-                                          {isGood
-                                            ? <Check size={9} color={ffGold} strokeWidth={3.5} />
-                                            : <span className="text-[8px] leading-none">{isLimited ? '~' : '·'}</span>}
-                                        </div>
-                                        <span className="text-[11px] font-semibold leading-tight truncate"
-                                          style={{ color: 'rgba(255,255,255,0.65)' }}>{feat.name}</span>
-                                      </div>
-                                      <span className="text-[10px] font-black ml-2 shrink-0"
-                                        style={{ color: isGood ? ffGold : isLimited ? '#fbbf24' : 'rgba(255,255,255,0.35)' }}>
-                                        {cleanVal || val}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
                               </div>
-                            );
-                          })}
+                            </div>
+                            {scoreDiscount > 0 && (
+                              <span className="text-[11px] font-black px-2.5 py-1 rounded-lg shrink-0 ml-2"
+                                style={{ background: levelInfo.color, color: '#000', boxShadow: `0 0 8px ${levelInfo.color}55` }}>
+                                {scoreDiscount}% OFF
+                              </span>
+                            )}
+                          </div>
+                          {nextLvl && (
+                            <div className="px-4 pb-3 -mt-1">
+                              <div className="h-1.5 rounded-full mb-1.5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                                <div className="h-full rounded-full transition-all" style={{ width: `${lvlProgress}%`, background: 'linear-gradient(90deg,#d97706,#fbbf24,#fde68a)' }} />
+                              </div>
+                              <p className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                                {ptsNeeded.toLocaleString('en-IN')} aur → Level {nextLvl.level} {nextLvl.emoji} ({nextLvl.discount}% OFF)
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {/* ▌▌ Flash Sale row ▌▌ */}
