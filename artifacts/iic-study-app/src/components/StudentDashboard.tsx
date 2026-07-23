@@ -12737,7 +12737,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         const currentLabel = boardOptions.find(b => b.id === activeSessionBoard)?.label ?? activeSessionBoard;
                         return (
                           <div className="px-3 pt-2.5 pb-2.5 border-b border-slate-100">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Board</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">Board</p>
                             <button
                               onClick={() => setShowBoardDropdown(v => !v)}
                               className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold text-slate-800 active:bg-slate-100 transition-all"
@@ -12771,7 +12771,13 @@ export const StudentDashboard: React.FC<Props> = ({
                         const isBlue2 = isDarkMode && themeType2 === "blue";
                         const themeLabel2 = isBlue2 ? 'Blue Dark' : isDarkMode ? 'Black Dark' : 'Light Mode';
 
-                        type ListItem = { label: string; right?: string; locked?: boolean; action: () => void };
+                        const themeChip = isBlue2
+                          ? { label: '🌙 Blue', cls: 'bg-blue-100 text-blue-700 border-blue-200' }
+                          : isDarkMode
+                            ? { label: '🌑 Dark', cls: 'bg-slate-800 text-slate-200 border-slate-700' }
+                            : { label: '☀️ Light', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+
+                        type ListItem = { label: string; right?: string; locked?: boolean; isTheme?: boolean; action: () => void };
                         const items: ListItem[] = [
                           {
                             label: 'Score History',
@@ -12795,7 +12801,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           }] : []),
                           {
                             label: 'Theme',
-                            right: themeLabel2,
+                            isTheme: true,
                             action: () => {
                               if (!isDarkMode) {
                                 localStorage.setItem("nst_dark_theme_type", "black");
@@ -12855,7 +12861,12 @@ export const StudentDashboard: React.FC<Props> = ({
                               >
                                 <span className="text-[11px] font-black text-slate-400 w-4 shrink-0 text-right">{idx + 1}</span>
                                 <span className="text-[13px] font-semibold text-slate-800 flex-1 leading-tight">{item.label}</span>
-                                {item.right && <span className="text-[11px] font-medium text-slate-400">{item.right}</span>}
+                                {item.isTheme && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${themeChip.cls}`}>
+                                    {themeChip.label}
+                                  </span>
+                                )}
+                                {!item.isTheme && item.right && <span className="text-[11px] font-medium text-slate-400">{item.right}</span>}
                                 {item.locked && <Lock size={10} className="text-red-400 shrink-0" />}
                               </button>
                             ))}
@@ -12864,8 +12875,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       })()}
 
                       {/* Version */}
-                      <div className="px-3 py-2 text-center">
-                        <span className="text-[10px] text-slate-400">Version v{APP_VERSION}</span>
+                      <div className="px-3 py-1.5 text-center">
+                        <span className="text-[9px] text-slate-300 font-medium">v{APP_VERSION}</span>
                       </div>
 
                     </div>
