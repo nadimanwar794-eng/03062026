@@ -1026,15 +1026,14 @@
 }
 /* Active tab glow pill — invisible in dark modes so only the icon fill +
    top accent bar signals the active tab (matches how white mode looks). */
-.dark-mode nav[aria-label="Primary"] .nav-active-glow {
+.dark-mode nav[aria-label="Primary"] .nav-active-glow,
+.dark-mode-blue nav[aria-label="Primary"] .nav-active-glow,
+.dark-mode-black nav[aria-label="Primary"] .nav-active-glow {
     background: transparent !important;
+    background-color: transparent !important;
     box-shadow: none !important;
     border: none !important;
-}
-.dark-mode-blue nav[aria-label="Primary"] .nav-active-glow {
-    background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
+    outline: none !important;
 }
 
 .dark-mode .text-slate-900,
