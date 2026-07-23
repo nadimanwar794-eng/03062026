@@ -18,6 +18,7 @@ import { fireSessionComplete } from '../utils/sessionNotify';
 import { renderMathInHtml } from '../utils/mathUtils';
 import { inlineMd, parseMcqQuestion } from '../utils/mcqRender';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import { deferStudyCoins } from '../utils/studyRewards';
 
 interface Props {
   questions: MCQItem[];
@@ -136,7 +137,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
           const _routineOn = loadRoutineData(user.id).enabled;
           const _coinMult  = _routineOn ? (1 / 6) : (1 / 8);
           const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
-          const updated = { ...user, totalScore: (user.totalScore || 0) + pts, credits: (user.credits || 0) + _coinEarned };
+          deferStudyCoins(user.id, _coinEarned);
+          const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
           onUpdateUser(updated);
           saveUserToLive(updated);
         }
@@ -350,7 +352,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
           const _routineOn  = loadRoutineData(user.id).enabled;
           const _coinMult   = _routineOn ? (1 / 6) : (1 / 8);
           const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
-          const updated = { ...user, totalScore: (user.totalScore || 0) + pts, credits: (user.credits || 0) + _coinEarned };
+          deferStudyCoins(user.id, _coinEarned);
+          const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
           onUpdateUser(updated);
           saveUserToLive(updated);
         }
@@ -1055,7 +1058,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
                                   const _routineOn  = loadRoutineData(user.id).enabled;
                                   const _coinMult   = _routineOn ? (1 / 6) : (1 / 8);
                                   const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
-                                  const updated = { ...user, totalScore: (user.totalScore || 0) + pts, credits: (user.credits || 0) + _coinEarned };
+                                  deferStudyCoins(user.id, _coinEarned);
+                                  const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
                                   onUpdateUser(updated);
                                   saveUserToLive(updated);
                                 }

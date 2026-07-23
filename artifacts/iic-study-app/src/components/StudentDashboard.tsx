@@ -231,6 +231,7 @@ import { McqSpeakButtons } from "./McqSpeakButtons";
 import { FlashcardMcqView } from "./FlashcardMcqView";
 import { shouldShowMcqOptions } from "../utils/mcqRender";
 import McqQuestionDisplay from "./McqQuestionDisplay";
+import { deferStudyCoins } from "../utils/studyRewards";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
 import { WriteModeCorrection } from "./WriteModeCorrection";
 import { CompareView } from "./CompareView";
@@ -1299,6 +1300,8 @@ export const StudentDashboard: React.FC<Props> = ({
         localStorage.setItem(streakKey, '0');
         const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', limitBoost, limitBoostExpiry);
         if (earned > 0) {
+          const routineOn = loadRoutineData(freshUser.id).enabled;
+          deferStudyCoins(freshUser.id, Math.max(1, Math.floor(earned * (routineOn ? 1 / 6 : 1 / 8))));
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + earned });
         }
       } else {
@@ -1320,6 +1323,8 @@ export const StudentDashboard: React.FC<Props> = ({
         const baseEarned = tryEarnScore(freshUser.id, 2, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_CORRECT', limitBoost, limitBoostExpiry);
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
+          const routineOn = loadRoutineData(freshUser.id).enabled;
+          deferStudyCoins(freshUser.id, Math.max(1, Math.floor(totalEarned * (routineOn ? 1 / 6 : 1 / 8))));
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + totalEarned });
         }
       }
@@ -2833,7 +2838,8 @@ export const StudentDashboard: React.FC<Props> = ({
           const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
-          handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned, credits: (freshU.credits || 0) + _coinEarned });
+          deferStudyCoins(freshU.id, _coinEarned);
+          handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
           // Always show top banner for timer coin earn (guaranteed, doesn't rely on handleUserUpdate diff)
           if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
           setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD' });
@@ -3129,7 +3135,8 @@ export const StudentDashboard: React.FC<Props> = ({
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
           const _newScore = (freshU.totalScore || 0) + earned;
-          handleUserUpdate({ ...freshU, totalScore: _newScore, credits: (freshU.credits || 0) + _coinEarned });
+          deferStudyCoins(freshU.id, _coinEarned);
+          handleUserUpdate({ ...freshU, totalScore: _newScore });
           // Update credit-sync key so HOME-tab sync does NOT double-convert these pts to credits
           try { localStorage.setItem(`nst_credit_sync_score_${freshU.id}`, String(_newScore)); } catch {}
           if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
@@ -3546,8 +3553,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 markLessonRewarded(lessonId);
                 // Add +50 credits to the user's actual credit balance
                 const _fuNow = (window as any).__dashUserRef?.current ?? userRef.current;
-                const _updatedWithReward = { ..._fuNow, credits: (_fuNow.credits || 0) + LESSON_COMPLETE_REWARD };
-                handleUserUpdate(_updatedWithReward);
+                deferStudyCoins(_fuNow.id, LESSON_COMPLETE_REWARD);
+                handleUserUpdate(_fuNow);
                 // Add coins to routine wallet too
                 let _rdNew = { ..._rd, coins: _rd.coins + LESSON_COMPLETE_REWARD };
                 // Unlock Revision Hub for this lesson permanently
@@ -8066,7 +8073,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                     const _rdCoin = loadRoutineData(_freshU.id);
                                     const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
                                     const _coinEarned = Math.max(1, Math.floor(_hwEarned * _coinMult));
-                                    handleUserUpdate({ ..._freshU, totalScore: (_freshU.totalScore || 0) + _hwEarned, credits: (_freshU.credits || 0) + _coinEarned });
+                                    deferStudyCoins(_freshU.id, _coinEarned);
+                                    handleUserUpdate({ ..._freshU, totalScore: (_freshU.totalScore || 0) + _hwEarned });
                                     triggerRewardEffect(_hwEarned, `+${_hwEarned} pts 🧠 Competition MCQ!`);
                                   }
                                 }

@@ -14,6 +14,7 @@ import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
 import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
 import { hapticCorrect, hapticWrong } from '../utils/haptic';
 import { loadRoutineData } from '../utils/routineStorage';
+import { deferStudyCoins } from '../utils/studyRewards';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -218,10 +219,10 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 if (totalPts > 0) {
                     const _u = userRef.current;
                     if (_u && onUpdateUser) {
+                        deferStudyCoins(_u.id, _creditsEarned);
                         const updated = {
                             ..._u,
                             totalScore: (_u.totalScore || 0) + totalPts,
-                            credits: (_u.credits || 0) + _creditsEarned,
                         };
                         onUpdateUser(updated);
                         saveUserToLive(updated);

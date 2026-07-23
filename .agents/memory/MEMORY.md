@@ -4,3 +4,4 @@
 - [Production TDZ in React components](production-tdz-pattern.md) — const useState after useEffect dep array = TDZ crash in prod only (not dev)
 - [MCQ statement parsing](mcq-statement-parsing.md) — numbered statements are semantic content; visual tags like ⚡ must not control detection
 - [Projector option visibility](projector-option-visibility.md) — Projector always shows every option; conditional option hiding applies only to Q&A/Flashcard study views
+- [Study coin deferral](study-coin-deferral.md) — study-earned coins stay pending and are paid as one combined Home payout; points remain immediate

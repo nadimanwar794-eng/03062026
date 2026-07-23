@@ -38,6 +38,7 @@ import { ReadingScoreHUD } from './ReadingScoreHUD';
 import { PdfViewer } from './PdfViewer';
 import { useAppTheme } from '../utils/themeContext';
 import { fireSessionComplete } from '../utils/sessionNotify';
+import { deferStudyCoins } from '../utils/studyRewards';
 
 
 interface Props {
@@ -347,17 +348,8 @@ export const LessonView: React.FC<Props> = ({
     // Save coins so flushSessionEvents can include them in MCQ session payload
     mcqFlushCrRef.current += coins;
 
-    const newCredits = (_user.credits || 0) + coins;
-    const updatedWithCoins = { ..._user, credits: newCredits };
-    _onUpdateUser(updatedWithCoins);
-    saveUserToLive(updatedWithCoins);
-
-    fireCreditNotify({
-      type: 'EARN',
-      amount: coins,
-      remaining: newCredits,
-      source: 'mcq',
-    });
+    // Study coins stay pending until the student returns to Home.
+    deferStudyCoins(_user.id, coins);
   }, []);
 
   const handleReadingScoreEarned = useCallback((pts: number, activity: string) => {
@@ -400,6 +392,7 @@ export const LessonView: React.FC<Props> = ({
 
       // Coins deferred — accumulate for session-end (no immediate balance update / notification)
       if (coins > 0) {
+        deferStudyCoins(_user.id, coins);
         pendingSessionCreditsRef.current += coins;
         setPendingCreditDisplay(pendingSessionCreditsRef.current);
         creditsEarnedThisSessionRef.current = true;
@@ -425,6 +418,7 @@ export const LessonView: React.FC<Props> = ({
     if (!isFirstTimeRef.current) return;
 
     // Defer — collect in session box, apply 4s after HOME
+    deferStudyCoins(userRef.current?.id, credits);
     pendingSessionCreditsRef.current += credits;
     setPendingCreditDisplay(pendingSessionCreditsRef.current);
     creditsEarnedThisSessionRef.current = true;
