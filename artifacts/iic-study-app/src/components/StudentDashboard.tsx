@@ -229,6 +229,8 @@ import { ReferralPopup } from "./ReferralPopup";
 import { SpeakButton } from "./SpeakButton";
 import { McqSpeakButtons } from "./McqSpeakButtons";
 import { FlashcardMcqView } from "./FlashcardMcqView";
+import { shouldShowMcqOptions } from "../utils/mcqRender";
+import McqQuestionDisplay from "./McqQuestionDisplay";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
 import { WriteModeCorrection } from "./WriteModeCorrection";
 import { CompareView } from "./CompareView";
@@ -7790,13 +7792,19 @@ export const StudentDashboard: React.FC<Props> = ({
                       const mcqs = activeHw.parsedMcqs!;
                       const totalQ = mcqs.length;
 
-                      // ── Q&A REVEAL MODE: question + answer only, no options ──
+                      // ── Q&A REVEAL MODE: qualifying questions also show options ──
                       if (hwMode === 'reveal') {
                         return (
                           <div className="space-y-3">
                             {mcqs.map((mcq, qi) => (
                               <div key={qi} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p className="text-sm font-bold text-slate-800 leading-snug mb-3">{qi + 1}. {mcq.question}</p>
+                                <div className="mb-3">
+                                  <McqQuestionDisplay
+                                    q={mcq as any}
+                                    questionClassName="text-sm font-bold text-slate-800 leading-snug"
+                                    showOptions
+                                  />
+                                </div>
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
                                   <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
                                     {String.fromCharCode(65 + mcq.correctAnswer)}
@@ -8160,7 +8168,13 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="p-4">
                           <div className="flex items-start gap-2">
                             <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black mt-0.5">{qi + 1}</span>
-                            <p className="text-sm font-bold text-slate-800 leading-snug">{mcq.question || ''}</p>
+                            <div className="flex-1">
+                              <McqQuestionDisplay
+                                q={mcq as any}
+                                questionClassName="text-sm font-bold text-slate-800 leading-snug"
+                                showOptions
+                              />
+                            </div>
                           </div>
                         </div>
                         {_revealed ? (
@@ -14945,7 +14959,13 @@ export const StudentDashboard: React.FC<Props> = ({
                                 >
                                   <div className="flex items-start gap-2 mb-2">
                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mt-1 shrink-0">Q{qi + 1}</span>
-                                    <p className="flex-1 text-sm font-bold text-slate-800 leading-relaxed whitespace-pre-wrap">{mcq.question}</p>
+                                    <div className="flex-1">
+                                      <McqQuestionDisplay
+                                        q={mcq as any}
+                                        questionClassName="text-sm font-bold text-slate-800 leading-relaxed"
+                                        showOptions
+                                      />
+                                    </div>
                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${mcq._src === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
                                       {mcq._src === 'admin' ? 'Official' : 'Mine'}
                                     </span>
@@ -19091,8 +19111,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   {lucentActiveTab === 'QA' && (() => {
                     const _slimQaKey = `${entry.id}_${safeIndex}`;
                     const _slimAdminMcqs = (currentPage?.mcqs || []) as MCQItem[];
-                    const _slimQaItems = (_slimAdminMcqs.length > 0 ? _slimAdminMcqs : (lucentMcqsByPage[_slimQaKey] || []))
-                      .filter((q: any) => !q.statements || q.statements.length === 0);
+                    const _slimQaItems = _slimAdminMcqs.length > 0 ? _slimAdminMcqs : (lucentMcqsByPage[_slimQaKey] || []);
                     if (_slimQaItems.length === 0) return null;
                     const _slimAllRevealed = _slimQaItems.every((_, i) => lucentQaRevealed[`${_slimQaKey}_${i}`]);
                     return (
@@ -19602,7 +19621,13 @@ RULES:
                                 {q.topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{q.topic}</span>}
                               </div>
                               <div className="flex items-start gap-2 mb-2">
-                                <p className="text-sm font-black text-slate-800 leading-snug flex-1">{q.question}</p>
+                                <div className="flex-1">
+                                  <McqQuestionDisplay
+                                    q={q as any}
+                                    questionClassName="text-sm font-black text-slate-800 leading-snug"
+                                    showOptions
+                                  />
+                                </div>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (q.options||[]).length===4 ? q.options as [string,string,string,string] : ([...(q.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:q.question,options:opts,correctAnswer:q.correctAnswer,explanation:(q as any).explanation||''}); setShowMcqCommunityPopup(true); }}
                                   className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
@@ -20016,8 +20041,7 @@ RULES:
             {lucentActiveTab === 'QA' && (() => {
               const _qaKey = `${entry.id}_${safeIndex}`;
               const _adminMcqsQa = (currentPage?.mcqs || []) as MCQItem[];
-              const _qaItems = (_adminMcqsQa.length > 0 ? _adminMcqsQa : (lucentMcqsByPage[_qaKey] || []))
-                .filter((q: any) => !q.statements || q.statements.length === 0);
+              const _qaItems = _adminMcqsQa.length > 0 ? _adminMcqsQa : (lucentMcqsByPage[_qaKey] || []);
               if (_qaItems.length === 0) {
                 return (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
@@ -20053,7 +20077,9 @@ RULES:
                           <div className="p-4">
                             <div className="flex items-start gap-2">
                               <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black mt-0.5">{qi + 1}</span>
-                              <p className="text-sm font-bold text-slate-800 leading-snug">{mcq.question || ''}</p>
+                               <div className="flex-1">
+                                 <McqQuestionDisplay q={mcq as any} questionClassName="text-sm font-bold text-slate-800 leading-snug" showOptions />
+                               </div>
                             </div>
                           </div>
                           {_revealed ? (
@@ -20081,8 +20107,7 @@ RULES:
             {lucentActiveTab === 'FLASHCARD' && (() => {
               const _fcKey = `${entry.id}_${safeIndex}`;
               const _adminMcqsFc = (currentPage?.mcqs || []) as MCQItem[];
-              const _fcAllItems = (_adminMcqsFc.length > 0 ? _adminMcqsFc : (lucentMcqsByPage[_fcKey] || []))
-                .filter((q: any) => !q.statements || q.statements.length === 0);
+              const _fcAllItems = _adminMcqsFc.length > 0 ? _adminMcqsFc : (lucentMcqsByPage[_fcKey] || []);
 
               if (_fcAllItems.length === 0) {
                 return (
@@ -20214,9 +20239,9 @@ RULES:
                             </span>
                             <span className="text-[10px] text-slate-400 font-bold">{_total} cards</span>
                           </div>
-                          <p className="text-base font-black text-slate-800 leading-snug flex-1 mb-4">
-                            {_card?.question || ''}
-                          </p>
+                           <div className="text-base font-black text-slate-800 leading-snug flex-1 mb-4">
+                             <McqQuestionDisplay q={_card as any} questionClassName="text-base font-black text-slate-800 leading-snug" showOptions />
+                           </div>
                           <button
                             onClick={() => _setFcSt({ flipped: true })}
                             className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"
@@ -21026,11 +21051,22 @@ RULES:
                             </button>
                           </div>
                         </div>
-                        <p className="text-base sm:text-lg font-bold text-slate-800 mb-3 leading-snug">
-                          {chunk.mcq?.question}
-                        </p>
-                        <div className="space-y-2 mb-4">
-                          {(chunk.mcq?.options || []).map((opt: string, oi: number) => {
+                         {isInteractive ? (
+                           <p className="text-base sm:text-lg font-bold text-slate-800 mb-3 leading-snug">
+                             {chunk.mcq?.question}
+                           </p>
+                         ) : (
+                           <div className="mb-3">
+                             <McqQuestionDisplay
+                               q={chunk.mcq as any}
+                               questionClassName="text-base sm:text-lg font-bold text-slate-800 leading-snug"
+                               showOptions
+                             />
+                           </div>
+                         )}
+                         {isInteractive || shouldShowMcqOptions(chunk.mcq as any) ? (
+                         <div className="space-y-2 mb-4">
+                           {(chunk.mcq?.options || []).map((opt: string, oi: number) => {
                             const isCorrect = chunk.mcq?.correctAnswer === oi;
                             const isPicked = isInteractive && userPicked === oi;
                             // Lucent-style colour rules:
@@ -21082,7 +21118,8 @@ RULES:
                               </button>
                             );
                           })}
-                        </div>
+                         </div>
+                         ) : null}
                         {/* MCQ (interactive) mode: helper hint before the student taps */}
                         {isInteractive && !userAnswered && (
                           <p className="text-[11px] font-bold text-indigo-600/80 mb-2 flex items-center gap-1">

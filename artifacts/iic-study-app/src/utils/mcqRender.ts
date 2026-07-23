@@ -51,6 +51,18 @@ export interface ParsedMcq {
   suffixHtml: string;
 }
 
+/**
+ * Q&A/Flashcard display rule:
+ * options are useful only for "निम्नलिखित/following" questions and
+ * statement-based questions. Normal MCQs keep their options hidden in
+ * these study/reveal modes.
+ */
+export const shouldShowMcqOptions = (q: MCQItem): boolean => {
+  const parsed = parseMcqQuestion(q);
+  const rawQuestion = (q.question || '').replace(/<[^>]+>/g, ' ');
+  return parsed.statements.length > 0 || /निम्नलिखित|following/i.test(rawQuestion);
+};
+
 const renderLine = (text: string) => renderMathInHtml(inlineMd(text));
 
 /**

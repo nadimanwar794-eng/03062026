@@ -16,7 +16,7 @@ import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
 import { fireSessionComplete } from '../utils/sessionNotify';
 import { renderMathInHtml } from '../utils/mathUtils';
-import { inlineMd, parseMcqQuestion } from '../utils/mcqRender';
+import { inlineMd, parseMcqQuestion, shouldShowMcqOptions } from '../utils/mcqRender';
 import McqQuestionDisplay from './McqQuestionDisplay';
 
 interface Props {
@@ -664,7 +664,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
             {/* ── FRONT: Question ── */}
             <div
               className="absolute inset-0 bg-white rounded-3xl shadow-2xl p-5 flex flex-col"
-              style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+               style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', overflowY: 'auto' }}
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider ${hardReviewMode ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'}`}>
@@ -689,6 +689,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   q={activeQ!}
                   questionClassName="text-base font-black text-slate-800 leading-snug"
                   stmtClassName="bg-indigo-50/70 border-l-4 border-indigo-300 px-3 py-2 rounded-lg text-slate-700 text-sm font-medium leading-snug"
+                   showOptions
                 />
               </div>
 
@@ -1027,7 +1028,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 </div>
               </div>
               {/* Options */}
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {shouldShowMcqOptions(pq) && <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {(pq.options || []).map((opt, oi) => {
                   const isCorrect = oi === pq.correctAnswer;
                   const isSelected = projectorSelected === oi;
@@ -1086,7 +1087,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                     </div>
                   );
                 })}
-              </div>
+              </div>}
               {/* Explanation after answering */}
               {projectorSelected !== null && pq.explanation && (
                 <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize:16, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>

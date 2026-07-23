@@ -12,7 +12,8 @@
 
 import React from 'react';
 import { MCQItem } from '../types';
-import { parseMcqQuestion } from '../utils/mcqRender';
+import { inlineMd, parseMcqQuestion, shouldShowMcqOptions } from '../utils/mcqRender';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 interface Props {
   q: MCQItem;
@@ -22,6 +23,8 @@ interface Props {
   stmtClassName?: string;
   /** Visual variant: 'default' (light) | 'dark' (projector) */
   variant?: 'default' | 'dark';
+  /** In Q&A/Flashcard contexts, show options only for qualifying questions. */
+  showOptions?: boolean;
 }
 
 const McqQuestionDisplay: React.FC<Props> = ({
@@ -29,6 +32,7 @@ const McqQuestionDisplay: React.FC<Props> = ({
   questionClassName = '',
   stmtClassName,
   variant = 'default',
+  showOptions = false,
 }) => {
   const { questionHtml, statements, suffixHtml } = parseMcqQuestion(q);
 
@@ -66,6 +70,22 @@ const McqQuestionDisplay: React.FC<Props> = ({
           className={questionClassName}
           dangerouslySetInnerHTML={{ __html: suffixHtml }}
         />
+      )}
+
+      {showOptions && shouldShowMcqOptions(q) && q.options?.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          {q.options.map((option, index) => (
+            <div
+              key={index}
+              className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold leading-snug text-slate-700"
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white">
+                {String.fromCharCode(65 + index)}
+              </span>
+              <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(inlineMd(option)) }} />
+            </div>
+          ))}
+        </div>
       )}
     </>
   );
