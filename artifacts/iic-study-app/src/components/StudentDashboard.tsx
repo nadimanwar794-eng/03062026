@@ -12224,7 +12224,7 @@ export const StudentDashboard: React.FC<Props> = ({
         style={{ background: tierTheme.topBarGrad }}
       >
         {/* Main Header Row */}
-        <div className="flex items-center justify-between w-full px-3 pt-2.5 pb-1.5">
+        <div className="flex items-center justify-between w-full px-3 pt-3 pb-2">
           {/* LEFT: logo + app name + verified badge — tap opens What's New */}
           <button
             className="flex items-center gap-2 shrink-0 active:opacity-70 transition-opacity"
