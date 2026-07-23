@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { parseMCQText } from '../utils/mcqParser';
+import { normalizeMcqPaste, parseMCQText } from '../utils/mcqParser';
 
 export interface CoachingMcqEditorItem {
   id: string;
@@ -102,7 +102,7 @@ export function CoachingMcqEditor({ value, onChange, accent = 'emerald', compact
   const parseBulk = () => {
     const raw = bulkText.trim();
     if (!raw) return;
-    const parsed = parseMCQText(raw);
+    const parsed = parseMCQText(normalizeMcqPaste(raw));
     const added = (parsed.questions || []).map((q: any) => normalizeItem({
       ...q,
       id: makeId(),

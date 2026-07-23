@@ -2,3 +2,4 @@
 - [Video play detection](video-play-detection.md) — YouTube postMessage listener in LessonView; setVideoPlaying() on ReadingScoreSession
 - [Scroll-fail tracking](scroll-fail-tracking.md) — writing/pdf/qa modes stop after 2 consecutive failed scroll checks; isPermanentlyStopped flag
 - [Production TDZ in React components](production-tdz-pattern.md) — const useState after useEffect dep array = TDZ crash in prod only (not dev)
+- [MCQ statement parsing](mcq-statement-parsing.md) — numbered statements are semantic content; visual tags like ⚡ must not control detection
