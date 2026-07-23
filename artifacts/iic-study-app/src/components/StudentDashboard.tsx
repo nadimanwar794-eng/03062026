@@ -11870,37 +11870,47 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Footer */}
-          <p className={`text-center text-[10px] pb-4`} style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.30)' }}>
-            v{APP_VERSION}{settings?.showFooter !== false ? (
-              <> &nbsp;·&nbsp;
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: '3px',
-                padding: '1px 7px', borderRadius: '999px',
-                border: '1px solid currentColor', opacity: _light ? 0.75 : 0.35,
-                fontSize: '9px', fontWeight: 500, letterSpacing: '0.02em',
-              }}>
-                Developed by <strong style={{ fontWeight: 700, opacity: 1 }}>Nadim Anwar</strong>
-              </span></>
-            ) : ''}
-          </p>
-
-          {/* Support card */}
-          <button
-            onClick={handleSupportEmail}
-            className="mt-3 flex flex-col items-center gap-1 px-5 py-3 rounded-2xl active:opacity-60 transition-opacity"
-            style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.20)', minWidth: 200 }}
-          >
-            <span className="text-[9px] font-black uppercase tracking-widest" style={{ opacity: 0.55, color: '#fff' }}>Contact &amp; Support</span>
-            <span className="text-[11px] font-bold text-white" style={{ opacity: 0.45 }}>Have a question or need help?</span>
-            <div className="flex items-center gap-1.5 mt-1">
-              <Mail size={13} className="text-white shrink-0" style={{ opacity: 0.8 }} />
-              <span className="text-[13px] font-black text-white" style={{ opacity: 0.9 }}>
-                {settings?.supportEmail || "nadiman0636indo@gmail.com"}
-              </span>
+          {/* App info + Support — unified professional card */}
+          <div className="mx-4 mb-6 mt-2 rounded-2xl overflow-hidden" style={{
+            background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.07)',
+            border: `1px solid ${_light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
+          }}>
+            {/* App identity row */}
+            <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${_light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.09)'}` }}>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[11px] font-black" style={{ color: _light ? '#1e293b' : 'rgba(255,255,255,0.85)' }}>
+                  {settings?.appName || "IIC Study App"}
+                </span>
+                <span className="text-[10px]" style={{ color: _light ? '#64748b' : 'rgba(255,255,255,0.4)' }}>
+                  Developed by Nadim Anwar
+                </span>
+              </div>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{
+                background: _light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.10)',
+                color: _light ? '#475569' : 'rgba(255,255,255,0.55)',
+                letterSpacing: '0.03em',
+              }}>v{APP_VERSION}</span>
             </div>
-            <span className="text-[9px] mt-0.5" style={{ opacity: 0.4, color: '#fff' }}>Tap to send an email</span>
-          </button>
+
+            {/* Contact & Support row — tappable */}
+            <button
+              onClick={handleSupportEmail}
+              className="w-full px-5 pt-3 pb-4 flex flex-col gap-1.5 text-left active:opacity-60 transition-opacity"
+            >
+              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.35)' }}>
+                Contact &amp; Support
+              </span>
+              <div className="flex items-center gap-2">
+                <Mail size={13} style={{ color: _light ? '#6366f1' : 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
+                <span className="text-[13px] font-bold" style={{ color: _light ? '#1e293b' : 'rgba(255,255,255,0.88)' }}>
+                  {settings?.supportEmail || "nadiman0636indo@gmail.com"}
+                </span>
+              </div>
+              <span className="text-[10px]" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.30)' }}>
+                Tap to email the developer for help
+              </span>
+            </button>
+          </div>
 
           {/* ── Level Style Chooser Sheet ── */}
           {showLevelChooser && (
