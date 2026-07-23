@@ -922,17 +922,20 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
               </div>
 
               {/* Feature categories */}
-              {DEFAULT_PLAN_COMPARISON.map(category => (
+              {DEFAULT_PLAN_COMPARISON.filter(cat => !cat.name.includes('ADMIN POWER')).map(category => {
+                const ADMIN_FEATURE_IDS = ['GHOST_LOGIN','LIVE_SPY','LOGIN_AS','NOTIFICATIONS','FLASH_SALE','ABANDON_DISC','CREDIT_PANEL'];
+                const studentFeatures = category.features.filter(f => !ADMIN_FEATURE_IDS.includes(f.id));
+                return (
                 <div key={category.name} className="rounded-2xl overflow-hidden"
                   style={{ border: `1px solid ${C.border}` }}>
                   {/* Category header */}
-                  <div className="px-4 py-2.5" style={{ background: C.surfaceHigh }}>
+                  <div className="px-4 py-2.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
                     <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: C.textMuted }}>
                       {category.name.replace(/^\d+\.\s*/, '')}
                     </p>
                   </div>
                   {/* Feature rows */}
-                  {category.features.map((feat, fi) => (
+                  {studentFeatures.map((feat, fi) => (
                     <div key={feat.id} className="grid grid-cols-3 divide-x"
                       style={{ background: fi % 2 === 0 ? C.surface : C.surfaceMid,
                                borderTop: `1px solid ${C.border}`,
@@ -959,7 +962,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                     </div>
                   ))}
                 </div>
-              ))}
+                );
+              })}
 
               {/* CTA for free users */}
               {isFreePlan && (
@@ -1159,8 +1163,12 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                         {/* ▌▌ Feature list — category-wise, one per row ▌▌ */}
                         <div style={{ borderBottom: `1.5px solid rgba(255,255,255,0.06)` }}>
                           {DEFAULT_PLAN_COMPARISON.map((category) => {
+                            // Hide admin-only category from student store
+                            if (category.name.includes('ADMIN POWER')) return null;
                             const tierKey = isPro ? 'basic' : 'ultra';
+                            const ADMIN_FEATURE_IDS = ['GHOST_LOGIN', 'LIVE_SPY', 'LOGIN_AS', 'NOTIFICATIONS', 'FLASH_SALE', 'ABANDON_DISC', 'CREDIT_PANEL'];
                             const visibleFeatures = category.features.filter(f => {
+                              if (ADMIN_FEATURE_IDS.includes(f.id)) return false;
                               const val: string = f[tierKey];
                               return !val.startsWith('❌');
                             });
