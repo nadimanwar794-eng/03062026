@@ -11885,16 +11885,21 @@ export const StudentDashboard: React.FC<Props> = ({
             ) : ''}
           </p>
 
-          {/* Support email — tap to mail admin */}
+          {/* Support card */}
           <button
             onClick={handleSupportEmail}
-            className="mt-1.5 flex items-center gap-1.5 px-3 py-1.5 rounded-full active:opacity-60 transition-opacity"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
+            className="mt-3 flex flex-col items-center gap-1 px-5 py-3 rounded-2xl active:opacity-60 transition-opacity"
+            style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.20)', minWidth: 200 }}
           >
-            <Mail size={12} style={{ opacity: 0.7 }} className="text-white shrink-0" />
-            <span className="text-[11px] font-semibold text-white" style={{ opacity: 0.85 }}>
-              {settings?.supportEmail || "nadiman0636indo@gmail.com"}
-            </span>
+            <span className="text-[9px] font-black uppercase tracking-widest" style={{ opacity: 0.55, color: '#fff' }}>Contact &amp; Support</span>
+            <span className="text-[11px] font-bold text-white" style={{ opacity: 0.45 }}>Have a question or need help?</span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Mail size={13} className="text-white shrink-0" style={{ opacity: 0.8 }} />
+              <span className="text-[13px] font-black text-white" style={{ opacity: 0.9 }}>
+                {settings?.supportEmail || "nadiman0636indo@gmail.com"}
+              </span>
+            </div>
+            <span className="text-[9px] mt-0.5" style={{ opacity: 0.4, color: '#fff' }}>Tap to send an email</span>
           </button>
 
           {/* ── Level Style Chooser Sheet ── */}
