@@ -12743,11 +12743,6 @@ export const StudentDashboard: React.FC<Props> = ({
                         ];
 
                         const premiumItems2: SideBtn2[] = [
-                          ...(!planAccess.isHidden ? [{
-                            label: 'My Plan', desc: 'Subscription info', icon: CreditCard, color: 'purple',
-                            action: () => { onTabChange("SUB_HISTORY" as any); setShowDotsMenu(false); },
-                            locked: !planAccess.hasAccess,
-                          }] : []),
                           ...(!redeemAccess.isHidden ? [{
                             label: 'Redeem', desc: 'Use gift code', icon: Gift, color: 'pink',
                             action: () => { onTabChange("REDEEM"); setShowDotsMenu(false); },
