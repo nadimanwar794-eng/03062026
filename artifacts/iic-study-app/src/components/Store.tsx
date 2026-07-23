@@ -260,27 +260,7 @@ function DailyClaimCard({ userId, user: u, onUpdateUser }: { userId: string; use
   );
 }
 
-export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEarnContent, onBack, tierTheme }) => {
-  const dynBg      = (tierTheme as any)?.flashcardBg1 || C.bg;
-  const dynSurface = (tierTheme as any)?.flashcardBg2 || C.surface;
-  const themePrimary = (tierTheme as any)?.primary || (tierTheme as any)?.chapterAccent || C.pro;
-  const themedLayer = (amount: number) =>
-    `color-mix(in srgb, ${themePrimary} ${amount}%, ${dynBg})`;
-
-  // Store used to use a separate fixed-black palette. Keep the existing
-  // semantic color names, but derive its neutral surfaces from the active
-  // tier/personal theme so every Store section follows the app theme.
-  Object.assign(C, {
-    bg: dynBg,
-    surface: dynSurface,
-    surfaceHigh: (tierTheme as any)?.profileCardBg || themedLayer(34),
-    surfaceMid: themedLayer(22),
-    border: `color-mix(in srgb, ${themePrimary} 24%, transparent)`,
-    borderMed: `color-mix(in srgb, ${themePrimary} 42%, transparent)`,
-    text: '#f8fafc',
-    textMuted: 'color-mix(in srgb, #f8fafc 62%, transparent)',
-    textDim: 'color-mix(in srgb, #f8fafc 38%, transparent)',
-  });
+export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEarnContent, onBack }) => {
   const [tierType, setTierType] = useState<'BASIC' | 'ULTRA' | 'EARN' | 'CREDITS' | 'HISTORY'>('BASIC');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
@@ -495,7 +475,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
   /* ── Store locked ── */
   if (settings?.isPaymentEnabled === false) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center px-6" style={{ background: dynBg }}>
+      <div className="min-h-[100dvh] flex items-center justify-center px-6" style={{ background: C.bg }}>
         <div className="rounded-3xl p-10 text-center max-w-sm w-full" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: C.surfaceHigh }}>
             <Lock size={30} color={C.textMuted} />
@@ -510,7 +490,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
   }
 
   return (
-    <div className="min-h-[100dvh] pb-32 animate-in fade-in duration-300" style={{ background: dynBg }}>
+    <div className="min-h-[100dvh] pb-32 animate-in fade-in duration-300" style={{ background: C.bg }}>
 
       {/* ── SUPPORT MODAL ── */}
       {showSupportModal && (
@@ -715,7 +695,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
       })()}
 
       {/* ══════════ HERO HEADER ══════════ */}
-      <div className="relative overflow-hidden" style={{ background: dynSurface, borderBottom: `1px solid ${C.border}` }}>
+      <div className="relative overflow-hidden" style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
         {/* Ambient glow blobs */}
         <div className="absolute -top-10 -left-10 w-48 h-48 rounded-full pointer-events-none"
           style={{ background: isPro ? 'rgba(34,211,238,0.07)' : 'rgba(192,132,252,0.07)', filter: 'blur(40px)' }} />
@@ -954,13 +934,9 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
 
                   const ffGold = '#FFD700';
                   const ffGoldDim = 'rgba(255,215,0,0.65)';
-                  const ffCardBg = dynSurface;
-                  const ffBorder = tierTheme
-                    ? `color-mix(in srgb, ${themePrimary} 72%, white)`
-                    : (isPro ? '#22d3ee' : '#c084fc');
-                  const ffStripe = tierTheme
-                    ? `color-mix(in srgb, ${themePrimary} 24%, transparent)`
-                    : (isPro ? 'rgba(34,211,238,0.18)' : 'rgba(192,132,252,0.18)');
+                  const ffCardBg = C.surface;
+                  const ffBorder = isPro ? '#22d3ee' : '#c084fc';
+                  const ffStripe = isPro ? 'rgba(34,211,238,0.18)' : 'rgba(192,132,252,0.18)';
 
                   return (
                     <>
@@ -995,7 +971,7 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
 
                         {/* ▌▌ FF-style header bar ▌▌ */}
                         <div className="relative overflow-hidden"
-                          style={{ background: `color-mix(in srgb, ${themePrimary} 42%, ${dynBg})`, borderBottom: `2px solid ${ffBorder}` }}>
+                          style={{ background: isPro ? 'rgba(8,145,178,0.35)' : 'rgba(124,58,237,0.35)', borderBottom: `2px solid ${ffBorder}` }}>
                           {/* Diagonal hazard stripes */}
                           <div className="absolute inset-0 pointer-events-none"
                             style={{ backgroundImage: `repeating-linear-gradient(60deg,transparent,transparent 10px,rgba(255,255,255,0.025) 10px,rgba(255,255,255,0.025) 12px)` }} />
