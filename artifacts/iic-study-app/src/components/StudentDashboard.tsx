@@ -12222,23 +12222,16 @@ export const StudentDashboard: React.FC<Props> = ({
         className={`sticky top-0 z-[100] w-full flex flex-col relative transition-all duration-150 ease-in-out ${isFullscreenMode ? "hidden" : ""} ${(isTopBarHidden || isLandscapeUiHidden || activeTab === 'STORE' || activeTab === 'CUSTOM_PAGE' || activeTab === 'PROFILE' || activeTab === 'UNIVERSAL_VIDEO') ? "-translate-y-full !h-0 overflow-hidden opacity-0 pointer-events-none" : "translate-y-0 opacity-100"}`}
         style={{ background: tierTheme.topBarGrad }}
       >
-        {/* Single logo spanning both rows */}
-        {settings?.appLogo && (
-          <button
-            onClick={() => onTabChange("CUSTOM_PAGE")}
-            className="absolute left-3 top-1.5 bottom-1.5 z-10 flex items-center active:opacity-70 transition-opacity"
-          >
-            <img src={settings.appLogo} alt="logo" className="h-full w-auto rounded-lg object-cover" />
-          </button>
-        )}
-
         {/* Main Header Row */}
-        <div className="flex items-center justify-between w-full pl-[62px] pr-3 pt-1.5 pb-1">
-          {/* LEFT: app name + verified badge — tap opens What's New */}
+        <div className="flex items-center justify-between w-full px-3 pt-1.5 pb-1">
+          {/* LEFT: logo + app name + verified badge — tap opens What's New */}
           <button
             className="flex items-center gap-2 shrink-0 active:opacity-70 transition-opacity"
             onClick={() => onTabChange("CUSTOM_PAGE")}
           >
+            {settings?.appLogo && (
+              <img src={settings.appLogo} alt="logo" className="w-7 h-7 rounded-lg object-cover shrink-0" />
+            )}
             <span className="font-black text-[19px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
               {settings?.appShortName || settings?.appName || "IIC"}
             </span>
@@ -12955,11 +12948,11 @@ export const StudentDashboard: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Divider between Row 1 and Row 2 — starts after logo */}
-        <div className="h-px bg-white/20" style={{ marginLeft: 62, marginRight: 12 }} />
+        {/* Divider between Row 1 and Row 2 */}
+        <div className="mx-3 h-px bg-white/20" />
 
         {/* SECOND LINE: greeting + Level / Credits / Subscription pills */}
-        <div className="flex items-center justify-between w-full mt-0 pt-0.5 pl-[62px] pr-4 pb-1">
+        <div className="flex items-center justify-between w-full mt-0 pt-0.5 px-4 pb-1">
 
           {/* Left: two-line greeting */}
           {(() => {
