@@ -11885,6 +11885,18 @@ export const StudentDashboard: React.FC<Props> = ({
             ) : ''}
           </p>
 
+          {/* Support email — tap to mail admin */}
+          <button
+            onClick={handleSupportEmail}
+            className="mt-1.5 flex items-center gap-1.5 px-3 py-1.5 rounded-full active:opacity-60 transition-opacity"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
+          >
+            <Mail size={12} style={{ opacity: 0.7 }} className="text-white shrink-0" />
+            <span className="text-[11px] font-semibold text-white" style={{ opacity: 0.85 }}>
+              {settings?.supportEmail || "nadiman0636indo@gmail.com"}
+            </span>
+          </button>
+
           {/* ── Level Style Chooser Sheet ── */}
           {showLevelChooser && (
             <div className="fixed inset-0 flex items-end" style={{ zIndex: 900, background: 'rgba(0,0,0,0.72)' }}
@@ -12747,11 +12759,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             label: 'Redeem', desc: 'Use gift code', icon: Gift, color: 'pink',
                             action: () => { onTabChange("REDEEM"); setShowDotsMenu(false); },
                             locked: !redeemAccess.hasAccess,
-                          }] : []),
-                          ...(!supportAccess.isHidden ? [{
-                            label: 'Support', desc: 'Help & contact', icon: MessageSquare, color: 'rose',
-                            action: () => { handleSupportEmail(); setShowDotsMenu(false); },
-                            locked: !supportAccess.hasAccess,
                           }] : []),
                         ];
 
