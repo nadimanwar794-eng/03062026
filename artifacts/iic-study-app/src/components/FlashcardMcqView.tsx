@@ -652,13 +652,15 @@ export const FlashcardMcqView: React.FC<Props> = ({
 
       {/* Flip Card */}
       <div className="flex-1 px-4 flex flex-col justify-center gap-4 overflow-y-auto py-2">
-        <div className="w-full max-w-md mx-auto" style={{ perspective: '1200px' }}>
+        <div className="w-full max-w-lg mx-auto" style={{ perspective: '1200px' }}>
           <div
             className="relative w-full transition-transform duration-500"
             style={{
               transformStyle: 'preserve-3d',
               transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-              minHeight: '280px',
+              // Give statement/options questions enough room to breathe.
+              // The card can still scroll internally when a question is unusually long.
+              minHeight: 'clamp(430px, 66dvh, 640px)',
             }}
           >
             {/* ── FRONT: Question ── */}
