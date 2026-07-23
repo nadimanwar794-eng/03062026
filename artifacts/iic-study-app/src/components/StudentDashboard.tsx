@@ -12641,10 +12641,10 @@ export const StudentDashboard: React.FC<Props> = ({
             {/* Streak */}
             <button
               onClick={() => setShowStreakPopup(true)}
-              className={'inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[13px] font-black shrink-0 active:scale-90 transition-all text-white' + (topBarBtnGlow ? ' nst-topbar-btn-glow' : '')}
+              className={'inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-black shrink-0 active:scale-90 transition-all text-white' + (topBarBtnGlow ? ' nst-topbar-btn-glow' : '')}
               title={'Login streak: ' + user.streak + ' day' + (user.streak === 1 ? '' : 's')}
             >
-              <span className="text-[16px] leading-none">🔥</span>
+              <span className="text-[14px] leading-none">🔥</span>
               <span>{user.streak}d</span>
             </button>
 
@@ -12658,7 +12658,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   className={`p-[3px] rounded-xl transition-colors relative text-white shrink-0 active:scale-95${topBarBtnGlow ? ' nst-topbar-btn-glow' : ''}`}
                   title="Mail & Notifications"
                 >
-                  <Mail size={22} />
+                  <Mail size={19} />
                   {totalCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[9px] text-white font-black flex items-center justify-center">
                       {totalCount > 9 ? '9+' : totalCount}
@@ -12675,7 +12675,7 @@ export const StudentDashboard: React.FC<Props> = ({
               title="Suggestions & Corrections"
               style={{ color: 'rgba(255,255,255,0.85)' }}
             >
-              <Lightbulb size={22} />
+              <Lightbulb size={19} />
             </button>
 
             {/* 3-dot menu */}
@@ -12685,7 +12685,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 className="p-1.5 rounded-xl transition-all text-white active:scale-95"
                 title="More options"
               >
-                <MoreVertical size={20} />
+                <MoreVertical size={17} />
               </button>
                 {showDotsMenu && (
                   <>
