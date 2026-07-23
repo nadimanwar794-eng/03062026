@@ -904,22 +904,11 @@ export const FlashcardMcqView: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation — forward only; card navigation does not show a Back button */}
         <div className="flex items-center gap-3 w-full max-w-md mx-auto">
           <button
-            disabled={hardReviewMode ? hardReviewPos === 0 : pos === 0}
-            onClick={hardReviewMode ? goPrevHard : goPrev}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all ${
-              (hardReviewMode ? hardReviewPos === 0 : pos === 0)
-                ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                : 'bg-white/15 text-white hover:bg-white/25 active:scale-95'
-            }`}
-          >
-            <ChevronRight size={16} className="rotate-180" /> Back
-          </button>
-          <button
             onClick={hardReviewMode ? goNextHard : goNext}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-black text-sm active:scale-95 transition shadow-lg ${
+            className={`w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl font-black text-sm active:scale-95 transition shadow-lg ${
               hardReviewMode
                 ? 'bg-red-400 text-white hover:bg-red-300'
                 : 'bg-white text-indigo-900 hover:bg-white/90'
