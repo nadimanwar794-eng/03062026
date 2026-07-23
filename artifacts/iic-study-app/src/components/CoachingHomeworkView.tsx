@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { ref, onValue, off } from 'firebase/database';
 import { rtdb } from '../firebase';
 import { getCoaching } from '../coaching-firebase';
-import { ChevronRight, ChevronLeft, SkipForward, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send, Plus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, SkipForward, ZoomIn, ZoomOut, X, BookOpen, FileText, HelpCircle, ChevronDown, ChevronUp, ArrowLeft, Calendar, Loader2, BookOpenCheck, Send, Plus } from 'lucide-react';
 import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
@@ -516,6 +516,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
 function McqFullPage({ mcqs, accent, label, onClose, onSendToMcqCommunity, user }: { mcqs: CoachingMcq[]; accent: string; label: string; onClose: () => void; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set());
+  const [zoomLevel, setZoomLevel] = useState(1);
   const currentMcq = mcqs[currentIndex];
   const isCurrentAnswered = !!currentMcq && answeredIds.has(currentMcq.id);
 
@@ -560,6 +561,27 @@ function McqFullPage({ mcqs, accent, label, onClose, onSendToMcqCommunity, user 
           <ArrowLeft size={18} className="text-white" />
         </button>
         <span className="text-white font-black text-base flex-1">🧠 {label}</span>
+        <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.16)' }}>
+          <button
+            onClick={() => { hapticMedium(); setZoomLevel(level => Math.max(0.85, Number((level - 0.1).toFixed(2)))); }}
+            disabled={zoomLevel <= 0.85}
+            aria-label="Text chhota karein"
+            title="Text chhota karein"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-35 active:scale-90 transition-all"
+          >
+            <ZoomOut size={15} />
+          </button>
+          <span className="min-w-[34px] text-center text-[10px] font-black text-white">{Math.round(zoomLevel * 100)}%</span>
+          <button
+            onClick={() => { hapticMedium(); setZoomLevel(level => Math.min(1.5, Number((level + 0.1).toFixed(2)))); }}
+            disabled={zoomLevel >= 1.5}
+            aria-label="Text bada karein"
+            title="Text bada karein"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-35 active:scale-90 transition-all"
+          >
+            <ZoomIn size={15} />
+          </button>
+        </div>
         <span className="text-white/90 text-[11px] font-black">{currentIndex + 1} / {mcqs.length}</span>
       </div>
       <div className="shrink-0 px-4 pt-3">
@@ -572,7 +594,7 @@ function McqFullPage({ mcqs, accent, label, onClose, onSendToMcqCommunity, user 
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3" style={{ paddingBottom: 112 }}>
         {mcqs.map((m, index) => (
-          <div key={m.id} style={{ display: index === currentIndex ? 'block' : 'none' }}>
+          <div key={m.id} style={{ display: index === currentIndex ? 'block' : 'none', zoom: zoomLevel }}>
             <McqCard
               mcq={m}
               accent={accent}
