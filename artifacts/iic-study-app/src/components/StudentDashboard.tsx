@@ -2013,6 +2013,7 @@ export const StudentDashboard: React.FC<Props> = ({
     setTimeout(() => setRewardEffect(null), 2400);
   };
   const [showDotsMenu, setShowDotsMenu] = useState(false);
+ const [showBoardDropdown, setShowBoardDropdown] = useState(false);
   const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
   const [showScorePanel, setShowScorePanel] = useState(false);
   const topBarBtnGlow = false; // effect hataya — home pe aate hi glow nahi chahiye
@@ -12721,98 +12722,81 @@ export const StudentDashboard: React.FC<Props> = ({
                         </button>
                       </div>
 
-                      {/* Board switch */}
-                      <div className="px-3 pt-2 pb-2 border-b border-slate-100">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 px-0.5">Board चुनें</p>
-                        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg gap-0.5">
-                          <button
-                            onClick={() => { setActiveSessionBoard("NCERT_EN"); }}
-                            className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${activeSessionBoard === "NCERT_EN" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
-                          >NCERT EN</button>
-                          <button
-                            onClick={() => { setActiveSessionBoard("NCERT_HI"); }}
-                            className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${activeSessionBoard === "NCERT_HI" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
-                          >NCERT HI</button>
-                          <button
-                            onClick={() => { setActiveSessionBoard("BSEB"); }}
-                            className={`flex-1 py-1 text-[10px] font-black rounded-md transition-all ${activeSessionBoard === "BSEB" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500"}`}
-                          >BSEB</button>
-                        </div>
-                      </div>
-
-                      {/* Essential / Premium / Utilities (moved from sidebar) */}
+                      {/* Board dropdown */}
                       {(() => {
-                        const hwAccess = getFeatureAccess('HOMEWORK');
-                        const inboxAccess = getFeatureAccess('INBOX');
-                        const planAccess = getFeatureAccess('MY_PLAN');
+                        const boardOptions = [
+                          { id: 'NCERT_EN', label: 'NCERT English' },
+                          { id: 'NCERT_HI', label: 'NCERT Hindi' },
+                          { id: 'BSEB',     label: 'BSEB' },
+                        ].filter(b => {
+                          if (!settings?.allowedBoards || settings.allowedBoards.length === 0) return true;
+                          if (b.id === 'NCERT_EN') return settings.allowedBoards.includes('CBSE' as any) || settings.allowedBoards.includes('NCERT_EN' as any);
+                          if (b.id === 'NCERT_HI') return settings.allowedBoards.includes('CBSE' as any) || settings.allowedBoards.includes('NCERT_HI' as any);
+                          return settings.allowedBoards.includes(b.id as any);
+                        });
+                        const currentLabel = boardOptions.find(b => b.id === activeSessionBoard)?.label ?? activeSessionBoard;
+                        return (
+                          <div className="px-3 pt-2.5 pb-2.5 border-b border-slate-100">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Board</p>
+                            <button
+                              onClick={() => setShowBoardDropdown(v => !v)}
+                              className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold text-slate-800 active:bg-slate-100 transition-all"
+                            >
+                              <span>{currentLabel}</span>
+                              <ChevronDown size={14} className={`text-slate-400 transition-transform ${showBoardDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showBoardDropdown && (
+                              <div className="mt-1.5 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-md">
+                                {boardOptions.map(opt => (
+                                  <button
+                                    key={opt.id}
+                                    onClick={() => { setActiveSessionBoard(opt.id as any); setShowBoardDropdown(false); }}
+                                    className="w-full flex items-center justify-between px-3 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors border-b border-slate-100 last:border-0"
+                                  >
+                                    <span>{opt.label}</span>
+                                    {activeSessionBoard === opt.id && <Check size={13} className="text-blue-600" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Slim numbered list */}
+                      {(() => {
                         const redeemAccess = getFeatureAccess('REDEEM_CODE');
                         const requestAccess = getFeatureAccess('REQUEST_CONTENT');
-                        const supportAccess = getFeatureAccess('SUPPORT');
-
-                        type SideBtn2 = { label: string; desc: string; icon: React.ElementType; color: string; action: () => void; locked: boolean; badge?: boolean };
-
-                        const essentialItems2: SideBtn2[] = [
-                          {
-                            label: 'Score History', desc: 'Points & progress', icon: TrendingUp, color: 'cyan',
-                            action: () => { setShowScoreHistoryDirect(true); setShowDotsMenu(false); },
-                            locked: false,
-                          },
-                          ...(!hwAccess.isHidden && !(settings?.hiddenBottomNavButtons || []).includes('HOMEWORK') ? [{
-                            label: 'Homework', desc: 'Assigned tasks', icon: GraduationCap, color: 'emerald',
-                            action: () => { onTabChange("HOMEWORK"); setShowDotsMenu(false); },
-                            locked: !hwAccess.hasAccess,
-                          }] : []),
-                          ...(!requestAccess.isHidden ? [{
-                            label: 'Demand', desc: 'Request content', icon: Megaphone, color: 'violet',
-                            action: () => { setShowRequestModal(true); setShowDotsMenu(false); },
-                            locked: !requestAccess.hasAccess,
-                          }] : []),
-                        ];
-
-                        const premiumItems2: SideBtn2[] = [
-                          ...(!redeemAccess.isHidden ? [{
-                            label: 'Redeem', desc: 'Use gift code', icon: Gift, color: 'pink',
-                            action: () => { onTabChange("REDEEM"); setShowDotsMenu(false); },
-                            locked: !redeemAccess.hasAccess,
-                          }] : []),
-                        ];
-
-                        const colorMap2: Record<string, string> = {
-                          emerald: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-                          teal:    'bg-teal-50 text-teal-700 hover:bg-teal-100',
-                          indigo:  'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
-                          purple:  'bg-purple-50 text-purple-700 hover:bg-purple-100',
-                          pink:    'bg-pink-50 text-pink-700 hover:bg-pink-100',
-                          violet:  'bg-violet-50 text-violet-700 hover:bg-violet-100',
-                          rose:    'bg-rose-50 text-rose-700 hover:bg-rose-100',
-                          cyan:    'bg-cyan-50 text-cyan-700 hover:bg-cyan-100',
-                        };
-
-                        const renderBtn2 = (item: SideBtn2) => (
-                          <button
-                            key={item.label}
-                            onClick={() => {
-                              if (item.locked) { showAlert('🔒 Locked by Admin. Upgrade your plan to access.', 'ERROR'); return; }
-                              item.action();
-                            }}
-                            className={`flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl font-bold transition-all relative active:scale-95 ${item.locked ? 'opacity-50 grayscale cursor-not-allowed' : colorMap2[item.color] || 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                          >
-                            <item.icon size={14} />
-                            <span className="text-[10px] font-black leading-tight">{item.label}</span>
-                            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">{item.desc}</span>
-                            {item.locked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-400" /></span>}
-                            {item.badge && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />}
-                          </button>
-                        );
-
                         const themeType2 = localStorage.getItem("nst_dark_theme_type");
                         const isBlue2 = isDarkMode && themeType2 === "blue";
                         const themeLabel2 = isBlue2 ? 'Blue Dark' : isDarkMode ? 'Black Dark' : 'Light Mode';
 
-                        const themeBtn2 = (
-                          <button
-                            key="theme2"
-                            onClick={() => {
+                        type ListItem = { label: string; right?: string; locked?: boolean; action: () => void };
+                        const items: ListItem[] = [
+                          {
+                            label: 'Score History',
+                            action: () => { setShowScoreHistoryDirect(true); setShowDotsMenu(false); },
+                          },
+                          ...(!requestAccess.isHidden ? [{
+                            label: 'Content Demand',
+                            locked: !requestAccess.hasAccess,
+                            action: () => {
+                              if (!requestAccess.hasAccess) { showAlert('🔒 Locked by Admin. Upgrade your plan to access.', 'ERROR'); return; }
+                              setShowRequestModal(true); setShowDotsMenu(false);
+                            },
+                          }] : []),
+                          ...(!redeemAccess.isHidden ? [{
+                            label: 'Redeem Code',
+                            locked: !redeemAccess.hasAccess,
+                            action: () => {
+                              if (!redeemAccess.hasAccess) { showAlert('🔒 Locked by Admin. Upgrade your plan to access.', 'ERROR'); return; }
+                              onTabChange("REDEEM"); setShowDotsMenu(false);
+                            },
+                          }] : []),
+                          {
+                            label: 'Theme',
+                            right: themeLabel2,
+                            action: () => {
                               if (!isDarkMode) {
                                 localStorage.setItem("nst_dark_theme_type", "black");
                                 document.documentElement.classList.remove('dark-mode-blue', 'dark-mode-black');
@@ -12830,106 +12814,58 @@ export const StudentDashboard: React.FC<Props> = ({
                                   onToggleDarkMode?.(false);
                                 }
                               }
-                            }}
-                            className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold transition-all active:scale-95"
-                          >
-                            {isDarkMode
-                              ? <Sparkles size={14} className={isBlue2 ? "text-blue-500" : "text-amber-500"} />
-                              : <Zap size={14} className="text-amber-500" />}
-                            <span className="text-[10px] font-black leading-tight">{themeLabel2}</span>
-                            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">Switch theme</span>
-                          </button>
-                        );
-
-                        const guideBtn2 = (
-                          <button
-                            key="guide2"
-                            onClick={() => { setShowUserGuide(true); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold transition-all active:scale-95"
-                          >
-                            <Smartphone size={14} className="text-blue-500" />
-                            <span className="text-[10px] font-black leading-tight">How to Use</span>
-                            <span className="text-[8px] font-medium opacity-70 leading-tight text-center">App guide</span>
-                          </button>
-                        );
-
-                        const hasExternalApps2 = settings?.externalApps && settings.externalApps.length > 0;
-                        const externalBtns2 = hasExternalApps2 ? settings!.externalApps!.map((app) => (
-                          <button
-                            key={app.id}
-                            onClick={() => { handleExternalAppClick(app); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl bg-cyan-50 text-cyan-700 font-bold transition-all active:scale-95 relative"
-                          >
-                            {app.icon ? <img src={app.icon} alt="" className="w-4 h-4 rounded" /> : <Smartphone size={14} />}
-                            <span className="text-[10px] font-black leading-tight truncate w-full text-center">{app.name}</span>
-                            {app.isLocked && <span className="absolute top-1 right-1"><Lock size={8} className="text-red-500" /></span>}
-                          </button>
-                        )) : [];
-
-                        const utilsRow2 = [...externalBtns2, themeBtn2, guideBtn2];
-
-                        return (
-                          <>
-                            {essentialItems2.length > 0 && (
-                              <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Essential</p>
-                                <div className="grid grid-cols-3 gap-1.5">
-                                  {essentialItems2.map(renderBtn2)}
-                                </div>
-                              </div>
-                            )}
-                            {premiumItems2.length > 0 && (
-                              <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Premium</p>
-                                <div className="grid grid-cols-3 gap-1.5">
-                                  {premiumItems2.map(renderBtn2)}
-                                </div>
-                              </div>
-                            )}
-                            <div className="px-3 pt-2.5 pb-2 border-b border-slate-100">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Utilities</p>
-                              <div className="grid grid-cols-3 gap-1.5">
-                                {utilsRow2}
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()}
-
-                      {/* Quick Actions — 3 col with descriptions */}
-                      <div className="px-3 pt-2 pb-2.5">
-                        <div className="grid grid-cols-3 gap-1.5">
-                          <button
-                            onClick={() => { setShowLevelLeaderboard(true); setShowDotsMenu(false); }}
-                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-amber-50 text-amber-700 font-bold active:bg-amber-100 transition-all"
-                          >
-                            <Trophy size={13} className="text-amber-500" />
-                            <span className="text-[10px] font-black leading-tight">Rank</span>
-                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Leaderboard</span>
-                          </button>
-                          <button
-                            onClick={() => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); }}
-                            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl bg-emerald-50 text-emerald-700 font-bold active:bg-emerald-100 transition-all"
-                          >
-                            <span className="text-sm leading-none">📊</span>
-                            <span className="text-[10px] font-black leading-tight">Limits</span>
-                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Daily usage</span>
-                          </button>
-                          <button
-                            onClick={async () => {
+                            },
+                          },
+                          {
+                            label: 'App Guide',
+                            action: () => { setShowUserGuide(true); setShowDotsMenu(false); },
+                          },
+                          {
+                            label: 'Leaderboard',
+                            action: () => { setShowLevelLeaderboard(true); setShowDotsMenu(false); },
+                          },
+                          {
+                            label: 'Daily Limits',
+                            action: () => { setShowDotsMenu(false); setShowScorePanel(true); setScorePanelTab('DAILY'); },
+                          },
+                          {
+                            label: 'Rotate Screen',
+                            right: isLandscape ? 'On' : undefined,
+                            action: async () => {
                               setShowDotsMenu(false);
                               rotateFullscreenRef.current = true;
                               const result = await rotateScreen();
                               rotateFullscreenRef.current = false;
                               if (result === null) showAlert('Screen rotation is not supported on this device/browser.', 'WARNING');
-                            }}
-                            className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl font-bold transition-all ${isLandscape ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 active:bg-slate-200'}`}
-                          >
-                            <RotateCcw size={13} />
-                            <span className="text-[10px] font-black leading-tight">Rotate</span>
-                            <span className="text-[7.5px] opacity-60 leading-tight text-center">Landscape</span>
-                          </button>
-                        </div>
+                            },
+                          },
+                          {
+                            label: 'Profile',
+                            action: () => { onTabChange("PROFILE"); setShowDotsMenu(false); },
+                          },
+                        ];
+
+                        return (
+                          <div className="px-2 pt-1 pb-1 border-b border-slate-100">
+                            {items.map((item, idx) => (
+                              <button
+                                key={item.label}
+                                onClick={item.action}
+                                className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-all text-left"
+                              >
+                                <span className="text-[11px] font-black text-slate-400 w-4 shrink-0 text-right">{idx + 1}</span>
+                                <span className="text-[13px] font-semibold text-slate-800 flex-1 leading-tight">{item.label}</span>
+                                {item.right && <span className="text-[11px] font-medium text-slate-400">{item.right}</span>}
+                                {item.locked && <Lock size={10} className="text-red-400 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Version */}
+                      <div className="px-3 py-2 text-center">
+                        <span className="text-[10px] text-slate-400">Version v{APP_VERSION}</span>
                       </div>
 
                     </div>
