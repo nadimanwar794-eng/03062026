@@ -12735,12 +12735,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             action: () => { onTabChange("HOMEWORK"); setShowDotsMenu(false); },
                             locked: !hwAccess.hasAccess,
                           }] : []),
-                          ...(!inboxAccess.isHidden ? [{
-                            label: 'Inbox', desc: 'Messages & alerts', icon: Mail, color: 'indigo',
-                            action: () => { setShowInbox(true); setShowDotsMenu(false); },
-                            locked: !inboxAccess.hasAccess,
-                            badge: (unreadCount + unreadNotifCount) > 0,
-                          }] : []),
                           ...(!requestAccess.isHidden ? [{
                             label: 'Demand', desc: 'Request content', icon: Megaphone, color: 'violet',
                             action: () => { setShowRequestModal(true); setShowDotsMenu(false); },
