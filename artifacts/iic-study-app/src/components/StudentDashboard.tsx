@@ -2524,6 +2524,12 @@ export const StudentDashboard: React.FC<Props> = ({
   const [homeworkSubjectView, setHomeworkSubjectView] = useState<string | null>(null);
   // Competition MCQ Practice lessons (from admin-added mcq_lessons collection)
   const [compMcqPracticeLessons, setCompMcqPracticeLessons] = useState<any[]>([]);
+  // Standalone interactive MCQ session for competition MCQ practice sets
+  const [compMcqSession, setCompMcqSession] = useState<{ items: any[]; title: string; subtitle: string } | null>(null);
+  const [compMcqAnswers, setCompMcqAnswers] = useState<Record<number, number>>({});
+  const [compMcqSubmitted, setCompMcqSubmitted] = useState<Record<number, boolean>>({});
+  const [compMcqCurrentIdx, setCompMcqCurrentIdx] = useState(0);
+  const [compMcqShowReview, setCompMcqShowReview] = useState(false);
   const [class612SubjectView, setClass612SubjectView] = useState<{ classLevel: string; subject: Subject } | null>(null);
   const [lucentCategoryView, setLucentCategoryView] = useState(false);
   // Which book is selected inside the Lucent category view (null = book-selection screen)
@@ -3345,6 +3351,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // Hurried reattempt filter — only show these real-indices during reattempt (per pageKey)
   const [lucentMcqHurriedFilter, setLucentMcqHurriedFilter] = useState<Record<string, number[]>>({});
   const lucentAutoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const compMcqAutoNextRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lucentMcqAutoTts, setLucentMcqAutoTts] = useState(false);
   // ── MCQ per-question timing (for hurried-answer detection & routine time gate) ──
   const lucentMcqQStartTsRef     = useRef<Record<string, number>>({});   // pageKey → current Q shown ts
@@ -6774,13 +6781,15 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={lesson.id}
                         onClick={() => {
                           if (!lesson.mcqs?.length) return;
-                          setFlashcardMcqs({
+                          setCompMcqSession({
                             items: lesson.mcqs,
                             title: lesson.lessonTitle || 'MCQ Practice',
                             subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
-                            subject: 'mcq',
-                            startInProjectorMode: true,
                           });
+                          setCompMcqAnswers({});
+                          setCompMcqSubmitted({});
+                          setCompMcqCurrentIdx(0);
+                          setCompMcqShowReview(false);
                         }}
                         className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
                       >
@@ -21616,6 +21625,209 @@ RULES:
             startInProjectorMode={flashcardMcqs.startInProjectorMode}
             tabBar={tabBarNode}
           />
+        );
+      })()}
+
+      {/* ===================== COMPETITION MCQ PRACTICE — INTERACTIVE SESSION OVERLAY ===================== */}
+      {compMcqSession && (() => {
+        const mcqs = compMcqSession.items;
+        const totalQ = mcqs.length;
+        const ci = compMcqCurrentIdx;
+        const cq = mcqs[ci];
+        if (!cq) return null;
+        const ansKey = ci;
+        const selected = compMcqAnswers[ansKey];
+        const isAnswered = compMcqSubmitted[ansKey] === true;
+        const attempted = Object.keys(compMcqSubmitted).length;
+        const right = Object.entries(compMcqSubmitted).reduce((acc, [k]) => {
+          const qi = parseInt(k);
+          return compMcqAnswers[qi] === mcqs[qi]?.correctAnswer ? acc + 1 : acc;
+        }, 0);
+        const wrong = attempted - right;
+        const submitThreshold = Math.min(20, totalQ);
+        const canShowReview = attempted >= submitThreshold;
+
+        const handleCompOption = (oi: number) => {
+          if (isAnswered) return;
+          setCompMcqAnswers(prev => ({ ...prev, [ansKey]: oi }));
+          setCompMcqSubmitted(prev => ({ ...prev, [ansKey]: true }));
+          if (ci < totalQ - 1) {
+            if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current);
+            compMcqAutoNextRef.current = setTimeout(() => {
+              setCompMcqCurrentIdx(prev => prev + 1);
+            }, 400);
+          }
+        };
+
+        const doCompRestart = () => {
+          if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current);
+          setCompMcqAnswers({});
+          setCompMcqSubmitted({});
+          setCompMcqCurrentIdx(0);
+          setCompMcqShowReview(false);
+        };
+
+        return (
+          <div className="fixed inset-0 z-[9000] bg-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            {/* Header */}
+            <div className={`flex items-center gap-3 px-4 py-3 shrink-0 border-b border-slate-100`} style={{ background: tierTheme.topBarGrad }}>
+              <button onClick={() => { if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current); setCompMcqSession(null); }} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white active:scale-90 transition-all shrink-0">
+                <ChevronRight size={18} className="rotate-180" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-white truncate leading-tight">{compMcqSession.title}</p>
+                <p className="text-[10px] font-bold text-white/70 leading-tight">{compMcqSession.subtitle}</p>
+              </div>
+              {attempted > 0 && !compMcqShowReview && (
+                <span className="text-[11px] font-black text-white/80 shrink-0">{attempted}/{totalQ}</span>
+              )}
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6">
+              {compMcqShowReview ? (() => {
+                const pct = attempted > 0 ? Math.round((right / attempted) * 100) : 0;
+                const grade = pct >= 80 ? { label: '🏆 Excellent!', color: 'text-emerald-700', bg: 'from-emerald-400 to-teal-500' }
+                  : pct >= 60 ? { label: '👍 Good Job!', color: 'text-indigo-700', bg: 'from-indigo-400 to-blue-500' }
+                  : pct >= 40 ? { label: '💪 Keep Trying!', color: 'text-amber-700', bg: 'from-amber-400 to-orange-500' }
+                  : { label: '📚 Study More', color: 'text-rose-700', bg: 'from-rose-400 to-pink-500' };
+                return (
+                  <div>
+                    <div className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm text-center mb-3">
+                      <div className={`w-14 h-14 mx-auto rounded-full bg-gradient-to-br ${grade.bg} flex items-center justify-center text-2xl mb-2 shadow-md`}>
+                        {pct >= 80 ? '🏆' : pct >= 60 ? '⭐' : pct >= 40 ? '💪' : '📚'}
+                      </div>
+                      <p className={`text-base font-black ${grade.color} mb-0.5`}>{grade.label}</p>
+                      <p className="text-3xl font-black text-slate-800 mb-0.5">{pct}%</p>
+                      <p className="text-[11px] text-slate-500 mb-3">You got {right} correct out of {attempted}</p>
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="bg-slate-50 rounded-xl py-2"><div className="text-[9px] font-bold text-slate-500 uppercase">Tried</div><div className="text-lg font-black text-slate-800">{attempted}</div></div>
+                        <div className="bg-emerald-50 rounded-xl py-2"><div className="text-[9px] font-bold text-emerald-600 uppercase">✅ Correct</div><div className="text-lg font-black text-emerald-700">{right}</div></div>
+                        <div className="bg-rose-50 rounded-xl py-2"><div className="text-[9px] font-bold text-rose-600 uppercase">❌ Wrong</div><div className="text-lg font-black text-rose-700">{wrong}</div></div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setCompMcqShowReview(false)} className="flex-1 py-2.5 rounded-2xl bg-slate-100 text-slate-700 font-black text-sm active:scale-95 transition">▶ Continue</button>
+                        <button onClick={doCompRestart} className="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow-md"><RefreshCw size={13} /> Restart</button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-2">📋 Answer Review ({attempted} questions)</p>
+                    <div className="space-y-3">
+                      {mcqs.map((q2: any, i: number) => {
+                        if (!compMcqSubmitted[i]) return null;
+                        const userAns = compMcqAnswers[i];
+                        const isQ2Correct = userAns === q2.correctAnswer;
+                        return (
+                          <div key={i} className={`bg-white rounded-2xl p-3 border-2 ${isQ2Correct ? 'border-emerald-200' : 'border-rose-200'}`}>
+                            <div className="flex items-start gap-2 mb-2">
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{i + 1} {isQ2Correct ? '✅' : '❌'}</span>
+                              <p className="text-xs font-bold text-slate-800 leading-snug flex-1">{q2.question}</p>
+                            </div>
+                            <div className="space-y-1 ml-1">
+                              {(q2.options || []).map((opt: string, oi: number) => {
+                                const isOpt = oi === q2.correctAnswer;
+                                const isSel = userAns === oi;
+                                let cls = 'text-[11px] font-bold px-2 py-1 rounded-lg flex items-center gap-1.5 ';
+                                if (isOpt) cls += 'bg-emerald-50 text-emerald-800';
+                                else if (isSel && !isOpt) cls += 'bg-rose-50 text-rose-800 line-through';
+                                else cls += 'text-slate-400';
+                                return (
+                                  <div key={oi} className={cls}>
+                                    <span className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-black shrink-0">{String.fromCharCode(65 + oi)}</span>
+                                    {opt}
+                                    {isOpt && <span className="ml-auto text-emerald-600">✅</span>}
+                                    {isSel && !isOpt && <span className="ml-auto text-rose-600">❌</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {q2.explanation && <p className="mt-1.5 text-[10px] bg-slate-50 rounded-lg px-2 py-1 text-slate-600"><span className="font-black">💡</span> {q2.explanation}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div>
+                  {/* Progress */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[11px] font-black text-slate-600 shrink-0"><span className="text-indigo-600">{ci + 1}</span>/{totalQ}</span>
+                    <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500 transition-all rounded-full" style={{ width: `${((ci + 1) / Math.max(1, totalQ)) * 100}%` }} />
+                    </div>
+                    {attempted > 0 && <span className="text-[10px] font-bold text-slate-500 shrink-0">{attempted} done</span>}
+                  </div>
+
+                  {/* Submit & Review button */}
+                  {canShowReview && (
+                    <button onClick={() => setCompMcqShowReview(true)} className="w-full mb-3 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md">
+                      <CheckCircle size={15} /> Submit & Review ({attempted}/{totalQ})
+                    </button>
+                  )}
+
+                  {/* Question card */}
+                  <div className="bg-white border border-purple-100 rounded-2xl p-4 shadow-sm">
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">Q {ci + 1}</span>
+                      {cq.topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{cq.topic}</span>}
+                      {cq.difficulty && (
+                        <span className={`ml-auto text-[10px] font-black px-2 py-0.5 rounded-full ${cq.difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700' : cq.difficulty === 'HARD' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{cq.difficulty}</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-black text-slate-800 leading-snug mb-3">{cq.question}</p>
+                    {cq.statements && cq.statements.length > 0 && (
+                      <div className="mb-3 pl-3 border-l-2 border-indigo-200 space-y-1">
+                        {cq.statements.map((stmt: string, si: number) => <p key={si} className="text-xs text-slate-700 leading-snug">{stmt}</p>)}
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      {(cq.options || []).map((opt: string, oi: number) => {
+                        const isSel = selected === oi;
+                        let cls = 'px-3 py-2.5 rounded-xl text-xs font-bold border-2 transition-all flex items-center gap-2 w-full text-left ';
+                        if (isAnswered) {
+                          if (isSel) cls += 'bg-indigo-50 border-indigo-400 text-indigo-800';
+                          else cls += 'bg-slate-50 border-slate-200 text-slate-400 opacity-60';
+                        } else {
+                          cls += 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 active:scale-95 cursor-pointer';
+                        }
+                        return (
+                          <button type="button" key={oi} disabled={isAnswered} onClick={() => handleCompOption(oi)} className={cls}>
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-black shrink-0 ${isAnswered && isSel ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 text-slate-500'}`}>{String.fromCharCode(65 + oi)}</span>
+                            <span className="flex-1">{opt}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="mt-3 flex gap-2">
+                    {ci > 0 ? (
+                      <button onClick={() => { if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current); setCompMcqCurrentIdx(ci - 1); }} className="py-3 px-4 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center gap-1 active:scale-95 transition">
+                        <ChevronLeft size={15} /> Prev
+                      </button>
+                    ) : (
+                      <div className="py-3 px-4 rounded-2xl bg-slate-50 border-2 border-slate-100 text-slate-300 font-bold text-sm flex items-center gap-1 select-none"><ChevronLeft size={15} /> Prev</div>
+                    )}
+                    {!isAnswered && ci < totalQ - 1 && (
+                      <button onClick={() => { if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current); setCompMcqCurrentIdx(ci + 1); }} className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition">
+                        Skip <ChevronRight size={13} />
+                      </button>
+                    )}
+                    {ci < totalQ - 1 ? (
+                      <button onClick={() => { if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current); setCompMcqCurrentIdx(ci + 1); }} disabled={!isAnswered} className={`flex-1 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow-md ${isAnswered ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+                        Next <ChevronRight size={15} />
+                      </button>
+                    ) : isAnswered ? (
+                      <div className="flex-1 py-3 rounded-2xl bg-emerald-100 border-2 border-emerald-300 text-emerald-700 font-black text-sm flex items-center justify-center gap-1.5 select-none"><CheckCircle size={14} /> All Done!</div>
+                    ) : (
+                      <div className="flex-1 py-3 rounded-2xl bg-slate-100 border-2 border-slate-200 text-slate-400 font-black text-sm flex items-center justify-center select-none">Last Question</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         );
       })()}
 
