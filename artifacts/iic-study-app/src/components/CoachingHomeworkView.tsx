@@ -8,6 +8,8 @@ import { ChevronRight, ChevronLeft, SkipForward, X, BookOpen, FileText, HelpCirc
 import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
+import { inlineMd } from '../utils/mcqRender';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 interface CoachingNote {
   id: string;
@@ -98,6 +100,96 @@ function getCorrectSet(mcq: CoachingMcq): Set<number> {
     return new Set([mcq.correctAnswer]);
   }
   return new Set([0]);
+}
+
+type CoachingQuestionParts = {
+  intro: string;
+  statements: string[];
+  suffix: string;
+};
+
+/**
+ * Coaching homework is stored in a few formats. Some questions have real
+ * newlines, while pasted questions often keep `1. ... 2. ... 3. ...` on one
+ * line. Split both formats before rendering so statements never appear as a
+ * single paragraph.
+ */
+function splitCoachingQuestion(question: string): CoachingQuestionParts {
+  const text = (question || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r/g, '')
+    .trim();
+  if (!text) return { intro: '', statements: [], suffix: '' };
+
+  const statementStart = /(?:^|\s)(?:(?:\*\s*)?)(\d+)[.)]\s+/g;
+  const matches = [...text.matchAll(statementStart)];
+  if (matches.length < 2) {
+    return { intro: text, statements: [], suffix: '' };
+  }
+
+  const firstStart = matches[0].index ?? 0;
+  const intro = text.slice(0, firstStart).replace(/[:\s]+$/, '').trim();
+  const statements: string[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const start = (matches[i].index ?? 0) + matches[i][0].length;
+    const end = i + 1 < matches.length ? (matches[i + 1].index ?? text.length) : text.length;
+    const value = text.slice(start, end).trim();
+    if (value) statements.push(value);
+  }
+
+  // The last numbered item can be followed by the actual question. When the
+  // source has a clear question marker, move that part below the statements.
+  const suffixMatch = statements.length
+    ? statements[statements.length - 1].match(/\s+(?=(?:उपर्युक्त|उपरोक्त|निम्नलिखित में से|कौन-सा|कौन सा|which of|choose the|select the|कूट))/i)
+    : null;
+  let suffix = '';
+  if (suffixMatch?.index !== undefined) {
+    const last = statements[statements.length - 1];
+    suffix = last.slice(suffixMatch.index).trim();
+    statements[statements.length - 1] = last.slice(0, suffixMatch.index).trim();
+  }
+
+  return { intro, statements, suffix };
+}
+
+function QuestionText({ question, accent }: { question: string; accent: string }) {
+  const parts = splitCoachingQuestion(question);
+  const render = (value: string) => renderMathInHtml(inlineMd(value));
+  const hasStatements = parts.statements.length > 0;
+
+  return (
+    <div className="space-y-2">
+      {parts.intro && (
+        <p
+          className="text-[12px] font-bold text-slate-800 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: render(parts.intro) }}
+        />
+      )}
+      {hasStatements && (
+        <div className="space-y-1.5">
+          {parts.statements.map((statement, index) => (
+            <div
+              key={`${statement}-${index}`}
+              className="rounded-lg border px-2.5 py-2 text-[11px] font-medium leading-relaxed text-slate-700"
+              style={{ borderColor: `${accent}25`, background: '#fff' }}
+            >
+              <span className="mr-1 font-black" style={{ color: accent }}>{index + 1}.</span>
+              <span dangerouslySetInnerHTML={{ __html: render(statement) }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {parts.suffix && (
+        <p
+          className="text-[12px] font-bold text-slate-800 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: render(parts.suffix) }}
+        />
+      )}
+      {!parts.intro && !hasStatements && !parts.suffix && (
+        <p className="text-[12px] font-bold text-slate-800 leading-relaxed">{question}</p>
+      )}
+    </div>
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -305,7 +397,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
         <div className="flex items-start gap-2 mb-2">
           <HelpCircle size={13} style={{ color: accent }} className="shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-[12px] font-bold text-slate-800 leading-snug">{mcq.question}</p>
+            <QuestionText question={mcq.question} accent={accent} />
             {isMultiple && (
               <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5 inline-block"
                 style={{ background: `${accent}20`, color: accent }}>
