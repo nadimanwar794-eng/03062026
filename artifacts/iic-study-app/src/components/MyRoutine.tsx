@@ -370,7 +370,7 @@ function LessonDetailRow({ lesson, idx, isCurrent, mcqHistory }: {
   );
 }
 
-// ── Subject Card (Subjects tab) — redesigned ──────────────────────────────────
+// ── Subject Card (Subjects tab) — simplified ──────────────────────────────────
 function SubjectCard({
   sub, lessons, mcqHistory, coins, onToggleApply, onChangeStart, onCoinFlash,
 }: {
@@ -378,23 +378,9 @@ function SubjectCard({
   coins: number; onToggleApply: () => void; onChangeStart: (idx: number) => void;
   onCoinFlash: (msg: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [targetStart, setTargetStart] = useState(sub.startLessonIndex);
-  const meta        = SUBJECT_META[sub.id] || DEFAULT_META;
-  const snap        = getAutoTrackSnapshot();
-  const completedCount = lessons.filter(l => {
-    const tp = l.pages?.length || 0;
-    if (tp === 0) return false;
-    // Per-page criteria: every page must be read AND have its page MCQ done
-    return Array.from({ length: tp }, (_, i) => {
-      const read    = !!snap.pageReads[`${l.id}__${i}`];
-      const pageMcq = !!snap.pageMcqDone?.[`${l.id}__${i}`];
-      return read && pageMcq;
-    }).every(Boolean);
-  }).length;
-  const pct = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+  const meta     = SUBJECT_META[sub.id] || DEFAULT_META;
   const skipCost = getSkipCost(sub.startLessonIndex, targetStart);
-  const visible = expanded ? lessons : [];
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -408,120 +394,72 @@ function SubjectCard({
   };
 
   return (
-    <div className={`rounded-2xl border overflow-hidden transition-all shadow-sm ${sub.routineApplied ? `${meta.border}` : 'border-slate-200'} bg-white`}>
-      {/* Header row */}
-      <div className="flex items-center gap-3 p-3.5 cursor-pointer active:bg-slate-50" onClick={() => setExpanded(e => !e)}>
-        {/* Subject icon */}
-        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${sub.routineApplied ? `${meta.bg} ${meta.color}` : 'bg-slate-100 text-slate-400'}`}>
+    <div className={`rounded-2xl border overflow-hidden transition-all shadow-sm ${sub.routineApplied ? meta.border : 'border-slate-200'} bg-white`}>
+      {/* Header: subject name + toggle */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${sub.routineApplied ? `${meta.bg} ${meta.color}` : 'bg-slate-100 text-slate-400'}`}>
           {meta.icon}
         </div>
-
-        {/* Subject info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-black text-slate-800 text-sm truncate">{sub.name}</p>
-          </div>
+          <p className="font-black text-slate-800 text-sm truncate">{sub.name}</p>
           <p className="text-[10px] text-slate-500 font-medium">{CAT_LABEL[sub.category]}</p>
-          {/* Lesson count + progress */}
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${sub.routineApplied ? (meta.color.replace('text-', 'bg-')) : 'bg-slate-300'}`}
-                style={{ width: `${pct}%` }} />
-            </div>
-            <span className="text-[10px] font-black text-slate-500 shrink-0">{completedCount}/{lessons.length}</span>
-          </div>
         </div>
+        <button
+          onClick={handleToggle}
+          className={`relative w-11 h-5.5 rounded-full transition-all duration-300 shrink-0 ${sub.routineApplied ? (meta.color.replace('text-', 'bg-').replace('-600', '-500')) : 'bg-slate-200'}`}
+          style={{ minWidth: 44, height: 22 }}
+        >
+          <span className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow-md transition-all duration-300 ${sub.routineApplied ? 'left-5' : 'left-0.5'}`}
+            style={{ width: 17, height: 17 }} />
+        </button>
+      </div>
 
-        {/* Right side: toggle + chevron */}
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          {/* Big toggle */}
+      {/* Lesson navigator */}
+      <div className="border-t border-slate-100 px-4 pb-3.5 pt-3">
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleToggle}
-            className={`relative w-12 h-6 rounded-full transition-all duration-300 ${sub.routineApplied ? (meta.color.replace('text-', 'bg-').replace('-600', '-500')) : 'bg-slate-200'}`}
+            onClick={() => {
+              const next = Math.max(0, targetStart - 1);
+              setTargetStart(next);
+            }}
+            className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center active:bg-slate-200 transition shrink-0"
           >
-            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${sub.routineApplied ? 'left-6' : 'left-0.5'}`} />
+            <Minus size={14} className="text-slate-600" />
           </button>
-          {/* Lesson count badge */}
-          <span className="text-[9px] font-black text-slate-400">{lessons.length} lessons</span>
-        </div>
-        <div className="pl-1 shrink-0">
-          {expanded ? <ChevronUp size={14} className="text-slate-300" /> : <ChevronDown size={14} className="text-slate-300" />}
-        </div>
-      </div>
 
-      {/* Stats strip */}
-      <div className="flex border-t border-slate-100 divide-x divide-slate-100">
-        <div className="flex-1 py-2 text-center">
-          <p className="text-[9px] text-slate-400 font-medium">Total</p>
-          <p className="text-xs font-black text-slate-700">{lessons.length}</p>
-        </div>
-        <div className="flex-1 py-2 text-center">
-          <p className="text-[9px] text-slate-400 font-medium">Done</p>
-          <p className="text-xs font-black text-emerald-600">{completedCount}</p>
-        </div>
-        <div className="flex-1 py-2 text-center">
-          <p className="text-[9px] text-slate-400 font-medium">Remaining</p>
-          <p className="text-xs font-black text-amber-600">{lessons.length - completedCount}</p>
-        </div>
-        <div className="flex-1 py-2 text-center">
-          <p className="text-[9px] text-slate-400 font-medium">Progress</p>
-          <p className="text-xs font-black text-blue-600">{pct}%</p>
-        </div>
-      </div>
-
-      {/* Expanded: lesson list + start control */}
-      {expanded && (
-        <div className="border-t border-slate-100 px-3.5 pb-3.5 pt-3 space-y-2">
-          {/* Lessons */}
-          {visible.slice(0, 5).map((lesson, idx) => (
-            <LessonDetailRow
-              key={lesson.id} lesson={lesson} idx={idx}
-              isCurrent={idx === sub.currentLessonIndex} mcqHistory={mcqHistory}
-            />
-          ))}
-          {lessons.length > 5 && (
-            <button onClick={e => { e.stopPropagation(); setExpanded(true); }}
-              className="w-full text-xs font-black text-blue-600 py-2 bg-blue-50 rounded-xl border border-blue-100 active:bg-blue-100">
-              ▼ {lessons.length - 5} aur lessons hain
-            </button>
-          )}
-
-          {/* Start point changer */}
-          <div className="bg-slate-50 rounded-2xl p-3.5 mt-1 border border-slate-100">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">📍 Shuru kahan se?</p>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setTargetStart(t => Math.max(0, t - 1))}
-                className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center active:bg-slate-100 shadow-sm">
-                <Minus size={14} className="text-slate-600" />
-              </button>
-              <div className="flex-1 text-center bg-white rounded-xl border border-slate-200 py-2.5 px-3">
-                <p className="font-black text-slate-800 text-sm">Lesson {targetStart + 1}</p>
-                <p className="text-[10px] text-slate-400 font-medium truncate">{lessons[targetStart]?.lessonTitle || ''}</p>
-                {skipCost > 0 && (
-                  <p className="text-[10px] text-amber-600 font-black mt-0.5">Cost: −{skipCost}🪙</p>
-                )}
-                {skipCost === 0 && targetStart !== sub.startLessonIndex && (
-                  <p className="text-[10px] text-emerald-600 font-black mt-0.5">Free!</p>
-                )}
-              </div>
-              <button onClick={() => setTargetStart(t => Math.min(lessons.length - 1, t + 1))}
-                className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center active:bg-slate-100 shadow-sm">
-                <Plus size={14} className="text-slate-600" />
-              </button>
-            </div>
-            {targetStart !== sub.startLessonIndex && (
-              <button onClick={() => {
-                if (skipCost > coins) { onCoinFlash(`Coins kam hain! Chahiye: ${skipCost}🪙`); return; }
-                onChangeStart(targetStart);
-                onCoinFlash(skipCost > 0 ? `Start changed! −${skipCost}🪙` : 'Start point changed! Free 🎉');
-              }}
-                className="mt-3 w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black active:scale-95 transition shadow-md">
-                {skipCost > 0 ? `✓ Apply (−${skipCost}🪙 deduct hoga)` : '✓ Apply (Free)'}
-              </button>
-            )}
+          <div className="flex-1 text-center bg-slate-50 rounded-xl border border-slate-100 py-2 px-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-none mb-0.5">Lesson {targetStart + 1}</p>
+            <p className="text-[13px] font-bold text-slate-800 leading-tight truncate">
+              {lessons[targetStart]?.lessonTitle || `Lesson ${targetStart + 1}`}
+            </p>
+            {skipCost > 0 && <p className="text-[9px] text-amber-600 font-black mt-0.5">−{skipCost}🪙</p>}
+            {skipCost === 0 && targetStart !== sub.startLessonIndex && <p className="text-[9px] text-emerald-600 font-black mt-0.5">Free!</p>}
           </div>
+
+          <button
+            onClick={() => {
+              const next = Math.min(lessons.length - 1, targetStart + 1);
+              setTargetStart(next);
+            }}
+            className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center active:bg-slate-200 transition shrink-0"
+          >
+            <Plus size={14} className="text-slate-600" />
+          </button>
         </div>
-      )}
+
+        {targetStart !== sub.startLessonIndex && (
+          <button
+            onClick={() => {
+              if (skipCost > coins) { onCoinFlash(`Coins kam hain! Chahiye: ${skipCost}🪙`); return; }
+              onChangeStart(targetStart);
+              onCoinFlash(skipCost > 0 ? `Start changed! −${skipCost}🪙` : 'Start point changed! Free 🎉');
+            }}
+            className="mt-2.5 w-full py-2 rounded-xl bg-blue-600 text-white text-xs font-black active:scale-95 transition shadow-sm"
+          >
+            {skipCost > 0 ? `✓ Apply (−${skipCost}🪙 deduct hoga)` : '✓ Apply (Free)'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
