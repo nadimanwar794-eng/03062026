@@ -15,6 +15,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { renderMathInHtml } from '../utils/mathUtils';
 import { VirtualList } from './VirtualList';
 import { RevisionSession } from './RevisionSession';
 import { TodayAllNotesModal } from './TodayAllNotesModal';
@@ -483,9 +484,9 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
           <div className="mt-2 space-y-1.5">
             {b.wrongQuestions.slice(0, 2).map((q, i) => (
               <div key={i} className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2">
-                <p className="text-[11px] text-slate-700">{q.question}</p>
+                <p className="text-[11px] text-slate-700" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
                 {q.correctOption && (
-                  <p className="text-[10px] text-emerald-700 font-bold mt-0.5">✓ {q.correctOption}</p>
+                  <p className="text-[10px] text-emerald-700 font-bold mt-0.5">✓ <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.correctOption) }} /></p>
                 )}
               </div>
             ))}
@@ -665,7 +666,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
 
                   {/* Question card */}
                   <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm p-5">
-                    <p className="font-bold text-slate-800 text-sm leading-relaxed">{q.question}</p>
+                    <p className="font-bold text-slate-800 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
                   </div>
 
                   {/* Options — A/B/C/D if available, else reveal-only */}
@@ -698,7 +699,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                                 : !showResult && isSelected ? 'border-indigo-500 bg-indigo-500 text-white'
                                 : 'border-slate-300 bg-slate-100 text-slate-600'
                               }`}>{letter}</span>
-                              <span className="font-semibold text-sm leading-relaxed pt-0.5">{opt}</span>
+                              <span className="font-semibold text-sm leading-relaxed pt-0.5" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                               {showResult && isCorrect && <CheckCircle size={18} className="shrink-0 ml-auto text-emerald-500 mt-0.5" />}
                               {showResult && isSelected && !isCorrect && <XCircle size={18} className="shrink-0 ml-auto text-rose-500 mt-0.5" />}
                             </button>

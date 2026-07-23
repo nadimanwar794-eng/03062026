@@ -17,6 +17,7 @@ import {
 import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
+import { renderMathInHtml } from '../utils/mathUtils';
 
 type HubTab = 'MCQ' | 'REVISION' | 'PERFORMANCE';
 
@@ -489,7 +490,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
               <div className="flex items-start gap-2">
                 <p className="font-bold text-slate-800 text-sm leading-relaxed flex-1"
-                  dangerouslySetInnerHTML={{ __html: (currentQ.question || '').replace(/<br\/?>/g, '\n') }}
+                  dangerouslySetInnerHTML={{ __html: renderMathInHtml((currentQ.question || '').replace(/<br\/?>/g, '\n')) }}
                 />
                 {onSendToMcqCommunity && (
                   <button
@@ -525,7 +526,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
                     className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${cls}`}
                   >
                     <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>
-                    {opt}
+                    <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                   </button>
                 );
               })}
@@ -648,16 +649,16 @@ export const RevisionHubScreen: React.FC<Props> = ({
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-black text-slate-400 mb-0.5">Q{qi + 1} · {q.topic || 'General'}</p>
                           <p className="text-xs font-bold text-slate-800 leading-relaxed line-clamp-2"
-                            dangerouslySetInnerHTML={{ __html: (q.question || '').replace(/<br\/?>/g, ' ') }}
+                            dangerouslySetInnerHTML={{ __html: renderMathInHtml((q.question || '').replace(/<br\/?>/g, ' ')) }}
                           />
                           <div className="mt-1.5 space-y-0.5">
                             {!isCorrect && (
                               <p className="text-[10px] text-rose-600 font-bold">
-                                ❌ Tumhara: {String.fromCharCode(65 + userAns)}. {q.options?.[userAns] || ''}
+                                ❌ Tumhara: {String.fromCharCode(65 + userAns)}. <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.options?.[userAns] || '') }} />
                               </p>
                             )}
                             <p className="text-[10px] text-emerald-700 font-bold">
-                              ✅ Sahi: {String.fromCharCode(65 + q.correctAnswer)}. {q.options?.[q.correctAnswer] || ''}
+                              ✅ Sahi: {String.fromCharCode(65 + q.correctAnswer)}. <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.options?.[q.correctAnswer] || '') }} />
                             </p>
                           </div>
                         </div>
