@@ -12231,12 +12231,12 @@ export const StudentDashboard: React.FC<Props> = ({
             onClick={() => onTabChange("CUSTOM_PAGE")}
           >
             {settings?.appLogo && (
-              <img src={settings.appLogo} alt="logo" className="w-7 h-7 rounded-lg object-cover shrink-0" />
+              <img src={settings.appLogo} alt="logo" className="w-9 h-9 rounded-lg object-cover shrink-0" />
             )}
-            <span className="font-black text-[19px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
+            <span className="font-black text-[23px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
               {settings?.appShortName || settings?.appName || "IIC"}
             </span>
-            <BadgeCheck size={16} className="text-blue-300 shrink-0" />
+            <BadgeCheck size={19} className="text-blue-300 shrink-0" />
           </button>
 
           {/* RIGHT: event + streak + mail + bulb + dots */}
