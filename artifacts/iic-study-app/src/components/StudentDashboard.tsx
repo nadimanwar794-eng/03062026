@@ -43,6 +43,7 @@ import {
   auth,
   saveLucentEntryDirect,
   saveHomeworkEntryDirect,
+  subscribeMcqLessons,
 } from "../firebase";
 import type { ContentTypeStats, ContentIndexMap } from "../firebase";
 import { doc, onSnapshot, updateDoc, deleteField } from "firebase/firestore";
@@ -2521,6 +2522,8 @@ export const StudentDashboard: React.FC<Props> = ({
     } catch {}
   }, []);
   const [homeworkSubjectView, setHomeworkSubjectView] = useState<string | null>(null);
+  // Competition MCQ Practice lessons (from admin-added mcq_lessons collection)
+  const [compMcqPracticeLessons, setCompMcqPracticeLessons] = useState<any[]>([]);
   const [class612SubjectView, setClass612SubjectView] = useState<{ classLevel: string; subject: Subject } | null>(null);
   const [lucentCategoryView, setLucentCategoryView] = useState(false);
   // Which book is selected inside the Lucent category view (null = book-selection screen)
@@ -2670,6 +2673,16 @@ export const StudentDashboard: React.FC<Props> = ({
     );
     return () => unsubs.forEach(u => u());
   }, [activeSessionBoard, user?.board]);
+
+  // Subscribe to Competition MCQ Practice lessons from admin-added mcq_lessons collection
+  useEffect(() => {
+    const unsub = subscribeMcqLessons((lessons) => {
+      setCompMcqPracticeLessons(
+        lessons.filter((l: any) => l.classLevel === 'COMPETITION' && l.subject === 'MCQ_PRACTICE')
+      );
+    });
+    return unsub;
+  }, []);
 
   // Auto-scroll the top bar button strip when admin enables it
   useEffect(() => {
@@ -6748,7 +6761,59 @@ export const StudentDashboard: React.FC<Props> = ({
                 <h2 className={`text-xl font-black ${theme.textDeep}`}>{crumb}</h2>
               </div>
               {lucentSectionEl}
-              {!showLucentSection && (
+              {/* Competition MCQ Practice admin lessons */}
+              {homeworkSubjectView === 'mcq' && compMcqPracticeLessons.length > 0 && (
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={`text-[10px] font-black ${theme.text} uppercase tracking-widest`}>📝 MCQ Practice Sets</p>
+                    <span className={`text-[10px] font-bold ${theme.chip} px-2 py-0.5 rounded-full`}>{compMcqPracticeLessons.length}</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {compMcqPracticeLessons.map((lesson: any) => (
+                      <button
+                        key={lesson.id}
+                        onClick={() => {
+                          if (!lesson.mcqs?.length) return;
+                          setFlashcardMcqs({
+                            items: lesson.mcqs,
+                            title: lesson.lessonTitle || 'MCQ Practice',
+                            subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
+                            subject: 'mcq',
+                          });
+                        }}
+                        className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-black text-sm ${theme.textDeep} leading-snug truncate`}>
+                              {lesson.lessonTitle}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              <span className={`text-[9px] font-bold ${theme.chip} px-2 py-0.5 rounded-full`}>
+                                {lesson.mcqCount || lesson.mcqs?.length || 0} MCQs
+                              </span>
+                              {lesson.pageNo && (
+                                <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                  Page {lesson.pageNo}
+                                </span>
+                              )}
+                              {lesson.date && (
+                                <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                                  {lesson.date}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className={`shrink-0 w-8 h-8 rounded-full ${theme.bgSoft} flex items-center justify-center`}>
+                            <ChevronRight size={16} className={theme.text} />
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!showLucentSection && !(homeworkSubjectView === 'mcq' && compMcqPracticeLessons.length > 0) && (
                 <div className="text-center py-16 text-slate-400">
                   <BookOpen size={48} className="mx-auto mb-3 opacity-30" />
                   <p className="font-bold text-slate-500">No content found</p>

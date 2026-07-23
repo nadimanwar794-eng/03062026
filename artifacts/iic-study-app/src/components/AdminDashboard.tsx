@@ -5,6 +5,7 @@ import { User, ViewState, SystemSettings, Subject, Chapter, MCQItem, RecoveryReq
 import { List, GraduationCap, LayoutDashboard, Users, Search, Trash2, Save, X, Eye, EyeOff, Shield, Megaphone, CheckCircle, ListChecks, Database, FileText, Monitor, Sparkles, Banknote, BrainCircuit, AlertOctagon, ArrowLeft, ArrowRight, Key, Bell, ShieldCheck, Lock, Globe, Layers, Zap, PenTool, RefreshCw, RotateCcw, Plus, LogOut, Download, Upload, CreditCard, Ticket, Video, Image as ImageIcon, Type, Link, FileJson, Activity, AlertTriangle, Gift, Book, Mail, Edit3, MessageSquare, ShoppingBag, Cloud, Rocket, Code2, Layers as LayersIcon, Wifi, WifiOff, Copy, Crown, Gamepad2, Calendar, BookOpen, Image, HelpCircle, Youtube, Play, Star, Trophy, Palette, Settings, Headphones, Layout, Bot, LayoutDashboard as DashboardIcon, Loader2, Gauge, LayoutGrid, ArrowUpCircle, KeyRound, Award, Send, GitCompare, Lightbulb, ThumbsUp, ThumbsDown, Building2, TrendingUp } from 'lucide-react';
 import { getSubjectsList, DEFAULT_SUBJECTS, DEFAULT_APP_FEATURES, ALL_APP_FEATURES, STUDENT_APP_FEATURES, DEFAULT_CONTENT_INFO_CONFIG, ADMIN_PERMISSIONS, APP_VERSION, STATIC_SYLLABUS, LEVEL_UNLOCKABLE_FEATURES, LUCENT_SUBJECT_OPTIONS_BASE, getClassSubjectOptions, SUPPORT_PHONE } from '../constants';
 import { AdminClassMcqManager } from './AdminClassMcqManager';
+import { AdminCompetitionMcqManager } from './AdminCompetitionMcqManager';
 import { CoachingMcqEditor } from './CoachingMcqEditor';
 import { fetchChapters, fetchLessonContent } from '../services/groq';
 import { runAutoPilot, runCommandMode } from '../services/autoPilot';
@@ -148,7 +149,8 @@ type AdminTab =
   | 'REVISION_MCQ_MANAGER' // Revision Hub MCQ Manager
   | 'COACHING_HOMEWORK' // Coaching Homework Manager
   | 'COACHING_MANAGER' // 🏫 Full Coaching School System
-  | 'COACHING_CENTRES'; // 🏫 Create/Assign/Subscription — Super Admin
+  | 'COACHING_CENTRES' // 🏫 Create/Assign/Subscription — Super Admin
+  | 'COMPETITION_MCQ_MANAGER'; // MCQ Practice Manager for Competition Books
 
 interface ContentConfig {
     freeLink?: string;
@@ -14249,6 +14251,16 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               </div>
           );
       })()}
+          </ErrorBoundary>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          COMPETITION MCQ PRACTICE MANAGER
+          Competition Books → MCQ Practice
+      ══════════════════════════════════════════════ */}
+      {activeTab === 'COMPETITION_MCQ_MANAGER' && (
+          <ErrorBoundary fallbackLabel="Competition MCQ Practice Manager" compact>
+            <AdminCompetitionMcqManager onBack={() => setActiveTab('DASHBOARD')} />
           </ErrorBoundary>
       )}
 
