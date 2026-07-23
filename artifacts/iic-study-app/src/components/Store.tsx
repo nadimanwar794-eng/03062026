@@ -765,9 +765,9 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                       className="py-1.5 rounded-xl font-black transition-all flex items-center justify-center gap-1 relative overflow-hidden"
                       style={isActive
                         ? { background: tab.bg, border: `2px solid ${tab.border}` }
-                        : { background: C.surfaceHigh, border: `1.5px solid ${C.border}` }}>
+                        : { background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)' }}>
                       <span className="text-sm leading-none relative z-10">{tab.emoji}</span>
-                      <span className="text-[10px] relative z-10" style={{ color: isActive ? tab.color : C.textMuted }}>{tab.label}</span>
+                      <span className="text-[10px] relative z-10" style={{ color: isActive ? tab.color : 'rgba(255,255,255,0.55)' }}>{tab.label}</span>
                     </button>
                   );
                 })}
@@ -776,8 +776,8 @@ export const Store: React.FC<Props> = ({ user, settings, onUserUpdate, renderEar
                   className="py-1.5 rounded-xl font-black transition-all flex items-center justify-center"
                   style={tierType === 'HISTORY'
                     ? { background: 'rgba(251,191,36,0.10)', border: `2px solid rgba(251,191,36,0.35)` }
-                    : { background: C.surfaceHigh, border: `1.5px solid ${C.border}` }}>
-                  <span className="text-[10px]" style={{ color: tierType === 'HISTORY' ? C.gold : C.textMuted }}>History</span>
+                    : { background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)' }}>
+                  <span className="text-[10px]" style={{ color: tierType === 'HISTORY' ? C.gold : 'rgba(255,255,255,0.55)' }}>History</span>
                 </button>
               </div>
             );
