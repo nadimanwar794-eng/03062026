@@ -17494,7 +17494,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       {/* Icon container — only the icon scales; background pill is the sliding glow above */}
                       <span
                         key={tab.isActive ? `${tab.id}-on` : `${tab.id}-off`}
-                        className={`relative z-10 inline-flex items-center justify-center h-9 w-12 rounded-2xl transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] group-active:bg-slate-100/60 ${
+                        className={`relative z-10 inline-flex items-center justify-center h-9 w-12 rounded-2xl transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ${_isNavDark ? 'group-active:bg-white/10' : 'group-active:bg-slate-100/60'} ${
                           tab.isActive ? "nav-icon-pop scale-110" : "scale-100"
                         }`}
                       >
