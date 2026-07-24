@@ -65,7 +65,7 @@ import { useAppLang, tApp } from "../utils/appLang";
 import { isHomeSectionVisible } from "../utils/homeSections";
 import { checkFeatureAccess } from "../utils/permissionUtils";
 import { downloadAsMHTML, downloadAsHTML, downloadElementAsHTML } from "../utils/downloadUtils";
-import { renderMathInHtml } from "../utils/mathUtils";
+import { renderMathInHtml, formatExplanationHtml } from "../utils/mathUtils";
 import { recordLogin, updateSessionDuration, getLoginHistory, formatDuration, formatLoginTime, type LoginSession } from "../utils/loginHistory";
 import { getNewContentItems, markContentItemSeen, markAllContentItemsSeen, formatContentDate, type ContentNotifItem } from "../utils/contentNotifications";
 import { saveRecentHomework, getRecentHomeworks, removeRecentHomework, getRecentChapters, removeRecentChapter, saveRecentLucent, getRecentLucent, removeRecentLucent, markNoteFullyRead, getFullyReadMap, markReadToday, getReadingStreak, getReadDates, getBestReadingDay, getTodayItemCount, type RecentChapterEntry, type RecentHwEntry, type RecentLucentEntry, type StreakInfo, type BestDay } from "../utils/recentReads";
@@ -19847,7 +19847,7 @@ RULES:
                                   </div>
                                   <div className="space-y-1 text-[11px] leading-relaxed">
                                     {q.concept && <p className="bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5 text-slate-700"><span className="font-black text-blue-700">💡</span> {q.concept}</p>}
-                                    {q.explanation && <p className="bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5 text-slate-700"><span className="font-black text-slate-700">🔎</span> {q.explanation}</p>}
+                                    {q.explanation && <span className="bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5 text-slate-700 block"><span className="font-black text-slate-700">🔎</span> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q.explanation) }} /></span>}
                                     {q.examTip && <p className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 text-slate-700"><span className="font-black text-amber-700">🎯</span> {q.examTip}</p>}
                                   </div>
                                 </>
@@ -20040,7 +20040,7 @@ RULES:
                                         );
                                       })}
                                     </div>
-                                    {q2.explanation && <p className="mt-1.5 text-[10px] bg-slate-50 rounded-lg px-2 py-1 text-slate-600"><span className="font-black">💡</span> {q2.explanation}</p>}
+                                    {q2.explanation && <div className="mt-1.5 text-[10px] bg-slate-50 rounded-lg px-2 py-1 text-slate-600"><span className="font-black">💡</span> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q2.explanation) }} /></div>}
                                   </div>
                                 );
                               })}
@@ -21841,7 +21841,7 @@ RULES:
                                 );
                               })}
                             </div>
-                            {q2.explanation && <p className="mt-1.5 text-[10px] bg-slate-50 rounded-lg px-2 py-1 text-slate-600"><span className="font-black">💡</span> {q2.explanation}</p>}
+                            {q2.explanation && <div className="mt-1.5 text-[10px] bg-slate-50 rounded-lg px-2 py-1 text-slate-600"><span className="font-black">💡</span> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q2.explanation) }} /></div>}
                           </div>
                         );
                       })}
