@@ -21796,6 +21796,24 @@ RULES:
               {attempted > 0 && !compMcqShowReview && (
                 <span className="text-[11px] font-black text-white/80 shrink-0">{attempted}/{totalQ}</span>
               )}
+              {/* Projector button */}
+              <button
+                onClick={() => {
+                  if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current);
+                  stopSpeech();
+                  setFlashcardMcqs({
+                    items: mcqs,
+                    title: compMcqSession.title,
+                    subtitle: compMcqSession.subtitle,
+                    subject: 'Competition',
+                    startInProjectorMode: true,
+                  });
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white active:scale-90 transition-all shrink-0"
+                title="Projector Mode"
+              >
+                <Presentation size={16} />
+              </button>
             </div>
 
             {/* Body */}
