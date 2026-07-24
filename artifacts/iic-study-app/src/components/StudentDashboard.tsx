@@ -6791,7 +6791,9 @@ export const StudentDashboard: React.FC<Props> = ({
                             subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
                             subject: '',
                             startInProjectorMode: false,
-                            fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf: false, hasVideo: false, hasAudio: false, isCompetition: true },
+                            // fromLesson intentionally omitted: standalone MCQ Practice sets
+                            // don't have notes/pdf/video tabs, so no tab bar needed.
+                            // This also prevents the projector mode button from appearing.
                           });
                         }}
                         className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
