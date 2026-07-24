@@ -20025,7 +20025,16 @@ RULES:
                                   <div key={rIdx} className={`bg-white rounded-2xl p-3 border-2 ${isQ2Correct ? 'border-emerald-200' : 'border-rose-200'}`}>
                                     <div className="flex items-start gap-2 mb-2">
                                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{rIdx + 1} {isQ2Correct ? '✅' : '❌'}</span>
-                                      <p className="text-xs font-bold text-slate-800 leading-snug flex-1">{q2.question}</p>
+                                      <div className="flex-1">
+                                        <p className="text-xs font-bold text-slate-800 leading-snug">{q2.question}</p>
+                                        {q2.statements && q2.statements.length > 0 && (
+                                          <div className="mt-1.5 pl-2 border-l-2 border-indigo-200 space-y-0.5">
+                                            {q2.statements.map((stmt: string, si: number) => (
+                                              <p key={si} className="text-xs text-slate-600 leading-snug">{stmt}</p>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="space-y-1 ml-1">
                                       {(q2.options || []).map((opt: string, oi: number) => {
@@ -21826,7 +21835,16 @@ RULES:
                           <div key={i} className={`bg-white rounded-2xl p-3 border-2 ${isQ2Correct ? 'border-emerald-200' : 'border-rose-200'}`}>
                             <div className="flex items-start gap-2 mb-2">
                               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{i + 1} {isQ2Correct ? '✅' : '❌'}</span>
-                              <p className="text-xs font-bold text-slate-800 leading-snug flex-1">{q2.question}</p>
+                              <div className="flex-1">
+                                <p className="text-xs font-bold text-slate-800 leading-snug">{q2.question}</p>
+                                {q2.statements && q2.statements.length > 0 && (
+                                  <div className="mt-1.5 pl-2 border-l-2 border-indigo-200 space-y-0.5">
+                                    {q2.statements.map((stmt: string, si: number) => (
+                                      <p key={si} className="text-xs text-slate-600 leading-snug">{stmt}</p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <div className="space-y-1 ml-1">
                               {(q2.options || []).map((opt: string, oi: number) => {
