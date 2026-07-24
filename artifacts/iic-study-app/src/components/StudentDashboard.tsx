@@ -6784,15 +6784,15 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={lesson.id}
                         onClick={() => {
                           if (!lesson.mcqs?.length) return;
-                          setCompMcqSession({
+                          stopSpeech();
+                          setFlashcardMcqs({
                             items: lesson.mcqs,
                             title: lesson.lessonTitle || 'MCQ Practice',
                             subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
+                            subject: '',
+                            startInProjectorMode: true,
+                            fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'projector', hasPdf: false, hasVideo: false, hasAudio: false },
                           });
-                          setCompMcqAnswers({});
-                          setCompMcqSubmitted({});
-                          setCompMcqCurrentIdx(0);
-                          setCompMcqShowReview(false);
                         }}
                         className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
                       >
