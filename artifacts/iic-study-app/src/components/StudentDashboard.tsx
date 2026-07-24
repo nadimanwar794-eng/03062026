@@ -1365,6 +1365,8 @@ export const StudentDashboard: React.FC<Props> = ({
   // Returns true = allowed, false = blocked (caller should abort the action).
   const checkDailyGate = (feature: 'video' | 'pdf' | 'tts', storageKey: string): boolean => {
     try {
+      // TTS is always free — no daily limit for any user
+      if (feature === 'tts') return true;
       const freshUser = (window as any).__dashUserRef?.current ?? user;
       if (freshUser.role === 'ADMIN' || freshUser.role === 'SUB_ADMIN') return true;
       const _freshSubValid = SubscriptionEngine.isPremium(freshUser);
@@ -20035,6 +20037,20 @@ RULES:
                                           </div>
                                         )}
                                       </div>
+                                      {/* TTS button */}
+                                      <button
+                                        onClick={() => {
+                                          const _ttsId = `lucent_rev_${pageKey}_${rIdx}`;
+                                          if (speakingId === _ttsId) { stopSpeech(); setSpeakingId(null); return; }
+                                          const _stmts = (q2.statements || []).join(' ');
+                                          const _opts = (q2.options || []).map((o: string, oi: number) => `Option ${String.fromCharCode(65 + oi)}: ${o}`).join('. ');
+                                          const _exp = q2.explanation ? `Explanation: ${q2.explanation.replace(/<[^>]+>/g, '')}` : '';
+                                          speakText([q2.question, _stmts, _opts, _exp].filter(Boolean).join(' '), null, 1.0, 'hi-IN', () => setSpeakingId(_ttsId), () => setSpeakingId(null));
+                                        }}
+                                        className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${speakingId === `lucent_rev_${pageKey}_${rIdx}` ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}
+                                      >
+                                        {speakingId === `lucent_rev_${pageKey}_${rIdx}` ? <Square size={10} className="fill-current" /> : <Volume2 size={11} />}
+                                      </button>
                                     </div>
                                     <div className="space-y-1 ml-1">
                                       {(q2.options || []).map((opt: string, oi: number) => {
@@ -21863,6 +21879,20 @@ RULES:
                                   </div>
                                 )}
                               </div>
+                              {/* TTS button */}
+                              <button
+                                onClick={() => {
+                                  const _ttsId = `comp_rev_${i}`;
+                                  if (speakingId === _ttsId) { stopSpeech(); setSpeakingId(null); return; }
+                                  const _stmts = (q2.statements || []).join(' ');
+                                  const _opts = (q2.options || []).map((o: string, oi: number) => `Option ${String.fromCharCode(65 + oi)}: ${o}`).join('. ');
+                                  const _exp = q2.explanation ? `Explanation: ${q2.explanation.replace(/<[^>]+>/g, '')}` : '';
+                                  speakText([q2.question, _stmts, _opts, _exp].filter(Boolean).join(' '), null, 1.0, 'hi-IN', () => setSpeakingId(_ttsId), () => setSpeakingId(null));
+                                }}
+                                className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all ${speakingId === `comp_rev_${i}` ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}
+                              >
+                                {speakingId === `comp_rev_${i}` ? <Square size={10} className="fill-current" /> : <Volume2 size={11} />}
+                              </button>
                             </div>
                             <div className="space-y-1 ml-1">
                               {(q2.options || []).map((opt: string, oi: number) => {
