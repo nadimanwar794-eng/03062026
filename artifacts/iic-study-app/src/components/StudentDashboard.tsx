@@ -7212,17 +7212,13 @@ export const StudentDashboard: React.FC<Props> = ({
                     <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); }, _hwPgInfo, activeHw.id, 0)} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
                       Writing Mode
                     </button>
-                    {/* Free+ — MCQ Practice → Lucent jaisa flashcard mode */}
+                    {/* Free+ — MCQ Practice → Class 6-12 jaisa inline MCQ view */}
                     {hasMcq && (
-                      <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-purple-600', 'text-white')}
-                        onClick={() => {
-                          const _openMcq = () => {
-                            stopSpeech();
-                            setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: false, fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio, isCompetition: true } });
-                          };
-                          if (_isAdminUser || isMcqPageUnlocked(activeHw.id, 0)) { _openMcq(); return; }
-                          showCoinGate(20, 'MCQ Practice', () => { markMcqPageUnlocked(activeHw.id, 0); _openMcq(); }, undefined, undefined, _hwPgInfo);
-                        }}>
+                      <button
+                        data-tab-active={String(effectiveMode === 'mcq')}
+                        style={_hwTabStyle}
+                        className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}
+                        onClick={() => _switchHwMcq('mcq')}>
                         MCQ Practice
                       </button>
                     )}
