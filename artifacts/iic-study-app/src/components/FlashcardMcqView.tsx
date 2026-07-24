@@ -1096,12 +1096,12 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 <button onClick={() => { setProjectorQIndex(i => Math.max(0,i-1)); setProjectorReveal(false); setProjectorSelected(null); }}
                   disabled={projectorQIndex === 0}
                   style={{ background: projectorQIndex===0 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex===0 ? '#94a3b8' : '#fff', border:'none', borderRadius:10, padding:'10px 22px', fontSize:16, fontWeight:900, cursor: projectorQIndex===0 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6 }}>
-                  <ChevronLeft size={20} /> Pichla
+                  <ChevronLeft size={20} /> Prev
                 </button>
                 <button onClick={() => { setProjectorQIndex(i => Math.min(total-1,i+1)); setProjectorReveal(false); setProjectorSelected(null); }}
                   disabled={projectorQIndex === total-1}
                   style={{ background: projectorQIndex===total-1 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex===total-1 ? '#94a3b8' : '#fff', border:'none', borderRadius:10, padding:'10px 22px', fontSize:16, fontWeight:900, cursor: projectorQIndex===total-1 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6 }}>
-                  Agla <ChevronRight size={20} />
+                  Next <ChevronRight size={20} />
                 </button>
               </div>
             )}
@@ -1112,7 +1112,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   onClick={() => { setProjectorQIndex(i => Math.max(0,i-1)); setProjectorReveal(false); setProjectorSelected(null); }}
                   disabled={projectorQIndex === 0}
                   style={{ background: projectorQIndex===0 ? 'rgba(30,41,59,0.4)' : 'rgba(30,41,59,0.85)', color: projectorQIndex===0 ? 'rgba(255,255,255,0.3)' : '#fff', border:'none', borderRadius:10, padding:'10px 20px', fontSize:15, fontWeight:900, cursor: projectorQIndex===0 ? 'not-allowed' : 'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', gap:6 }}>
-                  <ChevronLeft size={18} /> Pichla
+                  <ChevronLeft size={18} /> Prev
                 </button>
                 <button
                   onClick={() => setProjectorFocused(false)}
@@ -1123,7 +1123,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   onClick={() => { setProjectorQIndex(i => Math.min(total-1,i+1)); setProjectorReveal(false); setProjectorSelected(null); }}
                   disabled={projectorQIndex === total-1}
                   style={{ background: projectorQIndex===total-1 ? 'rgba(30,41,59,0.4)' : 'rgba(30,41,59,0.85)', color: projectorQIndex===total-1 ? 'rgba(255,255,255,0.3)' : '#fff', border:'none', borderRadius:10, padding:'10px 20px', fontSize:15, fontWeight:900, cursor: projectorQIndex===total-1 ? 'not-allowed' : 'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', gap:6 }}>
-                  Agla <ChevronRight size={18} />
+                  Next <ChevronRight size={18} />
                 </button>
               </div>
             )}
