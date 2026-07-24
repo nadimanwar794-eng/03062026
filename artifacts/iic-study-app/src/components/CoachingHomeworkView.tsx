@@ -9,7 +9,7 @@ import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
 import { inlineMd } from '../utils/mcqRender';
-import { renderMathInHtml } from '../utils/mathUtils';
+import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 
 interface CoachingNote {
   id: string;
@@ -498,7 +498,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
 
         {/* Explanation */}
         {isAnswered && mcq.explanation && (
-          <p className="mt-2 text-[10px] text-slate-500 italic leading-relaxed">{mcq.explanation}</p>
+          <div className="mt-2 text-[10px] text-slate-500 leading-relaxed" dangerouslySetInnerHTML={{ __html: formatExplanationHtml(mcq.explanation) }} />
         )}
 
         {/* Score feedback for multi-answer */}

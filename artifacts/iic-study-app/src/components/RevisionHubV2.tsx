@@ -15,7 +15,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { renderMathInHtml } from '../utils/mathUtils';
+import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { VirtualList } from './VirtualList';
 import { RevisionSession } from './RevisionSession';
 import { TodayAllNotesModal } from './TodayAllNotesModal';
@@ -716,7 +716,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                             )}
                             {q.explanation && (
                               <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 leading-relaxed">
-                                📖 {q.explanation}
+                                📖 <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q.explanation) }} />
                               </div>
                             )}
                             <div className="flex gap-3 pt-1">
@@ -761,7 +761,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                         </div>
                         {q.explanation && (
                           <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 leading-relaxed">
-                            📖 {q.explanation}
+                            📖 <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q.explanation) }} />
                           </div>
                         )}
                         <div className="flex gap-3 pt-1">

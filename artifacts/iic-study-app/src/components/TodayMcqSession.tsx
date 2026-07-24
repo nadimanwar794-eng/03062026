@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, MCQItem, MCQResult, TopicItem, SystemSettings } from '../types';
 import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
-import { renderMathInHtml } from '../utils/mathUtils';
+import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
 import { storage } from '../utils/storage';
@@ -935,7 +935,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                 })}
                             </div>
                             {pq.explanation && projectorSelected !== null && (
-                                <p style={{ fontSize:14, color:'#64748b', fontStyle:'italic', marginTop:4 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.explanation) }} />
+                                <div style={{ fontSize:14, color:'#64748b', marginTop:4 }} dangerouslySetInnerHTML={{ __html: formatExplanationHtml(pq.explanation) }} />
                             )}
                         </div>
                         {/* Nav footer */}

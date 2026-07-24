@@ -18,7 +18,7 @@ import { WriteModeCorrection } from "./WriteModeCorrection";
 import { SpeakButton } from './SpeakButton';
 import { McqSpeakButtons } from './McqSpeakButtons';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
-import { renderMathInHtml } from '../utils/mathUtils';
+import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import McqQuestionDisplay from './McqQuestionDisplay';
 import { stopSpeaking } from '../utils/ttsHighlighter';
 import { speakText, stripHtml } from '../utils/textToSpeech';
@@ -3182,7 +3182,7 @@ export const LessonView: React.FC<Props> = ({
                                                                    </div>
                                                                    <SpeakButton text={q.explanation} className="p-1 text-blue-400 hover:bg-blue-100" iconSize={14} />
                                                                </div>
-                                                               <div className="text-slate-600 text-sm leading-relaxed prose prose-sm max-w-none w-full" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.explanation) }} />
+                                                               <div className="text-slate-600 text-sm leading-relaxed prose prose-sm max-w-none w-full" dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q.explanation) }} />
                                                            </div>
                                                        )}
                                                    </div>
@@ -3395,7 +3395,7 @@ export const LessonView: React.FC<Props> = ({
                                                            </div>
                                                            <SpeakButton text={q.explanation} className="p-1 text-blue-400 hover:bg-blue-100" iconSize={14} />
                                                        </div>
-                                                       <div className="text-slate-600 text-sm leading-relaxed prose prose-sm max-w-none w-full" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.explanation) }} />
+                                                       <div className="text-slate-600 text-sm leading-relaxed prose prose-sm max-w-none w-full" dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q.explanation) }} />
                                                    </div>
                                                )}
                                                {q.commonMistake && (
@@ -3485,7 +3485,7 @@ export const LessonView: React.FC<Props> = ({
                                         })}
                                     </div>
                                     <div className="ml-9 p-2 bg-slate-50 text-[10px] text-slate-600 italic rounded">
-                                        <span className="font-bold">Explanation:</span> <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.explanation || 'N/A') }}></span>
+                                        <span className="font-bold">Explanation:</span> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(q.explanation || "N/A") }}></span>
                                     </div>
                                 </div>
                             );

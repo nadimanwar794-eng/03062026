@@ -207,6 +207,27 @@ export const renderMathInHtml = (html: string): string => {
 };
 
 /**
+ * Format an explanation string for display.
+ * Explanations are stored as "• A) … • B) … • C) … ---"
+ * This splits on bullet markers and renders each point as its own <p> block
+ * so they stack vertically instead of running together as a paragraph.
+ */
+export const formatExplanationHtml = (raw: string): string => {
+  if (!raw) return '';
+  // Strip trailing separator "---" (with optional surrounding spaces/newlines)
+  const cleaned = raw.replace(/\s*---\s*$/, '').trim();
+  // Split on " • " in the middle, and strip a leading "• " if present
+  const parts = cleaned.split(/\s*•\s+/).filter(Boolean);
+  if (parts.length <= 1) {
+    // No bullet structure — just render as-is
+    return renderMathInHtml(cleaned);
+  }
+  return parts
+    .map(p => `<p style="margin:0 0 0.5em 0;">${renderMathInHtml(p.trim())}</p>`)
+    .join('');
+};
+
+/**
  * Render math in plain text (not HTML). HTML-escapes the input first, then
  * applies the full math pipeline. Returns an HTML string safe for
  * dangerouslySetInnerHTML.

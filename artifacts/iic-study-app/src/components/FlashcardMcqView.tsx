@@ -15,7 +15,7 @@ import { useAppTheme } from '../utils/themeContext';
 import { tryEarnScore } from '../utils/scoreSystem';
 import { rotateScreen } from '../utils/displayPrefs';
 import { fireSessionComplete } from '../utils/sessionNotify';
-import { renderMathInHtml } from '../utils/mathUtils';
+import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { inlineMd, parseMcqQuestion } from '../utils/mcqRender';
 import McqQuestionDisplay from './McqQuestionDisplay';
 import { deferStudyCoins } from '../utils/studyRewards';
@@ -835,7 +835,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               {activeQ!.explanation && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-2">
                   <p className="text-[10px] font-black uppercase tracking-wider text-blue-700 mb-1">Explanation</p>
-                  <div className="text-sm text-blue-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(activeQ!.explanation) }} />
+                  <div className="text-sm text-blue-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: formatExplanationHtml(activeQ!.explanation) }} />
                 </div>
               )}
               {activeQ!.concept && (
@@ -1086,7 +1086,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               {/* Explanation after answering */}
               {projectorSelected !== null && pq.explanation && (
                 <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize:16, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>
-                  💡 <strong>Explanation:</strong> <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.explanation) }} />
+                  💡 <strong>Explanation:</strong> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(pq.explanation) }} />
                 </div>
               )}
             </div>
