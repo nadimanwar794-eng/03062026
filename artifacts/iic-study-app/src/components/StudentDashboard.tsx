@@ -8171,9 +8171,13 @@ export const StudentDashboard: React.FC<Props> = ({
                           {/* Question card */}
                           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                             <div className="flex items-start justify-between gap-2 mb-3">
-                              <p className="text-sm font-bold text-slate-800 leading-snug flex-1">
-                                <span className="text-indigo-600 font-black">Q{ci + 1}.</span> {mcq.question}
-                              </p>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">Q {ci + 1}</span>
+                                  {(mcq as any).topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{(mcq as any).topic}</span>}
+                                </div>
+                                <McqQuestionDisplay q={mcq as any} questionClassName="text-sm font-bold text-slate-800 leading-snug" />
+                              </div>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
                                 <button
@@ -8214,12 +8218,19 @@ export const StudentDashboard: React.FC<Props> = ({
                             )}
                           </div>
                           {/* Navigation */}
-                          <div className="mt-3 flex gap-3">
+                          <div className="mt-3 flex gap-2">
                             {ci > 0 ? (
                               <button onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: ci - 1 })); }}
-                                className="py-3 px-5 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center gap-1.5 active:scale-95 transition">← Previous</button>
+                                className="py-3 px-4 rounded-2xl bg-white border-2 border-slate-200 text-slate-700 font-bold text-sm flex items-center gap-1 active:scale-95 transition"><ChevronLeft size={15} /> Prev</button>
                             ) : (
-                              <div className="py-3 px-5 rounded-2xl bg-slate-50 border-2 border-slate-100 text-slate-300 font-bold text-sm select-none">← Previous</div>
+                              <div className="py-3 px-4 rounded-2xl bg-slate-50 border-2 border-slate-100 text-slate-300 font-bold text-sm flex items-center gap-1 select-none"><ChevronLeft size={15} /> Prev</div>
+                            )}
+                            {/* Skip — only when not answered and not last question */}
+                            {!isAnswered && ci < totalQ - 1 && (
+                              <button
+                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: ci + 1 })); }}
+                                className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition"
+                              >Skip <ChevronRight size={13} /></button>
                             )}
                             {ci < totalQ - 1 ? (
                               <button onClick={() => {
