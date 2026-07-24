@@ -15202,7 +15202,12 @@ export const StudentDashboard: React.FC<Props> = ({
                         {/* Question Card */}
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                           <div className="flex items-start gap-2 mb-5">
-                            <p className="text-base font-bold text-slate-800 leading-relaxed whitespace-pre-wrap flex-1">{current.question}</p>
+                            <div className="flex-1">
+                              <McqQuestionDisplay
+                                q={current as any}
+                                questionClassName="text-base font-bold text-slate-800 leading-relaxed"
+                              />
+                            </div>
                             <button
                               onClick={() => {
                                 const opts = current.options.length === 4
