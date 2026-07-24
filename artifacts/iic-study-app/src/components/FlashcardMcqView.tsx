@@ -1014,9 +1014,9 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column' }}>
                     <McqQuestionDisplay
                       q={pq}
-                      questionClassName=""
+                      questionClassName="text-[17px] font-bold text-slate-900 leading-snug"
                       variant="default"
-                      stmtClassName="bg-slate-100 border-l-4 border-indigo-400 px-4 py-2.5 rounded-lg text-slate-800 font-semibold leading-snug"
+                      stmtClassName="bg-indigo-50 border-l-4 border-indigo-400 px-4 py-3 rounded-xl text-slate-800 text-[15px] font-semibold leading-snug"
                     />
                   </div>
                 </div>

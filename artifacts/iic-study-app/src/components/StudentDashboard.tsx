@@ -7211,9 +7211,17 @@ export const StudentDashboard: React.FC<Props> = ({
                     <button data-tab-active={String(_isWriteActive)} onClick={() => handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); _hwSave('notes', 'html'); }, _hwPgInfo, activeHw.id, 0)} style={_hwTabStyle} className={_hwTabCls(_isWriteActive, 'bg-teal-600', 'text-white')}>
                       Writing Mode
                     </button>
-                    {/* Free+ — MCQ Practice (coin gate jaisa Lucent) */}
+                    {/* Free+ — MCQ Practice → directly opens Projector mode */}
                     {hasMcq && (
-                      <button data-tab-active={String(effectiveMode === 'mcq')} onClick={() => _switchHwMcq('mcq')} style={_hwTabStyle} className={_hwTabCls(effectiveMode === 'mcq', 'bg-purple-600', 'text-white')}>
+                      <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-purple-600', 'text-white')}
+                        onClick={() => {
+                          const _openProjector = () => {
+                            stopSpeech();
+                            setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector', hasPdf, hasVideo, hasAudio } });
+                          };
+                          if (_isAdminUser || isMcqPageUnlocked(activeHw.id, 0)) { _openProjector(); return; }
+                          showCoinGate(20, 'MCQ Practice', () => { markMcqPageUnlocked(activeHw.id, 0); _openProjector(); }, undefined, undefined, _hwPgInfo);
+                        }}>
                         MCQ Practice
                       </button>
                     )}
