@@ -957,8 +957,14 @@ export const FlashcardMcqView: React.FC<Props> = ({
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderBottom:'1px solid #f1f5f9', background:'#ffffff', flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
                 {/* Close */}
                 <button onClick={async () => {
-                    setIsProjectorMode(false); setProjectorRotated(false); setProjectorFocused(false);
                     try { await (screen as any).orientation?.lock?.('portrait'); } catch { /* ignore */ }
+                    if (hideProjectorLabel) {
+                      // Opened directly as projector-only view (e.g. MCQ Practice Sets) —
+                      // X should close the whole view, not fall back to Flashcard mode.
+                      handleBack();
+                    } else {
+                      setIsProjectorMode(false); setProjectorRotated(false); setProjectorFocused(false);
+                    }
                   }}
                   title="Band Karo"
                   style={{ flexShrink:0, padding:'8px', background:'#f8fafc', border:'none', borderRadius:12, color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center' }}>

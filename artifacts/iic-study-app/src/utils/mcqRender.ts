@@ -76,12 +76,29 @@ const renderLine = (text: string) => renderMathInHtml(inlineMd(text));
 // "निम्नलिखित..." introduces the statements and must stay BEFORE them.
 const SUFFIX_TRIGGER_RE = /(?:which\s+of\s+the\s+(?:above|following)|which\s+of\s+the\s+above|above\s+(?:statements?|are)|(?:उपर्युक्त|उपरोक्त)(?:\s+कथनों?)?)/i;
 
+// "निम्नलिखित..." / "following statements" = intro line → must stay BEFORE statements.
+const INTRO_TRIGGER_RE = /निम्नलिखित|following\s+(?:statement|कथन)/i;
+
+/**
+ * If a single line contains BOTH an intro trigger ("निम्नलिखित") AND a suffix
+ * trigger ("उपरोक्त / which of the above"), split it so the intro part goes
+ * before the statement block and the suffix part goes after.
+ * Returns null when no split is needed.
+ */
+const splitIntroAndSuffix = (line: string): { intro: string; suffix: string } | null => {
+  if (!INTRO_TRIGGER_RE.test(line)) return null;
+  const m = SUFFIX_TRIGGER_RE.exec(line);
+  if (!m || m.index === 0) return null;
+  return { intro: line.slice(0, m.index).trim(), suffix: line.slice(m.index).trim() };
+};
+
 export const parseMcqQuestion = (q: MCQItem): ParsedMcq => {
   // ── Case 1: statements already in data ──────────────────────────────────
   // q.question may hold:
   //   (a) "intro text"
   //   (b) "intro text\n\nउपर्युक्त में से…?"
   //   (c) "उपर्युक्त में से…?"  (no intro — happens when question starts with statements)
+  //   (d) "निम्नलिखित…: उपरोक्त…?" — single line with both intro AND suffix
   // We split it so the closing question lands in suffixHtml (shown AFTER statement boxes),
   // not in questionHtml (shown BEFORE them).
   if (q.statements && q.statements.length > 0) {
@@ -93,8 +110,23 @@ export const parseMcqQuestion = (q: MCQItem): ParsedMcq => {
     let inSuffix = false;
 
     for (const line of qLines) {
-      if (!inSuffix && SUFFIX_TRIGGER_RE.test(line)) inSuffix = true;
-      (inSuffix ? suffLines : introLines).push(line);
+      if (!inSuffix) {
+        // Check if this single line contains both "निम्नलिखित" (intro) and "उपरोक्त" (suffix)
+        const split = splitIntroAndSuffix(line);
+        if (split) {
+          // Split: intro part → before statements, suffix part → after statements
+          if (split.intro) introLines.push(split.intro);
+          if (split.suffix) suffLines.push(split.suffix);
+          inSuffix = true;
+        } else if (SUFFIX_TRIGGER_RE.test(line)) {
+          inSuffix = true;
+          suffLines.push(line);
+        } else {
+          introLines.push(line);
+        }
+      } else {
+        suffLines.push(line);
+      }
     }
 
     return {
