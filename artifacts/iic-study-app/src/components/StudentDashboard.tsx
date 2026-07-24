@@ -7144,7 +7144,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const _pdfLocked       = !_isAdminUser && !_isBasicUser && !_isUltraUser;
               const _vidLocked       = !_isAdminUser && !_isUltraUser;
               const _audLocked       = !_isAdminUser && !_isUltraUser;
-              const _canProjector    = _isAdminUser;
+              const _canProjector    = true; // Sab users ko available
               const _hwMcqs = (activeHw.parsedMcqs || []) as any[];
 
               // _pgInfo — Lucent jaisa right-panel info for coin-gate popup
@@ -7217,11 +7217,11 @@ export const StudentDashboard: React.FC<Props> = ({
                         MCQ Practice
                       </button>
                     )}
-                    {/* Admin only — Projector */}
+                    {/* Projector — Sab users ke liye */}
                     {hasMcq && _canProjector && (
                       <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
                         onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector', hasPdf, hasVideo, hasAudio } }); }}>
-                        📽️ Projector
+                        📽️ Premium MCQ
                       </button>
                     )}
                     {/* Flashcard — ULTRA locked shown with badge, coin gate jaisa Lucent */}
@@ -19152,13 +19152,13 @@ export const StudentDashboard: React.FC<Props> = ({
                         MCQ Practice
                       </button>
                     )}
-                    {_hasMcqTb && _isAdm && (
+                    {_hasMcqTb && (
                       <button
                         style={_tabStyle}
                         className={_tabCls(false, 'bg-amber-500', 'text-white')}
                         onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb } }); }}
                       >
-                        📽️ Projector
+                        📽️ Premium MCQ
                       </button>
                     )}
                     {_hasMcqTb && (() => {
@@ -21689,7 +21689,7 @@ RULES:
                   MCQ Practice
                 </button>
               )}
-              {fl.hasMcq && fl.isAdmin && (
+              {fl.hasMcq && (
                 <button style={_ts}
                   ref={el => { if (el && fl.activeMode === 'projector' && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, inline: 'center', block: 'nearest' }); } }}
                   className={_tcls(fl.activeMode === 'projector', 'bg-amber-500')}
@@ -21702,7 +21702,7 @@ RULES:
                       } : null);
                     }
                   }}>
-                  📽️ Projector
+                  📽️ Premium MCQ
                 </button>
               )}
               {fl.hasMcq && (
