@@ -3524,16 +3524,19 @@ export const LessonView: React.FC<Props> = ({
                                <div className="flex-[2]"></div> // Spacer if no next button on last page
                            )}
 
-                           {/* Submit Button - Always visible if condition met, or on last page */}
-                           {(canSubmit || !hasMore) && (
-                               <button
-                                   onClick={handleSubmitRequest}
-                                   disabled={!canSubmit}
-                                   className={`flex-[2] py-3 font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg ${canSubmit ? 'bg-green-600 text-white shadow-green-100' : 'bg-slate-200 text-slate-500'}`}
-                               >
-                                   Submit <Trophy size={20} />
-                               </button>
-                           )}
+                           {/* Submit Button - Always visible; disabled with hint until threshold met */}
+                           <button
+                               onClick={handleSubmitRequest}
+                               disabled={!canSubmit}
+                               className={`flex-[2] py-3 font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-lg transition-all ${canSubmit ? 'bg-green-600 text-white shadow-green-100' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}
+                           >
+                               <span className="flex items-center gap-1.5">Submit <Trophy size={18} /></span>
+                               {!canSubmit && (
+                                   <span className="text-[9px] font-black leading-none opacity-70">
+                                       {minRequired - attemptedCount} more to go
+                                   </span>
+                               )}
+                           </button>
                        </>
                    )}
 
