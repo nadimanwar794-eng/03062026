@@ -72,8 +72,9 @@ const renderLine = (text: string) => renderMathInHtml(inlineMd(text));
  *  1. If `q.statements` is already populated → use it (just apply markdown + math)
  *  2. Otherwise scan `q.question` line-by-line and auto-extract numbered items
  */
-// Words that signal the closing "which of the above…?" line
-const SUFFIX_TRIGGER_RE = /(?:which\s+of\s+the|उपर्युक्त|उपरोक्त|choose\s+the|select\s+the|find\s+the|निम्नलिखित\s+में\s+से|कूट)/i;
+// Only references to content that has already been shown signal a closing line.
+// "निम्नलिखित..." introduces the statements and must stay BEFORE them.
+const SUFFIX_TRIGGER_RE = /(?:which\s+of\s+the\s+(?:above|following)|which\s+of\s+the\s+above|above\s+(?:statements?|are)|(?:उपर्युक्त|उपरोक्त)(?:\s+कथनों?)?)/i;
 
 export const parseMcqQuestion = (q: MCQItem): ParsedMcq => {
   // ── Case 1: statements already in data ──────────────────────────────────

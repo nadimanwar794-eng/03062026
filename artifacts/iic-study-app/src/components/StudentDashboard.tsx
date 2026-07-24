@@ -2940,7 +2940,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // ── IMPORTANT: flashcardMcqs declared HERE (before the useEffect below that lists
   // it in its dep array) to avoid production TDZ crash — same reason as hwActiveHwId above.
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; hideProjectorLabel?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean } } | null>(null);
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; hideProjectorLabel?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean; returnMode?: string } } | null>(null);
 
   // ── HomeStatsToast — Standalone FlashcardMcqView tracking ─────────────────
   // Only when opened outside an active hw/lucent session (those already track overall pts).
@@ -7225,8 +7225,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     {/* Projector — Sab users ke liye */}
                     {hasMcq && _canProjector && (
                       <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
-                        onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector', hasPdf, hasVideo, hasAudio } }); }}>
-                        📽️ Premium MCQ
+                       onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector', hasPdf, hasVideo, hasAudio, isCompetition: true, returnMode: hwViewMode } }); }}>
+                        📽️ Projector Mode
                       </button>
                     )}
                     {/* Flashcard — ULTRA locked shown with badge, coin gate jaisa Lucent */}
@@ -7979,7 +7979,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                       </span>
                                     </div>
                                     <div className="px-4 py-3 space-y-2">
-                                      <p className="text-[13px] font-bold text-slate-800 leading-snug">{mq.question}</p>
+                                      <McqQuestionDisplay q={mq as any} questionClassName="text-[13px] font-bold text-slate-800 leading-snug" />
                                       {/* Options */}
                                       <div className="space-y-1.5">
                                         {mq.options.map((opt, oi) => {
@@ -13779,9 +13779,10 @@ export const StudentDashboard: React.FC<Props> = ({
                     of the Day
                   </h4>
                   <div className="relative z-10">
-                    <p className="font-bold text-slate-800 text-sm mb-3 leading-snug">
-                      {settings.globalChallengeMcq[0].question}
-                    </p>
+                    <McqQuestionDisplay
+                      q={settings.globalChallengeMcq[0] as any}
+                      questionClassName="font-bold text-slate-800 text-sm mb-3 leading-snug"
+                    />
                     <div className="space-y-2">
                       {settings.globalChallengeMcq[0].options.map((opt, i) => (
                         <button
@@ -15573,14 +15574,10 @@ export const StudentDashboard: React.FC<Props> = ({
                                         className="border-b border-slate-100 pb-4 last:border-0 mb-4 last:mb-0"
                                       >
                                         <div className="flex items-start justify-between gap-4 mb-4">
-                                          <p className="text-sm font-bold text-slate-800">
-                                            {idx + 1}.{" "}
-                                            <span
-                                              dangerouslySetInnerHTML={{
-                                                __html: mcq.question,
-                                              }}
-                                            />
-                                          </p>
+                                          <div className="text-sm font-bold text-slate-800 flex-1">
+                                            <span className="mr-1">{idx + 1}.</span>
+                                            <McqQuestionDisplay q={mcq as any} questionClassName="inline" />
+                                          </div>
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -15615,25 +15612,6 @@ export const StudentDashboard: React.FC<Props> = ({
                                             )}
                                           </button>
                                         </div>
-                                        {mcq.statements &&
-                                          mcq.statements.length > 0 && (
-                                            <div className="mb-4 space-y-2 pl-4 border-l-2 border-slate-200">
-                                              {mcq.statements.map(
-                                                (stmt, sIdx) => (
-                                                  <p
-                                                    key={sIdx}
-                                                    className="text-sm text-slate-600"
-                                                  >
-                                                    <span
-                                                      dangerouslySetInnerHTML={{
-                                                        __html: stmt,
-                                                      }}
-                                                    />
-                                                  </p>
-                                                ),
-                                              )}
-                                            </div>
-                                          )}
                                         <div className="space-y-2">
                                           {mcq.options.map((opt, oIdx) => {
                                             const isThisCorrect =
@@ -16007,7 +15985,10 @@ export const StudentDashboard: React.FC<Props> = ({
                                 <span className="text-[9px] font-black bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Q{i + 1}</span>
                                 {mcq.topic && <span className="text-[9px] text-slate-400 font-semibold truncate">{mcq.topic}</span>}
                               </div>
-                              <p className="font-bold text-slate-800 text-sm mb-3">{mcq.question}</p>
+                              <McqQuestionDisplay
+                                q={mcq as any}
+                                questionClassName="font-bold text-slate-800 text-sm mb-3"
+                              />
                               {mcq.options && mcq.options.length > 0 && (
                                 <div className="space-y-1.5 mb-3">
                                   {mcq.options.map((opt, oi) => (
@@ -19113,13 +19094,16 @@ export const StudentDashboard: React.FC<Props> = ({
               const _switchMcq = (tab: 'MCQS' | 'QA' | 'FLASHCARD') => {
                 const _doSwitch = () => {
                   stopSpeech();
-                  if (tab === 'FLASHCARD') {
-                    setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'flashcard' } });
-                    setLucentActiveTab('FLASHCARD');
+                   if (tab === 'FLASHCARD') {
+                     setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'flashcard', returnMode: lucentActiveTab } });
+                     // Flashcard is an overlay; keep the underlying lesson on
+                     // MCQ Practice so closing it cannot expose a stale
+                     // inline FLASHCARD state.
+                     setLucentActiveTab('MCQS');
                   } else {
                     setLucentActiveTab(tab);
                   }
-                  _save(tab);
+                   _save(tab === 'FLASHCARD' ? 'MCQS' : tab);
                 };
                 if (_isAdm) { _doSwitch(); return; }
                 if (tab === 'MCQS') {
@@ -19161,9 +19145,9 @@ export const StudentDashboard: React.FC<Props> = ({
                       <button
                         style={_tabStyle}
                         className={_tabCls(false, 'bg-amber-500', 'text-white')}
-                        onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb } }); }}
+                         onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb, returnMode: lucentActiveTab } }); }}
                       >
-                        📽️ Premium MCQ
+                         📽️ Projector Mode
                       </button>
                     )}
                     {_hasMcqTb && (() => {
@@ -19848,13 +19832,6 @@ RULES:
                                   title="MCQ Community mein bhejo"
                                 ><Plus size={13} strokeWidth={2.5} /></button>
                               </div>
-                              {q.statements && q.statements.length > 0 && (
-                                <div className="mb-3 pl-3 border-l-2 border-purple-200 space-y-1">
-                                  {q.statements.map((stmt, si) => (
-                                    <p key={si} className="text-xs text-slate-700 leading-snug">{stmt}</p>
-                                  ))}
-                                </div>
-                              )}
                               {!isRevealed ? (
                                 <button
                                   onClick={() => setLucentMcqRevealed(prev => ({ ...prev, [pageKey]: Math.max(prev[pageKey] || 0, qi + 1) }))}
@@ -20044,14 +20021,7 @@ RULES:
                                     <div className="flex items-start gap-2 mb-2">
                                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{rIdx + 1} {isQ2Correct ? '✅' : '❌'}</span>
                                       <div className="flex-1">
-                                        <p className="text-xs font-bold text-slate-800 leading-snug">{q2.question}</p>
-                                        {q2.statements && q2.statements.length > 0 && (
-                                          <div className="mt-1.5 pl-2 border-l-2 border-indigo-200 space-y-0.5">
-                                            {q2.statements.map((stmt: string, si: number) => (
-                                              <p key={si} className="text-xs text-slate-600 leading-snug">{stmt}</p>
-                                            ))}
-                                          </div>
-                                        )}
+                                        <McqQuestionDisplay q={q2 as any} questionClassName="text-xs font-bold text-slate-800 leading-snug" />
                                       </div>
                                       {/* TTS button */}
                                       <button
@@ -20180,20 +20150,15 @@ RULES:
                               )}
                             </div>
                             <div className="flex items-start justify-between gap-2 mb-2">
-                              <p className="text-sm font-black text-slate-800 leading-snug flex-1">{cq.question}</p>
+                              <div className="text-sm font-black text-slate-800 leading-snug flex-1">
+                                <McqQuestionDisplay q={cq as any} questionClassName="text-sm font-black text-slate-800 leading-snug" />
+                              </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (cq.options||[]).length===4 ? cq.options as [string,string,string,string] : ([...(cq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:cq.question,options:opts,correctAnswer:cq.correctAnswer,explanation:(cq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
                                 className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
                                 title="MCQ Community mein bhejo"
                               ><Plus size={13} strokeWidth={2.5} /></button>
                             </div>
-                            {cq.statements && cq.statements.length > 0 && (
-                              <div className="mb-3 pl-3 border-l-2 border-indigo-200 space-y-1">
-                                {cq.statements.map((stmt: string, si: number) => (
-                                  <p key={si} className="text-xs text-slate-700 leading-snug">{stmt}</p>
-                                ))}
-                              </div>
-                            )}
                             <div className="space-y-1.5 mb-3">
                               {(cq.options || []).map((opt: string, oi: number) => {
                                 const isSel = selected === oi;
@@ -21289,9 +21254,12 @@ RULES:
                           </div>
                         </div>
                          {isInteractive ? (
-                           <p className="text-base sm:text-lg font-bold text-slate-800 mb-3 leading-snug">
-                             {chunk.mcq?.question}
-                           </p>
+                           <div className="mb-3">
+                             <McqQuestionDisplay
+                               q={chunk.mcq as any}
+                               questionClassName="text-base sm:text-lg font-bold text-slate-800 leading-snug"
+                             />
+                           </div>
                          ) : (
                            <div className="mb-3">
                              <McqQuestionDisplay
@@ -21707,7 +21675,7 @@ RULES:
                       } : null);
                     }
                   }}>
-                  📽️ Premium MCQ
+                  📽️ Projector Mode
                 </button>
               )}
               {fl.hasMcq && (
@@ -21887,14 +21855,7 @@ RULES:
                             <div className="flex items-start gap-2 mb-2">
                               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${isQ2Correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>Q{i + 1} {isQ2Correct ? '✅' : '❌'}</span>
                               <div className="flex-1">
-                                <p className="text-xs font-bold text-slate-800 leading-snug">{q2.question}</p>
-                                {q2.statements && q2.statements.length > 0 && (
-                                  <div className="mt-1.5 pl-2 border-l-2 border-indigo-200 space-y-0.5">
-                                    {q2.statements.map((stmt: string, si: number) => (
-                                      <p key={si} className="text-xs text-slate-600 leading-snug">{stmt}</p>
-                                    ))}
-                                  </div>
-                                )}
+                                <McqQuestionDisplay q={q2 as any} questionClassName="text-xs font-bold text-slate-800 leading-snug" />
                               </div>
                               {/* TTS button */}
                               <button
@@ -21963,12 +21924,9 @@ RULES:
                         <span className={`ml-auto text-[10px] font-black px-2 py-0.5 rounded-full ${cq.difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700' : cq.difficulty === 'HARD' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{cq.difficulty}</span>
                       )}
                     </div>
-                    <p className="text-sm font-black text-slate-800 leading-snug mb-3">{cq.question}</p>
-                    {cq.statements && cq.statements.length > 0 && (
-                      <div className="mb-3 pl-3 border-l-2 border-indigo-200 space-y-1">
-                        {cq.statements.map((stmt: string, si: number) => <p key={si} className="text-xs text-slate-700 leading-snug">{stmt}</p>)}
-                      </div>
-                    )}
+                    <div className="text-sm font-black text-slate-800 leading-snug mb-3">
+                      <McqQuestionDisplay q={cq as any} questionClassName="text-sm font-black text-slate-800 leading-snug" />
+                    </div>
                     <div className="space-y-1.5">
                       {(cq.options || []).map((opt: string, oi: number) => {
                         const isSel = selected === oi;
@@ -22949,9 +22907,12 @@ RULES:
                           {h.matchCount} match{h.matchCount !== 1 ? 'es' : ''}
                         </span>
                       </div>
-                      <p className="text-[12px] font-bold text-slate-800 leading-snug line-clamp-2">
-                        {h.question}
-                      </p>
+                      <div className="text-[12px] font-bold text-slate-800 leading-snug line-clamp-2">
+                        <McqQuestionDisplay
+                          q={h as any}
+                          questionClassName="text-[12px] font-bold text-slate-800 leading-snug"
+                        />
+                      </div>
                       {h.options[h.correctAnswer] && (
                         <p className="mt-1 text-[10px] font-bold text-emerald-700 leading-snug truncate">
                           ✓ {h.options[h.correctAnswer]}
