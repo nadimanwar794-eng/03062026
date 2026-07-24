@@ -23,23 +23,22 @@ export interface NoteSections {
  * Returns null when the input doesn't look like this 3-section format (so
  * callers can fall back to treating the whole content as a single page).
  */
-// Require the actual labels (not just a stray emoji somewhere) before we
-// treat a note as "Suno 3-section" format, so ordinary single-section notes
-// that merely happen to contain 📖/📝/💡 characters are left untouched.
+// Match section labels by their icon (📖 📝 💡) alone — the text after the
+// icon is optional. This lets the parser recognise all formats:
+//   📖 Book Text (किताब का मूल टेक्स्ट):   ← icon + label + Hindi
+//   📖 Book Text:                            ← icon + label
+//   📖:                                      ← icon only
+//   📖                                       ← bare icon
 // Parenthetical after the label, e.g. "(किताब का मूल टेक्स्ट)" or "(आसान भाषा में जानकारी)"
 const _PAREN = '(?:\\([^)]*\\))?';
-const BOOK_LABEL_RE  = new RegExp(`📖\\s*Book\\s*Text\\s*${_PAREN}\\s*:?`, 'i');
-const SMART_LABEL_RE = new RegExp(`📝\\s*Smart\\s*Notes?\\s*${_PAREN}\\s*:?`, 'i');
-const EXPLAIN_LABEL_RE = /💡\s*(?:आसान\s*समझ)?\s*(?:\([^)]*\))?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:?/i;
+const BOOK_LABEL_RE    = /📖(?:\s*Book\s*Text\s*(?:\([^)]*\))?)?\s*:?/i;
+const SMART_LABEL_RE   = /📝(?:\s*Smart\s*Notes?\s*(?:\([^)]*\))?)?\s*:?/i;
+const EXPLAIN_LABEL_RE = /💡(?:\s*(?:आसान\s*समझ)?\s*(?:\([^)]*\))?\s*(?:[/(]?\s*Explanation\s*[/)]?)?)?\s*:?/i;
 
-// Global variants of the same labels, used to find every occurrence and where
-// its label text ends (so the body segment can start right after the label
-// without a separate strip pass). Anchoring on the full label — not just the
-// bare emoji — means a 📖/📝/💡 that shows up inside normal body text (e.g. as
-// decoration on an unrelated line) is never mistaken for a section boundary.
-const BOOK_LABEL_G  = new RegExp(`📖\\s*Book\\s*Text\\s*${_PAREN}\\s*:?\\s*`, 'gi');
-const SMART_LABEL_G = new RegExp(`📝\\s*Smart\\s*Notes?\\s*${_PAREN}\\s*:?\\s*`, 'gi');
-const EXPLAIN_LABEL_G = /💡\s*(?:आसान\s*समझ)?\s*(?:\([^)]*\))?\s*(?:[\/(]?\s*Explanation\s*[\/)]?)?\s*:?\s*/gi;
+// Global variants — same patterns with global flag so every occurrence is found.
+const BOOK_LABEL_G    = /📖(?:\s*Book\s*Text\s*(?:\([^)]*\))?)?\s*:?\s*/gi;
+const SMART_LABEL_G   = /📝(?:\s*Smart\s*Notes?\s*(?:\([^)]*\))?)?\s*:?\s*/gi;
+const EXPLAIN_LABEL_G = /💡(?:\s*(?:आसान\s*समझ)?\s*(?:\([^)]*\))?\s*(?:[/(]?\s*Explanation\s*[/)]?)?)?\s*:?\s*/gi;
 // Heading lines: "📌 <heading text>" up to the end of that line.
 const HEADING_LABEL_G = /📌\s*([^\n]*)/g;
 
