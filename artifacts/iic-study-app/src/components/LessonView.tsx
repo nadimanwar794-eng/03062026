@@ -1031,9 +1031,16 @@ export const LessonView: React.FC<Props> = ({
           const strippedContent = filteredContent
               .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
               .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+              // Block-level closers → newline so 📌/📖/📝/💡 section markers
+              // stay on separate lines; without this, splitNoteSections' heading
+              // regex ([^\n]*) grabs the entire content as one giant heading and
+              // repeats it across all three tabs (Book Text / Smart Notes / आसान समझ).
+              .replace(/<\/?\s*(?:p|div|h[1-6]|li|ul|ol|tr|td|th|section|article|blockquote|pre|br)\s*[^>]*>/gi, '\n')
               .replace(/<[^>]*>/g, ' ')
               .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-              .replace(/\s+/g, ' ').trim();
+              .replace(/[^\S\n]+/g, ' ')   // collapse spaces/tabs but keep newlines
+              .replace(/\n{3,}/g, '\n\n')  // max 2 consecutive newlines
+              .trim();
 
           const isPremiumUser = !!(user?.isPremium || (user?.subscriptionTier && user.subscriptionTier !== 'FREE'));
           const HTML_UNLOCK_COST = 10;
