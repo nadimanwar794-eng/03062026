@@ -663,7 +663,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
               // Give statement/options questions enough room to breathe.
               // The card can still scroll internally when a question is unusually long.
-              minHeight: 'clamp(430px, 66dvh, 640px)',
+              minHeight: 'clamp(344px, 53dvh, 512px)',
             }}
           >
             {/* ── FRONT: Question ── */}
