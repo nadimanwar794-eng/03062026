@@ -37,6 +37,8 @@ interface Props {
   startInProjectorMode?: boolean;
   /** Lesson tab bar rendered at the very top (Reading Mode | Writing Mode | MCQ Practice | Projector) */
   tabBar?: React.ReactNode;
+  /** If true, hides the "PROJECTOR MODE" badge in the projector header */
+  hideProjectorLabel?: boolean;
 }
 
 const CREDIT_COST = 5;
@@ -64,7 +66,7 @@ const addTodayCount = (userId: string, n: number) => {
 };
 
 export const FlashcardMcqView: React.FC<Props> = ({
-  questions, title, subtitle, subject, onBack, user, settings, onUpdateUser, sourceMeta, sourceKey, startInProjectorMode, tabBar
+  questions, title, subtitle, subject, onBack, user, settings, onUpdateUser, sourceMeta, sourceKey, startInProjectorMode, tabBar, hideProjectorLabel
 }) => {
   const isMountedRef = useRef(true);
   const [pickedIndices, setPickedIndices] = useState<number[]>([]);
@@ -967,9 +969,11 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   <div style={{ fontSize:13, fontWeight:900, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.2 }}>
                     {sourceMeta?.lessonTitle || title || 'MCQ Practice'}
                   </div>
-                  <div style={{ fontSize:10, fontWeight:700, color:'#d97706', textTransform:'uppercase', letterSpacing:'0.05em', lineHeight:1.2, display:'flex', alignItems:'center', gap:4 }}>
-                    <Tv size={10} /> PROJECTOR MODE
-                  </div>
+                  {!hideProjectorLabel && (
+                    <div style={{ fontSize:10, fontWeight:700, color:'#d97706', textTransform:'uppercase', letterSpacing:'0.05em', lineHeight:1.2, display:'flex', alignItems:'center', gap:4 }}>
+                      <Tv size={10} /> PROJECTOR MODE
+                    </div>
+                  )}
                 </div>
                 {/* Q counter pill */}
                 <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, padding:'6px 10px' }}>

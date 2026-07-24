@@ -2940,7 +2940,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // ── IMPORTANT: flashcardMcqs declared HERE (before the useEffect below that lists
   // it in its dep array) to avoid production TDZ crash — same reason as hwActiveHwId above.
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean } } | null>(null);
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; hideProjectorLabel?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean } } | null>(null);
 
   // ── HomeStatsToast — Standalone FlashcardMcqView tracking ─────────────────
   // Only when opened outside an active hw/lucent session (those already track overall pts).
@@ -6790,10 +6790,9 @@ export const StudentDashboard: React.FC<Props> = ({
                             title: lesson.lessonTitle || 'MCQ Practice',
                             subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
                             subject: '',
-                            startInProjectorMode: false,
-                            // fromLesson intentionally omitted: standalone MCQ Practice sets
-                            // don't have notes/pdf/video tabs, so no tab bar needed.
-                            // This also prevents the projector mode button from appearing.
+                            startInProjectorMode: true,
+                            hideProjectorLabel: true,
+                            // fromLesson omitted: no tab bar, no mode buttons — only projector mode.
                           });
                         }}
                         className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
@@ -21775,6 +21774,7 @@ RULES:
             sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
             sourceKey={flashcardMcqs.sourceKey}
             startInProjectorMode={flashcardMcqs.startInProjectorMode}
+            hideProjectorLabel={flashcardMcqs.hideProjectorLabel}
             tabBar={tabBarNode}
           />
         );
