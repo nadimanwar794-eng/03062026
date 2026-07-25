@@ -11875,7 +11875,7 @@ export const StudentDashboard: React.FC<Props> = ({
           {/* ── LOGOUT ── */}
           {(settings?.isLogoutEnabled !== false || user.role === 'ADMIN' || isImpersonating) && (
             <div className="mx-3 rounded-2xl overflow-hidden mb-4" style={{ background: _pCard, border: '1px solid rgba(239,68,68,0.20)' }}>
-              <button onClick={onLogout}
+              <button onClick={() => setConfirmDialog({ isOpen: true, message: 'Kya aap logout karna chahte hain?', onConfirm: () => { setConfirmDialog(null); onLogout?.(); } })}
                 className="w-full px-4 py-4 flex items-center gap-3.5 hover:bg-red-500/8 active:bg-red-500/12 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-red-500/12 border border-red-500/22 flex items-center justify-center shrink-0">
                   <LogOut size={17} className="text-red-400" />
@@ -12243,16 +12243,18 @@ export const StudentDashboard: React.FC<Props> = ({
       >
         {/* Main Header Row */}
         <div className="flex items-center justify-between w-full px-3 pt-3 pb-2">
-          {/* LEFT: logo + app name + verified badge — tap opens What's New */}
-          <button
-            className="flex items-center gap-2 shrink-0 active:opacity-70 transition-opacity"
-            onClick={() => onTabChange("CUSTOM_PAGE")}
-          >
+          {/* LEFT: logo + app name + verified badge — only the badge tap opens What's New */}
+          <div className="flex items-center gap-2 shrink-0">
             <span className="font-black text-[23px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
               {settings?.appShortName || settings?.appName || "IIC"}
             </span>
-            <BadgeCheck size={19} className="text-blue-300 shrink-0" />
-          </button>
+            <button
+              className="active:opacity-70 transition-opacity"
+              onClick={() => onTabChange("CUSTOM_PAGE")}
+            >
+              <BadgeCheck size={19} className="text-blue-300 shrink-0" />
+            </button>
+          </div>
 
           {/* RIGHT: event + streak + mail + bulb + dots */}
           <div className="flex items-center gap-1 shrink-0">
