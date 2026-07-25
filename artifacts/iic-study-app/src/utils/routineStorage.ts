@@ -112,7 +112,10 @@ export interface RoutineData {
   selectedBooks: string[];        // competition: multiple books (primary)
   // ── Multi-category slot system ───────────────────────────────────────────────
   routineSlots: RoutineSlot[];          // legacy — kept for migration only
-  routineCategories: RoutineCategory[]; // primary: one entry per named category
+  routineCategories: RoutineCategory[]; // primary: one entry per named category (active class)
+  // Per-class/book category snapshots — keyed by "SCHOOL_<classLevel>" or "COMPETITION_<book1+book2>"
+  // Saved automatically when user switches class/books so state is fully restored on switch-back.
+  routineCategoriesByClass: Record<string, RoutineCategory[]>;
   unlockedTierSlot: boolean;            // paid with coins (tier-price)
   unlockedLevel5Slot: boolean;          // legacy flag — level bonus now computed from level directly
   unlockedLevel8Slot: boolean;          // legacy flag — level bonus now computed from level directly
@@ -173,6 +176,7 @@ export function loadRoutineData(userId: string): RoutineData {
         selectedBooks: parsed.selectedBooks ?? [],
         routineSlots: slots,
         routineCategories: cats,
+        routineCategoriesByClass: parsed.routineCategoriesByClass ?? {},
         unlockedTierSlot: parsed.unlockedTierSlot ?? false,
         unlockedLevel5Slot: parsed.unlockedLevel5Slot ?? false,
         unlockedLevel8Slot: parsed.unlockedLevel8Slot ?? false,
@@ -197,6 +201,7 @@ export function loadRoutineData(userId: string): RoutineData {
     selectedBooks: [],
     routineSlots: [],
     routineCategories: [],
+    routineCategoriesByClass: {},
     unlockedTierSlot: false,
     unlockedLevel5Slot: false,
     unlockedLevel8Slot: false,

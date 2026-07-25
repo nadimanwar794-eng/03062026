@@ -1799,20 +1799,28 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           currentBooks={data.selectedBooks || []}
           onSave={(mode, board, classLevel, books) => {
             setData(prev => {
-              // Filter existing category subjects to match new class/book syllabus
-              const bookSet = new Set(books);
-              const updatedCats = (prev.routineCategories || []).map(cat => {
-                const filteredSubjects = cat.subjects.filter(sub => {
-                  if (mode === 'SCHOOL' && classLevel) {
-                    return !sub.classLevel || String(sub.classLevel) === String(classLevel);
-                  }
-                  if (mode === 'COMPETITION' && books.length > 0) {
-                    return !sub.bookName || bookSet.has(sub.bookName);
-                  }
-                  return true;
-                });
-                return { ...cat, subjects: filteredSubjects, currentSubjectIndex: Math.min(cat.currentSubjectIndex, Math.max(0, filteredSubjects.length - 1)) };
-              }).filter(cat => cat.subjects.length > 0);
+              // Build storage key for the current (old) class/book context
+              const oldKey = prev.routineMode === 'SCHOOL' && prev.selectedClass
+                ? `SCHOOL_${prev.selectedClass}`
+                : prev.routineMode === 'COMPETITION' && (prev.selectedBooks || []).length > 0
+                  ? `COMPETITION_${[...(prev.selectedBooks || [])].sort().join('+')}`
+                  : null;
+
+              // Build storage key for the new class/book context
+              const newKey = mode === 'SCHOOL' && classLevel
+                ? `SCHOOL_${classLevel}`
+                : mode === 'COMPETITION' && books.length > 0
+                  ? `COMPETITION_${[...books].sort().join('+')}`
+                  : null;
+
+              // Save current categories under old key (so switching back restores them)
+              const byClass: Record<string, any[]> = { ...(prev.routineCategoriesByClass || {}) };
+              if (oldKey) {
+                byClass[oldKey] = prev.routineCategories || [];
+              }
+
+              // Restore saved categories for new key, or start fresh if never used before
+              const restoredCats = (newKey && byClass[newKey]) ? byClass[newKey] : [];
 
               const next = {
                 ...prev,
@@ -1821,7 +1829,8 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 selectedClass: classLevel,
                 selectedBooks: books,
                 selectedBook: books[0] || null,
-                routineCategories: updatedCats,
+                routineCategories: restoredCats,
+                routineCategoriesByClass: byClass,
               };
               // Immediate Firebase sync — config change is important
               syncRoutineNow(userId, next);
