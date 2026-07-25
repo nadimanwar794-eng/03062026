@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { ClassLevel, Subject, Stream, Board, SystemSettings, LucentNoteEntry } from '../types';
+import { ClassLevel, Subject, Stream, Board, SystemSettings, LucentNoteEntry, HomeworkItem } from '../types';
 import { getSubjectsList } from '../constants';
 import { Calculator, FlaskConical, Languages, Globe2, BookMarked, History, TrendingUp, Briefcase, Landmark, Feather, Home, HeartPulse, Activity, Cpu, ChevronRight } from 'lucide-react';
 import type { ContentIndexMap } from '../firebase';
 import { useAppTheme } from '../utils/themeContext';
-import { computeSubjectStats, type SubjectLessonStats } from '../utils/subjectProgressStore';
+import { computeSubjectStats, computeHwSubjectStats, type SubjectLessonStats } from '../utils/subjectProgressStore';
+import { formatDuration } from '../utils/routineAutoTrack';
 
 interface Props {
   classLevel: ClassLevel;
@@ -114,7 +115,7 @@ const getSubjectStats = (
   return { notes, pdf, video, audio, mcq, lucentNotes: lucentCount };
 };
 
-// ── Progress bar for school subjects ──────────────────────────────────────────
+// ── Progress bar for school subjects + competition ─────────────────────────────
 const LessonProgressBar: React.FC<{ stats: SubjectLessonStats; primary: string }> = ({ stats, primary }) => {
   if (stats.totalLessons === 0) return null;
 
@@ -123,6 +124,8 @@ const LessonProgressBar: React.FC<{ stats: SubjectLessonStats; primary: string }
     pct === 0 ? '#94a3b8' :
     pct >= 80 ? '#22c55e' :
     pct >= 40 ? '#f59e0b' : '#6366f1';
+
+  const timeLabel = stats.totalTimeSecs > 0 ? formatDuration(stats.totalTimeSecs) : null;
 
   return (
     <div className="mt-2 space-y-1.5">
@@ -133,11 +136,11 @@ const LessonProgressBar: React.FC<{ stats: SubjectLessonStats; primary: string }
           style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}>
           📖 {stats.completedLessons}/{stats.totalLessons}
         </span>
-        {/* Pages */}
-        {stats.totalPages > 0 && (
+        {/* Total time */}
+        {timeLabel && (
           <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md border"
-            style={{ background: '#f0fdf4', color: '#15803d', borderColor: '#bbf7d0' }}>
-            📄 {stats.readPages}/{stats.totalPages}
+            style={{ background: '#fdf4ff', color: '#7e22ce', borderColor: '#e9d5ff' }}>
+            ⏱ {timeLabel}
           </span>
         )}
         {/* In-progress */}
@@ -186,22 +189,45 @@ export const SubjectSelection: React.FC<Props> = ({
 
   const tierHeaderColor = appTheme.primary;
 
-  // Pre-compute per-subject lesson progress for school classes (class 6-12)
+  // Pre-compute per-subject lesson progress for school classes (class 6-12) AND competition
   const subjectProgressMap = useMemo(() => {
-    if (!isSchoolClass || !lucentNotes.length) return {} as Record<string, SubjectLessonStats>;
     const map: Record<string, SubjectLessonStats> = {};
-    subjects.forEach(subject => {
-      const lessons = lucentNotes.filter(n =>
-        String((n as any).classLevel) === String(classLevel) &&
-        (n.subject || '').toLowerCase().trim() === subject.id.toLowerCase().trim() &&
-        (!(n as any).board || (n as any).board === currentBoard)
-      ) as LucentNoteEntry[];
-      if (lessons.length > 0) {
-        map[subject.id] = computeSubjectStats(lessons);
-      }
-    });
+
+    if (isSchoolClass && lucentNotes.length > 0) {
+      subjects.forEach(subject => {
+        const lessons = lucentNotes.filter(n =>
+          String((n as any).classLevel) === String(classLevel) &&
+          (n.subject || '').toLowerCase().trim() === subject.id.toLowerCase().trim() &&
+          (!(n as any).board || (n as any).board === currentBoard)
+        ) as LucentNoteEntry[];
+        if (lessons.length > 0) {
+          map[subject.id] = computeSubjectStats(lessons);
+        }
+      });
+    } else if (isCompetition) {
+      subjects.forEach(subject => {
+        if (subject.id === 'lucent') {
+          // All competition lucent notes (no classLevel set, or classLevel === 'COMPETITION')
+          const lessons = lucentNotes.filter(n =>
+            (n as any).classLevel === 'COMPETITION' || !(n as any).classLevel
+          ) as LucentNoteEntry[];
+          if (lessons.length > 0) {
+            map[subject.id] = computeSubjectStats(lessons);
+          }
+        } else {
+          // Homework-based competition subjects (Polity, History, Geography, etc.)
+          const hwItems = ((settings?.homework || []) as HomeworkItem[]).filter(
+            hw => hw.targetSubject === subject.id
+          );
+          if (hwItems.length > 0) {
+            map[subject.id] = computeHwSubjectStats(hwItems);
+          }
+        }
+      });
+    }
+
     return map;
-  }, [subjects, lucentNotes, classLevel, currentBoard, isSchoolClass]);
+  }, [subjects, lucentNotes, classLevel, currentBoard, isSchoolClass, isCompetition, settings]);
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500 mt-0 pt-0">
@@ -275,51 +301,12 @@ export const SubjectSelection: React.FC<Props> = ({
                 <div className="flex-1 min-w-0">
                   <h3 className="nst-card-title font-black text-base truncate">{subject.name}</h3>
 
-                  {/* Lesson progress bar (school subjects only) */}
-                  {isSchoolClass && lessonProgress ? (
+                  {/* Lesson progress bar (school subjects + competition books) */}
+                  {lessonProgress ? (
                     <LessonProgressBar stats={lessonProgress} primary={tierHeaderColor} />
-                  ) : (
-                    /* Content-type badges (competition / school without lessons) */
-                    totalContent > 0 ? (
-                      <div className="flex items-center gap-1 flex-wrap mt-1">
-                        {statBadges.map(b => (
-                          <span
-                            key={b.emoji}
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-black border"
-                            style={{
-                              background: b.label === 'Notes'  ? '#dcfce7' :
-                                          b.label === 'PDF'    ? '#dbeafe' :
-                                          b.label === 'MCQ'    ? '#fef9c3' :
-                                          b.label === 'Video'  ? '#fee2e2' :
-                                          b.label === 'Audio'  ? '#f3e8ff' :
-                                          b.label === 'Lessons'? '#dcfce7' :
-                                          b.label === 'Pages'  ? '#dbeafe' : '#f1f5f9',
-                              color:      b.label === 'Notes'  ? '#16a34a' :
-                                          b.label === 'PDF'    ? '#1d4ed8' :
-                                          b.label === 'MCQ'    ? '#b45309' :
-                                          b.label === 'Video'  ? '#dc2626' :
-                                          b.label === 'Audio'  ? '#7c3aed' :
-                                          b.label === 'Lessons'? '#16a34a' :
-                                          b.label === 'Pages'  ? '#1d4ed8' : '#475569',
-                              borderColor:b.label === 'Notes'  ? '#86efac' :
-                                          b.label === 'PDF'    ? '#93c5fd' :
-                                          b.label === 'MCQ'    ? '#fde047' :
-                                          b.label === 'Video'  ? '#fca5a5' :
-                                          b.label === 'Audio'  ? '#d8b4fe' :
-                                          b.label === 'Lessons'? '#86efac' :
-                                          b.label === 'Pages'  ? '#93c5fd' : '#e2e8f0',
-                            }}
-                          >
-                            {b.emoji} {b.count}
-                          </span>
-                        ))}
-                      </div>
-                    ) : settings != null ? (
-                      <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-40">No content yet</p>
-                    ) : (
-                      <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-60">Loading…</p>
-                    )
-                  )}
+                  ) : settings == null ? (
+                    <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-60">Loading…</p>
+                  ) : null}
                 </div>
                 <ChevronRight size={18} className="nst-card-arrow opacity-70 shrink-0" />
               </div>
