@@ -1762,13 +1762,21 @@ export const saveChapterData = async (key: string, data: any, _historyMeta?: { u
     // ── Backup mirror: RTDB __backup__/content_data/{key} — never deleted ────
     promises.push(set(ref(rtdb, `__backup__/content_data/${key}`), sanitizedData));
 
-    // ── V2 Immortal Storage: har mode ka alag Firestore document ─────────────
-    // Fire-and-forget — does not block the main save. Data kabhi delete nahi hoga.
-    import('./utils/lessonStorage').then(({ saveChapterDataV2 }) => {
-      saveChapterDataV2(key, sanitizedData, _historyMeta ?? {}).catch(e =>
-        console.warn('[V2] saveChapterDataV2 failed (non-fatal):', e)
-      );
-    }).catch(() => {});
+    // ── V2 Primary Storage: mode-wise alag documents ─────────────────────────
+    // Reading Notes → lesson_free_notes/{key}
+    // Writing Notes → lesson_html_notes/{key}
+    // MCQ/Flashcard/Q&A → lesson_mcq/{key}
+    // Video → lesson_video/{key}
+    // Audio → lesson_audio/{key}
+    // PDF → lesson_pdf/{key}
+    // Yeh ab PRIMARY save hai — awaited, not fire-and-forget.
+    try {
+      const { saveChapterDataV2 } = await import('./utils/lessonStorage');
+      await saveChapterDataV2(key, sanitizedData, _historyMeta ?? {});
+    } catch (v2Err) {
+      // V2 fail hone pe V1 (content_data) still saved hai — data safe hai.
+      console.warn('[V2] saveChapterDataV2 failed (V1 backup is intact):', v2Err);
+    }
 
     // 4. Update content_index for real-time stats on home screen
     if (key.startsWith('nst_content_')) {
@@ -1868,8 +1876,6 @@ export const getChapterData = async (key: string) => {
     // 1. ⚡ In-memory cache — instant (microseconds)
     if (CHAPTER_MEM_CACHE.has(key)) {
         const cached = CHAPTER_MEM_CACHE.get(key);
-        // Background refresh so next call still benefits if RTDB has updates.
-        // (Fire-and-forget — does NOT block return.)
         _backgroundRefreshChapter(key);
         return cached;
     }
@@ -1879,7 +1885,6 @@ export const getChapterData = async (key: string) => {
         const stored = await storage.getItem(key);
         if (stored) {
             _memCachePut(key, stored);
-            // Same background refresh so memory cache catches latest server data.
             _backgroundRefreshChapter(key);
             return stored;
         }
@@ -1887,7 +1892,29 @@ export const getChapterData = async (key: string) => {
         // continue to network
     }
 
-    // 3. Network — RTDB first, then Firestore fallback
+    // 3. V2 mode-wise collections (PRIMARY network source)
+    //    Reading Notes  → lesson_free_notes/{key}
+    //    Writing Notes  → lesson_html_notes/{key}
+    //    MCQ            → lesson_mcq/{key}
+    //    Video          → lesson_video/{key}
+    //    Audio          → lesson_audio/{key}
+    //    PDF            → lesson_pdf/{key}
+    if (key.startsWith('nst_content_')) {
+        try {
+            const { getChapterDataV2 } = await import('./utils/lessonStorage');
+            const v2Data = await getChapterDataV2(key);
+            if (v2Data) {
+                _memCachePut(key, v2Data);
+                await storage.setItem(key, v2Data);
+                return v2Data;
+            }
+        } catch (v2Err) {
+            console.warn('[V2] getChapterDataV2 failed, falling back to V1:', v2Err);
+        }
+    }
+
+    // 4. V1 fallback — RTDB first, then Firestore
+    //    (old chapters jo V2 mein migrate nahi hue, ya V2 empty hai)
     try {
         const snapshot = await get(ref(rtdb, `content_data/${key}`));
         if (snapshot.exists()) {
