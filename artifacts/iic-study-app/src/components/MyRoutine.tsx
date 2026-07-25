@@ -925,27 +925,31 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
         <div className="px-5 py-5 pb-8 space-y-4">
           <div className="block">
             <span className="block text-xs font-black text-slate-600 mb-1.5">Study path</span>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => { setMode('SCHOOL'); setSelectedBooks(new Set()); }}
-                className={`relative flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'SCHOOL' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
-              >
-                {mode === 'SCHOOL' && <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center"><Check size={10} className="text-white" /></span>}
-                <span className="text-2xl">🏫</span>
-                <span>School</span>
-                {mode !== 'SCHOOL' && <ChevronDown size={12} className="text-slate-400 mt-0.5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setMode('COMPETITION'); setClassLevel(''); }}
-                className={`relative flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'COMPETITION' ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
-              >
-                {mode === 'COMPETITION' && <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center"><Check size={10} className="text-white" /></span>}
-                <span className="text-2xl">🏆</span>
-                <span>Competition</span>
-                {mode !== 'COMPETITION' && <ChevronDown size={12} className="text-slate-400 mt-0.5" />}
-              </button>
+            <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+              {([
+                { value: 'SCHOOL', label: 'School', emoji: '🏫' },
+                { value: 'COMPETITION', label: 'Competition', emoji: '🏆' },
+              ] as { value: 'SCHOOL' | 'COMPETITION'; label: string; emoji: string }[]).map((opt, i, arr) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setMode(opt.value);
+                    if (opt.value === 'SCHOOL') setSelectedBooks(new Set());
+                    if (opt.value === 'COMPETITION') setClassLevel('');
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50 transition-colors ${i < arr.length - 1 ? 'border-b border-slate-100' : ''}`}
+                >
+                  <span className="text-lg">{opt.emoji}</span>
+                  <span className={`flex-1 text-sm font-black ${mode === opt.value ? (opt.value === 'COMPETITION' ? 'text-orange-600' : 'text-blue-700') : 'text-slate-700'}`}>{opt.label}</span>
+                  {/* Radio circle */}
+                  <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${mode === opt.value ? (opt.value === 'COMPETITION' ? 'border-orange-500' : 'border-blue-500') : 'border-slate-300'}`}>
+                    {mode === opt.value && (
+                      <span className={`w-2.5 h-2.5 rounded-full ${opt.value === 'COMPETITION' ? 'bg-orange-500' : 'bg-blue-500'}`} />
+                    )}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 
