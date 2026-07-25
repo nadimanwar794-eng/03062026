@@ -69,7 +69,7 @@ import { renderMathInHtml, formatExplanationHtml } from "../utils/mathUtils";
 import { recordLogin, updateSessionDuration, getLoginHistory, formatDuration, formatLoginTime, type LoginSession } from "../utils/loginHistory";
 import { getNewContentItems, markContentItemSeen, markAllContentItemsSeen, formatContentDate, type ContentNotifItem } from "../utils/contentNotifications";
 import { saveRecentHomework, getRecentHomeworks, removeRecentHomework, getRecentChapters, removeRecentChapter, saveRecentLucent, getRecentLucent, removeRecentLucent, markNoteFullyRead, getFullyReadMap, markReadToday, getReadingStreak, getReadDates, getBestReadingDay, getTodayItemCount, type RecentChapterEntry, type RecentHwEntry, type RecentLucentEntry, type StreakInfo, type BestDay } from "../utils/recentReads";
-import { markRoutinePageRead, markRoutineMcqDone, isRoutinePageRead, isRoutineMcqDone, updateRoutineMcqScore, recordMistake, addPageTime, isLessonAutoComplete, isLessonRewarded, markLessonRewarded, markRoutinePageMcqDone, updateRoutinePageMcqScore, isRoutinePageMcqDone, getRoutinePageMcqScore } from "../utils/routineAutoTrack";
+import { markRoutinePageRead, markRoutineMcqDone, isRoutinePageRead, isRoutineMcqDone, updateRoutineMcqScore, recordMistake, addPageTime, isLessonAutoComplete, isLessonRewarded, markLessonRewarded, markRoutinePageMcqDone, updateRoutinePageMcqScore, isRoutinePageMcqDone, getRoutinePageMcqScore, getAutoPageBoxState, getPageTime, getLessonStats, getMultiLessonStats, getProgressColor5, getProgressTicks } from "../utils/routineAutoTrack";
 import { loadRoutineData, saveRoutineData, checkAndResetDaily, generateDailyTask, advanceLessonInCycle, getDiscountFactor, hasActiveDiscount, getPageReadReward, LESSON_COMPLETE_REWARD, unlockRevisionLesson } from "../utils/routineStorage";
 import { SubscriptionEngine } from "../utils/engines/subscriptionEngine";
 import { recalculateSubscriptionStatus } from "../utils/subscriptionUtils";
@@ -6434,6 +6434,25 @@ export const StudentDashboard: React.FC<Props> = ({
                             {hasVideo && <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-600">VIDEO</span>}
                           </p>
                         )}
+                        {!entry.mcqOnly && entry.pages.length > 0 && (() => {
+                          const _ls = getLessonStats(entry.id, entry.pages.length);
+                          if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                          const _lc = getProgressColor5(_ls.pct);
+                          return (
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              <div className="flex gap-[2px] flex-wrap">
+                                {entry.pages.slice(0, 20).map((_, i) => {
+                                  const st = getAutoPageBoxState(entry.id, i);
+                                  return <div key={i} className="w-2 h-2 rounded-[2px]" style={{ background: st === 'green' ? '#10b981' : st === 'orange' ? '#f97316' : '#e2e8f0' }} />;
+                                })}
+                                {entry.pages.length > 20 && <span className="text-[8px] text-slate-400 font-bold">+{entry.pages.length - 20}</span>}
+                              </div>
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: _lc.bg, color: _lc.text }}>{getProgressTicks(_ls.pct)} {_ls.pct}%</span>
+                              <span className="text-[9px] font-bold text-slate-400">{_ls.pagesRead}/{entry.pages.length}pg</span>
+                              {_ls.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ls.totalTime)}</span>}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <ChevronRight size={18} className={isDarkMode ? 'text-slate-400' : 'text-slate-400'} />
                     </button>
@@ -6721,6 +6740,25 @@ export const StudentDashboard: React.FC<Props> = ({
                           </>
                         }
                       </p>
+                      {!entry.mcqOnly && entry.pages.length > 0 && (() => {
+                        const _ls = getLessonStats(entry.id, entry.pages.length);
+                        if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                        const _lc = getProgressColor5(_ls.pct);
+                        return (
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                            <div className="flex gap-[2px] flex-wrap">
+                              {entry.pages.slice(0, 20).map((_, i) => {
+                                const st = getAutoPageBoxState(entry.id, i);
+                                return <div key={i} className="w-2 h-2 rounded-[2px]" style={{ background: st === 'green' ? '#10b981' : st === 'orange' ? '#f97316' : '#e2e8f0' }} />;
+                              })}
+                              {entry.pages.length > 20 && <span className="text-[8px] text-slate-400 font-bold">+{entry.pages.length - 20}</span>}
+                            </div>
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: _lc.bg, color: _lc.text }}>{getProgressTicks(_ls.pct)} {_ls.pct}%</span>
+                            <span className="text-[9px] font-bold text-slate-400">{_ls.pagesRead}/{entry.pages.length}pg</span>
+                            {_ls.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ls.totalTime)}</span>}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <ChevronRight size={18} className={`${theme.text} shrink-0`} />
                   </button>
@@ -8753,6 +8791,19 @@ export const StudentDashboard: React.FC<Props> = ({
                     <div className="flex-1">
                       <p className={`font-black text-base ${theme.text}`}>{bookName}</p>
                       <p className="text-xs text-slate-500">{count} lesson{count !== 1 ? 's' : ''}</p>
+                      {(() => {
+                        const _be = competitionNotes.filter(n => (n.bookName?.trim() || 'Lucent') === bookName);
+                        const _bms = getMultiLessonStats(_be.map(n => ({ id: n.id, pageCount: n.pages.length })));
+                        if (_bms.pagesRead === 0 && _bms.totalTime === 0) return null;
+                        const _bc = getProgressColor5(_bms.pct);
+                        return (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full border" style={{ background: _bc.bg, color: _bc.text, borderColor: _bc.border }}>{getProgressTicks(_bms.pct)} {_bms.pct}%</span>
+                            <span className="text-[9px] font-bold text-slate-400">{_bms.pagesRead}/{_bms.totalPages}pg</span>
+                            {_bms.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_bms.totalTime)}</span>}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <ChevronRight size={18} className="text-slate-400" />
                   </button>
@@ -8792,6 +8843,10 @@ export const StudentDashboard: React.FC<Props> = ({
           <div className="px-4 grid grid-cols-1 gap-3">
             {LUCENT_CATEGORIES.map((cat) => {
               const lessonCount = _lucentSubjectCount(cat.id);
+              const _catNotes = _allCompNotes.filter(n =>
+                n.subject?.toLowerCase().trim() === cat.id?.toLowerCase().trim() &&
+                (_customSubjectIds.has(cat.id?.toLowerCase() || '') || (n.bookName?.trim() || 'Lucent') === 'Lucent')
+              );
               return (
               <button key={cat.id} onClick={() => {
                 const _minPg = (n: LucentNoteEntry): number => {
@@ -8882,6 +8937,18 @@ export const StudentDashboard: React.FC<Props> = ({
                       No content yet
                     </span>
                   )}
+                  {_catNotes.length > 0 && (() => {
+                    const _cms = getMultiLessonStats(_catNotes.map(n => ({ id: n.id, pageCount: n.pages.length })));
+                    if (_cms.pagesRead === 0 && _cms.totalTime === 0) return null;
+                    const _cc = getProgressColor5(_cms.pct);
+                    return (
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full border" style={{ background: _cc.bg, color: _cc.text, borderColor: _cc.border }}>{getProgressTicks(_cms.pct)} {_cms.pct}%</span>
+                        <span className="text-[9px] font-bold text-slate-400">{_cms.pagesRead}/{_cms.totalPages}pg</span>
+                        {_cms.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_cms.totalTime)}</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <ChevronRight size={18} style={{ color: lessonCount > 0 ? tierTheme.primary : '#cbd5e1' }} />
               </button>
@@ -18654,6 +18721,17 @@ export const StudentDashboard: React.FC<Props> = ({
                       {preview && (
                         <p className="text-[11px] text-slate-400 mt-1 truncate">{preview}…</p>
                       )}
+                      {(() => {
+                        const _pt = getPageTime(plEntry.id, idx);
+                        if (_pt <= 0) return null;
+                        const _tks = getProgressTicks(pageMcqDone ? 100 : pageRead ? 50 : 0);
+                        return (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-bold text-slate-400">⏱ {formatDuration(_pt)}</span>
+                            {_tks && <span className="text-[9px] font-bold text-emerald-600">{_tks}</span>}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <ChevronRight size={16} className="shrink-0" style={{ color: tierTheme.primary }} />
                   </button>
