@@ -894,7 +894,11 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
 
   const availableClasses = useMemo(() => {
     const s = new Set<string>();
-    allNotes.forEach(n => { const cl = (n as any).classLevel; if (cl) s.add(String(cl)); });
+    allNotes.forEach(n => {
+      const cl = (n as any).classLevel;
+      // School mode mein sirf numeric classes dikhao — COMPETITION etc. exclude karo
+      if (cl && !isNaN(Number(cl))) s.add(String(cl));
+    });
     return Array.from(s).sort((a, b) => Number(a) - Number(b));
   }, [allNotes]);
 
@@ -914,28 +918,32 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-base font-black text-slate-800">⚙️ Routine Setup</h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Dropdown se apna study path chuno</p>
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Apna study path chuno</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><X size={16} /></button>
         </div>
         <div className="px-5 py-5 pb-8 space-y-4">
-          <label className="block">
+          <div className="block">
             <span className="block text-xs font-black text-slate-600 mb-1.5">Study path</span>
-            <select
-              value={mode || ''}
-              onChange={e => {
-                const nextMode = e.target.value as 'SCHOOL' | 'COMPETITION';
-                setMode(nextMode || null);
-                if (nextMode === 'SCHOOL') setSelectedBooks(new Set());
-                if (nextMode === 'COMPETITION') setClassLevel('');
-              }}
-              className="w-full appearance-none rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 outline-none focus:border-blue-400"
-            >
-              <option value="">School / Competition</option>
-              <option value="SCHOOL">🏫 School</option>
-              <option value="COMPETITION">🏆 Competition</option>
-            </select>
-          </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { setMode('SCHOOL'); setSelectedBooks(new Set()); }}
+                className={`flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'SCHOOL' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
+              >
+                <span className="text-2xl">🏫</span>
+                <span>School</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('COMPETITION'); setClassLevel(''); }}
+                className={`flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'COMPETITION' ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
+              >
+                <span className="text-2xl">🏆</span>
+                <span>Competition</span>
+              </button>
+            </div>
+          </div>
 
           {mode === 'SCHOOL' && (
             <label className="block">
@@ -971,7 +979,7 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
             </label>
           )}
         </div>
-        <div className="px-5 pb-8 pt-3 border-t border-slate-100 shrink-0">
+        <div className="px-5 pb-8 pt-3 border-t border-slate-100 shrink-0 space-y-2.5">
           <button
             onClick={() => {
               if (!canSave) return;
@@ -982,6 +990,16 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
             className={`w-full py-3.5 rounded-2xl font-black text-sm transition active:scale-[0.98] ${canSave ? mode === 'COMPETITION' ? 'bg-orange-500 text-white shadow-sm' : 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
             {!mode ? 'Pehle option chuno' : !canSave ? mode === 'SCHOOL' ? 'Class chuno' : 'Book name chuno' : 'Save Karo ✓'}
           </button>
+          {/* Destination hint — tells user where they'll land after saving */}
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="text-[10px] font-semibold text-slate-400">Save ke baad:</span>
+            <span className="inline-flex items-center gap-1 bg-slate-100 rounded-full px-2 py-0.5">
+              <span className="text-[10px]">📅</span>
+              <span className="text-[10px] font-black text-slate-600">Routine</span>
+              <span className="text-[10px] text-slate-400">tab</span>
+            </span>
+            <span className="text-[10px] text-slate-400">mein dikhega</span>
+          </div>
         </div>
       </div>
     </div>
