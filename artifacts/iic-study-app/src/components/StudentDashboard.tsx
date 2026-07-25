@@ -8871,27 +8871,9 @@ export const StudentDashboard: React.FC<Props> = ({
                   return;
                 }
 
-                // If exactly 1 lesson → skip chapters, go straight to page list (or MCQ for mcqOnly)
-                if (subjectEntries.length === 1) {
-                  const entry = subjectEntries[0];
-                  if (_lucentIsLocked(entry)) {
-                    showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
-                    return;
-                  }
-                  setLucentCategoryView(false);
-                  setSelectedLucentBook(null);
-                  setSelectedSubject(cat);
-                  if (entry.mcqOnly) {
-                    lucentInitialTabRef.current = { tab: 'MCQS' };
-                    tryOpenLucentNote(entry, 0);
-                  } else {
-                    setLucentPageListViewer(entry);
-                  }
-                  return;
-                }
-                // Multiple lessons → show chapters list
-                const _b7 = activeSessionBoard || user.board;
-                const lang = (_b7 === "BSEB" || _b7 === "NCERT_HI") ? "Hindi" : "English";
+                // Always show the lesson list, even when a subject has only one
+                // lesson. This keeps the navigation consistent and ensures that
+                // lessons added later appear in the same place.
                 const adminLucentLessons: Chapter[] = subjectEntries.map(n => {
                   const mp = _minPg(n);
                   return {
@@ -8906,18 +8888,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 setSelectedSubject(cat);
                 setContentViewStep("CHAPTERS");
                 setSelectedChapter(null);
-                setLoadingChapters(true);
-                const hideSyllabus = settings?.hideLucentSyllabus !== false;
-                if (hideSyllabus) {
-                  setChapters(adminLucentLessons);
-                  setLoadingChapters(false);
-                } else {
-                  fetchChapters(activeSessionBoard || user.board || "NCERT_EN", 'COMPETITION', user.stream || "Science", cat, lang).then((data) => {
-                    const sorted = [...data].sort((a, b) => a.title.localeCompare(b.title));
-                    setChapters([...adminLucentLessons, ...sorted]);
-                    setLoadingChapters(false);
-                  });
-                }
+                setChapters(adminLucentLessons);
+                setLoadingChapters(false);
               }} className={`nst-lesson-card bg-white p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-all active:scale-95 text-left border-2 ${lessonCount === 0 ? 'opacity-50' : ''}`}
                 style={{ borderColor: lessonCount > 0 ? `${tierTheme.primary}55` : '#e2e8f0' }}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black border-2"
@@ -8952,6 +8924,105 @@ export const StudentDashboard: React.FC<Props> = ({
                 </div>
                 <ChevronRight size={18} style={{ color: lessonCount > 0 ? tierTheme.primary : '#cbd5e1' }} />
               </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // LUCENT COMPETITION LESSON LIST
+    // A subject must always open to its lesson list first. Each lesson then
+    // opens its own page list (or MCQ viewer), so later admin additions remain
+    // discoverable instead of leaving the student on a blank content screen.
+    if (
+      contentViewStep === "CHAPTERS" &&
+      syllabusMode === "COMPETITION" &&
+      selectedSubject &&
+      chapters.length > 0 &&
+      chapters.every(ch => String(ch.id).startsWith('lucent_admin_'))
+    ) {
+      const lucentChapterEntries = chapters
+        .map(chapter => {
+          const entryId = String(chapter.id).replace(/^lucent_admin_/, '');
+          return ((settings?.lucentNotes || []) as LucentNoteEntry[]).find(entry => entry.id === entryId);
+        })
+        .filter(Boolean) as LucentNoteEntry[];
+
+      return (
+        <div className={`flex-1 flex flex-col min-h-0 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+          <div className={`shrink-0 flex items-center gap-3 px-4 py-3 border-b ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <button
+              onClick={() => {
+                setContentViewStep("SUBJECTS");
+                setSelectedChapter(null);
+                setSelectedSubject(null);
+                setSelectedLucentBook('Lucent');
+                setLucentCategoryView(true);
+              }}
+              className={`p-2 rounded-full ${isDarkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              aria-label="Back to subjects"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: tierTheme.primary }}>LUCENT · COMPETITION</p>
+              <h2 className={`text-lg font-black leading-tight truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                {selectedSubject.name}
+              </h2>
+            </div>
+            <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
+              {lucentChapterEntries.length} Lesson{lucentChapterEntries.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {lucentChapterEntries.map(entry => {
+              const topicNames = [...new Set((entry.pages || []).map(page => (page.topicName || '').trim()).filter(Boolean))];
+              const hasMcqs = (entry.pages || []).some(page => page.mcqs && page.mcqs.length > 0);
+              const isLocked = _lucentIsLocked(entry);
+
+              return (
+                <button
+                  key={entry.id}
+                  onClick={() => {
+                    if (isLocked) {
+                      showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
+                      return;
+                    }
+                    if (entry.mcqOnly) {
+                      lucentInitialTabRef.current = { tab: 'MCQS' };
+                      tryOpenLucentNote(entry, 0);
+                    } else {
+                      setLucentPageListViewer(entry);
+                    }
+                  }}
+                  className={`w-full rounded-2xl p-3 text-left flex items-center gap-3 border-2 transition-all hover:shadow-md active:scale-[0.98] ${isLocked ? 'opacity-75' : ''}`}
+                  style={{
+                    background: settings?.contentListCardBg || (isDarkMode ? '#1e293b' : '#ffffff'),
+                    borderColor: isLocked ? '#ef4444' : (settings?.contentListCardBorder || `${tierTheme.primary}55`),
+                  }}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLocked ? 'bg-red-100 text-red-500' : ''}`}
+                    style={isLocked ? undefined : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                  >
+                    {isLocked ? <span className="text-xl">🔒</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
+                    {isLocked ? (
+                      <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
+                    ) : (
+                      <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {entry.mcqOnly ? <span className="text-emerald-600 font-black">🎯 MCQ Only</span> : <span>{entry.pages.length} page{entry.pages.length !== 1 ? 's' : ''}</span>}
+                        {topicNames.length > 0 && <span>• {topicNames.length} topic{topicNames.length !== 1 ? 's' : ''}</span>}
+                        {hasMcqs && <span className="px-1.5 py-0.5 rounded text-[9px] font-black" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>MCQ</span>}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight size={18} className="shrink-0 text-slate-400" />
+                </button>
               );
             })}
           </div>
