@@ -17308,6 +17308,11 @@ export const StudentDashboard: React.FC<Props> = ({
               setShowRevisionHubScreen(false);
               // Close My Routine screen if open.
               setShowMyRoutine(false);
+              // Close Community Stars page if open.
+              if (showCommunityStarsPage) {
+                try { stopProfileStarRead(); } catch (_) {}
+                setShowCommunityStarsPage(false);
+              }
               // Close Progress Dashboard overlay if open — prevents it bleeding into other tabs.
               setShowProgressDashboard(false);
               // Close the Important Notes overlay if it's open — otherwise the
@@ -17407,6 +17412,10 @@ export const StudentDashboard: React.FC<Props> = ({
                     setShowChat(false);
                     setShowStarredPage(false);
                     setShowRevisionHubScreen(false);
+                    if (showCommunityStarsPage) {
+                      try { stopProfileStarRead(); } catch (_) {}
+                      setShowCommunityStarsPage(false);
+                    }
                     hapticMedium();
                     setShowMyRoutine(true);
                   },
@@ -17423,6 +17432,11 @@ export const StudentDashboard: React.FC<Props> = ({
                 onClick: () => {
                   setShowCompareView(false);
                   setShowRevisionHubScreen(false);
+                  setShowMyRoutine(false);
+                  if (showCommunityStarsPage) {
+                    try { stopProfileStarRead(); } catch (_) {}
+                    setShowCommunityStarsPage(false);
+                  }
                   try { stopProfileStarRead(); } catch (_) {}
                   setShowStarredPage(false);
                   setShowChat(true);
