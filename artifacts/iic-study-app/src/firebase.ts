@@ -1353,12 +1353,25 @@ const _savePerItemCollection = async (
     writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
     console.log(`[IIC] _savePerItemCollection(${collectionName}): index merged — existing ${existingIds.length} + new ${newIds.length} → ${mergedIds.length} total IDs`);
   } catch (e) {
-    // If index read fails, fall back to writing only what we know — still safe
-    // because we never shrink below newIds
-    console.warn(`[IIC] _savePerItemCollection(${collectionName}): index read failed, falling back to newIds only:`, e);
-    const indexPayload = { ids: newIds };
-    writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
-    writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
+    // Firestore index read failed — try RTDB as secondary fallback before giving up.
+    // NEVER write partial newIds as the index: that would erase all existing entries
+    // that weren't in this save batch (the original data-loss bug).
+    console.warn(`[IIC] _savePerItemCollection(${collectionName}): Firestore index read failed, trying RTDB fallback:`, e);
+    try {
+      const rtdbSnap = await get(ref(rtdb, rtdbIndexPath));
+      const rtdbIds: string[] = rtdbSnap.val()?.ids ?? [];
+      const mergedIds: string[] = [...new Set([...rtdbIds, ...newIds])];
+      const indexPayload = { ids: mergedIds };
+      writes.push(setDoc(doc(db, "config", indexFsDocId), indexPayload));
+      writes.push(set(ref(rtdb, rtdbIndexPath), indexPayload));
+      console.log(`[IIC] _savePerItemCollection(${collectionName}): RTDB fallback index merged — ${rtdbIds.length} existing + ${newIds.length} new → ${mergedIds.length} total IDs`);
+    } catch (e2) {
+      // Both Firestore AND RTDB index reads failed.
+      // Skip the index update entirely — better to leave the old index intact
+      // (new entry won't show until next successful save) than to overwrite it
+      // with only partial IDs and erase all existing entries.
+      console.error(`[IIC] _savePerItemCollection(${collectionName}): both index reads failed — skipping index update to protect existing entries. New IDs will appear on next save.`, e2);
+    }
   }
 };
 
