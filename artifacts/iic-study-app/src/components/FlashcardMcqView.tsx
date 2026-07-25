@@ -410,7 +410,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const fcBg2 = (appTheme as any).flashcardBg2 || appTheme.mid;
   const tierBgStyle = { background: `linear-gradient(135deg, ${fcBg1} 0%, ${fcBg2} 50%, ${fcBg1} 100%)` };
 
-  if (limitReached) {
+  if (limitReached && !isProjectorMode) {
     const canPay = !!(user?.subscriptionLevel && (user.credits ?? 0) >= CREDIT_COST);
     return (
       <div className="fixed inset-0 z-[200] flex flex-col h-[100dvh]" style={tierBgStyle}>
