@@ -100,6 +100,20 @@ const SUBJECT_META: Record<string, { icon: React.ReactNode; color: string; bg: s
 };
 const DEFAULT_META = { icon: <BookOpen size={18} />, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
 
+// ── Toggle track color map (explicit hex — avoids Tailwind JIT purge of dynamic class names) ─
+const SUBJECT_TOGGLE_COLOR: Record<string, string> = {
+  'text-blue-600':    '#3b82f6',
+  'text-green-600':   '#22c55e',
+  'text-emerald-600': '#10b981',
+  'text-cyan-600':    '#06b6d4',
+  'text-amber-600':   '#f59e0b',
+  'text-indigo-600':  '#6366f1',
+  'text-orange-600':  '#f97316',
+  'text-teal-600':    '#14b8a6',
+  'text-purple-600':  '#a855f7',
+  'text-slate-600':   '#64748b',
+};
+
 const CAT_LABEL: Record<SubjectCategory, string> = {
   SCIENCE:       '🔬 Science',
   SOCIAL_SCIENCE:'🌏 Social Science',
@@ -406,11 +420,18 @@ function SubjectCard({
         </div>
         <button
           onClick={handleToggle}
-          className={`relative w-11 h-5.5 rounded-full transition-all duration-300 shrink-0 ${sub.routineApplied ? (meta.color.replace('text-', 'bg-').replace('-600', '-500')) : 'bg-slate-200'}`}
-          style={{ minWidth: 44, height: 22 }}
+          className="relative rounded-full transition-all duration-300 shrink-0"
+          style={{
+            minWidth: 44, width: 44, height: 24,
+            backgroundColor: sub.routineApplied
+              ? (SUBJECT_TOGGLE_COLOR[meta.color] ?? '#6366f1')
+              : '#94a3b8', /* slate-400 — clearly visible in both states */
+          }}
         >
-          <span className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow-md transition-all duration-300 ${sub.routineApplied ? 'left-5' : 'left-0.5'}`}
-            style={{ width: 17, height: 17 }} />
+          <span
+            className="absolute top-0.5 bg-white rounded-full shadow-md transition-all duration-300"
+            style={{ width: 19, height: 19, left: sub.routineApplied ? 23 : 2 }}
+          />
         </button>
       </div>
 
@@ -855,18 +876,31 @@ function getAvailableSubjectSlots(notes: LucentEntry[]): Array<{
 }
 
 // ── Routine Setup Sheet (one-time: School/Competition → Class/Books, saved to data) ──
-function RoutineSetupSheet({ allNotes, currentMode, currentClass, currentBooks, onSave, onClose }: {
+// ── Board definitions ─────────────────────────────────────────────────────────
+const BOARDS = [
+  { id: 'CBSE',     label: 'CBSE',      desc: 'Central Board',       emoji: '🏛️' },
+  { id: 'BSEB',     label: 'BSEB',      desc: 'Bihar Board',         emoji: '🎓' },
+  { id: 'UP Board', label: 'UP Board',  desc: 'Uttar Pradesh Board', emoji: '📘' },
+  { id: 'RBSE',     label: 'RBSE',      desc: 'Rajasthan Board',     emoji: '🏜️' },
+  { id: 'MPBSE',    label: 'MP Board',  desc: 'Madhya Pradesh Board',emoji: '🌿' },
+  { id: 'ICSE',     label: 'ICSE',      desc: 'ICSE / ISC',          emoji: '🔷' },
+  { id: 'Other',    label: 'Other',     desc: 'Other / State Board', emoji: '📋' },
+];
+
+function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, currentBooks, onSave, onClose }: {
   allNotes: LucentEntry[];
   currentMode: 'SCHOOL' | 'COMPETITION' | null;
+  currentBoard: string | null;
   currentClass: string | null;
   currentBooks: string[];
-  onSave: (mode: 'SCHOOL' | 'COMPETITION', classLevel: string | null, books: string[]) => void;
+  onSave: (mode: 'SCHOOL' | 'COMPETITION', board: string | null, classLevel: string | null, books: string[]) => void;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState<'type' | 'class' | 'books'>(
-    currentMode === 'SCHOOL' ? 'class' : currentMode === 'COMPETITION' ? 'books' : 'type'
+  const [step, setStep] = useState<'type' | 'board' | 'class' | 'books'>(
+    currentMode === 'SCHOOL' ? 'board' : currentMode === 'COMPETITION' ? 'books' : 'type'
   );
   const [mode, setMode] = useState<'SCHOOL' | 'COMPETITION' | null>(currentMode);
+  const [board, setBoard] = useState<string | null>(currentBoard);
   const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set(currentBooks));
 
   const availableClasses = useMemo(() => {
@@ -898,7 +932,7 @@ function RoutineSetupSheet({ allNotes, currentMode, currentClass, currentBooks, 
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><X size={16} /></button>
         </div>
         <div className="px-5 py-6 pb-10 grid grid-cols-2 gap-4">
-          <button onClick={() => { setMode('SCHOOL'); setStep('class'); }}
+          <button onClick={() => { setMode('SCHOOL'); setStep('board'); }}
             className="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-blue-200 bg-blue-50 active:scale-95 transition">
             <span className="text-4xl">🏫</span>
             <div className="text-center">
@@ -919,17 +953,68 @@ function RoutineSetupSheet({ allNotes, currentMode, currentClass, currentBooks, 
     </div>
   );
 
+  // Step 1b: Board picker (School)
+  if (step === 'board') return (
+    <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full bg-white rounded-t-3xl max-h-[85dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
+        <div className="px-5 py-4 border-b border-slate-100 shrink-0 flex items-center gap-3">
+          <button onClick={() => setStep('type')} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><ChevronLeft size={16} /></button>
+          <div>
+            <h2 className="text-base font-black text-slate-800">🏫 Apna Board Chuno</h2>
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Ek baar chuno — baad me change kar sakte ho</p>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4 pb-6">
+          <div className="grid grid-cols-2 gap-3">
+            {BOARDS.map(b => {
+              const isSel = board === b.id || (currentBoard === b.id && currentMode === 'SCHOOL');
+              return (
+                <button key={b.id}
+                  onClick={() => { setBoard(b.id); setStep('class'); }}
+                  className={`flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 active:scale-95 transition ${
+                    isSel
+                      ? 'border-blue-500 bg-blue-600 shadow-lg shadow-blue-200'
+                      : 'border-blue-200 bg-blue-50'
+                  }`}>
+                  <span className="text-3xl">{b.emoji}</span>
+                  <div className="text-center">
+                    <p className={`font-black text-sm ${isSel ? 'text-white' : 'text-blue-800'}`}>{b.label}</p>
+                    <p className={`text-[10px] font-medium mt-0.5 ${isSel ? 'text-blue-200' : 'text-blue-500'}`}>{b.desc}</p>
+                  </div>
+                  {isSel && (
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-[10px] font-black">✓</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Step 2a: Class picker (School)
   if (step === 'class') return (
     <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full bg-white rounded-t-3xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-          <button onClick={() => setStep('type')} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><ChevronLeft size={16} /></button>
-          <div>
+          <button onClick={() => setStep('board')} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><ChevronLeft size={16} /></button>
+          <div className="flex-1 min-w-0">
             <h2 className="text-base font-black text-slate-800">🏫 Apni Class Chuno</h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Isi class ke subjects category me dikhenge</p>
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+              {board ? `${BOARDS.find(b => b.id === board)?.emoji} ${board} · ` : ''}Isi class ke subjects category me dikhenge
+            </p>
           </div>
+          {board && (
+            <button onClick={() => setStep('board')}
+              className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-1 rounded-full active:opacity-70 shrink-0">
+              {BOARDS.find(b => b.id === board)?.emoji} {board} ✎
+            </button>
+          )}
         </div>
         <div className="px-5 py-5 pb-10">
           <div className="grid grid-cols-4 gap-3">
@@ -938,7 +1023,7 @@ function RoutineSetupSheet({ allNotes, currentMode, currentClass, currentBooks, 
               const isCurrent = currentClass === cl && currentMode === 'SCHOOL';
               return (
                 <button key={cl}
-                  onClick={() => onSave('SCHOOL', cl, [])}
+                  onClick={() => onSave('SCHOOL', board, cl, [])}
                   disabled={!hasNotes}
                   className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-black text-xl active:scale-95 transition
                     ${isCurrent ? 'border-blue-500 bg-blue-600 text-white' : hasNotes ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'}`}>
@@ -988,7 +1073,7 @@ function RoutineSetupSheet({ allNotes, currentMode, currentClass, currentBooks, 
         </div>
         <div className="px-5 pb-8 pt-3 border-t border-slate-100 shrink-0">
           <button
-            onClick={() => selectedBooks.size > 0 && onSave('COMPETITION', null, Array.from(selectedBooks))}
+            onClick={() => selectedBooks.size > 0 && onSave('COMPETITION', null, null, Array.from(selectedBooks))}
             disabled={selectedBooks.size === 0}
             className={`w-full py-3.5 rounded-2xl font-black text-sm transition active:scale-[0.98] ${selectedBooks.size > 0 ? 'bg-orange-500 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
             {selectedBooks.size === 0 ? 'Koi book nahi chuni' : `Save Karo (${selectedBooks.size} book${selectedBooks.size > 1 ? 's' : ''}) ✓`}
@@ -1763,9 +1848,10 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         <RoutineSetupSheet
           allNotes={allNotes}
           currentMode={data.routineMode}
+          currentBoard={data.selectedBoard ?? null}
           currentClass={data.selectedClass}
           currentBooks={data.selectedBooks || []}
-          onSave={(mode, classLevel, books) => {
+          onSave={(mode, board, classLevel, books) => {
             setData(prev => {
               // Filter existing category subjects to match new class/book syllabus
               const bookSet = new Set(books);
@@ -1787,6 +1873,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
               return {
                 ...prev,
                 routineMode: mode,
+                selectedBoard: board,
                 selectedClass: classLevel,
                 selectedBooks: books,
                 selectedBook: books[0] || null,
@@ -1902,7 +1989,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
             {data.routineMode === 'SCHOOL' && data.selectedClass ? (
               <button onClick={() => setShowRoutineSetup(true)}
                 className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                🏫 Class {data.selectedClass} <span className="text-blue-400">✎</span>
+                🏫 {data.selectedBoard ? `${data.selectedBoard} · ` : ''}Class {data.selectedClass} <span className="text-blue-400">✎</span>
               </button>
             ) : data.routineMode === 'COMPETITION' && (data.selectedBooks?.length || data.selectedBook) ? (
               <button onClick={() => setShowRoutineSetup(true)}

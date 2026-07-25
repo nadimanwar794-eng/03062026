@@ -106,6 +106,7 @@ export interface RoutineData {
   revisionUnlockedLessons: Record<string, boolean>; // lessonId → true
   // ── Routine track selection ──────────────────────────────────────────────
   routineMode: 'SCHOOL' | 'COMPETITION' | null;
+  selectedBoard: string | null;   // school: 'CBSE' | 'BSEB' | 'UP Board' | etc.
   selectedClass: string | null;   // school: '6'–'12'
   selectedBook: string | null;    // competition: single book (legacy)
   selectedBooks: string[];        // competition: multiple books (primary)
@@ -166,6 +167,7 @@ export function loadRoutineData(userId: string): RoutineData {
         ...parsed,
         revisionUnlockedLessons: parsed.revisionUnlockedLessons || {},
         routineMode: parsed.routineMode ?? null,
+        selectedBoard: parsed.selectedBoard ?? null,
         selectedClass: parsed.selectedClass ?? null,
         selectedBook: parsed.selectedBook ?? null,
         selectedBooks: parsed.selectedBooks ?? [],
@@ -189,6 +191,7 @@ export function loadRoutineData(userId: string): RoutineData {
     trackingHistory: [],
     revisionUnlockedLessons: {},
     routineMode: null,
+    selectedBoard: null,
     selectedClass: null,
     selectedBook: null,
     selectedBooks: [],
