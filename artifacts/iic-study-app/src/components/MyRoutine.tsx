@@ -1984,7 +1984,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         }`}>{toast.msg}</div>
       )}
 
-      <div className="flex-1 overflow-y-auto overscroll-contain pb-10">
+      <div className="flex-1 overflow-y-auto overscroll-contain pb-24">
         {/* ON/OFF */}
         <div className="mx-4 mt-4 space-y-3">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4">

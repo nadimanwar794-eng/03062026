@@ -43,6 +43,15 @@ interface Props {
 
 const CREDIT_COST = 5;
 
+const PROJ_FONT_SIZES = [13, 15, 17, 20, 24, 28, 32, 36, 40] as const;
+const PROJ_FONT_KEY = 'projector_mcq_font_size';
+const getStoredProjFontIdx = () => {
+  try {
+    const v = parseInt(localStorage.getItem(PROJ_FONT_KEY) || '2', 10);
+    return (!isNaN(v) && v >= 0 && v < PROJ_FONT_SIZES.length) ? v : 2;
+  } catch { return 2; }
+};
+
 const stripHtml = (s: string) => (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 const sampleN = <T,>(arr: T[], n: number): T[] => {
@@ -84,6 +93,15 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const [showTopMenu, setShowTopMenu] = useState(false);
   // ── Projector Mode ──
   const [isProjectorMode, setIsProjectorMode] = useState(() => startInProjectorMode ?? false);
+  const [projectorFontIdx, setProjectorFontIdx] = useState<number>(getStoredProjFontIdx);
+  const projectorFontSize = PROJ_FONT_SIZES[projectorFontIdx];
+  const changeProjFont = (dir: 1 | -1) => {
+    setProjectorFontIdx(prev => {
+      const next = Math.max(0, Math.min(PROJ_FONT_SIZES.length - 1, prev + dir));
+      try { localStorage.setItem(PROJ_FONT_KEY, String(next)); } catch {}
+      return next;
+    });
+  };
   const [projectorQIndex, setProjectorQIndex] = useState(0);
   const [projectorReveal, setProjectorReveal] = useState(false);
   const [projectorSelected, setProjectorSelected] = useState<number | null>(null);
@@ -993,6 +1011,21 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   style={{ flexShrink:0, padding:'8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:12, color:'#16a34a', cursor:'pointer', display:'flex', alignItems:'center' }}>
                   <Maximize2 size={16} />
                 </button>
+                {/* Font size controls */}
+                <button
+                  onClick={() => changeProjFont(-1)}
+                  disabled={projectorFontIdx === 0}
+                  title="Text chhota karo"
+                  style={{ flexShrink:0, padding:'7px 10px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, color: projectorFontIdx === 0 ? '#cbd5e1' : '#475569', fontSize:13, fontWeight:900, cursor: projectorFontIdx === 0 ? 'not-allowed' : 'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:1, minWidth:36 }}>
+                  <span style={{ lineHeight:1 }}>A−</span>
+                </button>
+                <button
+                  onClick={() => changeProjFont(1)}
+                  disabled={projectorFontIdx === PROJ_FONT_SIZES.length - 1}
+                  title="Text bada karo"
+                  style={{ flexShrink:0, padding:'7px 10px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, color: projectorFontIdx === PROJ_FONT_SIZES.length - 1 ? '#cbd5e1' : '#475569', fontSize:13, fontWeight:900, cursor: projectorFontIdx === PROJ_FONT_SIZES.length - 1 ? 'not-allowed' : 'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:1, minWidth:36 }}>
+                  <span style={{ lineHeight:1 }}>A+</span>
+                </button>
                 {/* Rotate button */}
                 <button
                   onClick={async () => {
@@ -1021,12 +1054,12 @@ export const FlashcardMcqView: React.FC<Props> = ({
               <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:14, padding:'16px 20px', flexShrink:0 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
-                  <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column' }}>
+                  <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', fontSize: projectorFontSize }}>
                     <McqQuestionDisplay
                       q={pq}
-                      questionClassName="text-[17px] font-bold text-slate-900 leading-snug"
+                      questionClassName="font-bold text-slate-900 leading-snug"
                       variant="default"
-                      stmtClassName="bg-indigo-50 border-l-4 border-indigo-400 px-4 py-3 rounded-xl text-slate-800 text-[15px] font-semibold leading-snug"
+                      stmtClassName="bg-indigo-50 border-l-4 border-indigo-400 px-4 py-3 rounded-xl text-slate-800 font-semibold leading-snug"
                     />
                   </div>
                 </div>
@@ -1087,7 +1120,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                         transition:'background 0.2s, border 0.2s'
                       }}>
                       <span style={{ background: dotBg, color:'#fff', borderRadius:999, width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{optionLetters[oi]}</span>
-                      <div style={{ fontSize:18, fontWeight:600, color: textColor, lineHeight:1.35, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
+                      <div style={{ fontSize: projectorFontSize, fontWeight:600, color: textColor, lineHeight:1.35, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                       {icon}
                     </div>
                   );
@@ -1095,7 +1128,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               </div>}
               {/* Explanation after answering */}
               {projectorSelected !== null && pq.explanation && (
-                <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize:16, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>
+                <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize: projectorFontSize, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>
                   💡 <strong>Explanation:</strong> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(pq.explanation) }} />
                 </div>
               )}
