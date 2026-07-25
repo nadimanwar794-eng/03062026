@@ -929,18 +929,22 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
               <button
                 type="button"
                 onClick={() => { setMode('SCHOOL'); setSelectedBooks(new Set()); }}
-                className={`flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'SCHOOL' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
+                className={`relative flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'SCHOOL' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
               >
+                {mode === 'SCHOOL' && <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center"><Check size={10} className="text-white" /></span>}
                 <span className="text-2xl">🏫</span>
                 <span>School</span>
+                {mode !== 'SCHOOL' && <ChevronDown size={12} className="text-slate-400 mt-0.5" />}
               </button>
               <button
                 type="button"
                 onClick={() => { setMode('COMPETITION'); setClassLevel(''); }}
-                className={`flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'COMPETITION' ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
+                className={`relative flex flex-col items-center justify-center gap-1 py-4 rounded-xl border-2 font-black text-sm transition active:scale-95 ${mode === 'COMPETITION' ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500'}`}
               >
+                {mode === 'COMPETITION' && <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center"><Check size={10} className="text-white" /></span>}
                 <span className="text-2xl">🏆</span>
                 <span>Competition</span>
+                {mode !== 'COMPETITION' && <ChevronDown size={12} className="text-slate-400 mt-0.5" />}
               </button>
             </div>
           </div>
@@ -948,14 +952,17 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
           {mode === 'SCHOOL' && (
             <label className="block">
               <span className="block text-xs font-black text-slate-600 mb-1.5">Class</span>
-              <select
-                value={classLevel}
-                onChange={e => setClassLevel(e.target.value)}
-                className="w-full appearance-none rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-800 outline-none focus:border-blue-500"
-              >
-                <option value="">Class chuno</option>
-                {availableClasses.map(cl => <option key={cl} value={cl}>Class {cl}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={classLevel}
+                  onChange={e => setClassLevel(e.target.value)}
+                  className="w-full appearance-none rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 pr-10 text-sm font-black text-blue-800 outline-none focus:border-blue-500"
+                >
+                  <option value="">Class chuno</option>
+                  {availableClasses.map(cl => <option key={cl} value={cl}>Class {cl}</option>)}
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
+              </div>
               {availableClasses.length === 0 && (
                 <span className="block text-xs text-slate-400 font-medium mt-2">Koi class notes nahi mili — pehle notes add karo.</span>
               )}
@@ -965,14 +972,17 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
           {mode === 'COMPETITION' && (
             <label className="block">
               <span className="block text-xs font-black text-slate-600 mb-1.5">Book name</span>
-              <select
-                value={selectedBook}
-                onChange={e => setSelectedBooks(e.target.value ? new Set([e.target.value]) : new Set())}
-                className="w-full appearance-none rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3 text-sm font-black text-orange-800 outline-none focus:border-orange-500"
-              >
-                <option value="">Book name chuno</option>
-                {availableBooks.map(book => <option key={book} value={book}>{book}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedBook}
+                  onChange={e => setSelectedBooks(e.target.value ? new Set([e.target.value]) : new Set())}
+                  className="w-full appearance-none rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3 pr-10 text-sm font-black text-orange-800 outline-none focus:border-orange-500"
+                >
+                  <option value="">Book name chuno</option>
+                  {availableBooks.map(book => <option key={book} value={book}>{book}</option>)}
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-orange-400" />
+              </div>
               {availableBooks.length === 0 && (
                 <span className="block text-xs text-slate-400 font-medium mt-2">Koi book notes nahi mili — pehle notes add karo.</span>
               )}
