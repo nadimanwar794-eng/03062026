@@ -557,7 +557,10 @@ export const UniversalChat: React.FC<Props> = ({ user, onClose, isAdmin, targetU
                         })()}
 
                 {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-3 space-y-3" style={{ background: appTheme.appBgColor || appTheme.profileBg || '#f8fafc' }}>
+                        <div
+                            className="flex-1 overflow-y-auto p-3 space-y-3 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]"
+                            style={{ background: appTheme.appBgColor || appTheme.profileBg || '#f8fafc' }}
+                        >
                             {visibleMessages.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
                                     <MessageSquare size={40} className="opacity-40" />
@@ -784,7 +787,7 @@ export const UniversalChat: React.FC<Props> = ({ user, onClose, isAdmin, targetU
 
                         {/* MCQ quick action bar — only in MCQ tab, hide for admin (they have their own footer) */}
                         {activeTab === 'MCQ' && !isAdminOrSub && (
-                        <div className="px-3 pt-2 pb-1 border-t border-slate-100 shrink-0" style={{ background: appTheme.profileCardBg || '#ffffff' }}>
+                        <div className="px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+88px)] border-t border-slate-100 shrink-0" style={{ background: appTheme.profileCardBg || '#ffffff' }}>
                             {!isAdminOrSub && (
                                 <div className={`mb-1.5 flex items-center justify-between text-[10px] font-bold px-0.5 ${mcqDailyCount >= 10 ? 'text-red-500' : ''}`} style={mcqDailyCount < 10 ? { color: subColor } : {}}>
                                     <span>Aaj ke MCQ: {mcqDailyCount}/10</span>
@@ -965,7 +968,7 @@ export const UniversalChat: React.FC<Props> = ({ user, onClose, isAdmin, targetU
                         )}
                         {/* MCQ tab footer — Admin: send MCQ + bulk delete */}
                         {activeTab === 'MCQ' && isAdminOrSub && (
-                        <div className="p-3 bg-white border-t border-slate-100 shrink-0 sticky bottom-0 space-y-2">
+                        <div className="p-3 pb-[calc(env(safe-area-inset-bottom,0px)+88px)] bg-white border-t border-slate-100 shrink-0 sticky bottom-0 space-y-2">
                             <button
                                 onClick={() => setShowMcqBuilder(true)}
                                 className="w-full flex items-center justify-center gap-2 border px-4 py-2.5 rounded-xl text-xs font-black active:scale-95 transition-all"
