@@ -447,7 +447,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
     );
   }
 
-  if (!currentQ) {
+  if (!currentQ && !isProjectorMode) {
     // If questions exist but pickedIndices is still empty, initSession is running — return null to avoid flash
     if (questions.length > 0) return null;
     return (
