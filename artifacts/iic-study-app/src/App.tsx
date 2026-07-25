@@ -18,6 +18,7 @@ import { GroupedSessionBanner } from './components/GroupedSessionBanner';
 import { loadRoutineData } from './utils/routineStorage';
 import { hydrateRevisionTracker } from './utils/revisionFirebase';
 import { setRevisionTrackerUser } from './utils/revisionTrackerV2';
+import { hydrateRoutineData } from './utils/routineFirebaseSync';
 import { applyDeduction, getTotalCredits } from './utils/creditSystem';
 import { consumeDeferredStudyCoins } from './utils/studyRewards';
 import { signInAnonymously } from 'firebase/auth';
@@ -1172,6 +1173,16 @@ const App: React.FC = () => {
       }
       hydrateRevisionTracker(userId).catch(err => {
           console.warn('[IIC] Revision tracker restore skipped:', err);
+      });
+  }, [state.user?.id, state.originalAdmin]);
+
+  // Routine config/coins/claims Firebase restore — runs once per login.
+  // MyRoutine listens for 'iic-routine-hydrated' and reloads state.
+  useEffect(() => {
+      const userId = state.user?.id;
+      if (!userId || state.originalAdmin) return;
+      hydrateRoutineData(userId).catch(err => {
+          console.warn('[IIC] Routine hydration skipped:', err);
       });
   }, [state.user?.id, state.originalAdmin]);
 

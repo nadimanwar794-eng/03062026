@@ -20,6 +20,7 @@ import {
 } from '../utils/routineStorage';
 import { saveUserToLive } from '../firebase';
 import { getLevelInfo } from '../utils/levelSystem';
+import { scheduleRoutineSync, syncRoutineNow } from '../utils/routineFirebaseSync';
 import {
   isRoutineMcqDone, getAutoTrackSnapshot, getRoutineMcqScore,
   getStarRating, getMistakeCount, getMaskCount, getLessonTotalTime,
@@ -1662,6 +1663,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     setDataRaw(prev => {
       const next = updater(prev);
       saveRoutineData(userId, next);
+      scheduleRoutineSync(userId, next); // debounced Firebase backup
       return next;
     });
   }, [userId]);
@@ -1671,6 +1673,17 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
     window.addEventListener('focus', handler);
     return () => window.removeEventListener('focus', handler);
   }, []);
+
+  // Firebase hydration — reload state when cloud restore completes on this device
+  useEffect(() => {
+    const handler = () => {
+      const fresh = loadRoutineData(userId);
+      const reset = checkAndResetDaily(fresh);
+      setDataRaw(reset);
+    };
+    window.addEventListener('iic-routine-hydrated', handler);
+    return () => window.removeEventListener('iic-routine-hydrated', handler);
+  }, [userId]);
 
   // Sync totalLessons for categories when notes load
   useEffect(() => {
@@ -1858,19 +1871,17 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
               const updatedCats = (prev.routineCategories || []).map(cat => {
                 const filteredSubjects = cat.subjects.filter(sub => {
                   if (mode === 'SCHOOL' && classLevel) {
-                    // Keep subject if it belongs to the new class OR has no classLevel (default subject)
                     return !sub.classLevel || String(sub.classLevel) === String(classLevel);
                   }
                   if (mode === 'COMPETITION' && books.length > 0) {
-                    // Keep subject if it belongs to a selected book OR has no bookName (default subject)
                     return !sub.bookName || bookSet.has(sub.bookName);
                   }
                   return true;
                 });
                 return { ...cat, subjects: filteredSubjects, currentSubjectIndex: Math.min(cat.currentSubjectIndex, Math.max(0, filteredSubjects.length - 1)) };
-              }).filter(cat => cat.subjects.length > 0); // remove categories that became empty
+              }).filter(cat => cat.subjects.length > 0);
 
-              return {
+              const next = {
                 ...prev,
                 routineMode: mode,
                 selectedBoard: board,
@@ -1879,6 +1890,9 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 selectedBook: books[0] || null,
                 routineCategories: updatedCats,
               };
+              // Immediate Firebase sync — config change is important
+              syncRoutineNow(userId, next);
+              return next;
             });
             setShowRoutineSetup(false);
           }}
