@@ -3510,6 +3510,17 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => { try { __routineTimeFlushRef.current(); } catch {} };
   }, [lucentPageIndex, lucentNoteViewer?.id]);
 
+  // ── Homework page time tracking (mirrors Lucent __routinePageEnterTs mechanism) ──
+  // Tracks how long a student spends on each homework/coaching page so that
+  // getLessonStats(hw.id, 1) returns meaningful time in the page-wise list.
+  useEffect(() => {
+    if (!hwActiveHwId) return;
+    (window as any).__routinePageEnterTs = Date.now();
+    (window as any).__routinePageLid     = hwActiveHwId;
+    (window as any).__routinePageIdx     = 0;
+    return () => { try { __routineTimeFlushRef.current(); } catch {} };
+  }, [hwActiveHwId]);
+
   // ── My Routine: timer-gated page-read (min lines×2s before marking read) ────
   useEffect(() => {
     if (!lucentNoteViewer?.id) return;
@@ -8662,6 +8673,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             {(hw as any).pdfUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">PDF</span>}
                             {((hw as any).isUltra || (hw as any).tier === 'ULTRA') && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-600 text-white"><Crown size={9}/> ULTRA</span>}
                             <span className={`text-[9px] font-bold ${theme.text} opacity-50`}>{monthYear}</span>
+                            {hw.id && (() => { const _ht = getLessonStats(hw.id, 1); return _ht.totalTime > 0 ? <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ht.totalTime)}</span> : null; })()}
                             {user.role === 'ADMIN' && (
                               <button onClick={(e) => { e.stopPropagation(); openContentCodeModal(hw.id || '', hw.title || `Page ${pageNum}`); }} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 active:scale-95 transition-all">🎫 Code</button>
                             )}
@@ -9020,6 +9032,18 @@ export const StudentDashboard: React.FC<Props> = ({
                         {hasMcqs && <span className="px-1.5 py-0.5 rounded text-[9px] font-black" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>MCQ</span>}
                       </p>
                     )}
+                    {!entry.mcqOnly && entry.pages.length > 0 && (() => {
+                      const _ls = getLessonStats(entry.id, entry.pages.length);
+                      if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                      const _lc = getProgressColor5(_ls.pct);
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: _lc.bg, color: _lc.text }}>{getProgressTicks(_ls.pct)} {_ls.pct}%</span>
+                          <span className="text-[9px] font-bold text-slate-400">{_ls.pagesRead}/{entry.pages.length}pg</span>
+                          {_ls.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ls.totalTime)}</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <ChevronRight size={18} className="shrink-0 text-slate-400" />
                 </button>
