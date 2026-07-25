@@ -105,21 +105,27 @@ export const RevisionHubScreen: React.FC<Props> = ({
     return unsub;
   }, []);
 
-  // Only show MCQs that have a topic name (lessonTitle) set — lessons without
-  // a title are considered incomplete/draft and should not appear in Revision Hub.
-  // Also exclude lessons that were auto-synced from Class Notes page-wise MCQs.
-  // These are identified in two ways (both checked for backward compatibility):
-  //   1. sourceClassNotesId field — set on all lessons created by syncClassNotesMcqsToRevisionHub
-  //   2. id starts with "clsnotes_" — the naming convention used by the same sync function
-  //      (older synced docs may lack the field if they were written before it was added)
+  // Helper: returns true if this MCQ has a real topic (non-empty, non-"General").
+  // "General" is the default label mcqParser assigns to MCQs pasted without
+  // <TOPIC: ...> tags — it effectively means "no topic" and must be treated
+  // the same as a blank topic throughout Revision Hub.
+  const isRealTopicMcq = (q: any) => {
+    const t = String(q?.topic ?? '').trim();
+    return t !== '' && t.toLowerCase() !== 'general';
+  };
+
+  // Only show lessons that have at least one real topic-wise MCQ.
+  // This cleanly excludes:
+  //   • Pure page-sync lessons (all MCQs are "General" / no-topic)
+  //   • Draft/incomplete lessons with no lessonTitle
+  // Lessons that mix page MCQs ("General") with proper topic MCQs are still
+  // shown — the "General" MCQs are filtered out below in classMcqs.
   const hubLessons = useMemo(
-    () => allLessons.filter(
-      l =>
-        l.lessonTitle &&
-        String(l.lessonTitle).trim() !== '' &&
-        !l.sourceClassNotesId &&
-        !String(l.id || '').startsWith('clsnotes_')
-    ),
+    () => allLessons.filter(l => {
+      if (!l.lessonTitle || !String(l.lessonTitle).trim()) return false;
+      const mcqs: any[] = Array.isArray(l.mcqs) ? l.mcqs : [];
+      return mcqs.some(isRealTopicMcq);
+    }),
     [allLessons],
   );
 
@@ -145,13 +151,12 @@ export const RevisionHubScreen: React.FC<Props> = ({
     l => l.classLevel === mcqSelectedClass && l.subject === mcqSelectedSubject
   );
 
-  // MCQs come from the selected lesson (new system) or fallback to legacy settings
-  // Exclude MCQs without a topic name — blank-topic MCQs would appear as
-  // "General" which should not show in Revision Hub.
+  // MCQs from the selected lesson — only real topic-wise MCQs.
+  // Excludes blank-topic MCQs and "General" MCQs (page-synced content).
   const classMcqs: any[] = (mcqSelectedLesson
     ? (mcqSelectedLesson.mcqs || [])
     : []
-  ).filter((q: any) => q.topic && String(q.topic).trim() !== '');
+  ).filter(isRealTopicMcq);
 
   const currentQ = sessionActive ? sessionMcqs[sessionQIndex] : null;
 
