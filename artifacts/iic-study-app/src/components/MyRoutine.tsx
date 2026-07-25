@@ -877,16 +877,6 @@ function getAvailableSubjectSlots(notes: LucentEntry[]): Array<{
 }
 
 // ── Routine Setup Sheet (one-time: School/Competition → Class/Books, saved to data) ──
-// ── Board definitions ─────────────────────────────────────────────────────────
-const BOARDS = [
-  { id: 'CBSE',     label: 'CBSE',      desc: 'Central Board',       emoji: '🏛️' },
-  { id: 'BSEB',     label: 'BSEB',      desc: 'Bihar Board',         emoji: '🎓' },
-  { id: 'UP Board', label: 'UP Board',  desc: 'Uttar Pradesh Board', emoji: '📘' },
-  { id: 'RBSE',     label: 'RBSE',      desc: 'Rajasthan Board',     emoji: '🏜️' },
-  { id: 'MPBSE',    label: 'MP Board',  desc: 'Madhya Pradesh Board',emoji: '🌿' },
-  { id: 'ICSE',     label: 'ICSE',      desc: 'ICSE / ISC',          emoji: '🔷' },
-  { id: 'Other',    label: 'Other',     desc: 'Other / State Board', emoji: '📋' },
-];
 
 function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, currentBooks, onSave, onClose }: {
   allNotes: LucentEntry[];
@@ -897,11 +887,9 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
   onSave: (mode: 'SCHOOL' | 'COMPETITION', board: string | null, classLevel: string | null, books: string[]) => void;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState<'type' | 'board' | 'class' | 'books'>(
-    currentMode === 'SCHOOL' ? 'board' : currentMode === 'COMPETITION' ? 'books' : 'type'
-  );
   const [mode, setMode] = useState<'SCHOOL' | 'COMPETITION' | null>(currentMode);
   const [board, setBoard] = useState<string | null>(currentBoard);
+  const [classLevel, setClassLevel] = useState(currentClass || '');
   const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set(currentBooks));
 
   const availableClasses = useMemo(() => {
@@ -916,175 +904,88 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
     return Array.from(s).sort();
   }, [allNotes]);
 
-  const toggleBook = (book: string) => setSelectedBooks(prev => {
-    const n = new Set(prev); n.has(book) ? n.delete(book) : n.add(book); return n;
-  });
+  const selectedBook = Array.from(selectedBooks)[0] || '';
+  const canSave = mode === 'SCHOOL' ? !!classLevel : mode === 'COMPETITION' ? !!selectedBook : false;
 
-  // Step 1: Exam type
-  if (step === 'type') return (
+  return (
     <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full bg-white rounded-t-3xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-base font-black text-slate-800">⚙️ Routine Setup</h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Exam type chuno — sirf ek baar</p>
+            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Dropdown se apna study path chuno</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><X size={16} /></button>
         </div>
-        <div className="px-5 py-6 pb-10 grid grid-cols-2 gap-4">
-          <button onClick={() => { setMode('SCHOOL'); setStep('board'); }}
-            className="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-blue-200 bg-blue-50 active:scale-95 transition">
-            <span className="text-4xl">🏫</span>
-            <div className="text-center">
-              <p className="font-black text-blue-800 text-sm">School</p>
-              <p className="text-[10px] text-blue-500 font-medium mt-0.5">Class 6–12</p>
-            </div>
-          </button>
-          <button onClick={() => { setMode('COMPETITION'); setStep('books'); }}
-            className="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-orange-200 bg-orange-50 active:scale-95 transition">
-            <span className="text-4xl">🏆</span>
-            <div className="text-center">
-              <p className="font-black text-orange-800 text-sm">Competition</p>
-              <p className="text-[10px] text-orange-500 font-medium mt-0.5">Entrance exams</p>
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+        <div className="px-5 py-5 pb-8 space-y-4">
+          <label className="block">
+            <span className="block text-xs font-black text-slate-600 mb-1.5">Study path</span>
+            <select
+              value={mode || ''}
+              onChange={e => {
+                const nextMode = e.target.value as 'SCHOOL' | 'COMPETITION';
+                setMode(nextMode || null);
+                if (nextMode === 'SCHOOL') setSelectedBooks(new Set());
+                if (nextMode === 'COMPETITION') setClassLevel('');
+              }}
+              className="w-full appearance-none rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 outline-none focus:border-blue-400"
+            >
+              <option value="">School / Competition</option>
+              <option value="SCHOOL">🏫 School</option>
+              <option value="COMPETITION">🏆 Competition</option>
+            </select>
+          </label>
 
-  // Step 1b: Board picker (School)
-  if (step === 'board') return (
-    <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full bg-white rounded-t-3xl max-h-[85dvh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
-        <div className="px-5 py-4 border-b border-slate-100 shrink-0 flex items-center gap-3">
-          <button onClick={() => setStep('type')} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><ChevronLeft size={16} /></button>
-          <div>
-            <h2 className="text-base font-black text-slate-800">🏫 Apna Board Chuno</h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Ek baar chuno — baad me change kar sakte ho</p>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4 pb-6">
-          <div className="grid grid-cols-2 gap-3">
-            {BOARDS.map(b => {
-              const isSel = board === b.id || (currentBoard === b.id && currentMode === 'SCHOOL');
-              return (
-                <button key={b.id}
-                  onClick={() => { setBoard(b.id); setStep('class'); }}
-                  className={`flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 active:scale-95 transition ${
-                    isSel
-                      ? 'border-blue-500 bg-blue-600 shadow-lg shadow-blue-200'
-                      : 'border-blue-200 bg-blue-50'
-                  }`}>
-                  <span className="text-3xl">{b.emoji}</span>
-                  <div className="text-center">
-                    <p className={`font-black text-sm ${isSel ? 'text-white' : 'text-blue-800'}`}>{b.label}</p>
-                    <p className={`text-[10px] font-medium mt-0.5 ${isSel ? 'text-blue-200' : 'text-blue-500'}`}>{b.desc}</p>
-                  </div>
-                  {isSel && (
-                    <div className="absolute top-2 right-2 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-[10px] font-black">✓</span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Step 2a: Class picker (School)
-  if (step === 'class') return (
-    <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full bg-white rounded-t-3xl" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-          <button onClick={() => setStep('board')} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><ChevronLeft size={16} /></button>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-black text-slate-800">🏫 Apni Class Chuno</h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-              {board ? `${BOARDS.find(b => b.id === board)?.emoji} ${board} · ` : ''}Isi class ke subjects category me dikhenge
-            </p>
-          </div>
-          {board && (
-            <button onClick={() => setStep('board')}
-              className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-1 rounded-full active:opacity-70 shrink-0">
-              {BOARDS.find(b => b.id === board)?.emoji} {board} ✎
-            </button>
+          {mode === 'SCHOOL' && (
+            <label className="block">
+              <span className="block text-xs font-black text-slate-600 mb-1.5">Class</span>
+              <select
+                value={classLevel}
+                onChange={e => setClassLevel(e.target.value)}
+                className="w-full appearance-none rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 text-sm font-black text-blue-800 outline-none focus:border-blue-500"
+              >
+                <option value="">Class chuno</option>
+                {availableClasses.map(cl => <option key={cl} value={cl}>Class {cl}</option>)}
+              </select>
+              {availableClasses.length === 0 && (
+                <span className="block text-xs text-slate-400 font-medium mt-2">Koi class notes nahi mili — pehle notes add karo.</span>
+              )}
+            </label>
           )}
-        </div>
-        <div className="px-5 py-5 pb-10">
-          <div className="grid grid-cols-4 gap-3">
-            {['6','7','8','9','10','11','12'].map(cl => {
-              const hasNotes = availableClasses.includes(cl);
-              const isCurrent = currentClass === cl && currentMode === 'SCHOOL';
-              return (
-                <button key={cl}
-                  onClick={() => onSave('SCHOOL', board, cl, [])}
-                  disabled={!hasNotes}
-                  className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 font-black text-xl active:scale-95 transition
-                    ${isCurrent ? 'border-blue-500 bg-blue-600 text-white' : hasNotes ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'}`}>
-                  {cl}
-                  {hasNotes && !isCurrent && <span className="text-[8px] font-bold text-blue-400 uppercase">notes ✓</span>}
-                  {isCurrent && <span className="text-[8px] font-bold text-blue-200 uppercase">selected</span>}
-                </button>
-              );
-            })}
-          </div>
-          {availableClasses.length === 0 && (
-            <p className="text-center text-sm text-slate-400 font-medium mt-6">Koi class notes nahi mili — pehle notes add karo.</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
-  // Step 2b: Book picker (Competition, multi-select)
-  if (step === 'books') return (
-    <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full bg-white rounded-t-3xl max-h-[85dvh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
-        <div className="px-5 py-4 border-b border-slate-100 shrink-0 flex items-center gap-3">
-          <button onClick={() => setStep('type')} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><ChevronLeft size={16} /></button>
-          <div>
-            <h2 className="text-base font-black text-slate-800">🏆 Books Chuno</h2>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Ek ya zyada books — inke subjects category me dikhenge</p>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {availableBooks.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 font-medium mt-6">Koi book notes nahi mili — pehle notes add karo.</p>
-          ) : availableBooks.map(book => {
-            const isSel = selectedBooks.has(book);
-            return (
-              <button key={book} onClick={() => toggleBook(book)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border mb-2.5 transition-all text-left ${isSel ? 'bg-orange-50 border-orange-400' : 'border-slate-200 bg-white'}`}>
-                <span className="text-xl shrink-0">📖</span>
-                <p className="flex-1 text-sm font-bold text-slate-800">{book}</p>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'bg-orange-500 border-orange-500' : 'border-slate-300'}`}>
-                  {isSel && <span className="text-white text-[10px] font-black">✓</span>}
-                </div>
-              </button>
-            );
-          })}
+          {mode === 'COMPETITION' && (
+            <label className="block">
+              <span className="block text-xs font-black text-slate-600 mb-1.5">Book name</span>
+              <select
+                value={selectedBook}
+                onChange={e => setSelectedBooks(e.target.value ? new Set([e.target.value]) : new Set())}
+                className="w-full appearance-none rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3 text-sm font-black text-orange-800 outline-none focus:border-orange-500"
+              >
+                <option value="">Book name chuno</option>
+                {availableBooks.map(book => <option key={book} value={book}>{book}</option>)}
+              </select>
+              {availableBooks.length === 0 && (
+                <span className="block text-xs text-slate-400 font-medium mt-2">Koi book notes nahi mili — pehle notes add karo.</span>
+              )}
+            </label>
+          )}
         </div>
         <div className="px-5 pb-8 pt-3 border-t border-slate-100 shrink-0">
           <button
-            onClick={() => selectedBooks.size > 0 && onSave('COMPETITION', null, null, Array.from(selectedBooks))}
-            disabled={selectedBooks.size === 0}
-            className={`w-full py-3.5 rounded-2xl font-black text-sm transition active:scale-[0.98] ${selectedBooks.size > 0 ? 'bg-orange-500 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
-            {selectedBooks.size === 0 ? 'Koi book nahi chuni' : `Save Karo (${selectedBooks.size} book${selectedBooks.size > 1 ? 's' : ''}) ✓`}
+            onClick={() => {
+              if (!canSave) return;
+              if (mode === 'SCHOOL') onSave('SCHOOL', board, classLevel, []);
+              if (mode === 'COMPETITION') onSave('COMPETITION', null, null, [selectedBook]);
+            }}
+            disabled={!canSave}
+            className={`w-full py-3.5 rounded-2xl font-black text-sm transition active:scale-[0.98] ${canSave ? mode === 'COMPETITION' ? 'bg-orange-500 text-white shadow-sm' : 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
+            {!mode ? 'Pehle option chuno' : !canSave ? mode === 'SCHOOL' ? 'Class chuno' : 'Book name chuno' : 'Save Karo ✓'}
           </button>
         </div>
       </div>
     </div>
   );
-
-  return null;
 }
 
 // ── Add Category Sheet ────────────────────────────────────────────────────────
