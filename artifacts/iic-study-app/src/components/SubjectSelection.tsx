@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ClassLevel, Subject, Stream, Board, SystemSettings, LucentNoteEntry } from '../types';
 import { getSubjectsList } from '../constants';
 import { Calculator, FlaskConical, Languages, Globe2, BookMarked, History, TrendingUp, Briefcase, Landmark, Feather, Home, HeartPulse, Activity, Cpu, ChevronRight } from 'lucide-react';
 import type { ContentIndexMap } from '../firebase';
 import { useAppTheme } from '../utils/themeContext';
+import { computeSubjectStats, type SubjectLessonStats } from '../utils/subjectProgressStore';
 
 interface Props {
   classLevel: ClassLevel;
@@ -79,7 +80,6 @@ const getSubjectStats = (
       if (hw.videoUrl) video++;
       if (hw.pdfUrl) pdf++;
     });
-    // Also count lucent-style lessons added for this book (e.g. Speedy Science, Sar Sangrah)
     const bookLucentCount = lucentNotes.filter(
       (n: any) => (n.bookName?.trim() || 'Lucent') === subject.name.trim()
     ).length;
@@ -114,6 +114,57 @@ const getSubjectStats = (
   return { notes, pdf, video, audio, mcq, lucentNotes: lucentCount };
 };
 
+// ── Progress bar for school subjects ──────────────────────────────────────────
+const LessonProgressBar: React.FC<{ stats: SubjectLessonStats; primary: string }> = ({ stats, primary }) => {
+  if (stats.totalLessons === 0) return null;
+
+  const pct = stats.coveragePct;
+  const statusColor =
+    pct === 0 ? '#94a3b8' :
+    pct >= 80 ? '#22c55e' :
+    pct >= 40 ? '#f59e0b' : '#6366f1';
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {/* Stats row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Lessons */}
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md border"
+          style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}>
+          📖 {stats.completedLessons}/{stats.totalLessons}
+        </span>
+        {/* Pages */}
+        {stats.totalPages > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md border"
+            style={{ background: '#f0fdf4', color: '#15803d', borderColor: '#bbf7d0' }}>
+            📄 {stats.readPages}/{stats.totalPages}
+          </span>
+        )}
+        {/* In-progress */}
+        {stats.inProgressLessons > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md border"
+            style={{ background: '#fefce8', color: '#b45309', borderColor: '#fde68a' }}>
+            ⏳ {stats.inProgressLessons} ongoing
+          </span>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`, background: statusColor }}
+        />
+      </div>
+
+      {/* % label */}
+      <p className="text-[9px] font-bold" style={{ color: statusColor }}>
+        {pct === 0 ? 'Not started' : pct >= 100 ? '✅ Completed' : `${pct}% covered`}
+      </p>
+    </div>
+  );
+};
+
 export const SubjectSelection: React.FC<Props> = ({
   classLevel, stream, board, onSelect, onBack, hideBack = false, settings,
   contentIndex = {}, lucentNotes = [], subscriptionLevel, isPremium,
@@ -125,6 +176,7 @@ export const SubjectSelection: React.FC<Props> = ({
   );
   const currentBoard = board || 'CBSE';
   const isCompetition = classLevel === 'COMPETITION';
+  const isSchoolClass = !isCompetition && ['6','7','8','9','10','11','12'].includes(String(classLevel));
 
   const tier = isPremium && subscriptionLevel === 'ULTRA'
     ? 'ultra'
@@ -133,6 +185,23 @@ export const SubjectSelection: React.FC<Props> = ({
       : 'free';
 
   const tierHeaderColor = appTheme.primary;
+
+  // Pre-compute per-subject lesson progress for school classes (class 6-12)
+  const subjectProgressMap = useMemo(() => {
+    if (!isSchoolClass || !lucentNotes.length) return {} as Record<string, SubjectLessonStats>;
+    const map: Record<string, SubjectLessonStats> = {};
+    subjects.forEach(subject => {
+      const lessons = lucentNotes.filter(n =>
+        String((n as any).classLevel) === String(classLevel) &&
+        (n.subject || '').toLowerCase().trim() === subject.id.toLowerCase().trim() &&
+        (!(n as any).board || (n as any).board === currentBoard)
+      ) as LucentNoteEntry[];
+      if (lessons.length > 0) {
+        map[subject.id] = computeSubjectStats(lessons);
+      }
+    });
+    return map;
+  }, [subjects, lucentNotes, classLevel, currentBoard, isSchoolClass]);
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500 mt-0 pt-0">
@@ -156,6 +225,8 @@ export const SubjectSelection: React.FC<Props> = ({
         {subjects.map((subject) => {
           const stats = getSubjectStats(subject, classLevel, currentBoard, contentIndex, lucentNotes, settings);
           const totalContent = stats.notes + stats.pdf + stats.video + stats.audio + stats.mcq + stats.lucentNotes;
+
+          const lessonProgress = subjectProgressMap[subject.id];
 
           let statBadges: { emoji: string; label: string; count: number }[];
           if (isCompetition && subject.id === 'lucent') {
@@ -193,55 +264,65 @@ export const SubjectSelection: React.FC<Props> = ({
               key={subject.id}
               onClick={() => onSelect(subject)}
               data-tier={tier}
-              className="nst-subject-card p-4 rounded-2xl flex items-center gap-4 active:scale-95 text-left group"
+              className="nst-subject-card p-4 rounded-2xl flex flex-col gap-0 active:scale-95 text-left group"
               style={_cardStyle}
             >
-              <div className="nst-card-icon w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <SubjectIcon icon={subject.icon} className="w-6 h-6" />
+              {/* Top row: icon + title + arrow */}
+              <div className="flex items-center gap-4">
+                <div className="nst-card-icon w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <SubjectIcon icon={subject.icon} className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="nst-card-title font-black text-base truncate">{subject.name}</h3>
+
+                  {/* Lesson progress bar (school subjects only) */}
+                  {isSchoolClass && lessonProgress ? (
+                    <LessonProgressBar stats={lessonProgress} primary={tierHeaderColor} />
+                  ) : (
+                    /* Content-type badges (competition / school without lessons) */
+                    totalContent > 0 ? (
+                      <div className="flex items-center gap-1 flex-wrap mt-1">
+                        {statBadges.map(b => (
+                          <span
+                            key={b.emoji}
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-black border"
+                            style={{
+                              background: b.label === 'Notes'  ? '#dcfce7' :
+                                          b.label === 'PDF'    ? '#dbeafe' :
+                                          b.label === 'MCQ'    ? '#fef9c3' :
+                                          b.label === 'Video'  ? '#fee2e2' :
+                                          b.label === 'Audio'  ? '#f3e8ff' :
+                                          b.label === 'Lessons'? '#dcfce7' :
+                                          b.label === 'Pages'  ? '#dbeafe' : '#f1f5f9',
+                              color:      b.label === 'Notes'  ? '#16a34a' :
+                                          b.label === 'PDF'    ? '#1d4ed8' :
+                                          b.label === 'MCQ'    ? '#b45309' :
+                                          b.label === 'Video'  ? '#dc2626' :
+                                          b.label === 'Audio'  ? '#7c3aed' :
+                                          b.label === 'Lessons'? '#16a34a' :
+                                          b.label === 'Pages'  ? '#1d4ed8' : '#475569',
+                              borderColor:b.label === 'Notes'  ? '#86efac' :
+                                          b.label === 'PDF'    ? '#93c5fd' :
+                                          b.label === 'MCQ'    ? '#fde047' :
+                                          b.label === 'Video'  ? '#fca5a5' :
+                                          b.label === 'Audio'  ? '#d8b4fe' :
+                                          b.label === 'Lessons'? '#86efac' :
+                                          b.label === 'Pages'  ? '#93c5fd' : '#e2e8f0',
+                            }}
+                          >
+                            {b.emoji} {b.count}
+                          </span>
+                        ))}
+                      </div>
+                    ) : settings != null ? (
+                      <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-40">No content yet</p>
+                    ) : (
+                      <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-60">Loading…</p>
+                    )
+                  )}
+                </div>
+                <ChevronRight size={18} className="nst-card-arrow opacity-70 shrink-0" />
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="nst-card-title font-black text-base truncate">{subject.name}</h3>
-                {totalContent > 0 ? (
-                  <div className="flex items-center gap-1 flex-wrap mt-1">
-                    {statBadges.map(b => (
-                      <span
-                        key={b.emoji}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-black border"
-                        style={{
-                          background: b.label === 'Notes'  ? '#dcfce7' :
-                                      b.label === 'PDF'    ? '#dbeafe' :
-                                      b.label === 'MCQ'    ? '#fef9c3' :
-                                      b.label === 'Video'  ? '#fee2e2' :
-                                      b.label === 'Audio'  ? '#f3e8ff' :
-                                      b.label === 'Lessons'? '#dcfce7' :
-                                      b.label === 'Pages'  ? '#dbeafe' : '#f1f5f9',
-                          color:      b.label === 'Notes'  ? '#16a34a' :
-                                      b.label === 'PDF'    ? '#1d4ed8' :
-                                      b.label === 'MCQ'    ? '#b45309' :
-                                      b.label === 'Video'  ? '#dc2626' :
-                                      b.label === 'Audio'  ? '#7c3aed' :
-                                      b.label === 'Lessons'? '#16a34a' :
-                                      b.label === 'Pages'  ? '#1d4ed8' : '#475569',
-                          borderColor:b.label === 'Notes'  ? '#86efac' :
-                                      b.label === 'PDF'    ? '#93c5fd' :
-                                      b.label === 'MCQ'    ? '#fde047' :
-                                      b.label === 'Video'  ? '#fca5a5' :
-                                      b.label === 'Audio'  ? '#d8b4fe' :
-                                      b.label === 'Lessons'? '#86efac' :
-                                      b.label === 'Pages'  ? '#93c5fd' : '#e2e8f0',
-                        }}
-                      >
-                        {b.emoji} {b.count}
-                      </span>
-                    ))}
-                  </div>
-                ) : settings != null ? (
-                  <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-40">No content yet</p>
-                ) : (
-                  <p className="nst-card-meta text-[11px] font-medium mt-0.5 opacity-60">Loading…</p>
-                )}
-              </div>
-              <ChevronRight size={18} className="nst-card-arrow opacity-70 shrink-0" />
             </button>
           );
         })}
