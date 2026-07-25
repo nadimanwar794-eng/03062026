@@ -8871,26 +8871,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   return;
                 }
 
-                // If exactly 1 lesson → skip chapters, go straight to page list (or MCQ for mcqOnly)
-                if (subjectEntries.length === 1) {
-                  const entry = subjectEntries[0];
-                  if (_lucentIsLocked(entry)) {
-                    showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
-                    return;
-                  }
-                  setLucentCategoryView(false);
-                  setSelectedLucentBook(null);
-                  setSelectedSubject(cat);
-                  if (entry.mcqOnly) {
-                    lucentInitialTabRef.current = { tab: 'MCQS' };
-                    tryOpenLucentNote(entry, 0);
-                  } else {
-                    setLucentPageListViewer(entry);
-                  }
-                  return;
-                }
-
-                // Multiple lessons → show chapters list
+                // Always show chapters list (lesson list), even if only 1 lesson
                 const _b7 = activeSessionBoard || user.board;
                 const lang = (_b7 === "BSEB" || _b7 === "NCERT_HI") ? "Hindi" : "English";
                 const adminLucentLessons: Chapter[] = subjectEntries.map(n => {
