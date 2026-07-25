@@ -107,12 +107,18 @@ export const RevisionHubScreen: React.FC<Props> = ({
 
   // Only show MCQs that have a topic name (lessonTitle) set — lessons without
   // a title are considered incomplete/draft and should not appear in Revision Hub.
-  // Also exclude lessons that were auto-synced from Class Notes page-wise MCQs
-  // (identified by sourceClassNotesId). Those are meant for the lesson-page
-  // reading flow only, not for Revision Hub topic-wise practice.
+  // Also exclude lessons that were auto-synced from Class Notes page-wise MCQs.
+  // These are identified in two ways (both checked for backward compatibility):
+  //   1. sourceClassNotesId field — set on all lessons created by syncClassNotesMcqsToRevisionHub
+  //   2. id starts with "clsnotes_" — the naming convention used by the same sync function
+  //      (older synced docs may lack the field if they were written before it was added)
   const hubLessons = useMemo(
     () => allLessons.filter(
-      l => l.lessonTitle && String(l.lessonTitle).trim() !== '' && !l.sourceClassNotesId
+      l =>
+        l.lessonTitle &&
+        String(l.lessonTitle).trim() !== '' &&
+        !l.sourceClassNotesId &&
+        !String(l.id || '').startsWith('clsnotes_')
     ),
     [allLessons],
   );
