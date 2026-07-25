@@ -9,7 +9,7 @@ import { RevisionHubV2 } from './RevisionHubV2';
 import { McqReviewHub } from './McqReviewHub';
 import { MonthlyMarksheet } from './MonthlyMarksheet';
 import { PerformanceGraph } from './PerformanceGraph';
-import { subscribeMcqLessons, saveUserToLive } from '../firebase';
+import { subscribeMcqLessons, saveUserToLive, saveTestResult, saveUserHistory } from '../firebase';
 import { useAppTheme } from '../utils/themeContext';
 import {
   recordAttempt, applyInitialSchedule, bucketKey, getAllBuckets,
@@ -361,6 +361,13 @@ export const RevisionHubScreen: React.FC<Props> = ({
         performanceTag: totalCorrect / totalAnswered >= 0.8 ? 'EXCELLENT' : totalCorrect / totalAnswered >= 0.5 ? 'GOOD' : 'NEEDS_IMPROVEMENT',
         type: 'REVISION_MCQ',
       };
+      // Keep a durable per-attempt copy in Firebase as well as the user's
+      // aggregated mcqHistory. This makes the complete test history recoverable
+      // independently on another device.
+      try {
+        saveTestResult(user.id, newEntry);
+        saveUserHistory(user.id, newEntry);
+      } catch (_) {}
       // ── Pts: +2 sahi jawab, +1 galat jawab ──────────────────────────────
       const ptsEarned = (totalCorrect * 2) + ((totalAnswered - totalCorrect) * 1);
       const updatedUser = {

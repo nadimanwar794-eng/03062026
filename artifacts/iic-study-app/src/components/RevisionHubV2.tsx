@@ -30,10 +30,11 @@ import { TodayMcqSession } from './TodayMcqSession';
 import { setMcqNotifSuppressed } from '../utils/creditNotify';
 import {
   getDueItems, getUpcomingItems, markNotesReviewed, markMcqDone,
-  clearTracker, getAllBuckets, bucketKey, keywordsForBucket,
+  clearTracker, getAllBuckets, getTrackerMap, bucketKey, keywordsForBucket,
   getTopicNote,
   type WeakBucket
 } from '../utils/revisionTrackerV2';
+import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { searchNotesByWords, type NoteSearchResult } from '../utils/noteSearcher';
 
 interface Props {
@@ -199,6 +200,21 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setSelfRateKey(null);
   }, []);
 
+  const syncRevisionProgress = useCallback(() => {
+    if (user?.id) syncAllRevisionBuckets(user.id, getTrackerMap());
+  }, [user?.id]);
+
+  // Firebase hydration happens at app login. Refresh this mounted screen when
+  // that async restore completes after the screen has already rendered.
+  useEffect(() => {
+    const onHydrated = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (!detail?.userId || detail.userId === user?.id) reload();
+    };
+    window.addEventListener('iic-revision-tracker-hydrated', onHydrated);
+    return () => window.removeEventListener('iic-revision-tracker-hydrated', onHydrated);
+  }, [reload, user?.id]);
+
   // Every second: update clock + auto-reload when any upcoming topic becomes due
   useEffect(() => {
     const id = setInterval(() => {
@@ -264,6 +280,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   const handleNotesRead = (b: WeakBucket, noteResult?: NoteSearchResult) => {
     const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
     markNotesReviewed(k, revisionConfig);
+    syncRevisionProgress();
     // ── +5 pts notes padhne ke liye ──────────────────────────────────────
     if (onUpdateUser) {
       const updated = { ...user, totalScore: (user.totalScore || 0) + 5 };
@@ -374,6 +391,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
         markMcqDone(bk, acc, revisionConfig);
       }
     });
+    syncRevisionProgress();
     setPracticeActive(false);
     setPracticeDone(false);
     reload();
@@ -412,6 +430,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     const strongMid  = (thr.strong + thr.mastery - 1) / 2 / 100;             // midpoint in strong range
     const acc = score === 'strong' ? strongMid : score === 'average' ? averageMid : weakMid;
     markMcqDone(key, acc, revisionConfig);
+    syncRevisionProgress();
     // ── Pts based on self-rating: weak=+3, average=+5, strong=+10 ────────
     if (onUpdateUser) {
       const ratePts = score === 'strong' ? 10 : score === 'average' ? 5 : 3;

@@ -16,6 +16,8 @@ import { onSessionComplete, queueSession, consumeSessionQueue, SessionCompletePa
 import { SessionSummaryBanner } from './components/SessionSummaryBanner';
 import { GroupedSessionBanner } from './components/GroupedSessionBanner';
 import { loadRoutineData } from './utils/routineStorage';
+import { hydrateRevisionTracker } from './utils/revisionFirebase';
+import { setRevisionTrackerUser } from './utils/revisionTrackerV2';
 import { applyDeduction, getTotalCredits } from './utils/creditSystem';
 import { consumeDeferredStudyCoins } from './utils/studyRewards';
 import { signInAnonymously } from 'firebase/auth';
@@ -1159,6 +1161,20 @@ const App: React.FC = () => {
   }, [isOnline]);
 
   // --- LIVE SETTINGS & USER SYNC (REALTIME) ---
+  // Revision Hub has a local-first UI, but Firebase is the source of truth
+  // across cache clears and devices. Hydrate once whenever the active account
+  // changes; the mounted hub listens for the completion event and reloads.
+  useEffect(() => {
+      const userId = state.user?.id;
+      if (!userId || state.originalAdmin) {
+          setRevisionTrackerUser(null);
+          return;
+      }
+      hydrateRevisionTracker(userId).catch(err => {
+          console.warn('[IIC] Revision tracker restore skipped:', err);
+      });
+  }, [state.user?.id, state.originalAdmin]);
+
   useEffect(() => {
       let unsubscribeUser: (() => void) | undefined;
 
