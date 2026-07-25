@@ -1328,10 +1328,27 @@ const _savePerItemCollection = async (
     return;
   }
 
+  // Firestore hard limit: 1 MB per document. We guard at 800 KB (80%) to
+  // leave room for Firestore metadata overhead and future field additions.
+  // Documents that exceed this are saved to RTDB only — they will still be
+  // readable because _subscribePerItemCollection merges RTDB for missing IDs.
+  const FS_DOC_LIMIT_BYTES = 800 * 1024; // 800 KB safety threshold
+
   // Write/update every document in this batch
   sanitized.forEach((entry: any) => {
     if (!entry?.id) return;
-    writes.push(setDoc(doc(db, collectionName, entry.id), entry));
+    const entryBytes = _estimateBytes(entry);
+    if (entryBytes >= FS_DOC_LIMIT_BYTES) {
+      // Too large for Firestore — RTDB only (10 MB limit, no per-doc cap).
+      // The subscription will fetch this from RTDB via the missing-IDs fallback.
+      console.warn(
+        `[IIC] _savePerItemCollection(${collectionName}): entry "${entry.id}" is ${Math.round(entryBytes / 1024)} KB — ` +
+        `skipping Firestore write (limit 800 KB), saving to RTDB only.`
+      );
+    } else {
+      writes.push(setDoc(doc(db, collectionName, entry.id), entry));
+    }
+    // RTDB always gets the full document regardless of size
     writes.push(set(ref(rtdb, `${rtdbBasePath}/${entry.id}`), entry));
     // ── Backup mirror (NEVER deleted by any cleanup) ─────────────────────────
     writes.push(set(ref(rtdb, `__backup__/${rtdbBasePath}/${entry.id}`), entry));
@@ -1397,7 +1414,27 @@ const _subscribePerItemCollection = (
   // Only emit when BOTH collection AND index are confirmed.
   const _rebuild = () => {
     if (!collectionConfirmed || !indexConfirmed) return;
-    onUpdate(order.map(id => itemMap[id]).filter(Boolean));
+    const result = order.map(id => itemMap[id]).filter(Boolean);
+
+    // If any index IDs are missing from itemMap (e.g. document was too large
+    // for Firestore and was saved to RTDB only), fetch them from RTDB now.
+    const missingIds = order.filter(id => !itemMap[id]);
+    if (missingIds.length > 0) {
+      Promise.all(missingIds.map(id => get(ref(rtdb, `${rtdbBasePath}/${id}`))))
+        .then(snaps => {
+          let added = false;
+          snaps.forEach(snap => {
+            if (snap.exists() && snap.key) {
+              itemMap[snap.key] = snap.val();
+              added = true;
+            }
+          });
+          if (added) onUpdate(order.map(id => itemMap[id]).filter(Boolean));
+        })
+        .catch(() => {}); // non-fatal — best-effort
+    }
+
+    onUpdate(result);
   };
 
   // Firestore collection — source of truth for item data
