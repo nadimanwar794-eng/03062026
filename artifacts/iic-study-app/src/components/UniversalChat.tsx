@@ -888,7 +888,7 @@ export const UniversalChat: React.FC<Props> = ({ user, onClose, isAdmin, targetU
                                         </div>
                                     </div>
                                     {/* Fixed send footer */}
-                                    <div className="shrink-0 px-5 pt-4 pb-6 border-t border-slate-100 bg-white">
+                                    <div className="shrink-0 px-5 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+92px)] border-t border-slate-100 bg-white">
                                         {!isAdminOrSub && onSpendCoins && (
                                             <p className="text-[11px] text-amber-600 font-bold text-center mb-2 flex items-center justify-center gap-1">
                                                 <Crown size={11} /> MCQ bhejne par <span className="bg-amber-100 px-1.5 py-0.5 rounded-full">{MCQ_COIN_COST} coins</span> katenge
