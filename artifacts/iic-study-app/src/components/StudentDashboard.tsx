@@ -16439,7 +16439,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* UNIVERSAL CHAT (Global + Support) */}
       {showChat && (
         <div
-          className="fixed inset-0 z-[400]"
+          className="fixed inset-0 z-[250] pb-16"
           onClick={() => setShowChat(false)}
         >
           <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
@@ -17380,6 +17380,11 @@ export const StudentDashboard: React.FC<Props> = ({
                 onClick: () => {
                   setShowChat(false);
                   setShowStarredPage(false);
+                  setShowMyRoutine(false);
+                  if (showCommunityStarsPage) {
+                    try { stopProfileStarRead(); } catch (_) {}
+                    setShowCommunityStarsPage(false);
+                  }
                   hapticMedium();
                   setShowRevisionHubScreen(true);
                 },
