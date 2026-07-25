@@ -1729,6 +1729,27 @@ export const saveChapterData = async (key: string, data: any, _historyMeta?: { u
     // 1. Sanitize Data
     const sanitizedData = sanitizeForFirestore(data);
 
+    // ── Inject _meta: readable board/class/subject/lesson fields ─────────────
+    // Har document mein explicit metadata hoga taaki Firebase console mein
+    // sirf key decode kiye bina bhi pata chale kiska content hai.
+    // Key format: nst_content_{BOARD}_{CLASS}_{SUBJECT...}_{LESSON_ID}
+    if (key.startsWith('nst_content_')) {
+      try {
+        const withoutPrefix = key.slice('nst_content_'.length);
+        const parts = withoutPrefix.split('_');
+        if (parts.length >= 3) {
+          sanitizedData._meta = {
+            board:     parts[0],
+            class:     parts[1],
+            subject:   parts.slice(2, parts.length - 1).join(' '),
+            lesson:    parts[parts.length - 1],
+            key,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      } catch (_metaErr) { /* non-fatal */ }
+    }
+
     // 2. Cache Locally (Primary Source of Truth for this user session) +
     //    update the in-memory cache so next read is instant and fresh.
     await storage.setItem(key, sanitizedData);
