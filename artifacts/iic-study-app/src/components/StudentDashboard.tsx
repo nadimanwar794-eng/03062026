@@ -79,6 +79,16 @@ import { getActiveChallenges } from "../services/questionBank";
 import { generateDailyChallengeQuestions } from "../utils/challengeGenerator";
 import { searchNotesByWords, searchNotesByTitle, type NoteSearchResult } from "../utils/noteSearcher";
 import { computeAllSubjectStats } from "../utils/subjectProgressStore";
+import {
+  getStudyActivityKey,
+  recordActivityComplete,
+  recordActivityOpen,
+  recordActivitySeconds,
+  recordMcqAnswer,
+  recordStudyMetric,
+  type StudyActivityMode,
+} from "../utils/activityTracker";
+import { StudyModeButtons, StudyStatsPanel, type StudyCardMode } from "./StudyModeCardTools";
 import { generateMorningInsight } from "../services/morningInsight";
 import { LessonActionModal } from "./LessonActionModal";
 import { PullToRefresh } from "./PullToRefresh";
@@ -2650,7 +2660,10 @@ export const StudentDashboard: React.FC<Props> = ({
   }, [contentPickerPopup]);
 
   // Ref to pass initial tab/viewMode through the useEffect reset when opening Lucent viewer
-  const lucentInitialTabRef = useRef<{ tab?: 'NOTES' | 'MCQS' | 'VIDEO' | 'PDF'; viewMode?: 'html' | 'chunk' } | null>(null);
+  const lucentInitialTabRef = useRef<{
+    tab?: 'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO';
+    viewMode?: 'html' | 'chunk';
+  } | null>(null);
   // Tracks the last opened lesson id — used to detect lesson change vs page change
   const lucentPrevLessonIdRef = useRef<string | null>(null);
   // Live scroll % for the Lucent reader — drives the gradient progress bar at
@@ -2761,6 +2774,7 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentActiveTab, setLucentActiveTab] = useState<'NOTES' | 'MCQS' | 'QA' | 'FLASHCARD' | 'VIDEO' | 'PDF' | 'AUDIO'>('NOTES');
   // 'html' = styled HTML view (write mode), 'chunk' = ChunkedNotesReader tappable lines (read mode)
   const [lucentNotesViewMode, setLucentNotesViewMode] = useState<'html' | 'chunk'>('chunk');
+  const [openStudyStatsKey, setOpenStudyStatsKey] = useState<string | null>(null);
 
   // Reset progress % and session-score baseline on tab/mode switch — each mode shows its own fresh score.
   // IMPORTANT: declared AFTER lucentActiveTab + lucentNotesViewMode to avoid production TDZ crash.
@@ -2770,6 +2784,31 @@ export const StudentDashboard: React.FC<Props> = ({
     setLucentOpenScore(userRef.current?.totalScore || 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentActiveTab, lucentNotesViewMode]);
+
+  // Common page/topic activity tracker. The interval only runs while the
+  // browser tab is visible, so changing tabs or backgrounding the app pauses
+  // the active-mode timer instead of counting idle time.
+  useEffect(() => {
+    if (!lucentNoteViewer || !user?.id) return;
+    const page = lucentNoteViewer.pages?.[lucentPageIndex];
+    const mode: StudyActivityMode =
+      lucentActiveTab === 'NOTES'
+        ? (lucentNotesViewMode === 'html' ? 'WRITING' : 'READING')
+        : lucentActiveTab;
+    const contentId = getStudyActivityKey(lucentNoteViewer.id, lucentPageIndex);
+    recordActivityOpen(user.id, contentId, mode);
+    let active = !document.hidden;
+    const onVisibility = () => { active = !document.hidden; };
+    document.addEventListener('visibilitychange', onVisibility);
+    const timer = window.setInterval(() => {
+      if (active) recordActivitySeconds(user.id, contentId, mode, 1);
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      recordActivityComplete(user.id, contentId, mode);
+    };
+  }, [user?.id, lucentNoteViewer?.id, lucentPageIndex, lucentActiveTab, lucentNotesViewMode]);
 
   // PDF tab: iframe ke andar scroll detect nahi hota (cross-origin).
   // Time-based progress use karo — har second PDF pe = progress badhta hai.
@@ -18879,6 +18918,28 @@ export const StudentDashboard: React.FC<Props> = ({
                 const boxBg = pageMcqDone ? '#d1fae5' : pageRead ? '#fed7aa' : `${tierTheme.primary}20`;
                 const boxColor = pageMcqDone ? '#059669' : pageRead ? '#ea580c' : tierTheme.primary;
                 const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+                const studyModes: StudyCardMode[] = [
+                  ...(((pg as any).chunkNotes || (pg as any).htmlNotes || pg.content) ? [{ mode: 'READING' as const, label: 'Read', emoji: '📖' }] : []),
+                  ...((pg as any).htmlNotes ? [{ mode: 'WRITING' as const, label: 'Write', emoji: '✍️' }] : []),
+                  ...(totalMcq > 0 ? [
+                    { mode: 'MCQ' as const, label: 'MCQ', emoji: '🧠' },
+                    { mode: 'FLASHCARD' as const, label: 'Flash', emoji: '🃏' },
+                    { mode: 'QA' as const, label: 'Q&A', emoji: '💬' },
+                  ] : []),
+                  ...((pg as any).pdfUrl ? [{ mode: 'PDF' as const, label: 'PDF', emoji: '📄' }] : []),
+                  ...((pg as any).videoUrl ? [{ mode: 'VIDEO' as const, label: 'Video', emoji: '🎬' }] : []),
+                  ...((pg as any).audioUrl ? [{ mode: 'AUDIO' as const, label: 'Audio', emoji: '🔊' }] : []),
+                ];
+                const openStudyMode = (mode: StudyActivityMode) => {
+                  const tab = mode === 'READING' || mode === 'WRITING' ? 'NOTES' : mode;
+                  lucentInitialTabRef.current = {
+                    tab,
+                    ...(mode === 'READING' ? { viewMode: 'chunk' as const } : {}),
+                    ...(mode === 'WRITING' ? { viewMode: 'html' as const } : {}),
+                  };
+                  setLucentPageListViewer(null);
+                  tryOpenLucentNote(plEntry, idx);
+                };
                 return (
                   <div
                     key={idx}
@@ -18936,6 +18997,20 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                       <ChevronRight size={16} className="shrink-0" style={{ color: tierTheme.primary }} />
                     </button>
+                    <div className="px-3 py-2 border-t border-slate-100 bg-white/80">
+                      <StudyModeButtons modes={studyModes} onModeClick={openStudyMode} />
+                      <StudyStatsPanel
+                        userId={user.id}
+                        contentId={getStudyActivityKey(plEntry.id, idx)}
+                        modes={studyModes}
+                        open={openStudyStatsKey === getStudyActivityKey(plEntry.id, idx)}
+                        onToggle={() => setOpenStudyStatsKey(current =>
+                          current === getStudyActivityKey(plEntry.id, idx)
+                            ? null
+                            : getStudyActivityKey(plEntry.id, idx)
+                        )}
+                      />
+                    </div>
                     {/* ── Admin-only: content mode badges + edit button ── */}
                     {_isAdminUser && (
                       <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap bg-slate-50/70">
@@ -20211,6 +20286,15 @@ RULES:
                         const _timings = lucentMcqTimingsRef.current[pageKey] || [];
                         _timings[realIdx] = _qElapsed;
                         lucentMcqTimingsRef.current[pageKey] = _timings;
+                        try {
+                          recordMcqAnswer(
+                            user.id,
+                            getStudyActivityKey(entry.id, safeIndex),
+                            String((cq as any).id || `q_${realIdx}`),
+                            isCorrectAns,
+                            _qElapsed,
+                          );
+                        } catch {}
 
                         // ── Lesson-level MCQ mark (backward compat only) ──
                         if (!isRoutineMcqDone(entry.id)) {
@@ -20595,7 +20679,10 @@ RULES:
                             </div>
                           ) : (
                             <button
-                              onClick={() => setLucentQaRevealed(prev => ({ ...prev, [_key]: true }))}
+                              onClick={() => {
+                                recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'QA', 'questionsSeen');
+                                setLucentQaRevealed(prev => ({ ...prev, [_key]: true }));
+                              }}
                               className="w-full py-3 bg-slate-50 border-t border-slate-100 text-xs font-black text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-[0.99]"
                             >
                               👆 Jawab dekhne ke liye tap karo
@@ -20781,7 +20868,7 @@ RULES:
                             </div>
                           )}
                           {/* Confidence buttons */}
-                          <div className="mt-3 pt-3 border-t border-emerald-200">
+                              <div className="mt-3 pt-3 border-t border-emerald-200">
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
                               Kitna mushkil laga?
                             </p>
@@ -20796,15 +20883,15 @@ RULES:
                               </div>
                             ) : (
                               <div className="grid grid-cols-3 gap-2">
-                                <button onClick={() => _handleConf('easy')}
+                                <button onClick={() => { recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'FLASHCARD', 'cardsSeen'); recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'FLASHCARD', 'knownCards'); _handleConf('easy'); }}
                                   className="py-2.5 rounded-xl bg-emerald-500 text-white font-black text-xs active:scale-95 transition shadow-md flex flex-col items-center gap-0.5">
                                   <span className="text-base">✅</span><span>Easy</span>
                                 </button>
-                                <button onClick={() => _handleConf('medium')}
+                                <button onClick={() => { recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'FLASHCARD', 'cardsSeen'); recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'FLASHCARD', 'unknownCards'); _handleConf('medium'); }}
                                   className="py-2.5 rounded-xl bg-amber-500 text-white font-black text-xs active:scale-95 transition shadow-md flex flex-col items-center gap-0.5">
                                   <span className="text-base">🟡</span><span>Medium</span>
                                 </button>
-                                <button onClick={() => _handleConf('hard')}
+                                <button onClick={() => { recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'FLASHCARD', 'cardsSeen'); recordStudyMetric(user.id, getStudyActivityKey(entry.id, safeIndex), 'FLASHCARD', 'unknownCards'); _handleConf('hard'); }}
                                   className="py-2.5 rounded-xl bg-red-500 text-white font-black text-xs active:scale-95 transition shadow-md flex flex-col items-center gap-0.5">
                                   <span className="text-base">🔴</span><span>Hard</span>
                                 </button>
