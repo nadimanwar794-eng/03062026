@@ -45,13 +45,13 @@ export const StudyModeButtons: React.FC<{
   modes: StudyCardMode[];
   onModeClick: (mode: StudyActivityMode) => void;
 }> = ({ modes, onModeClick }) => (
-  <div className="flex flex-wrap gap-1.5" aria-label="Available study modes">
+  <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5" aria-label="Available study modes">
     {modes.map(mode => (
       <button
         key={mode.mode}
         type="button"
         onClick={event => { event.stopPropagation(); onModeClick(mode.mode); }}
-        className={`px-2 py-1 rounded-lg border text-[9px] font-black active:scale-95 transition-all ${MODE_STYLES[mode.mode]}`}
+        className={`shrink-0 px-2 py-1 rounded-lg border text-[9px] font-black active:scale-95 transition-all ${MODE_STYLES[mode.mode]}`}
         title={`Open ${mode.label}`}
       >
         {mode.emoji} {mode.label}
@@ -83,11 +83,18 @@ export const StudyStatsPanel: React.FC<{
       <button
         type="button"
         onClick={event => { event.stopPropagation(); onToggle(); }}
-        className="px-3 py-2 flex items-center gap-1.5 text-[10px] font-black text-slate-600 active:scale-95"
+        className="px-3 py-2 flex items-center gap-1 active:scale-95"
         aria-expanded={open}
       >
-        <BarChart3 size={13} className="text-indigo-600" /> Stats
-        <span className="text-[9px] font-bold text-slate-400">{open ? 'Hide' : 'View progress'}</span>
+        {open ? (
+          <>
+            <BarChart3 size={13} className="text-indigo-600" />
+            <span className="text-[10px] font-black text-slate-600">Stats</span>
+            <span className="text-[9px] font-bold text-slate-400">Hide</span>
+          </>
+        ) : (
+          <span className="text-[13px] leading-none" title="View progress">📈</span>
+        )}
       </button>
       {open && (
         <div className="px-3 pb-3 grid grid-cols-2 gap-1.5">

@@ -18977,6 +18977,15 @@ export const StudentDashboard: React.FC<Props> = ({
                 const pageMcqDone = isRoutinePageMcqDone(plEntry.id, idx);
                 const pageMcqScoreData = getRoutinePageMcqScore(plEntry.id, idx);
                 const pageRead = isRoutinePageRead(plEntry.id, idx);
+                // MCQ Latest + Best scores from full history
+                const _pgActKey = getStudyActivityKey(plEntry.id, idx);
+                const _pgAct = getStudyActivity(user.id, _pgActKey);
+                const _pgScoreHist = (_pgAct?.MCQ?.scoreHistory || []) as import('../utils/activityTracker').McqScoreAttempt[];
+                const _pgLatest = _pgScoreHist.at(-1);
+                const _pgBest = _pgScoreHist.length > 0
+                  ? _pgScoreHist.reduce((b, s) => (s.total > 0 && s.correct / s.total > b.correct / Math.max(b.total, 1)) ? s : b, _pgScoreHist[0])
+                  : undefined;
+                const _pgBestIsDiff = _pgBest && _pgLatest && (_pgBest.correct !== _pgLatest.correct || _pgBest.total !== _pgLatest.total);
                 // Box color: green = read+mcq done, orange = read only, gray = unread
                 const boxBg = pageMcqDone ? '#d1fae5' : pageRead ? '#fed7aa' : `${tierTheme.primary}20`;
                 const boxColor = pageMcqDone ? '#059669' : pageRead ? '#ea580c' : tierTheme.primary;
@@ -19031,8 +19040,23 @@ export const StudentDashboard: React.FC<Props> = ({
                           )}
                           {totalMcq > 0 && (
                             pageMcqDone ? (
-                              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
-                                ✅ {pageMcqScoreData ? `${pageMcqScoreData.correct}/${pageMcqScoreData.total}` : `${totalMcq}`} MCQ
+                              <span className="inline-flex items-center gap-1">
+                                {_pgLatest ? (
+                                  <>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${_pgLatest.correct / Math.max(_pgLatest.total, 1) >= 0.7 ? 'bg-emerald-50 text-emerald-700' : _pgLatest.correct / Math.max(_pgLatest.total, 1) >= 0.4 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'}`}>
+                                      ✅ {_pgLatest.correct}/{_pgLatest.total}
+                                    </span>
+                                    {_pgBestIsDiff && _pgBest && (
+                                      <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-full">
+                                        🏆 {_pgBest.correct}/{_pgBest.total}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
+                                    ✅ {pageMcqScoreData ? `${pageMcqScoreData.correct}/${pageMcqScoreData.total}` : `${totalMcq}`} MCQ
+                                  </span>
+                                )}
                               </span>
                             ) : (
                               <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
