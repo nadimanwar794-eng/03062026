@@ -486,8 +486,22 @@ export function applyInitialSchedule(
   config?: RevisionConfig
 ) {
   const map = safeRead();
-  const b = map[key];
-  if (!b) return;
+  // Upsert: create a minimal bucket if it doesn't exist yet (handles key
+  // mismatch between per-question recordAttempt keys and per-topic applyInitialSchedule keys)
+  const parts = key.split('::');
+  const b: TopicBucket = map[key] ?? {
+    subjectId: parts[0] || key,
+    chapterId: parts[1] || key,
+    pageKey: parts[2] || key,
+    topic: parts[3] || key,
+    total: 0,
+    correct: 0,
+    lastAttemptAt: Date.now(),
+    wrongQuestions: [],
+    stage: 'NOTES' as const,
+    nextDueAt: 0,
+    cycleCount: 0,
+  };
 
   const thresholds = config?.thresholds ?? { strong: 65, average: 50, mastery: 80 };
   const intervals = config?.intervals ?? {
