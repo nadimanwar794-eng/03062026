@@ -182,17 +182,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
   const iconColor8 = themeVariant === 'light' ? 'text-orange-500' : 'text-orange-400';
 
   return (
-    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${t.bg} ${t.text} overflow-hidden w-full mx-auto`}>
-      {/* Animated background gradient */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-        <div className={`absolute top-[-10%] left-[-10%] w-[120%] h-[120%] ${
-          themeVariant === 'blue'
-            ? 'bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.4)_0%,transparent_55%)]'
-            : themeVariant === 'black'
-            ? 'bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.25)_0%,transparent_55%)]'
-            : 'bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.15)_0%,transparent_55%)]'
-        } animate-[spin_15s_linear_infinite]`} />
-      </div>
+    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black ${t.text} overflow-hidden w-full mx-auto`}>
 
       <div className="relative z-10 flex flex-col items-center w-full px-8">
         <button
