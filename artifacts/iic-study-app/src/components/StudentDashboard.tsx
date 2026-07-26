@@ -2795,7 +2795,8 @@ export const StudentDashboard: React.FC<Props> = ({
     const mode: StudyActivityMode =
       lucentActiveTab === 'NOTES'
         ? (lucentNotesViewMode === 'html' ? 'WRITING' : 'READING')
-        : lucentActiveTab;
+        : lucentActiveTab === 'MCQS' ? 'MCQ'
+        : lucentActiveTab as StudyActivityMode;
     const contentId = getStudyActivityKey(lucentNoteViewer.id, lucentPageIndex);
     recordActivityOpen(user.id, contentId, mode);
     let active = !document.hidden;
