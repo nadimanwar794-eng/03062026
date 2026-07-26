@@ -37,8 +37,8 @@ const THEME_STYLES: Record<ThemeVariant, {
     badge: 'text-gray-500',
   },
   blue: {
-    bg: 'bg-black',
-    text: 'text-white',
+    bg: 'bg-[#000000]',
+   text: 'text-white',
     subtext: 'text-blue-400/70',
     boxBg: 'bg-blue-950/60',
     boxBorder: 'border-blue-900/60',
