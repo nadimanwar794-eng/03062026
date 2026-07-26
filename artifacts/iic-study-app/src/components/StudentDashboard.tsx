@@ -2776,6 +2776,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // 'html' = styled HTML view (write mode), 'chunk' = ChunkedNotesReader tappable lines (read mode)
   const [lucentNotesViewMode, setLucentNotesViewMode] = useState<'html' | 'chunk'>('chunk');
   const [openStudyStatsKey, setOpenStudyStatsKey] = useState<string | null>(null);
+  const [openStudyStatsKeyHw, setOpenStudyStatsKeyHw] = useState<string | null>(null);
 
   // Reset progress % and session-score baseline on tab/mode switch — each mode shows its own fresh score.
   // IMPORTANT: declared AFTER lucentActiveTab + lucentNotesViewMode to avoid production TDZ crash.
@@ -3215,6 +3216,36 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hwActiveHwId, hwViewMode, hwNotesViewMode]);
+
+  // ── activityTracker: open / seconds / complete for competition hw viewer ──
+  // Mirrors the Lucent tracking at line 2792. Runs whenever the user opens or
+  // switches modes inside Sar Sangrah / Speedy / custom-book pages.
+  useEffect(() => {
+    if (!hwActiveHwId || !user?.id) return;
+    const mode: StudyActivityMode =
+      hwViewMode === 'notes'
+        ? (hwNotesViewMode === 'html' ? 'WRITING' : 'READING')
+        : hwViewMode === 'mcq' ? 'MCQ'
+        : hwViewMode === 'flashcard' ? 'FLASHCARD'
+        : hwViewMode === 'qa' ? 'QA'
+        : hwViewMode === 'pdf' ? 'PDF'
+        : hwViewMode === 'video' ? 'VIDEO'
+        : hwViewMode === 'audio' ? 'AUDIO'
+        : 'READING';
+    recordActivityOpen(user.id, hwActiveHwId, mode);
+    let active = !document.hidden;
+    const onVisibility = () => { active = !document.hidden; };
+    document.addEventListener('visibilitychange', onVisibility);
+    const timer = window.setInterval(() => {
+      if (active) recordActivitySeconds(user.id, hwActiveHwId, mode, 1);
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      recordActivityComplete(user.id, hwActiveHwId, mode);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, hwActiveHwId, hwViewMode, hwNotesViewMode]);
 
   const [hwHtmlTtsPlaying, setHwHtmlTtsPlaying] = useState(false);
   const [noteZoom, setNoteZoom] = useState<number>(() => {
@@ -8851,15 +8882,34 @@ export const StudentDashboard: React.FC<Props> = ({
                     const mcqCount = Array.isArray((hw as any).mcqs) ? (hw as any).mcqs.length : 0;
                     const d = new Date(hw.date);
                     const monthYear = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+                    const hwContentId = hw.id || '';
+                    const hwStudyModes: StudyCardMode[] = [
+                      ...((((hw as any).chunkNotes || (hw as any).htmlNotes || hw.notes)) ? [{ mode: 'READING' as const, label: 'Read', emoji: '📖' }] : []),
+                      ...((hw as any).htmlNotes ? [{ mode: 'WRITING' as const, label: 'Write', emoji: '✍️' }] : []),
+                      ...(mcqCount > 0 ? [
+                        { mode: 'MCQ' as const, label: 'MCQ', emoji: '🧠' },
+                        { mode: 'FLASHCARD' as const, label: 'Flash', emoji: '🃏' },
+                        { mode: 'QA' as const, label: 'Q&A', emoji: '💬' },
+                      ] : []),
+                      ...((hw as any).pdfUrl ? [{ mode: 'PDF' as const, label: 'PDF', emoji: '📄' }] : []),
+                      ...(hw.videoUrl ? [{ mode: 'VIDEO' as const, label: 'Video', emoji: '🎬' }] : []),
+                      ...(hw.audioUrl ? [{ mode: 'AUDIO' as const, label: 'Audio', emoji: '🔊' }] : []),
+                    ];
+                    const openHwStudyMode = (mode: StudyActivityMode) => {
+                      const vm = mode === 'MCQ' ? 'mcq' : mode === 'FLASHCARD' ? 'flashcard' : mode === 'QA' ? 'qa' : mode === 'PDF' ? 'pdf' : mode === 'VIDEO' ? 'video' : mode === 'AUDIO' ? 'audio' : 'notes';
+                      const nm: 'html' | 'chunk' = mode === 'WRITING' ? 'html' : 'chunk';
+                      if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode(vm as any); setHwNotesViewMode(nm); setHwActiveHwId(hw.id!); });
+                    };
                     return (
-                      <div key={hw.id} className="flex flex-col gap-0.5">
+                      <div key={hw.id} className="rounded-2xl overflow-hidden border" style={{ borderColor: `${tierTheme.primary}55` }}>
+                        {/* ── Main tap area ── */}
                         <div
                           role="button"
                           tabIndex={0}
                           onClick={() => { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); }}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); } }}
-                          className={`w-full border rounded-xl p-2 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-2.5 cursor-pointer`}
-                          style={{ background: tierTheme.profileCardBg, borderColor: tierTheme.primary }}
+                          className="w-full p-2 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-2.5 cursor-pointer"
+                          style={{ background: tierTheme.profileCardBg }}
                         >
                           <div className={`${theme.bgSoft} ${theme.textDeep} w-10 h-10 rounded-lg shrink-0 flex flex-col items-center justify-center`}>
                             <span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Pg</span>
@@ -8868,11 +8918,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-black ${theme.textDeep} truncate`}>{hw.title || `Page ${pageNum}`}</p>
                             <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              {((hw as any).chunkNotes || (hw as any).htmlNotes || hw.notes) && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">NOTES</span>}
-                              {mcqCount > 0 && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-100 text-violet-700">{mcqCount} MCQ</span>}
-                              {hw.videoUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700">VIDEO</span>}
-                              {hw.audioUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700">AUDIO</span>}
-                              {(hw as any).pdfUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">PDF</span>}
                               {((hw as any).isUltra || (hw as any).tier === 'ULTRA') && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-600 text-white"><Crown size={9}/> ULTRA</span>}
                               <span className={`text-[9px] font-bold ${theme.text} opacity-50`}>{monthYear}</span>
                               {hw.id && (() => { const _ht = getLessonStats(hw.id, 1); return _ht.totalTime > 0 ? <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ht.totalTime)}</span> : null; })()}
@@ -8883,8 +8928,22 @@ export const StudentDashboard: React.FC<Props> = ({
                           </div>
                           <ChevronRight size={15} className={`${theme.text} shrink-0`} />
                         </div>
+                        {/* ── Mode buttons + Stats panel ── */}
+                        {hwStudyModes.length > 0 && (
+                          <div className="px-3 py-2 border-t border-slate-100 bg-white/80">
+                            <StudyModeButtons modes={hwStudyModes} onModeClick={openHwStudyMode} />
+                            <StudyStatsPanel
+                              userId={user.id}
+                              contentId={hwContentId}
+                              modes={hwStudyModes}
+                              open={openStudyStatsKeyHw === hwContentId}
+                              onToggle={() => setOpenStudyStatsKeyHw(cur => cur === hwContentId ? null : hwContentId)}
+                            />
+                          </div>
+                        )}
+                        {/* ── Admin edit ── */}
                         {_isAdminUser && (
-                          <div className="flex justify-end px-1">
+                          <div className="flex justify-end px-3 py-1.5 border-t border-slate-100 bg-slate-50/70">
                             <button
                               onClick={(e) => { e.stopPropagation(); openHwEntryEdit(hw); }}
                               className="flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-600 border border-amber-200 active:scale-95 transition-all"
