@@ -48,8 +48,8 @@ export default defineConfig({
         // These are what website-to-APK / TWA wrapper tools read to theme the
         // native status bar, splash screen, and system navigation bar. Keep
         // them in sync with the app's actual header/nav colors below.
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
         display: 'standalone',
         display_override: ['standalone', 'fullscreen'],
         orientation: 'portrait',
