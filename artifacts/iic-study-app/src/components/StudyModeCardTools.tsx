@@ -65,7 +65,8 @@ export const StudyStatsPanel: React.FC<{
   modes: StudyCardMode[];
   open: boolean;
   onToggle: () => void;
-}> = ({ userId, contentId, modes, open, onToggle }) => {
+  totalMcqs?: number;
+}> = ({ userId, contentId, modes, open, onToggle, totalMcqs }) => {
   const [stats, setStats] = useState(() => getStudyActivity(userId, contentId));
   useEffect(() => {
     if (open) setStats(getStudyActivity(userId, contentId));
@@ -107,48 +108,66 @@ export const StudyStatsPanel: React.FC<{
                   <span>{mode.emoji}</span>{mode.label}
                 </div>
 
-                {/* Time + count */}
-                <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold text-slate-500">
-                  <Clock3 size={10} />
-                  {item.seconds > 0 ? formatActivityDuration(item.seconds) : '—'}
-                  {mode.mode === 'FLASHCARD' && item.cardsSeen > 0 ? ` · ${item.cardsSeen} cards` : ''}
-                  {mode.mode === 'QA' && item.questionsSeen > 0 ? ` · ${item.questionsSeen} Q` : ''}
-                </div>
-
-                {/* Sessions + last opened */}
-                <div className="text-[9px] text-slate-400 mt-0.5">
-                  {item.sessions || 0} session{item.sessions === 1 ? '' : 's'}
-                  {item.lastOpenedAt
-                    ? ` · ${new Date(item.lastOpenedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                    : ''}
-                </div>
-
-                {/* MCQ: Latest & Best scores from score history */}
-                {mode.mode === 'MCQ' && scoreHistory.length > 0 && (
-                  <div className="mt-1.5 space-y-0.5">
-                    <div className="flex flex-wrap gap-1">
-                      {latest && (
-                        <ScorePill
-                          label="Last"
-                          score={latest}
-                          color={latestPct >= 70 ? 'bg-emerald-50 text-emerald-700' : latestPct >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'}
-                        />
-                      )}
-                      {best && latest && best !== latest && (
-                        <ScorePill label="Best" score={best} color="bg-indigo-50 text-indigo-700" />
-                      )}
-                      {best && (!latest || best === latest) && (
-                        <ScorePill
-                          label="Best"
-                          score={best}
-                          color={bestPct >= 70 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}
-                        />
-                      )}
+                {/* MCQ mode: show total count + scores; other modes: time + sessions */}
+                {mode.mode === 'MCQ' ? (
+                  <>
+                    {/* Total MCQs available */}
+                    <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold text-slate-500">
+                      <span className="text-purple-500">🧠</span>
+                      {totalMcqs != null && totalMcqs > 0
+                        ? <span>{totalMcqs} MCQ available</span>
+                        : <span className="text-slate-400 italic text-[9px]">MCQ count unavailable</span>
+                      }
                     </div>
-                    {scoreHistory.length > 1 && (
-                      <div className="text-[8px] text-slate-400">{scoreHistory.length} attempts total</div>
+
+                    {/* Scores */}
+                    {scoreHistory.length > 0 ? (
+                      <div className="mt-1.5 space-y-0.5">
+                        <div className="flex flex-wrap gap-1">
+                          {latest && (
+                            <ScorePill
+                              label="Last"
+                              score={latest}
+                              color={latestPct >= 70 ? 'bg-emerald-50 text-emerald-700' : latestPct >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'}
+                            />
+                          )}
+                          {best && latest && best !== latest && (
+                            <ScorePill label="Best" score={best} color="bg-indigo-50 text-indigo-700" />
+                          )}
+                          {best && (!latest || best === latest) && (
+                            <ScorePill
+                              label="Best"
+                              score={best}
+                              color={bestPct >= 70 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}
+                            />
+                          )}
+                        </div>
+                        {scoreHistory.length > 1 && (
+                          <div className="text-[8px] text-slate-400">{scoreHistory.length} attempts total</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-[9px] text-slate-400 mt-0.5">Abhi tak attempt nahi kiya</div>
                     )}
-                  </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Time + count (non-MCQ) */}
+                    <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold text-slate-500">
+                      <Clock3 size={10} />
+                      {item.seconds > 0 ? formatActivityDuration(item.seconds) : '—'}
+                      {mode.mode === 'FLASHCARD' && item.cardsSeen > 0 ? ` · ${item.cardsSeen} cards` : ''}
+                      {mode.mode === 'QA' && item.questionsSeen > 0 ? ` · ${item.questionsSeen} Q` : ''}
+                    </div>
+
+                    {/* Sessions + last opened (non-MCQ) */}
+                    <div className="text-[9px] text-slate-400 mt-0.5">
+                      {item.sessions || 0} session{item.sessions === 1 ? '' : 's'}
+                      {item.lastOpenedAt
+                        ? ` · ${new Date(item.lastOpenedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                        : ''}
+                    </div>
+                  </>
                 )}
 
                 {/* MCQ: Last 5 individual question timings (green=correct, red=wrong) */}

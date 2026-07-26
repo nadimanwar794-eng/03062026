@@ -81,6 +81,7 @@ import { searchNotesByWords, searchNotesByTitle, type NoteSearchResult } from ".
 import { computeAllSubjectStats } from "../utils/subjectProgressStore";
 import {
   getStudyActivityKey,
+  getStudyActivity,
   recordActivityComplete,
   recordActivityOpen,
   recordActivitySeconds,
@@ -8938,6 +8939,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               modes={hwStudyModes}
                               open={openStudyStatsKeyHw === hwContentId}
                               onToggle={() => setOpenStudyStatsKeyHw(cur => cur === hwContentId ? null : hwContentId)}
+                              totalMcqs={mcqCount}
                             />
                           </div>
                         )}
@@ -19070,6 +19072,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             ? null
                             : getStudyActivityKey(plEntry.id, idx)
                         )}
+                        totalMcqs={totalMcq}
                       />
                     </div>
                     {/* ── Admin-only: content mode badges + edit button ── */}
@@ -20514,10 +20517,22 @@ RULES:
                         );
                       }
 
+                      // ── Past-session stats from activityTracker ──
+                      const _actKey = getStudyActivityKey(entry.id, safeIndex);
+                      const _actData = getStudyActivity(user.id, _actKey);
+                      const _mcqAct = _actData['MCQ'];
+                      const _scoreHistory = _mcqAct?.scoreHistory || [];
+                      const _lastSession = _scoreHistory.at(-1);
+                      const _prevSession = _scoreHistory.at(-2);
+                      // Avg time per question from current session timings
+                      const _currTimings = lucentMcqTimingsRef.current[pageKey] || [];
+                      const _timedQ = _currTimings.filter((t: number) => t > 0);
+                      const _avgTime = _timedQ.length > 0 ? (_timedQ.reduce((a: number, b: number) => a + b, 0) / _timedQ.length) : 0;
+
                       return (
                         <div>
                           {/* Progress */}
-                          <div className="flex items-center gap-2 mb-3">
+                          <div className="flex items-center gap-2 mb-2">
                             <span className="text-[11px] font-black text-slate-600 shrink-0">
                               <span className="text-indigo-600">{ci + 1}</span>/{totalQ}
                             </span>
@@ -20525,6 +20540,61 @@ RULES:
                               <div className="h-full bg-indigo-500 transition-all rounded-full" style={{ width: `${((ci + 1) / Math.max(1, totalQ)) * 100}%` }} />
                             </div>
                             {attempted > 0 && <span className="text-[10px] font-bold text-slate-500 shrink-0">{attempted} done</span>}
+                          </div>
+
+                          {/* ── MCQ Stats Bar ── */}
+                          <div className="mb-3 px-3 py-2 bg-slate-50 rounded-2xl border border-slate-200">
+                            {/* Row 1: Current session live stats */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Abhi</span>
+                              <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                                ✅ {right} sahi
+                              </span>
+                              <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-700">
+                                ❌ {wrong} galat
+                              </span>
+                              {_avgTime > 0 && (
+                                <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                                  ⏱ avg {_avgTime < 60 ? `${Math.round(_avgTime)}s` : `${Math.floor(_avgTime/60)}m ${Math.round(_avgTime%60)}s`}/Q
+                                </span>
+                              )}
+                              {attempted > 0 && totalQ > 0 && (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 ml-auto">
+                                  {Math.round((right / Math.max(attempted, 1)) * 100)}%
+                                </span>
+                              )}
+                            </div>
+                            {/* Row 2: Last session history */}
+                            {_lastSession && (
+                              <div className="flex items-center gap-2 flex-wrap mt-1.5 pt-1.5 border-t border-slate-200">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Pichla</span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                  _lastSession.correct / Math.max(_lastSession.total, 1) >= 0.7 ? 'bg-emerald-50 text-emerald-700'
+                                  : _lastSession.correct / Math.max(_lastSession.total, 1) >= 0.4 ? 'bg-amber-50 text-amber-700'
+                                  : 'bg-rose-50 text-rose-700'
+                                }`}>
+                                  {_lastSession.correct}/{_lastSession.total} ({Math.round((_lastSession.correct / Math.max(_lastSession.total, 1)) * 100)}%)
+                                </span>
+                                {_lastSession.seconds > 0 && (
+                                  <span className="text-[10px] font-bold text-slate-500">
+                                    ⏱ {_lastSession.seconds < 60 ? `${Math.round(_lastSession.seconds)}s` : `${Math.floor(_lastSession.seconds/60)}m ${Math.round(_lastSession.seconds%60)}s`}
+                                  </span>
+                                )}
+                                {_lastSession.attemptedAt && (
+                                  <span className="text-[9px] text-slate-400 ml-auto">
+                                    {new Date(_lastSession.attemptedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
+                                {_prevSession && (
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    _lastSession.correct / Math.max(_lastSession.total, 1) > _prevSession.correct / Math.max(_prevSession.total, 1)
+                                      ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'
+                                  }`}>
+                                    {_lastSession.correct / Math.max(_lastSession.total, 1) > _prevSession.correct / Math.max(_prevSession.total, 1) ? '↑ Improve' : '↓ Drop'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Submit & Review banner — appears after submitThreshold questions answered */}

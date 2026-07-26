@@ -8,7 +8,7 @@ import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
 import { storage } from '../utils/storage';
 import { generateAnalysisJson } from '../utils/analysisUtils';
-import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey } from '../utils/revisionTrackerV2';
+import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey, getTrackerMap } from '../utils/revisionTrackerV2';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
@@ -26,6 +26,12 @@ interface InterleavedQ extends MCQItem {
     _subjectName: string;
 }
 
+interface AttemptHistoryEntry {
+    accuracy: number;
+    tier: 'weak' | 'average' | 'strong' | 'mastered';
+    at: number;
+}
+
 interface TopicSessionResult {
     topicName: string;
     chapterName: string;
@@ -35,6 +41,11 @@ interface TopicSessionResult {
     percentage: number;
     tier: 'weak' | 'average' | 'strong' | 'mastered';
     nextRevisionDays: number;
+    // Internal fields used to enrich results post-loop
+    _subjectId?: string;
+    _chapterId?: string;
+    // sessionHistory[0] = current (just completed), [1] = previous, [2] = 2 back
+    sessionHistory?: AttemptHistoryEntry[];
 }
 
 interface Props {
@@ -352,6 +363,8 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 percentage: Math.round(percentage),
                 tier,
                 nextRevisionDays,
+                _subjectId: meta._subjectId,
+                _chapterId: meta._chapterId,
             });
 
             // Mistake bank
@@ -475,6 +488,18 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             wrongQuestions: megaWrongQuestions,
         };
 
+        // Enrich topicSummary with sessionHistory from revision tracker
+        // (applyInitialSchedule above has already written sessionHistory[0] = current attempt)
+        try {
+            const trackerMap = getTrackerMap();
+            topicSummary.forEach((item: any) => {
+                if (item._subjectId && item._chapterId) {
+                    const bk = bucketKey(item._subjectId, item._chapterId, item._chapterId, item.topicName);
+                    item.sessionHistory = trackerMap[bk]?.sessionHistory;
+                }
+            });
+        } catch (_) {}
+
         // Store results + show summary screen instead of immediately closing
         pendingCompleteRef.current = { results: [megaResult], questions: interleavedQuestions };
         setSessionSummary(topicSummary);
@@ -576,6 +601,52 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                         />
                                     </div>
                                 </div>
+
+                                {/* Attempt Comparison — shown only if there are previous attempts */}
+                                {result.sessionHistory && result.sessionHistory.length >= 2 && (() => {
+                                    // sessionHistory[0] = current, [1] = previous, [2] = 2 back
+                                    const tierColors: Record<string, string> = {
+                                        weak:     'bg-rose-100 text-rose-700',
+                                        average:  'bg-amber-100 text-amber-700',
+                                        strong:   'bg-emerald-100 text-emerald-700',
+                                        mastered: 'bg-indigo-100 text-indigo-700',
+                                    };
+                                    const tierLabels: Record<string, string> = {
+                                        weak: 'Weak', average: 'Avg', strong: 'Strong', mastered: '⭐'
+                                    };
+                                    const entries = result.sessionHistory.slice(0, 3).reverse(); // oldest → newest
+                                    // Arrow between entries: up if better, down if worse, same
+                                    return (
+                                        <div className="mx-4 mb-2 px-3 py-2 bg-white/60 rounded-xl border border-slate-200/80">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Pichhle Attempts</p>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {entries.map((e, i) => {
+                                                    const pct = Math.round(e.accuracy * 100);
+                                                    const isCurrent = i === entries.length - 1;
+                                                    const prevEntry = i > 0 ? entries[i - 1] : null;
+                                                    const trend = prevEntry
+                                                        ? e.accuracy > prevEntry.accuracy ? '↑' : e.accuracy < prevEntry.accuracy ? '↓' : '→'
+                                                        : null;
+                                                    return (
+                                                        <React.Fragment key={i}>
+                                                            {trend && (
+                                                                <span className={`text-[10px] font-black ${trend === '↑' ? 'text-emerald-500' : trend === '↓' ? 'text-rose-400' : 'text-slate-400'}`}>
+                                                                    {trend}
+                                                                </span>
+                                                            )}
+                                                            <div className={`flex flex-col items-center px-2 py-1 rounded-lg ${tierColors[e.tier] || 'bg-slate-100 text-slate-600'} ${isCurrent ? 'ring-2 ring-offset-1 ring-indigo-400' : 'opacity-70'}`}>
+                                                                <span className="text-[11px] font-black leading-none">{pct}%</span>
+                                                                <span className="text-[8px] font-semibold leading-none mt-0.5">
+                                                                    {isCurrent ? 'Abhi' : i === 0 && entries.length === 3 ? '2 Pehle' : 'Pichhla'}
+                                                                </span>
+                                                            </div>
+                                                        </React.Fragment>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Tier badge + next revision */}
                                 <div className="px-4 pb-3 flex items-center justify-between gap-2">
