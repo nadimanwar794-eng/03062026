@@ -28,7 +28,7 @@ const get = (stats: Partial<Record<StudyActivityMode, StudyActivityRecord>>, mod
   stats[mode] || {
     seconds: 0, sessions: 0, opens: 0, activityCount: 0, questionsSeen: 0,
     questionsAttempted: 0, correctAnswers: 0, cardsSeen: 0, knownCards: 0,
-    unknownCards: 0, attempts: [],
+    unknownCards: 0, attempts: [], lastOpenedAt: undefined,
   };
 
 export const StudyModeButtons: React.FC<{
