@@ -7509,7 +7509,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     {/* Projector — Sab users ke liye */}
                     {hasMcq && _canProjector && (
                       <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
-                       onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: true, activeMode: 'projector', hasPdf, hasVideo, hasAudio, isCompetition: true, returnMode: hwViewMode } }); }}>
+                       onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'projector', hasPdf, hasVideo, hasAudio, isCompetition: true, returnMode: hwViewMode } }); }}>
                         📽️ Projector Mode
                       </button>
                     )}
@@ -22232,8 +22232,9 @@ RULES:
               {fl.hasMcq && (
                 <button style={_ts}
                   ref={el => { if (el && fl.activeMode === 'flashcard' && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, inline: 'center', block: 'nearest' }); } }}
-                  className={_tcls(fl.activeMode === 'flashcard', 'bg-amber-500')}
+                  className={_tcls(fl.activeMode === 'flashcard', 'bg-amber-500') + (!_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
                   onClick={() => {
+                    if (!_isUltraUser && !_isAdminUser) { showAlert('🔒 Flashcard ke liye ULTRA subscription chahiye!', 'INFO'); return; }
                     if (fl.activeMode !== 'flashcard') {
                       setFlashcardMcqs(prev => prev ? {
                         ...prev,
@@ -22242,35 +22243,52 @@ RULES:
                       } : null);
                     }
                   }}>
-                  🃏 Flashcard
+                  {!_isUltraUser && !_isAdminUser ? '🔒' : '🃏'} Flashcard
                 </button>
               )}
               {fl.hasMcq && (
-                <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
+                <button style={_ts}
+                  className={_tcls(false, 'bg-indigo-600') + (!_isBasicUser && !_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
                   onClick={() => {
+                    if (!_isBasicUser && !_isUltraUser && !_isAdminUser) { showAlert('🔒 Q&A ke liye BASIC subscription chahiye!', 'INFO'); return; }
                     setFlashcardMcqs(null);
                     if (fl.isCompetition) { setHwViewMode('qa'); }
                     else { setLucentActiveTab('QA'); }
                   }}>
-                  💬 Q&amp;A
+                  {!_isBasicUser && !_isUltraUser && !_isAdminUser ? '🔒' : '💬'} Q&amp;A
                 </button>
               )}
               {fl.hasPdf && (
-                <button style={_ts} className={_tcls(false, 'bg-blue-600')}
-                  onClick={() => { setFlashcardMcqs(null); if (fl.isCompetition) { setHwViewMode('pdf'); } else { setLucentActiveTab('PDF'); } }}>
-                  PDF
+                <button style={_ts}
+                  className={_tcls(false, 'bg-blue-600') + (!_isBasicUser && !_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
+                  onClick={() => {
+                    if (!_isBasicUser && !_isUltraUser && !_isAdminUser) { showAlert('🔒 PDF ke liye BASIC subscription chahiye!', 'INFO'); return; }
+                    setFlashcardMcqs(null);
+                    if (fl.isCompetition) { setHwViewMode('pdf'); } else { setLucentActiveTab('PDF'); }
+                  }}>
+                  {!_isBasicUser && !_isUltraUser && !_isAdminUser ? '🔒' : ''} PDF
                 </button>
               )}
               {fl.hasVideo && (
-                <button style={_ts} className={_tcls(false, 'bg-rose-600')}
-                  onClick={() => { setFlashcardMcqs(null); if (fl.isCompetition) { setHwViewMode('video'); } else { setLucentActiveTab('VIDEO'); } }}>
-                  Video
+                <button style={_ts}
+                  className={_tcls(false, 'bg-rose-600') + (!_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
+                  onClick={() => {
+                    if (!_isUltraUser && !_isAdminUser) { showAlert('🔒 Video ke liye ULTRA subscription chahiye!', 'INFO'); return; }
+                    setFlashcardMcqs(null);
+                    if (fl.isCompetition) { setHwViewMode('video'); } else { setLucentActiveTab('VIDEO'); }
+                  }}>
+                  {!_isUltraUser && !_isAdminUser ? '🔒' : ''} Video
                 </button>
               )}
               {fl.hasAudio && (
-                <button style={_ts} className={_tcls(false, 'bg-violet-600')}
-                  onClick={() => { setFlashcardMcqs(null); if (fl.isCompetition) { setHwViewMode('audio'); } else { setLucentActiveTab('AUDIO'); } }}>
-                  Audio
+                <button style={_ts}
+                  className={_tcls(false, 'bg-violet-600') + (!_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
+                  onClick={() => {
+                    if (!_isUltraUser && !_isAdminUser) { showAlert('🔒 Audio ke liye ULTRA subscription chahiye!', 'INFO'); return; }
+                    setFlashcardMcqs(null);
+                    if (fl.isCompetition) { setHwViewMode('audio'); } else { setLucentActiveTab('AUDIO'); }
+                  }}>
+                  {!_isUltraUser && !_isAdminUser ? '🔒' : ''} Audio
                 </button>
               )}
             </div>

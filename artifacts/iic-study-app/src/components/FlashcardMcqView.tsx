@@ -117,6 +117,13 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const [projectorSelections, setProjectorSelections] = useState<Record<number, number>>({});
   // Review screen — shown after Submit
   const [projectorShowReview, setProjectorShowReview] = useState(false);
+  // Snapshot of question data captured at submit time so the review never
+  // depends on a potentially-stale `questions` prop or closure.
+  const [reviewSnapshot, setReviewSnapshot] = useState<{
+    answered: number[];
+    selections: Record<number, number>;
+    questions: MCQItem[];
+  } | null>(null);
   // Hard-card review queue (stores positions from main session)
   const [hardQueue, setHardQueue] = useState<number[]>([]);
   const hardQueueRef = useRef<number[]>([]);
@@ -1170,7 +1177,15 @@ export const FlashcardMcqView: React.FC<Props> = ({
                     <ChevronLeft size={18} /> Prev
                   </button>
                   {canSubmit ? (
-                    <button onClick={() => setProjectorShowReview(true)}
+                    <button onClick={() => {
+                      // Snapshot all data needed for the review at submit time
+                      setReviewSnapshot({
+                        answered: Array.from(projectorAnswered).sort((a, b) => a - b),
+                        selections: { ...projectorSelections },
+                        questions: [...questions],
+                      });
+                      setProjectorShowReview(true);
+                    }}
                       style={{ flex:1, background:'linear-gradient(135deg,#16a34a,#15803d)', color:'#fff', border:'none', borderRadius:10, padding:'10px 18px', fontSize:15, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:'0 2px 12px rgba(22,163,74,0.35)' }}>
                       ✅ Submit &amp; Review ({projectorAnswered.size} Questions)
                     </button>
@@ -1218,7 +1233,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
       })()}
 
       {/* ── Projector Review Screen ── shown after Submit */}
-      {projectorShowReview && isProjectorMode && createPortal(
+      {projectorShowReview && isProjectorMode && reviewSnapshot && createPortal(
         <div style={{ position:'fixed', inset:0, zIndex:999999, background:'#f8fafc', display:'flex', flexDirection:'column', overflow:'hidden' }}>
           {/* Header */}
           <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', background:'#1e293b', flexShrink:0 }}>
@@ -1229,33 +1244,33 @@ export const FlashcardMcqView: React.FC<Props> = ({
             <div style={{ flex:1 }}>
               <div style={{ color:'#fbbf24', fontWeight:900, fontSize:14 }}>📋 Review — {title || 'MCQ Practice'}</div>
               <div style={{ color:'#94a3b8', fontSize:11, fontWeight:700, marginTop:2 }}>
-                Score: <span style={{ color:'#4ade80' }}>{projectorCorrect} सही</span> · <span style={{ color:'#f87171' }}>{projectorWrong} गलत</span> · कुल {projectorAnswered.size} Questions
+                Score: <span style={{ color:'#4ade80' }}>{projectorCorrect} सही</span> · <span style={{ color:'#f87171' }}>{projectorWrong} गलत</span> · कुल {reviewSnapshot.answered.length} Questions
               </div>
             </div>
-            <div style={{ background: projectorCorrect / Math.max(projectorAnswered.size, 1) >= 0.7 ? '#15803d' : projectorCorrect / Math.max(projectorAnswered.size, 1) >= 0.4 ? '#b45309' : '#991b1b', color:'#fff', borderRadius:12, padding:'8px 14px', fontWeight:900, fontSize:16, flexShrink:0 }}>
-              {projectorAnswered.size > 0 ? Math.round((projectorCorrect / projectorAnswered.size) * 100) : 0}%
+            <div style={{ background: projectorCorrect / Math.max(reviewSnapshot.answered.length, 1) >= 0.7 ? '#15803d' : projectorCorrect / Math.max(reviewSnapshot.answered.length, 1) >= 0.4 ? '#b45309' : '#991b1b', color:'#fff', borderRadius:12, padding:'8px 14px', fontWeight:900, fontSize:16, flexShrink:0 }}>
+              {reviewSnapshot.answered.length > 0 ? Math.round((projectorCorrect / reviewSnapshot.answered.length) * 100) : 0}%
             </div>
             <button onClick={() => { setProjectorShowReview(false); setIsProjectorMode(false); setProjectorRotated(false); }}
               style={{ background:'#ef4444', color:'#fff', border:'none', borderRadius:10, padding:'8px 14px', fontWeight:900, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
               <X size={14} /> Done
             </button>
           </div>
-          {/* Scrollable question list */}
+          {/* Scrollable question list — uses snapshot data captured at submit time */}
           <div style={{ flex:1, overflowY:'auto', padding:'16px', display:'flex', flexDirection:'column', gap:16 }}>
-            {Array.from(projectorAnswered).sort((a, b) => a - b).map((qIdx) => {
-              const rq = questions[qIdx];
+            {reviewSnapshot.answered.map((qIdx) => {
+              const rq = reviewSnapshot.questions[qIdx];
               if (!rq) return null;
-              const selectedOpt = projectorSelections[qIdx];
+              const selectedOpt = reviewSnapshot.selections[qIdx];
               const wasCorrect = selectedOpt === rq.correctAnswer;
               const optionLetters = ['A','B','C','D','E'];
+              const qText = (rq.question || '').replace(/<br\s*\/?>/gi, '\n').trim();
               return (
                 <div key={qIdx} style={{ background:'#fff', border: wasCorrect ? '2px solid #bbf7d0' : '2px solid #fecaca', borderRadius:16, overflow:'hidden', boxShadow:'0 1px 6px rgba(0,0,0,0.06)' }}>
                   {/* Question header */}
                   <div style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'14px 16px', borderBottom:'1px solid #f1f5f9', background: wasCorrect ? '#f0fdf4' : '#fef2f2' }}>
-                    <span style={{ background: wasCorrect ? '#16a34a' : '#ef4444', color:'#fff', borderRadius:999, width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900, flexShrink:0 }}>{qIdx + 1}</span>
-                    <div style={{ flex:1, minWidth:0, fontSize:14, fontWeight:700, color:'#1e293b', lineHeight:1.4 }}>
-                      <McqQuestionDisplay q={rq} questionClassName="font-bold text-slate-900 leading-snug" variant="default" stmtClassName="bg-indigo-50 border-l-4 border-indigo-400 px-3 py-2 rounded-lg text-slate-700 font-semibold leading-snug text-sm" />
-                    </div>
+                    <span style={{ background: wasCorrect ? '#16a34a' : '#ef4444', color:'#fff', borderRadius:999, minWidth:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900, flexShrink:0, padding:'0 6px' }}>{qIdx + 1}</span>
+                    <div style={{ flex:1, minWidth:0, fontSize:14, fontWeight:700, color:'#1e293b', lineHeight:1.5 }}
+                      dangerouslySetInnerHTML={{ __html: renderMathInHtml(qText.replace(/\n/g, '<br/>')) }} />
                     <span style={{ fontSize:20, flexShrink:0 }}>{wasCorrect ? '✅' : '❌'}</span>
                   </div>
                   {/* Options */}
@@ -1268,8 +1283,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
                       if (isSelectedOpt && !isCorrectOpt) { bg = '#fef2f2'; border = '2px solid #f87171'; color = '#991b1b'; dotBg = '#ef4444'; dotColor = '#fff'; }
                       return (
                         <div key={oi} style={{ display:'flex', alignItems:'center', gap:10, background:bg, border, borderRadius:10, padding:'10px 14px' }}>
-                          <span style={{ background:dotBg, color:dotColor, borderRadius:999, width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:900, flexShrink:0 }}>{optionLetters[oi]}</span>
-                          <span style={{ fontSize:13, fontWeight: isCorrectOpt || isSelectedOpt ? 700 : 500, color, lineHeight:1.35, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
+                          <span style={{ background:dotBg, color:dotColor, borderRadius:999, minWidth:28, height:28, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:900, flexShrink:0 }}>{optionLetters[oi]}</span>
+                          <span style={{ fontSize:13, fontWeight: isCorrectOpt || isSelectedOpt ? 700 : 500, color, lineHeight:1.35, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt || '') }} />
                           {isCorrectOpt && <CheckCircle size={18} color="#16a34a" style={{ flexShrink:0 }} />}
                           {isSelectedOpt && !isCorrectOpt && <span style={{ fontSize:16, flexShrink:0 }}>✗</span>}
                         </div>
