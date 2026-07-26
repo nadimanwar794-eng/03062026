@@ -85,6 +85,7 @@ import {
   recordActivityOpen,
   recordActivitySeconds,
   recordMcqAnswer,
+  recordMcqScore,
   recordStudyMetric,
   type StudyActivityMode,
 } from "../utils/activityTracker";
@@ -20516,6 +20517,14 @@ RULES:
                                   // ⏱ Too fast — warn, don't mark routine complete
                                   showAlert(`⚠️ MCQ bahut jaldi complete kiya (${Math.round(_totalElapsed)}s). Minimum ${_minTotalSec}s chahiye — Routine mein count nahi hoga.`, 'WARNING');
                                 }
+                                // ── Record MCQ session score to activityTracker ──
+                                try {
+                                  const _correct = mcqs.reduce((acc: number, q: any, qi: number) => {
+                                    if (!lucentMcqSubmitted[`${pageKey}_${qi}`]) return acc;
+                                    return acc + (lucentMcqAnswers[`${pageKey}_${qi}`] === q.correctAnswer ? 1 : 0);
+                                  }, 0);
+                                  recordMcqScore(user.id, getStudyActivityKey(entry.id, safeIndex), _correct, attempted, _totalElapsed);
+                                } catch {}
                                 setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: true }));
                               }}
                               className="w-full mb-3 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md"

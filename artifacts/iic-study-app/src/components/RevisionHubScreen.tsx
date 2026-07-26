@@ -14,6 +14,7 @@ import { useAppTheme } from '../utils/themeContext';
 import {
   recordAttempt, applyInitialSchedule, bucketKey, getAllBuckets,
 } from '../utils/revisionTrackerV2';
+import { getStudyActivitySummary, formatActivityDuration } from '../utils/activityTracker';
 import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
@@ -953,27 +954,110 @@ export const RevisionHubScreen: React.FC<Props> = ({
         )}
 
         {/* Performance Tab */}
-        {activeTab === 'PERFORMANCE' && (
-          <div className="p-4 space-y-4">
-            <PerformanceGraph
-              history={(user as any).mcqHistory || []}
-              user={user}
-            />
-            <button
-              onClick={() => setShowMonthlySheet(true)}
-              className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-indigo-200 bg-indigo-50 active:scale-[0.99] transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📊</span>
-                <div className="text-left">
-                  <p className="font-black text-slate-800 text-sm">Monthly Report</p>
-                  <p className="text-[10px] text-slate-500">Full marksheet aur analysis</p>
+        {activeTab === 'PERFORMANCE' && (() => {
+          const topicSummaries = getStudyActivitySummary(user.id).filter(s => s.mcq.attempts > 0 || Object.keys(s.seconds).length > 0);
+          return (
+            <div className="p-4 space-y-4">
+              <PerformanceGraph
+                history={(user as any).mcqHistory || []}
+                user={user}
+              />
+
+              {/* Topic-wise Progress from activityTracker */}
+              {topicSummaries.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 px-1">📚 Topic-wise Progress</p>
+                  {topicSummaries.map((s, i) => {
+                    const latest = s.mcq.latest;
+                    const prev = s.mcq.previous;
+                    const latestPct = latest ? Math.round((latest.correct / Math.max(1, latest.total)) * 100) : 0;
+                    const prevPct = prev ? Math.round((prev.correct / Math.max(1, prev.total)) * 100) : 0;
+                    const totalSec = Object.values(s.seconds).reduce((a, b) => a + (b || 0), 0);
+                    return (
+                      <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-black text-slate-800 truncate">{s.topic}</p>
+                            {s.subject && (
+                              <p className="text-[10px] text-slate-400 font-bold">{s.subject}</p>
+                            )}
+                          </div>
+                          {totalSec > 0 && (
+                            <span className="text-[9px] font-bold text-slate-400 shrink-0 flex items-center gap-0.5">
+                              <Clock size={9} />{formatActivityDuration(totalSec)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* MCQ scores */}
+                        {latest && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${latestPct >= 70 ? 'bg-emerald-50 text-emerald-700' : latestPct >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'}`}>
+                              Last: {latest.correct}/{latest.total} ({latestPct}%)
+                            </span>
+                            {prev && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prevPct >= 70 ? 'bg-emerald-50 text-emerald-700' : prevPct >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'} opacity-70`}>
+                                Prev: {prev.correct}/{prev.total} ({prevPct}%)
+                              </span>
+                            )}
+                            {/* Improvement arrow */}
+                            {prev && latestPct !== prevPct && (
+                              <span className={`text-[10px] font-black ${latestPct > prevPct ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                {latestPct > prevPct ? `↑ +${latestPct - prevPct}%` : `↓ ${latestPct - prevPct}%`}
+                              </span>
+                            )}
+                            <span className="text-[9px] text-slate-400">{s.mcq.attempts} attempt{s.mcq.attempts !== 1 ? 's' : ''}</span>
+                          </div>
+                        )}
+
+                        {/* Last 5 question timings */}
+                        {s.mcq.timings.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[8px] text-slate-400 font-bold">⏱</span>
+                            {s.mcq.timings.map((t, ti) => (
+                              <span key={ti} className="text-[8px] font-bold bg-slate-100 text-slate-600 px-1 py-[1px] rounded">
+                                {t}s
+                              </span>
+                            ))}
+                            <span className="text-[8px] text-slate-400">last q timings</span>
+                          </div>
+                        )}
+
+                        {/* Mode-wise time breakdown */}
+                        <div className="flex flex-wrap gap-1">
+                          {(Object.entries(s.seconds) as [string, number][])
+                            .filter(([, sec]) => sec > 0)
+                            .map(([mode, sec]) => {
+                              const emoji = mode === 'READING' ? '📖' : mode === 'WRITING' ? '✍️' : mode === 'MCQ' ? '🧠' : mode === 'VIDEO' ? '🎬' : mode === 'PDF' ? '📄' : mode === 'AUDIO' ? '🔊' : mode === 'FLASHCARD' ? '🃏' : '💬';
+                              return (
+                                <span key={mode} className="text-[8px] font-bold bg-slate-50 border border-slate-100 text-slate-500 px-1.5 py-[2px] rounded-full">
+                                  {emoji} {formatActivityDuration(sec)}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-              <ChevronRight size={16} className="text-indigo-400" />
-            </button>
-          </div>
-        )}
+              )}
+
+              <button
+                onClick={() => setShowMonthlySheet(true)}
+                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-indigo-200 bg-indigo-50 active:scale-[0.99] transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📊</span>
+                  <div className="text-left">
+                    <p className="font-black text-slate-800 text-sm">Monthly Report</p>
+                    <p className="text-[10px] text-slate-500">Full marksheet aur analysis</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-indigo-400" />
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {showMonthlySheet && (
