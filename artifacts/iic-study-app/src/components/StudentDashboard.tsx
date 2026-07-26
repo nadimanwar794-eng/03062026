@@ -191,6 +191,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { speakText, stopSpeech, stripHtml } from "../utils/textToSpeech";
+import { parseMCQText, normalizeMcqPaste } from "../utils/mcqParser";
 import { getMistakeBankSync, getMistakeBank, addMistakes, removeMistakeByQuestion, MistakeEntry } from "../utils/mistakeBank";
 import { recordCreditTx } from "../utils/creditHistory";
 import { rotateScreen, isRotatingForOrientation } from "../utils/displayPrefs";
@@ -3424,7 +3425,28 @@ export const StudentDashboard: React.FC<Props> = ({
     try {
       const { entry, pageIdx } = adminPageEdit;
       let parsedMcqs: any[] | undefined;
-      try { parsedMcqs = apeMcq.trim() ? JSON.parse(apeMcq) : undefined; } catch { parsedMcqs = entry.pages[pageIdx].mcqs; }
+      if (apeMcq.trim()) {
+        const _normalized = normalizeMcqPaste(apeMcq.trim());
+        const _result = parseMCQText(_normalized);
+        const _ts = Date.now();
+        const _parsed = (_result?.questions || []).map((q: any, i: number) => ({
+          id: `mcq_${_ts}_${i}_${Math.random().toString(36).slice(2)}`,
+          question: (q.question || '').replace(/<br\/?>/g, '\n').replace(/^Q?\s*\d+[.)]\s*/i, '').trim(),
+          options: (q.options || ['', '', '', '']).slice(0, 4),
+          correctAnswer: q.correctAnswer ?? 0,
+          ...(q.statements?.length ? { statements: q.statements } : {}),
+          ...(q.topic?.trim() ? { topic: q.topic.trim() } : {}),
+          ...(q.explanation?.trim() ? { explanation: q.explanation.trim() } : {}),
+        }));
+        if (!_parsed.length) {
+          showAlert('❌ MCQ parse nahi hua. Format check karein: Q1. Sawaal?\nA) Opt A\nB) Opt B\nAnswer: A', 'ERROR');
+          setAdminPageEditSaving(false);
+          return;
+        }
+        parsedMcqs = _parsed;
+      } else {
+        parsedMcqs = entry.pages[pageIdx].mcqs; // keep existing if paste area is empty
+      }
       const updatedPages = [...entry.pages];
       updatedPages[pageIdx] = {
         ...updatedPages[pageIdx],
@@ -26360,27 +26382,72 @@ RULES:
                 </div>
               )}
               {adminPageEditTab === 'mcq' && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">🎯 MCQ JSON Array</p>
-                  <p className="text-[10px] text-slate-400 px-1">MCQ array paste karo (JSON format). Existing MCQs replace ho jayenge.</p>
+                <div className="flex flex-col gap-3">
+                  {/* Existing MCQ info */}
+                  {(pg.mcqs?.length || 0) > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-[11px] font-black text-emerald-700">✅ Abhi {pg.mcqs!.length} MCQ saved hain is page pe</span>
+                      <span className="flex-1" />
+                      <button
+                        onClick={() => { if (window.confirm('Saare existing MCQ permanently delete karne hain?')) {
+                          const { entry: _e, pageIdx: _pi } = adminPageEdit!;
+                          const _up = [..._e.pages];
+                          (_up[_pi] as any).mcqs = [];
+                          const _ue = { ..._e, pages: _up };
+                          saveLucentEntryDirect(_ue).then(() => {
+                            if (lucentPageListViewer?.id === _e.id) setLucentPageListViewer(_ue as any);
+                            setAdminPageEdit({ entry: _ue as any, pageIdx: _pi });
+                            showAlert('🗑 MCQs delete ho gaye!', 'SUCCESS');
+                          });
+                        }}}
+                        className="text-[9px] font-black text-red-600 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all shrink-0"
+                      >
+                        🗑 Delete All
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Format hint */}
+                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-semibold leading-relaxed">
+                    <p className="font-black mb-1">📋 Admin Dashboard jaisa format use karo:</p>
+                    <p className="font-mono text-[9px] text-amber-700 whitespace-pre-wrap">{`Q1. Sawaal kya hai?
+A) Option A
+B) Option B
+C) Option C
+D) Option D
+Answer: B
+Explanation: Yahan explanation...`}</p>
+                  </div>
+
+                  {/* Live parse preview */}
+                  {apeMcq.trim() && (() => {
+                    try {
+                      const _n = normalizeMcqPaste(apeMcq.trim());
+                      const _r = parseMCQText(_n);
+                      const count = _r?.questions?.length || 0;
+                      return (
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-black ${count > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                          {count > 0 ? `✅ ${count} MCQ parse ready — Save All dabao` : '⚠ Koi MCQ parse nahi hua — format check karo'}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
+
+                  {/* Paste area */}
                   <textarea
-                    className="w-full h-[calc(100dvh-300px)] p-3 font-mono text-[11px] text-slate-800 bg-emerald-50 border border-emerald-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-emerald-400 leading-relaxed"
+                    className="w-full h-[calc(100dvh-380px)] min-h-[180px] p-3 font-mono text-[12px] text-slate-800 bg-white border border-emerald-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-emerald-400 leading-relaxed"
                     value={apeMcq}
                     onChange={e => setApeMcq(e.target.value)}
-                    placeholder={"[{\"question\":\"...\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"answer\":\"A\",\"explanation\":\"...\"}]"}
+                    placeholder={"Q1. Sawaal yahan likho?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nAnswer: B\nExplanation: optional...\n\nQ2. Doosra sawaal?\n..."}
                     spellCheck={false}
                   />
-                  {(() => {
-                    try {
-                      const parsed = apeMcq.trim() ? JSON.parse(apeMcq) : null;
-                      if (Array.isArray(parsed)) return <span className="text-[10px] font-black text-emerald-600 px-1">✅ Valid JSON · {parsed.length} MCQ{parsed.length !== 1 ? 's' : ''}</span>;
-                      return <span className="text-[10px] font-black text-red-500 px-1">⚠ Array expected</span>;
-                    } catch { return apeMcq.trim() ? <span className="text-[10px] font-black text-red-500 px-1">⚠ Invalid JSON</span> : null; }
-                  })()}
+                  <p className="text-[9px] text-slate-400 px-1">
+                    ⚠ Paste karne pe existing MCQs replace ho jayenge. Khali chodne pe existing MCQs preserve rehenge.
+                  </p>
                   {apeMcq && (
-                    <button onClick={() => { if (window.confirm('Saare MCQ delete karne hain?')) setApeMcq(''); }}
-                      className="self-start text-[10px] font-black text-red-500 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all">
-                      🗑 Clear MCQs
+                    <button onClick={() => setApeMcq('')}
+                      className="self-start text-[10px] font-black text-slate-500 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 active:scale-95 transition-all">
+                      ✕ Clear Paste Area
                     </button>
                   )}
                 </div>
