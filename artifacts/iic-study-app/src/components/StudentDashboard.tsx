@@ -90,7 +90,7 @@ import {
   recordStudyMetric,
   type StudyActivityMode,
 } from "../utils/activityTracker";
-import { StudyModeButtons, StudyStatsPanel, type StudyCardMode } from "./StudyModeCardTools";
+import { StudyCardExpandable, StudyModeButtons, StudyStatsPanel, type StudyCardMode } from "./StudyModeCardTools";
 import { generateMorningInsight } from "../services/morningInsight";
 import { LessonActionModal } from "./LessonActionModal";
 import { PullToRefresh } from "./PullToRefresh";
@@ -8929,19 +8929,17 @@ export const StudentDashboard: React.FC<Props> = ({
                           </div>
                           <ChevronRight size={15} className={`${theme.text} shrink-0`} />
                         </div>
-                        {/* ── Mode buttons + Stats panel ── */}
+                        {/* ── Expandable: mode buttons + stats ── */}
                         {hwStudyModes.length > 0 && (
-                          <div className="px-3 py-2 border-t border-slate-100 bg-white/80">
-                            <StudyModeButtons modes={hwStudyModes} onModeClick={openHwStudyMode} />
-                            <StudyStatsPanel
-                              userId={user.id}
-                              contentId={hwContentId}
-                              modes={hwStudyModes}
-                              open={openStudyStatsKeyHw === hwContentId}
-                              onToggle={() => setOpenStudyStatsKeyHw(cur => cur === hwContentId ? null : hwContentId)}
-                              totalMcqs={mcqCount}
-                            />
-                          </div>
+                          <StudyCardExpandable
+                            modes={hwStudyModes}
+                            onModeClick={openHwStudyMode}
+                            userId={user.id}
+                            contentId={hwContentId}
+                            totalMcqs={mcqCount}
+                            open={openStudyStatsKeyHw === hwContentId}
+                            onToggle={() => setOpenStudyStatsKeyHw(cur => cur === hwContentId ? null : hwContentId)}
+                          />
                         )}
                         {/* ── Admin edit ── */}
                         {_isAdminUser && (
@@ -19085,21 +19083,19 @@ export const StudentDashboard: React.FC<Props> = ({
                       </div>
                       <ChevronRight size={16} className="shrink-0" style={{ color: tierTheme.primary }} />
                     </button>
-                    <div className="px-3 py-2 border-t border-slate-100 bg-white/80">
-                      <StudyModeButtons modes={studyModes} onModeClick={openStudyMode} />
-                      <StudyStatsPanel
-                        userId={user.id}
-                        contentId={getStudyActivityKey(plEntry.id, idx)}
-                        modes={studyModes}
-                        open={openStudyStatsKey === getStudyActivityKey(plEntry.id, idx)}
-                        onToggle={() => setOpenStudyStatsKey(current =>
-                          current === getStudyActivityKey(plEntry.id, idx)
-                            ? null
-                            : getStudyActivityKey(plEntry.id, idx)
-                        )}
-                        totalMcqs={totalMcq}
-                      />
-                    </div>
+                    <StudyCardExpandable
+                      modes={studyModes}
+                      onModeClick={openStudyMode}
+                      userId={user.id}
+                      contentId={getStudyActivityKey(plEntry.id, idx)}
+                      totalMcqs={totalMcq}
+                      open={openStudyStatsKey === getStudyActivityKey(plEntry.id, idx)}
+                      onToggle={() => setOpenStudyStatsKey(current =>
+                        current === getStudyActivityKey(plEntry.id, idx)
+                          ? null
+                          : getStudyActivityKey(plEntry.id, idx)
+                      )}
+                    />
                     {/* ── Admin-only: content mode badges + edit button ── */}
                     {_isAdminUser && (
                       <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap bg-slate-50/70">
