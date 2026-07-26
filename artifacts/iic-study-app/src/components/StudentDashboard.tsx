@@ -6461,7 +6461,7 @@ export const StudentDashboard: React.FC<Props> = ({
                               </div>
                               <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: _lc.bg, color: _lc.text }}>{getProgressTicks(_ls.pct)} {_ls.pct}%</span>
                               <span className="text-[9px] font-bold text-slate-400">{_ls.pagesRead}/{entry.pages.length}pg</span>
-                              {_ls.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ls.totalTime)}</span>}
+                              {_ls.totalTime > 0 && <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ls.totalTime)}</span>}
                             </div>
                           );
                         })()}
@@ -6767,7 +6767,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             </div>
                             <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: _lc.bg, color: _lc.text }}>{getProgressTicks(_ls.pct)} {_ls.pct}%</span>
                             <span className="text-[9px] font-bold text-slate-400">{_ls.pagesRead}/{entry.pages.length}pg</span>
-                            {_ls.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ls.totalTime)}</span>}
+                            {_ls.totalTime > 0 && <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ls.totalTime)}</span>}
                           </div>
                         );
                       })()}
@@ -8673,7 +8673,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             {(hw as any).pdfUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">PDF</span>}
                             {((hw as any).isUltra || (hw as any).tier === 'ULTRA') && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-600 text-white"><Crown size={9}/> ULTRA</span>}
                             <span className={`text-[9px] font-bold ${theme.text} opacity-50`}>{monthYear}</span>
-                            {hw.id && (() => { const _ht = getLessonStats(hw.id, 1); return _ht.totalTime > 0 ? <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ht.totalTime)}</span> : null; })()}
+                            {hw.id && (() => { const _ht = getLessonStats(hw.id, 1); return _ht.totalTime > 0 ? <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ht.totalTime)}</span> : null; })()}
                             {user.role === 'ADMIN' && (
                               <button onClick={(e) => { e.stopPropagation(); openContentCodeModal(hw.id || '', hw.title || `Page ${pageNum}`); }} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 active:scale-95 transition-all">🎫 Code</button>
                             )}
@@ -8813,7 +8813,7 @@ export const StudentDashboard: React.FC<Props> = ({
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                             <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full border" style={{ background: _bc.bg, color: _bc.text, borderColor: _bc.border }}>{getProgressTicks(_bms.pct)} {_bms.pct}%</span>
                             <span className="text-[9px] font-bold text-slate-400">{_bms.pagesRead}/{_bms.totalPages}pg</span>
-                            {_bms.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_bms.totalTime)}</span>}
+                            {_bms.totalTime > 0 && <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_bms.totalTime)}</span>}
                           </div>
                         );
                       })()}
@@ -8929,7 +8929,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full border" style={{ background: _cc.bg, color: _cc.text, borderColor: _cc.border }}>{getProgressTicks(_cms.pct)} {_cms.pct}%</span>
                         <span className="text-[9px] font-bold text-slate-400">{_cms.pagesRead}/{_cms.totalPages}pg</span>
-                        {_cms.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_cms.totalTime)}</span>}
+                        {_cms.totalTime > 0 && <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_cms.totalTime)}</span>}
                       </div>
                     );
                   })()}
@@ -9040,7 +9040,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ background: _lc.bg, color: _lc.text }}>{getProgressTicks(_ls.pct)} {_ls.pct}%</span>
                           <span className="text-[9px] font-bold text-slate-400">{_ls.pagesRead}/{entry.pages.length}pg</span>
-                          {_ls.totalTime > 0 && <span className="text-[9px] font-bold text-slate-400">⏱{formatDuration(_ls.totalTime)}</span>}
+                          {_ls.totalTime > 0 && <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ls.totalTime)}</span>}
                         </div>
                       );
                     })()}
@@ -18751,7 +18751,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         const _tks = getProgressTicks(pageMcqDone ? 100 : pageRead ? 50 : 0);
                         return (
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[9px] font-bold text-slate-400">⏱ {formatDuration(_pt)}</span>
+                            <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_pt)}</span>
                             {_tks && <span className="text-[9px] font-bold text-emerald-600">{_tks}</span>}
                           </div>
                         );
