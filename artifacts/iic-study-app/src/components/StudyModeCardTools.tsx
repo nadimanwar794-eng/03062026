@@ -170,23 +170,22 @@ export const StudyStatsPanel: React.FC<{
                   </>
                 )}
 
-                {/* MCQ: Last 5 individual question timings (green=correct, red=wrong) */}
-                {mode.mode === 'MCQ' && timings.length > 0 && (
-                  <div className="mt-1 flex items-center gap-[3px] flex-wrap">
-                    <Timer size={8} className="text-slate-400 shrink-0" />
-                    {timings.slice(-5).map((a, i) => (
-                      <span
-                        key={i}
-                        title={a.correct ? `Q${i + 1}: ${a.seconds}s — सही` : `Q${i + 1}: ${a.seconds}s — गलत`}
-                        className={`text-[8px] font-bold px-1 py-[1px] rounded ${
-                          a.correct ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'
-                        }`}
-                      >
-                        {a.seconds}s
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* MCQ: Aggregated stats — correct, wrong, avg time/Q, accuracy */}
+                {mode.mode === 'MCQ' && timings.length > 0 && (() => {
+                  const _correct = timings.filter((a: { correct: boolean; seconds: number }) => a.correct).length;
+                  const _wrong = timings.length - _correct;
+                  const _avgSec = Math.round(timings.reduce((s: number, a: { correct: boolean; seconds: number }) => s + a.seconds, 0) / timings.length);
+                  const _avgFmt = _avgSec < 60 ? `${_avgSec}s` : `${Math.floor(_avgSec / 60)}m ${_avgSec % 60}s`;
+                  const _acc = Math.round((_correct / timings.length) * 100);
+                  return (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="text-[9px] font-bold text-emerald-600">✅ {_correct} सही</span>
+                      <span className="text-[9px] font-bold text-rose-500">❌ {_wrong} गलत</span>
+                      <span className="text-[9px] font-bold text-slate-500">⏱ avg {_avgFmt}/Q</span>
+                      <span className={`text-[9px] font-bold ${_acc >= 70 ? 'text-emerald-600' : _acc >= 40 ? 'text-amber-500' : 'text-rose-500'}`}>{_acc}%</span>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
