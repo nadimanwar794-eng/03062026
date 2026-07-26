@@ -171,18 +171,18 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     setTimeout(() => setLogoTapped(false), 600);
   };
 
-  const t = THEME_STYLES[themeVariant];
-  const iconColor1 = themeVariant === 'light' ? 'text-blue-500' : 'text-blue-400';
-  const iconColor2 = themeVariant === 'light' ? 'text-violet-600' : 'text-purple-400';
-  const iconColor3 = themeVariant === 'light' ? 'text-rose-500' : 'text-rose-400';
-  const iconColor4 = themeVariant === 'light' ? 'text-emerald-600' : 'text-emerald-400';
-  const iconColor5 = themeVariant === 'light' ? 'text-amber-500' : 'text-amber-400';
-  const iconColor6 = themeVariant === 'light' ? 'text-indigo-600' : 'text-indigo-400';
-  const iconColor7 = themeVariant === 'light' ? 'text-teal-600' : 'text-teal-400';
-  const iconColor8 = themeVariant === 'light' ? 'text-orange-500' : 'text-orange-400';
+  const t = THEME_STYLES.light;
+  const iconColor1 = 'text-blue-500';
+  const iconColor2 = 'text-violet-600';
+  const iconColor3 = 'text-rose-500';
+  const iconColor4 = 'text-emerald-600';
+  const iconColor5 = 'text-amber-500';
+  const iconColor6 = 'text-indigo-600';
+  const iconColor7 = 'text-teal-600';
+  const iconColor8 = 'text-orange-500';
 
   return (
-    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black ${t.text} overflow-hidden w-full mx-auto`}>
+    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${THEME_STYLES.light.bg} ${THEME_STYLES.light.text} overflow-hidden w-full mx-auto`}>
 
       <div className="relative z-10 flex flex-col items-center w-full px-8">
         <button
