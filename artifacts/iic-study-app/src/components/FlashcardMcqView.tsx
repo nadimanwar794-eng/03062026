@@ -675,7 +675,14 @@ export const FlashcardMcqView: React.FC<Props> = ({
 
       {/* Flip Card */}
       <div className="flex-1 px-4 flex flex-col justify-center gap-4 overflow-y-auto py-2">
-        <div className="w-full max-w-lg mx-auto" style={{ perspective: '1200px' }}>
+        {/* Guard: activeQ can be null briefly while initSession initialises pickedIndices.
+            Projector mode skips the early-return guard, so we protect here instead. */}
+        {!activeQ ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-white/40 text-sm font-bold">Loading cards…</p>
+          </div>
+        ) : null}
+        {activeQ && <div className="w-full max-w-lg mx-auto" style={{ perspective: '1200px' }}>
           <div
             className="relative w-full transition-transform duration-500"
             style={{
@@ -925,7 +932,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
               )}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Navigation — forward only; card navigation does not show a Back button */}
         <div className="flex items-center gap-3 w-full max-w-md mx-auto">

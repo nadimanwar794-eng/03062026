@@ -205,6 +205,7 @@ import { CoachingHomeworkSection } from "./CoachingHomeworkView"; // Coaching Ho
 import { HistoryPage } from "./HistoryPage";
 import TeacherStore from "./TeacherStore";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { reportCrash } from "../utils/maintenanceManager";
 import { Leaderboard } from "./Leaderboard";
 import { SpinWheel } from "./SpinWheel";
 import { fetchChapters, generateCustomNotes } from "../services/groq"; // Needed for Video Flow
@@ -3403,6 +3404,11 @@ export const StudentDashboard: React.FC<Props> = ({
   const [apeMcq, setApeMcq] = useState('');
   const [apePageNo, setApePageNo] = useState('');
   const [apeTopic, setApeTopic] = useState('');
+  const [apeTitle, setApeTitle] = useState('');
+
+  // ── Homework Entry Editor (Sar Sangrah / Speedy / Custom Books page-wise list) ──
+  const [hwEntryEdit, setHwEntryEdit] = useState<any | null>(null);
+  const [hwEntryEditSaving, setHwEntryEditSaving] = useState(false);
 
   const openAdminPageEdit = (entry: LucentNoteEntry, pageIdx: number) => {
     const pg = entry.pages[pageIdx];
@@ -3483,6 +3489,67 @@ export const StudentDashboard: React.FC<Props> = ({
     } catch { showAlert('Delete failed. Try again.', 'ERROR'); }
     finally { setAdminPageEditSaving(false); }
   };
+
+  const openHwEntryEdit = (hw: any) => {
+    setApeChunk(hw.chunkNotes || '');
+    setApeHtml(hw.htmlNotes || '');
+    setApeVideo(hw.videoUrl || '');
+    setApeAudio(hw.audioUrl || '');
+    setApePdf(hw.pdfUrl || '');
+    setApeMcq('');
+    setApePageNo(String(hw.pageNo ?? ''));
+    setApeTopic(hw.topicName || '');
+    setApeTitle(hw.title || '');
+    setAdminPageEditTab('chunk');
+    setHwEntryEdit(hw);
+  };
+
+  const saveHwEntryEdit = async () => {
+    if (!hwEntryEdit) return;
+    setHwEntryEditSaving(true);
+    try {
+      let parsedMcqs: any[] | undefined;
+      if (apeMcq.trim()) {
+        const _normalized = normalizeMcqPaste(apeMcq.trim());
+        const _result = parseMCQText(_normalized);
+        const _ts = Date.now();
+        const _parsed = (_result?.questions || []).map((q: any, i: number) => ({
+          id: `mcq_${_ts}_${i}_${Math.random().toString(36).slice(2)}`,
+          question: (q.question || '').replace(/<br\/?>/g, '\n').replace(/^Q?\s*\d+[.)]\s*/i, '').trim(),
+          options: (q.options || ['', '', '', '']).slice(0, 4),
+          correctAnswer: q.correctAnswer ?? 0,
+          ...(q.statements?.length ? { statements: q.statements } : {}),
+          ...(q.topic?.trim() ? { topic: q.topic.trim() } : {}),
+          ...(q.explanation?.trim() ? { explanation: q.explanation.trim() } : {}),
+        }));
+        if (!_parsed.length) {
+          showAlert('❌ MCQ parse nahi hua. Format check karein.', 'ERROR');
+          setHwEntryEditSaving(false);
+          return;
+        }
+        parsedMcqs = _parsed;
+      } else {
+        parsedMcqs = hwEntryEdit.mcqs; // keep existing if paste area is empty
+      }
+      const updatedHw = {
+        ...hwEntryEdit,
+        title: apeTitle || hwEntryEdit.title,
+        chunkNotes: apeChunk || undefined,
+        htmlNotes: apeHtml || undefined,
+        videoUrl: apeVideo || undefined,
+        audioUrl: apeAudio || undefined,
+        pdfUrl: apePdf || undefined,
+        mcqs: parsedMcqs,
+        pageNo: apePageNo || undefined,
+        topicName: apeTopic || undefined,
+      };
+      await saveHomeworkEntryDirect(updatedHw);
+      showAlert('✅ Entry saved!', 'SUCCESS');
+      setHwEntryEdit(null);
+    } catch { showAlert('Save failed. Try again.', 'ERROR'); }
+    finally { setHwEntryEditSaving(false); }
+  };
+
 
   const handleInlineEditSave = async () => {
     if (!inlineEditModal) return;
@@ -8744,36 +8811,47 @@ export const StudentDashboard: React.FC<Props> = ({
                     const d = new Date(hw.date);
                     const monthYear = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
                     return (
-                      <div
-                        key={hw.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); } }}
-                        className={`w-full border rounded-xl p-2 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-2.5 cursor-pointer`}
-                        style={{ background: tierTheme.profileCardBg, borderColor: tierTheme.primary }}
-                      >
-                        <div className={`${theme.bgSoft} ${theme.textDeep} w-10 h-10 rounded-lg shrink-0 flex flex-col items-center justify-center`}>
-                          <span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Pg</span>
-                          <span className="text-base font-black leading-none">{pageNum}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-black ${theme.textDeep} truncate`}>{hw.title || `Page ${pageNum}`}</p>
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            {((hw as any).chunkNotes || (hw as any).htmlNotes || hw.notes) && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">NOTES</span>}
-                            {mcqCount > 0 && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-100 text-violet-700">{mcqCount} MCQ</span>}
-                            {hw.videoUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700">VIDEO</span>}
-                            {hw.audioUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700">AUDIO</span>}
-                            {(hw as any).pdfUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">PDF</span>}
-                            {((hw as any).isUltra || (hw as any).tier === 'ULTRA') && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-600 text-white"><Crown size={9}/> ULTRA</span>}
-                            <span className={`text-[9px] font-bold ${theme.text} opacity-50`}>{monthYear}</span>
-                            {hw.id && (() => { const _ht = getLessonStats(hw.id, 1); return _ht.totalTime > 0 ? <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ht.totalTime)}</span> : null; })()}
-                            {user.role === 'ADMIN' && (
-                              <button onClick={(e) => { e.stopPropagation(); openContentCodeModal(hw.id || '', hw.title || `Page ${pageNum}`); }} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 active:scale-95 transition-all">🎫 Code</button>
-                            )}
+                      <div key={hw.id} className="flex flex-col gap-0.5">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (hw?.id) openHwWithReadGate(hw, () => { setHwViewMode('notes'); setHwNotesViewMode('chunk'); setHwActiveHwId(hw.id!); }); } }}
+                          className={`w-full border rounded-xl p-2 text-left hover:shadow-md transition-all active:scale-[0.99] flex items-center gap-2.5 cursor-pointer`}
+                          style={{ background: tierTheme.profileCardBg, borderColor: tierTheme.primary }}
+                        >
+                          <div className={`${theme.bgSoft} ${theme.textDeep} w-10 h-10 rounded-lg shrink-0 flex flex-col items-center justify-center`}>
+                            <span className="text-[8px] font-bold uppercase tracking-wider opacity-60">Pg</span>
+                            <span className="text-base font-black leading-none">{pageNum}</span>
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-black ${theme.textDeep} truncate`}>{hw.title || `Page ${pageNum}`}</p>
+                            <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              {((hw as any).chunkNotes || (hw as any).htmlNotes || hw.notes) && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700">NOTES</span>}
+                              {mcqCount > 0 && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-100 text-violet-700">{mcqCount} MCQ</span>}
+                              {hw.videoUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700">VIDEO</span>}
+                              {hw.audioUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700">AUDIO</span>}
+                              {(hw as any).pdfUrl && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">PDF</span>}
+                              {((hw as any).isUltra || (hw as any).tier === 'ULTRA') && <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-600 text-white"><Crown size={9}/> ULTRA</span>}
+                              <span className={`text-[9px] font-bold ${theme.text} opacity-50`}>{monthYear}</span>
+                              {hw.id && (() => { const _ht = getLessonStats(hw.id, 1); return _ht.totalTime > 0 ? <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_ht.totalTime)}</span> : null; })()}
+                              {user.role === 'ADMIN' && (
+                                <button onClick={(e) => { e.stopPropagation(); openContentCodeModal(hw.id || '', hw.title || `Page ${pageNum}`); }} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 active:scale-95 transition-all">🎫 Code</button>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight size={15} className={`${theme.text} shrink-0`} />
                         </div>
-                        <ChevronRight size={15} className={`${theme.text} shrink-0`} />
+                        {_isAdminUser && (
+                          <div className="flex justify-end px-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openHwEntryEdit(hw); }}
+                              className="flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-black bg-amber-50 text-amber-600 border border-amber-200 active:scale-95 transition-all"
+                            >
+                              <Pencil size={9} /> Edit
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -21952,21 +22030,46 @@ RULES:
           </div>
         ) : undefined;
         return (
-          <FlashcardMcqView
-            questions={flashcardMcqs.items}
-            title={flashcardMcqs.title}
-            subtitle={flashcardMcqs.subtitle}
-            subject={flashcardMcqs.subject}
-            onBack={() => setFlashcardMcqs(null)}
-            user={user}
-            settings={settings}
-            onUpdateUser={handleUserUpdate}
-            sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
-            sourceKey={flashcardMcqs.sourceKey}
-            startInProjectorMode={flashcardMcqs.startInProjectorMode}
-            hideProjectorLabel={flashcardMcqs.hideProjectorLabel}
-            tabBar={tabBarNode}
-          />
+          <ErrorBoundary
+            resetKey={flashcardMcqs.title + String(flashcardMcqs.startInProjectorMode)}
+            onError={(error) => { reportCrash('studentDashboard', error.message).catch(() => {}); }}
+            fallback={(_err, onRetry) => (
+              <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-900 text-white px-6 text-center">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h2 className="text-lg font-black mb-2">Kuch toh gadbad hai!</h2>
+                <p className="text-slate-300 text-sm mb-1">Yeh section update ho raha hai.</p>
+                <p className="text-slate-400 text-xs mb-8">Dusra mode try karein ya wapas jaaein.</p>
+                <button
+                  onClick={() => setFlashcardMcqs(null)}
+                  className="w-full max-w-xs bg-indigo-600 text-white font-black py-3 rounded-2xl mb-3 active:scale-95 transition"
+                >
+                  ← Dusra Mode Try Karein
+                </button>
+                <button
+                  onClick={onRetry}
+                  className="text-slate-400 text-xs py-2 active:text-white transition"
+                >
+                  🔄 Try Again
+                </button>
+              </div>
+            )}
+          >
+            <FlashcardMcqView
+              questions={flashcardMcqs.items}
+              title={flashcardMcqs.title}
+              subtitle={flashcardMcqs.subtitle}
+              subject={flashcardMcqs.subject}
+              onBack={() => setFlashcardMcqs(null)}
+              user={user}
+              settings={settings}
+              onUpdateUser={handleUserUpdate}
+              sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
+              sourceKey={flashcardMcqs.sourceKey}
+              startInProjectorMode={flashcardMcqs.startInProjectorMode}
+              hideProjectorLabel={flashcardMcqs.hideProjectorLabel}
+              tabBar={tabBarNode}
+            />
+          </ErrorBoundary>
         );
       })()}
 
@@ -26450,6 +26553,193 @@ Explanation: Yahan explanation...`}</p>
                       ✕ Clear Paste Area
                     </button>
                   )}
+                </div>
+              )}
+              {adminPageEditTab === 'urls' && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest px-1">🔗 Media URLs</p>
+                  {[
+                    { label: '🎬 Video URL', value: apeVideo, set: setApeVideo, color: 'rose', placeholder: 'YouTube / Google Drive video link…' },
+                    { label: '🎵 Audio URL', value: apeAudio, set: setApeAudio, color: 'purple', placeholder: 'Audio file URL…' },
+                    { label: '📄 PDF URL', value: apePdf, set: setApePdf, color: 'blue', placeholder: 'Google Drive PDF link…' },
+                  ].map(({ label, value, set, color, placeholder }) => (
+                    <div key={label} className="flex flex-col gap-1.5">
+                      <p className={`text-[10px] font-black text-${color}-600 px-1`}>{label}</p>
+                      <div className="flex gap-2">
+                        <input
+                          className={`flex-1 p-2.5 text-[12px] border border-${color}-200 rounded-xl outline-none focus:ring-2 focus:ring-${color}-300 bg-${color}-50`}
+                          value={value}
+                          onChange={e => set(e.target.value)}
+                          placeholder={placeholder}
+                        />
+                        {value && (
+                          <button onClick={() => set('')}
+                            className="px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 text-[10px] font-black active:scale-95 transition-all shrink-0">
+                            🗑
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Homework Entry Editor (Sar Sangrah / Speedy / Custom Books, admin only) ── */}
+      {hwEntryEdit && (() => {
+        const hwMcqCount = Array.isArray(hwEntryEdit.mcqs) ? hwEntryEdit.mcqs.length : 0;
+        const TABS: { id: typeof adminPageEditTab; label: string; color: string }[] = [
+          { id: 'chunk', label: '📄 Chunk', color: 'indigo' },
+          { id: 'html',  label: '🖊 HTML',  color: 'violet' },
+          { id: 'mcq',   label: '🎯 MCQ',   color: 'emerald' },
+          { id: 'urls',  label: '🔗 URLs',  color: 'sky' },
+        ];
+        const colorMap: Record<string, string> = {
+          indigo: 'bg-indigo-600 text-white',
+          violet: 'bg-violet-600 text-white',
+          emerald: 'bg-emerald-600 text-white',
+          sky: 'bg-sky-600 text-white',
+        };
+        const inactiveTab = 'bg-white text-slate-500 border border-slate-200';
+        return (
+          <div className="fixed inset-0 z-[520] flex flex-col bg-white animate-in fade-in">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 shrink-0" style={{ background: tierTheme.topBarGrad }}>
+              <button onClick={() => setHwEntryEdit(null)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white active:scale-90 transition-all shrink-0">
+                <X size={17} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Admin · Entry Edit</p>
+                <p className="text-[13px] font-black text-white truncate leading-tight">
+                  {hwEntryEdit.title || (hwEntryEdit.pageNo ? `Page ${hwEntryEdit.pageNo}` : 'Entry')}
+                </p>
+              </div>
+              <button
+                onClick={saveHwEntryEdit}
+                disabled={hwEntryEditSaving}
+                className="px-3 py-1.5 bg-white hover:bg-white/90 active:scale-95 text-[12px] font-black rounded-xl shrink-0 disabled:opacity-50 transition-all"
+                style={{ color: tierTheme.primary }}
+              >
+                {hwEntryEditSaving ? 'Saving…' : '💾 Save'}
+              </button>
+            </div>
+
+            {/* Meta row: pageNo + title + topic */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50 shrink-0 flex-wrap">
+              <label className="flex items-center gap-1">
+                <span className="text-[10px] font-black text-slate-500 shrink-0">Pg No.</span>
+                <input
+                  className="w-16 text-[12px] font-black border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  value={apePageNo}
+                  onChange={e => setApePageNo(e.target.value)}
+                  placeholder="e.g. 42"
+                />
+              </label>
+              <label className="flex items-center gap-1 flex-1 min-w-[120px]">
+                <span className="text-[10px] font-black text-slate-500 shrink-0">Title</span>
+                <input
+                  className="flex-1 text-[12px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  value={apeTitle}
+                  onChange={e => setApeTitle(e.target.value)}
+                  placeholder="Page title"
+                />
+              </label>
+              <label className="flex items-center gap-1 flex-1 min-w-[100px]">
+                <span className="text-[10px] font-black text-slate-500 shrink-0">Topic</span>
+                <input
+                  className="flex-1 text-[12px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  value={apeTopic}
+                  onChange={e => setApeTopic(e.target.value)}
+                  placeholder="optional"
+                />
+              </label>
+            </div>
+
+            {/* Tab bar */}
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-100 shrink-0 overflow-x-auto">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setAdminPageEditTab(t.id)}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black shrink-0 active:scale-95 transition-all ${adminPageEditTab === t.id ? colorMap[t.color] : inactiveTab}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto p-3">
+              {adminPageEditTab === 'chunk' && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">📄 Chunk Notes (Read Mode · TTS)</p>
+                  <textarea
+                    className="w-full h-[calc(100dvh-280px)] p-3 font-mono text-[12px] text-slate-800 bg-indigo-50 border border-indigo-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
+                    value={apeChunk}
+                    onChange={e => setApeChunk(e.target.value)}
+                    placeholder="Chunk notes yahan likho (plain text / markdown)…"
+                    spellCheck={false}
+                  />
+                  {apeChunk && (
+                    <button onClick={() => { if (window.confirm('Chunk notes clear karna hai?')) setApeChunk(''); }}
+                      className="self-start text-[10px] font-black text-red-500 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all">
+                      🗑 Clear Chunk Notes
+                    </button>
+                  )}
+                </div>
+              )}
+              {adminPageEditTab === 'html' && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest px-1">🖊 HTML Notes (Write Mode)</p>
+                  <textarea
+                    className="w-full h-[calc(100dvh-280px)] p-3 font-mono text-[11px] text-slate-800 bg-violet-50 border border-violet-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-violet-400 leading-relaxed"
+                    value={apeHtml}
+                    onChange={e => setApeHtml(e.target.value)}
+                    placeholder="HTML notes yahan paste karo…"
+                    spellCheck={false}
+                  />
+                  {apeHtml && (
+                    <button onClick={() => { if (window.confirm('HTML notes clear karna hai?')) setApeHtml(''); }}
+                      className="self-start text-[10px] font-black text-red-500 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all">
+                      🗑 Clear HTML Notes
+                    </button>
+                  )}
+                </div>
+              )}
+              {adminPageEditTab === 'mcq' && (
+                <div className="flex flex-col gap-3">
+                  {hwMcqCount > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-[11px] font-black text-emerald-700">✅ Abhi {hwMcqCount} MCQ saved hain is entry pe</span>
+                    </div>
+                  )}
+                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[10px] text-amber-800 font-semibold leading-relaxed">
+                    <p className="font-black mb-1">📋 Format:</p>
+                    <p className="font-mono text-[9px] text-amber-700 whitespace-pre-wrap">{`Q1. Sawaal kya hai?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nAnswer: B\nExplanation: optional...`}</p>
+                  </div>
+                  {apeMcq.trim() && (() => {
+                    try {
+                      const _n = normalizeMcqPaste(apeMcq.trim());
+                      const _r = parseMCQText(_n);
+                      const count = _r?.questions?.length || 0;
+                      return (
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-black ${count > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                          {count > 0 ? `✅ ${count} MCQ parse ready — Save dabao` : '⚠ Koi MCQ parse nahi hua — format check karo'}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
+                  <textarea
+                    className="w-full h-[calc(100dvh-400px)] min-h-[180px] p-3 font-mono text-[12px] text-slate-800 bg-white border border-emerald-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-emerald-400 leading-relaxed"
+                    value={apeMcq}
+                    onChange={e => setApeMcq(e.target.value)}
+                    placeholder={"Q1. Sawaal yahan likho?\nA) Option A\nB) Option B\nC) Option C\nD) Option D\nAnswer: B\n\nQ2. Doosra sawaal?\n..."}
+                    spellCheck={false}
+                  />
+                  <p className="text-[9px] text-slate-400 px-1">⚠ Paste karne pe existing MCQs replace ho jayenge. Khali chodne pe preserve rehenge.</p>
                 </div>
               )}
               {adminPageEditTab === 'urls' && (
