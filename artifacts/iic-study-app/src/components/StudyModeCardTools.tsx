@@ -18,6 +18,7 @@ const MODE_STYLES: Record<StudyActivityMode, string> = {
   READING: 'bg-indigo-50 text-indigo-700 border-indigo-100',
   WRITING: 'bg-teal-50 text-teal-700 border-teal-100',
   MCQ: 'bg-purple-50 text-purple-700 border-purple-100',
+  PROJECTOR: 'bg-amber-50 text-amber-700 border-amber-100',
   FLASHCARD: 'bg-amber-50 text-amber-700 border-amber-100',
   QA: 'bg-sky-50 text-sky-700 border-sky-100',
   PDF: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -109,7 +110,33 @@ export const StudyStatsPanel: React.FC<{
                 </div>
 
                 {/* MCQ mode: show total count + scores; other modes: time + sessions */}
-                {mode.mode === 'MCQ' ? (
+                {(mode.mode === 'MCQ' || mode.mode === 'PROJECTOR') && mode.mode === 'PROJECTOR' ? (
+                  /* Projector mode: show aggregated attempt stats */
+                  <>
+                    <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold text-slate-500">
+                      <span>📽️</span>
+                      {timings.length > 0
+                        ? <span>{timings.length} attempt{timings.length === 1 ? '' : 's'}</span>
+                        : <span className="text-slate-400 italic text-[9px]">Abhi tak attempt nahi kiya</span>
+                      }
+                    </div>
+                    {timings.length > 0 && (() => {
+                      const _correct = timings.filter((a: { correct: boolean; seconds: number }) => a.correct).length;
+                      const _wrong = timings.length - _correct;
+                      const _avgSec = Math.round(timings.reduce((s: number, a: { correct: boolean; seconds: number }) => s + a.seconds, 0) / timings.length);
+                      const _avgFmt = _avgSec < 60 ? `${_avgSec}s` : `${Math.floor(_avgSec / 60)}m ${_avgSec % 60}s`;
+                      const _acc = Math.round((_correct / timings.length) * 100);
+                      return (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="text-[9px] font-bold text-emerald-600">✅ {_correct} सही</span>
+                          <span className="text-[9px] font-bold text-rose-500">❌ {_wrong} गलत</span>
+                          <span className="text-[9px] font-bold text-slate-500">⏱ avg {_avgFmt}/Q</span>
+                          <span className={`text-[9px] font-bold ${_acc >= 70 ? 'text-emerald-600' : _acc >= 40 ? 'text-amber-500' : 'text-rose-500'}`}>{_acc}%</span>
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : mode.mode === 'MCQ' ? (
                   <>
                     {/* Total MCQs available */}
                     <div className="flex items-center gap-1 mt-0.5 text-[10px] font-bold text-slate-500">

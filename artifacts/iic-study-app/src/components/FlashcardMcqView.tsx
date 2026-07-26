@@ -5,6 +5,7 @@ import type { MCQItem } from '../types';
 import type { User, SystemSettings } from '../types';
 import { speakText, stopSpeech } from '../utils/textToSpeech';
 import { recordFlashcardSession } from '../utils/flashcardHistory';
+import { recordProjectorAnswer } from '../utils/activityTracker';
 import { getLevelFromScore, getEffectiveDailyLimit } from '../utils/levelSystem';
 import { getUserTier } from '../utils/permissionUtils';
 import { applyDeduction } from '../utils/creditSystem';
@@ -111,6 +112,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const [projectorCorrect, setProjectorCorrect] = useState(0);
   const [projectorWrong, setProjectorWrong] = useState(0);
   const [projectorAnswered, setProjectorAnswered] = useState<Set<number>>(new Set());
+  const projectorQStartTimeRef = useRef(Date.now());
   // Hard-card review queue (stores positions from main session)
   const [hardQueue, setHardQueue] = useState<number[]>([]);
   const hardQueueRef = useRef<number[]>([]);
@@ -229,6 +231,11 @@ export const FlashcardMcqView: React.FC<Props> = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startInProjectorMode]);
+
+  // Reset per-question timer whenever the projector moves to a new question
+  useEffect(() => {
+    projectorQStartTimeRef.current = Date.now();
+  }, [projectorQIndex]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -1098,7 +1105,13 @@ export const FlashcardMcqView: React.FC<Props> = ({
                           const newAnswered = new Set(projectorAnswered);
                           newAnswered.add(projectorQIndex);
                           setProjectorAnswered(newAnswered);
-                          if (oi === pq.correctAnswer) {
+                          const isCorrect = oi === pq.correctAnswer;
+                          const elapsedSec = Math.round((Date.now() - projectorQStartTimeRef.current) / 1000);
+                          // Track projector attempt in activity store
+                          if (user?.id && sourceKey) {
+                            recordProjectorAnswer(user.id, sourceKey, `proj_${projectorQIndex}`, isCorrect, elapsedSec);
+                          }
+                          if (isCorrect) {
                             setProjectorCorrect(c => c + 1);
                             if (user?.id && !isAdmin) {
                               const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');

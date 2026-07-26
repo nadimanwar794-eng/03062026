@@ -18986,6 +18986,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   ...((pg as any).htmlNotes ? [{ mode: 'WRITING' as const, label: 'Write', emoji: '✍️' }] : []),
                   ...(totalMcq > 0 ? [
                     { mode: 'MCQ' as const, label: 'MCQ', emoji: '🧠' },
+                    { mode: 'PROJECTOR' as const, label: 'Projector', emoji: '📽️' },
                     { mode: 'FLASHCARD' as const, label: 'Flash', emoji: '🃏' },
                     { mode: 'QA' as const, label: 'Q&A', emoji: '💬' },
                   ] : []),
@@ -19588,7 +19589,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <button
                         style={_tabStyle}
                         className={_tabCls(false, 'bg-amber-500', 'text-white')}
-                         onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb, returnMode: lucentActiveTab } }); }}
+                         onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', sourceKey: getStudyActivityKey(entry.id, safeIndex), startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb, returnMode: lucentActiveTab } }); }}
                       >
                          📽️ Projector Mode
                       </button>

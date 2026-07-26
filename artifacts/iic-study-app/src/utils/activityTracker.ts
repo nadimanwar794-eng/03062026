@@ -10,6 +10,7 @@ export type StudyActivityMode =
   | 'READING'
   | 'WRITING'
   | 'MCQ'
+  | 'PROJECTOR'
   | 'FLASHCARD'
   | 'QA'
   | 'PDF'
@@ -172,6 +173,24 @@ export const recordMcqAnswer = (
   if (meta?.topic) record.topic = meta.topic;
   if (meta?.subject) record.subject = meta.subject;
   if (meta?.chapter) record.chapter = meta.chapter;
+});
+
+export const recordProjectorAnswer = (
+  userId: string,
+  contentId: string,
+  questionId: string,
+  correct: boolean,
+  seconds: number,
+) => update(userId, contentId, 'PROJECTOR', record => {
+  record.questionsAttempted += 1;
+  record.correctAnswers += correct ? 1 : 0;
+  record.activityCount += 1;
+  record.sessions = Math.max(record.sessions, 1);
+  record.lastOpenedAt = new Date().toISOString();
+  record.attempts = [
+    ...record.attempts.filter(item => item.questionId !== questionId),
+    { questionId, correct, seconds: Math.max(0, Math.round(seconds)), attemptedAt: new Date().toISOString() },
+  ].slice(-200);
 });
 
 export const recordMcqScore = (
