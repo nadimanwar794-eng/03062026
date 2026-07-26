@@ -3390,6 +3390,78 @@ export const StudentDashboard: React.FC<Props> = ({
   const [inlineEditPointIdx, setInlineEditPointIdx] = useState<number | null>(null);
   const [inlineEditPointDraft, setInlineEditPointDraft] = useState('');
 
+  // ── Admin Page Editor (lucentPageListViewer inline editor) ──────────────────
+  const [adminPageEdit, setAdminPageEdit] = useState<{ entry: LucentNoteEntry; pageIdx: number } | null>(null);
+  const [adminPageEditSaving, setAdminPageEditSaving] = useState(false);
+  const [adminPageEditTab, setAdminPageEditTab] = useState<'chunk' | 'html' | 'mcq' | 'urls'>('chunk');
+  const [apeChunk, setApeChunk] = useState('');
+  const [apeHtml, setApeHtml] = useState('');
+  const [apeVideo, setApeVideo] = useState('');
+  const [apeAudio, setApeAudio] = useState('');
+  const [apePdf, setApePdf] = useState('');
+  const [apeMcq, setApeMcq] = useState('');
+  const [apePageNo, setApePageNo] = useState('');
+  const [apeTopic, setApeTopic] = useState('');
+
+  const openAdminPageEdit = (entry: LucentNoteEntry, pageIdx: number) => {
+    const pg = entry.pages[pageIdx];
+    if (!pg) return;
+    setApeChunk(pg.chunkNotes || '');
+    setApeHtml(pg.htmlNotes || '');
+    setApeVideo((pg as any).videoUrl || '');
+    setApeAudio((pg as any).audioUrl || '');
+    setApePdf((pg as any).pdfUrl || '');
+    setApeMcq(pg.mcqs ? JSON.stringify(pg.mcqs, null, 2) : '');
+    setApePageNo(pg.pageNo || '');
+    setApeTopic(pg.topicName || '');
+    setAdminPageEditTab('chunk');
+    setAdminPageEdit({ entry, pageIdx });
+  };
+
+  const saveAdminPageEdit = async () => {
+    if (!adminPageEdit) return;
+    setAdminPageEditSaving(true);
+    try {
+      const { entry, pageIdx } = adminPageEdit;
+      let parsedMcqs: any[] | undefined;
+      try { parsedMcqs = apeMcq.trim() ? JSON.parse(apeMcq) : undefined; } catch { parsedMcqs = entry.pages[pageIdx].mcqs; }
+      const updatedPages = [...entry.pages];
+      updatedPages[pageIdx] = {
+        ...updatedPages[pageIdx],
+        chunkNotes: apeChunk || undefined,
+        htmlNotes: apeHtml || undefined,
+        videoUrl: apeVideo || undefined,
+        audioUrl: apeAudio || undefined,
+        pdfUrl: apePdf || undefined,
+        mcqs: parsedMcqs,
+        pageNo: apePageNo,
+        topicName: apeTopic || undefined,
+      } as any;
+      const updatedEntry = { ...entry, pages: updatedPages };
+      await saveLucentEntryDirect(updatedEntry);
+      if (lucentPageListViewer?.id === entry.id) setLucentPageListViewer(updatedEntry as any);
+      showAlert('✅ Page saved!', 'SUCCESS');
+      setAdminPageEdit(null);
+    } catch { showAlert('Save failed. Try again.', 'ERROR'); }
+    finally { setAdminPageEditSaving(false); }
+  };
+
+  const deleteAdminPage = async () => {
+    if (!adminPageEdit) return;
+    if (!window.confirm('Is page ko permanently delete karna hai?')) return;
+    setAdminPageEditSaving(true);
+    try {
+      const { entry, pageIdx } = adminPageEdit;
+      const updatedPages = entry.pages.filter((_, i) => i !== pageIdx);
+      const updatedEntry = { ...entry, pages: updatedPages };
+      await saveLucentEntryDirect(updatedEntry);
+      if (lucentPageListViewer?.id === entry.id) setLucentPageListViewer(updatedEntry as any);
+      showAlert('✅ Page delete ho gaya!', 'SUCCESS');
+      setAdminPageEdit(null);
+    } catch { showAlert('Delete failed. Try again.', 'ERROR'); }
+    finally { setAdminPageEditSaving(false); }
+  };
+
   const handleInlineEditSave = async () => {
     if (!inlineEditModal) return;
     setInlineEditSaving(true);
@@ -18706,59 +18778,87 @@ export const StudentDashboard: React.FC<Props> = ({
                 // Box color: green = read+mcq done, orange = read only, gray = unread
                 const boxBg = pageMcqDone ? '#d1fae5' : pageRead ? '#fed7aa' : `${tierTheme.primary}20`;
                 const boxColor = pageMcqDone ? '#059669' : pageRead ? '#ea580c' : tierTheme.primary;
+                const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
                 return (
-                  <button
+                  <div
                     key={idx}
-                    onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
-                    className="w-full text-left rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-[0.98] hover:shadow-md transition-all border"
+                    className="rounded-2xl overflow-hidden border"
                     style={{
-                      background: settings?.contentListCardBg || '#ffffff',
                       borderColor: pageMcqDone ? '#6ee7b7' : pageRead ? '#fdba74' : (settings?.contentListCardBorder ? `${settings.contentListCardBorder}55` : `${tierTheme.primary}33`),
                     }}
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: boxBg }}>
-                      <span className="text-[11px] font-black" style={{ color: boxColor }}>{idx + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-black text-slate-700">{pgNo}</span>
-                        {topic && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${tierTheme.primary}15`, color: tierTheme.primary }}>
-                            📌 {topic}
-                          </span>
-                        )}
-                        {totalMcq > 0 && (
-                          pageMcqDone ? (
-                            <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
-                              ✅ {pageMcqScoreData ? `${pageMcqScoreData.correct}/${pageMcqScoreData.total}` : `${totalMcq}`} MCQ
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
-                              ⏳ {totalMcq} MCQ
-                            </span>
-                          )
-                        )}
-                        {pageRead && !pageMcqDone && totalMcq === 0 && (
-                          <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">✓ Padha</span>
-                        )}
+                    {/* ── Main tap area (students + admin) ── */}
+                    <button
+                      onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
+                      className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
+                      style={{ background: settings?.contentListCardBg || '#ffffff' }}
+                    >
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: boxBg }}>
+                        <span className="text-[11px] font-black" style={{ color: boxColor }}>{idx + 1}</span>
                       </div>
-                      {preview && (
-                        <p className="text-[11px] text-slate-400 mt-1 truncate">{preview}…</p>
-                      )}
-                      {(() => {
-                        const _pt = getPageTime(plEntry.id, idx);
-                        if (_pt <= 0) return null;
-                        const _tks = getProgressTicks(pageMcqDone ? 100 : pageRead ? 50 : 0);
-                        return (
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_pt)}</span>
-                            {_tks && <span className="text-[9px] font-bold text-emerald-600">{_tks}</span>}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    <ChevronRight size={16} className="shrink-0" style={{ color: tierTheme.primary }} />
-                  </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black text-slate-700">{pgNo}</span>
+                          {topic && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${tierTheme.primary}15`, color: tierTheme.primary }}>
+                              📌 {topic}
+                            </span>
+                          )}
+                          {totalMcq > 0 && (
+                            pageMcqDone ? (
+                              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
+                                ✅ {pageMcqScoreData ? `${pageMcqScoreData.correct}/${pageMcqScoreData.total}` : `${totalMcq}`} MCQ
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                                ⏳ {totalMcq} MCQ
+                              </span>
+                            )
+                          )}
+                          {pageRead && !pageMcqDone && totalMcq === 0 && (
+                            <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">✓ Padha</span>
+                          )}
+                        </div>
+                        {preview && (
+                          <p className="text-[11px] text-slate-400 mt-1 truncate">{preview}…</p>
+                        )}
+                        {(() => {
+                          const _pt = getPageTime(plEntry.id, idx);
+                          if (_pt <= 0) return null;
+                          const _tks = getProgressTicks(pageMcqDone ? 100 : pageRead ? 50 : 0);
+                          return (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="flex items-center gap-[3px] text-[9px] font-black px-1.5 py-[3px] rounded-full" style={{ background: `${tierTheme.primary}1a`, color: tierTheme.primary }}><Clock size={8} strokeWidth={2.5} />{formatDuration(_pt)}</span>
+                              {_tks && <span className="text-[9px] font-bold text-emerald-600">{_tks}</span>}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <ChevronRight size={16} className="shrink-0" style={{ color: tierTheme.primary }} />
+                    </button>
+                    {/* ── Admin-only: content mode badges + edit button ── */}
+                    {_isAdminUser && (
+                      <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap bg-slate-50/70">
+                        <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                          {pg.chunkNotes ? <span className="text-[8px] font-black px-1.5 py-[2px] rounded bg-indigo-100 text-indigo-700">CHUNK</span> : null}
+                          {(pg as any).htmlNotes ? <span className="text-[8px] font-black px-1.5 py-[2px] rounded bg-violet-100 text-violet-700">HTML</span> : null}
+                          {(pg.mcqs?.length || 0) > 0 ? <span className="text-[8px] font-black px-1.5 py-[2px] rounded bg-emerald-100 text-emerald-700">{pg.mcqs!.length} MCQ</span> : null}
+                          {(pg as any).videoUrl ? <span className="text-[8px] font-black px-1.5 py-[2px] rounded bg-red-100 text-red-700">VIDEO</span> : null}
+                          {(pg as any).audioUrl ? <span className="text-[8px] font-black px-1.5 py-[2px] rounded bg-purple-100 text-purple-700">AUDIO</span> : null}
+                          {(pg as any).pdfUrl ? <span className="text-[8px] font-black px-1.5 py-[2px] rounded bg-blue-100 text-blue-700">PDF</span> : null}
+                          {!pg.chunkNotes && !(pg as any).htmlNotes && !(pg.mcqs?.length) && !(pg as any).videoUrl && !(pg as any).audioUrl && !(pg as any).pdfUrl && (
+                            <span className="text-[8px] font-bold text-slate-400 italic">koi content nahi</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openAdminPageEdit(plEntry, idx); }}
+                          className="flex items-center gap-[3px] px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black active:scale-95 transition-all shrink-0"
+                        >
+                          <Pencil size={9} /> Edit
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -26133,6 +26233,190 @@ RULES:
           </div>
         </div>
       )}
+
+      {/* ── Admin Page Editor Modal ── */}
+      {adminPageEdit && (() => {
+        const { entry, pageIdx } = adminPageEdit;
+        const pg = entry.pages[pageIdx];
+        if (!pg) return null;
+        const TABS: { id: typeof adminPageEditTab; label: string; color: string }[] = [
+          { id: 'chunk', label: '📄 Chunk', color: 'indigo' },
+          { id: 'html',  label: '🖊 HTML',  color: 'violet' },
+          { id: 'mcq',   label: '🎯 MCQ',   color: 'emerald' },
+          { id: 'urls',  label: '🔗 URLs',  color: 'sky' },
+        ];
+        const colorMap: Record<string, string> = {
+          indigo: 'bg-indigo-600 text-white',
+          violet: 'bg-violet-600 text-white',
+          emerald: 'bg-emerald-600 text-white',
+          sky: 'bg-sky-600 text-white',
+        };
+        const inactiveTab = 'bg-white text-slate-500 border border-slate-200';
+        return (
+          <div className="fixed inset-0 z-[520] flex flex-col bg-white animate-in fade-in">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 shrink-0" style={{ background: tierTheme.topBarGrad }}>
+              <button
+                onClick={() => setAdminPageEdit(null)}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white active:scale-90 transition-all shrink-0"
+              >
+                <X size={17} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Admin · Page Edit</p>
+                <p className="text-[13px] font-black text-white truncate leading-tight">
+                  {entry.lessonTitle} · {pg.pageNo ? `Pg ${pg.pageNo}` : `Page ${pageIdx + 1}`}
+                </p>
+              </div>
+              <button
+                onClick={saveAdminPageEdit}
+                disabled={adminPageEditSaving}
+                className="px-3 py-1.5 bg-white hover:bg-white/90 active:scale-95 text-[12px] font-black rounded-xl shrink-0 disabled:opacity-50 transition-all"
+                style={{ color: tierTheme.primary }}
+              >
+                {adminPageEditSaving ? 'Saving…' : '💾 Save'}
+              </button>
+            </div>
+
+            {/* Meta row: pageNo + topicName */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50 shrink-0">
+              <label className="flex items-center gap-1 flex-1">
+                <span className="text-[10px] font-black text-slate-500 shrink-0">Pg No.</span>
+                <input
+                  className="flex-1 text-[12px] font-black border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  value={apePageNo}
+                  onChange={e => setApePageNo(e.target.value)}
+                  placeholder="e.g. 42"
+                />
+              </label>
+              <label className="flex items-center gap-1 flex-[2]">
+                <span className="text-[10px] font-black text-slate-500 shrink-0">Topic</span>
+                <input
+                  className="flex-1 text-[12px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  value={apeTopic}
+                  onChange={e => setApeTopic(e.target.value)}
+                  placeholder="optional topic name"
+                />
+              </label>
+            </div>
+
+            {/* Tab bar */}
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-100 shrink-0 overflow-x-auto">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setAdminPageEditTab(t.id)}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black shrink-0 active:scale-95 transition-all ${adminPageEditTab === t.id ? colorMap[t.color] : inactiveTab}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <div className="flex-1" />
+              <button
+                onClick={deleteAdminPage}
+                disabled={adminPageEditSaving}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-black bg-red-50 border border-red-200 text-red-600 active:scale-95 transition-all shrink-0 disabled:opacity-50"
+              >
+                <Trash2 size={11} /> Delete Page
+              </button>
+            </div>
+
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto p-3">
+              {adminPageEditTab === 'chunk' && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">📄 Chunk Notes (Read Mode · TTS)</p>
+                  <textarea
+                    className="w-full h-[calc(100dvh-260px)] p-3 font-mono text-[12px] text-slate-800 bg-indigo-50 border border-indigo-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
+                    value={apeChunk}
+                    onChange={e => setApeChunk(e.target.value)}
+                    placeholder="Chunk notes yahan likho (plain text / markdown)…"
+                    spellCheck={false}
+                  />
+                  {apeChunk && (
+                    <button onClick={() => { if (window.confirm('Chunk notes clear karna hai?')) setApeChunk(''); }}
+                      className="self-start text-[10px] font-black text-red-500 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all">
+                      🗑 Clear Chunk Notes
+                    </button>
+                  )}
+                </div>
+              )}
+              {adminPageEditTab === 'html' && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest px-1">🖊 HTML Notes (Write Mode)</p>
+                  <textarea
+                    className="w-full h-[calc(100dvh-260px)] p-3 font-mono text-[11px] text-slate-800 bg-violet-50 border border-violet-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-violet-400 leading-relaxed"
+                    value={apeHtml}
+                    onChange={e => setApeHtml(e.target.value)}
+                    placeholder="HTML notes yahan paste karo…"
+                    spellCheck={false}
+                  />
+                  {apeHtml && (
+                    <button onClick={() => { if (window.confirm('HTML notes clear karna hai?')) setApeHtml(''); }}
+                      className="self-start text-[10px] font-black text-red-500 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all">
+                      🗑 Clear HTML Notes
+                    </button>
+                  )}
+                </div>
+              )}
+              {adminPageEditTab === 'mcq' && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">🎯 MCQ JSON Array</p>
+                  <p className="text-[10px] text-slate-400 px-1">MCQ array paste karo (JSON format). Existing MCQs replace ho jayenge.</p>
+                  <textarea
+                    className="w-full h-[calc(100dvh-300px)] p-3 font-mono text-[11px] text-slate-800 bg-emerald-50 border border-emerald-200 rounded-2xl resize-none outline-none focus:ring-2 focus:ring-emerald-400 leading-relaxed"
+                    value={apeMcq}
+                    onChange={e => setApeMcq(e.target.value)}
+                    placeholder={"[{\"question\":\"...\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"answer\":\"A\",\"explanation\":\"...\"}]"}
+                    spellCheck={false}
+                  />
+                  {(() => {
+                    try {
+                      const parsed = apeMcq.trim() ? JSON.parse(apeMcq) : null;
+                      if (Array.isArray(parsed)) return <span className="text-[10px] font-black text-emerald-600 px-1">✅ Valid JSON · {parsed.length} MCQ{parsed.length !== 1 ? 's' : ''}</span>;
+                      return <span className="text-[10px] font-black text-red-500 px-1">⚠ Array expected</span>;
+                    } catch { return apeMcq.trim() ? <span className="text-[10px] font-black text-red-500 px-1">⚠ Invalid JSON</span> : null; }
+                  })()}
+                  {apeMcq && (
+                    <button onClick={() => { if (window.confirm('Saare MCQ delete karne hain?')) setApeMcq(''); }}
+                      className="self-start text-[10px] font-black text-red-500 px-2 py-1 rounded-lg bg-red-50 border border-red-200 active:scale-95 transition-all">
+                      🗑 Clear MCQs
+                    </button>
+                  )}
+                </div>
+              )}
+              {adminPageEditTab === 'urls' && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[10px] font-black text-sky-600 uppercase tracking-widest px-1">🔗 Media URLs</p>
+                  {[
+                    { label: '🎬 Video URL', value: apeVideo, set: setApeVideo, color: 'rose', placeholder: 'YouTube / Google Drive video link…' },
+                    { label: '🎵 Audio URL', value: apeAudio, set: setApeAudio, color: 'purple', placeholder: 'Audio file URL…' },
+                    { label: '📄 PDF URL', value: apePdf, set: setApePdf, color: 'blue', placeholder: 'Google Drive PDF link…' },
+                  ].map(({ label, value, set, color, placeholder }) => (
+                    <div key={label} className="flex flex-col gap-1.5">
+                      <p className={`text-[10px] font-black text-${color}-600 px-1`}>{label}</p>
+                      <div className="flex gap-2">
+                        <input
+                          className={`flex-1 p-2.5 text-[12px] border border-${color}-200 rounded-xl outline-none focus:ring-2 focus:ring-${color}-300 bg-${color}-50`}
+                          value={value}
+                          onChange={e => set(e.target.value)}
+                          placeholder={placeholder}
+                        />
+                        {value && (
+                          <button onClick={() => set('')}
+                            className="px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 text-[10px] font-black active:scale-95 transition-all shrink-0">
+                            🗑
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Inline Notes Editor Modal (Admin only) ── */}
       {inlineEditModal && (
