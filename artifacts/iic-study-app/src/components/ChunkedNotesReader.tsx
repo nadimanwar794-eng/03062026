@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil, Presentation } from 'lucide-react';
+import { Volume2, Square, BookOpen, Star, Palette, Check, Type, RotateCcw, Search, Monitor, X, LayoutGrid, MoreVertical, ChevronRight, WifiOff, Flame, Lightbulb, Pencil, Presentation, Copy } from 'lucide-react';
 import { AdminWhiteBoard } from './AdminWhiteBoard';
 import { rotateScreen, isDesktopModeOn, setDesktopMode } from '../utils/displayPrefs';
 import { saveSuggestion, auth, findDuplicateSuggestionByPoint, incrementSuggestionReportCount, updateSuggestionLeaderboard } from '../firebase';
@@ -580,9 +580,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     if (!isHtmlContent || !htmlPlainText) return [];
     return splitIntoTopics(htmlPlainText);
   }, [isHtmlContent, htmlPlainText]);
-  // The active topic list: use stripped-text topics when showing HTML in chunk mode,
-  // otherwise use the normal topics (from raw content).
-  const activeTopicList = (isHtmlContent && htmlViewMode === 'chunk' && htmlChunkTopics.length > 0)
+  // The active topic list:
+  // - In 3-tab mode (NOTE_PAGES), ALWAYS use `topics` (from activeNoteContent = current tab's text).
+  //   htmlChunkTopics comes from the full unsplit content and would show everything mixed.
+  // - In normal HTML chunk mode (no 3-tab split), use htmlChunkTopics for plain-text chunking.
+  const activeTopicList = (NOTE_PAGES.length === 0 && isHtmlContent && htmlViewMode === 'chunk' && htmlChunkTopics.length > 0)
     ? htmlChunkTopics
     : topics;
 
@@ -746,6 +748,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     && isFreeStarLocked(_effectiveUserLevel);
   const lastScrollY = useRef(0);
   const [toolbarHidden, setToolbarHidden] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // Expose setShowControls to parent via ref so top-bar 3-dot can trigger the sheet
@@ -1376,6 +1380,30 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 <Pencil size={13} />
               </button>
             )}
+            {/* 📋 Copy All Notes — Admin only */}
+            {isAdmin && activeTopicList.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const allText = activeTopicList
+                    .filter(t => !t.isHeading)
+                    .map(t => t.text)
+                    .join('\n');
+                  navigator.clipboard.writeText(allText).then(() => {
+                    setCopiedAll(true);
+                    setTimeout(() => setCopiedAll(false), 2000);
+                  }).catch(() => {});
+                }}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${
+                  copiedAll
+                    ? 'bg-green-100 border-green-400 text-green-600'
+                    : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
+                }`}
+                title={copiedAll ? 'Sare notes copy ho gaye ✅' : 'Sare notes copy karo (Admin)'}
+              >
+                {copiedAll ? <Check size={13} /> : <Copy size={13} />}
+              </button>
+            )}
             {/* Grid icon — parent more options */}
             {onMoreOptions && !hideInline3dot && (
               <button
@@ -1456,13 +1484,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 const _subMul = readingScoreConfig?.subscriptionLevel === 'ULTRA' ? 1.5
                   : readingScoreConfig?.subscriptionLevel === 'BASIC' ? 1.2 : 1;
                 const _boostMul = 1 + (readingScoreConfig?.boostPercent || 0) / 100;
-                const _base = scoreState.mode === 'reading' ? 5 : scoreState.mode === 'writing' ? 10 : 25;
+                const _base = scoreState.mode === 'writing' ? 10 : 5;
                 const _pts = Math.max(1, Math.round(_base * _subMul * _boostMul));
+                const _interval = scoreState.mode === 'writing' ? 60 : 30;
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: 7, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>Next</span>
-                    <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b', lineHeight: 1.2 }}>
-                      {!scoreState.isPaused ? `+${_pts} in ${scoreState.nextRewardInSec}s` : 'Paused'}
+                    <span style={{ fontSize: 11, fontWeight: 900, color: scoreState.isPermanentlyStopped ? '#ef4444' : '#f59e0b', lineHeight: 1.2 }}>
+                      {scoreState.isPermanentlyStopped ? 'Scroll karo' : scoreState.isPaused ? 'Paused' : `+${_pts} in ${scoreState.nextRewardInSec ?? _interval}s`}
                     </span>
                   </div>
                 );
@@ -2307,6 +2336,29 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   title={marked2 ? 'Tap to remove Important Mark 2' : 'Tap to mark as Important 2 (changes background)'}
                 >
                   <Flame size={13} className={marked2 ? 'fill-orange-500' : ''} />
+                </button>
+              )}
+              {/* 📋 Copy button — Admin only — copies this topic's plain text */}
+              {isAdmin && !isActive && !showSuggestionPanel && !(isAdmin && useImportantMark2) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(topic.text).then(() => {
+                      setCopiedIdx(idx);
+                      setTimeout(() => setCopiedIdx((ci) => ci === idx ? null : ci), 1500);
+                    }).catch(() => {});
+                  }}
+                  onPointerDown={(e) => { e.stopPropagation(); }}
+                  style={{ width: '24px', height: '24px', padding: 0 }}
+                  className={`absolute right-9 top-1/2 -translate-y-1/2 rounded-full inline-flex items-center justify-center transition-all z-10 opacity-0 group-hover:opacity-100 ${
+                    copiedIdx === idx
+                      ? 'bg-green-100 border border-green-400 text-green-600 opacity-100'
+                      : 'bg-slate-100 border border-slate-300 text-slate-500 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                  title="Is point ko copy karo"
+                >
+                  {copiedIdx === idx ? <Check size={11} /> : <Copy size={11} />}
                 </button>
               )}
               {/* ✏️ Inline correction button — visible next to each point in correction mode */}

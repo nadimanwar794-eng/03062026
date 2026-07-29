@@ -1,21 +1,26 @@
 // @ts-nocheck
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { 
   ClassLevel, Subject, Chapter, AppState, Board, Stream, User, ContentType, SystemSettings, ActivityLogEntry, WeeklyTest, LessonContent, ActiveSubscription, InboxMessage
 } from './types';
-import { getChapterData, saveChapterData, checkFirebaseConnection, saveTestResult, saveUserToLive, updateUserStatus, getUserData, subscribeToSettings, subscribeToUser, auth, savePublicActivity, saveUserHistory, getUserSavedNotes, rtdb, db } from './firebase';
+import { getChapterData, saveChapterData, checkFirebaseConnection, saveTestResult, saveUserToLive, updateUserStatus, getUserData, subscribeToSettings, subscribeToUser, auth, savePublicActivity, saveUserHistory, getUserSavedNotes, rtdb, db, saveDailyChallengeScore } from './firebase';
 import { ref as rtdbRef, set as rtdbSet } from 'firebase/database';
 import { doc as fsDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { storage } from './utils/storage';
 import { recalculateSubscriptionStatus, addSubscription } from './utils/subscriptionUtils';
-import { getLevelInfo, getLevelLimitBonus } from './utils/levelSystem';
+import { getLevelInfo, getLevelLimitBonus, getEffectiveDailyLimit, UNLIMITED } from './utils/levelSystem';
 import { fireCreditNotify, setHomeTabActive } from './utils/creditNotify';
-import { onSessionComplete, SessionCompletePayload } from './utils/sessionNotify';
+import { onSessionComplete, queueSession, consumeSessionQueue, SessionCompletePayload } from './utils/sessionNotify';
 import { SessionSummaryBanner } from './components/SessionSummaryBanner';
+import { GroupedSessionBanner } from './components/GroupedSessionBanner';
 import { loadRoutineData } from './utils/routineStorage';
+import { hydrateRevisionTracker } from './utils/revisionFirebase';
+import { setRevisionTrackerUser } from './utils/revisionTrackerV2';
+import { hydrateRoutineData } from './utils/routineFirebaseSync';
 import { applyDeduction, getTotalCredits } from './utils/creditSystem';
+import { consumeDeferredStudyCoins } from './utils/studyRewards';
 import { signInAnonymously } from 'firebase/auth';
 import { fetchChapters, fetchLessonContent } from './services/groq';
 import { AppLoadingScreen } from './components/AppLoadingScreen';
@@ -44,27 +49,45 @@ const MarksheetCard = lazy(() => import('./components/MarksheetCard').then(m => 
 import { CreditConfirmationModal } from './components/CreditConfirmationModal';
 import { CustomAlert, CustomConfirm } from './components/CustomDialogs';
 import { UpdatePopup } from './components/UpdatePopup';
+import { FreeSubjectLessonPopup } from './components/FreeSubjectLessonPopup';
+import { McqLimitLockedPopup } from './components/McqLimitLockedPopup';
 
 import { StreakLoginPopup } from './components/StreakLoginPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { logErrorToFirebase, setErrorLoggerUser } from './utils/errorLogger';
+import { MaintenanceBanner, AdminCrashPopup } from './components/MaintenanceScreen';
+import { subscribeToMaintenance, markCrashFixed, reportCrash as reportMaintenanceCrash } from './utils/maintenanceManager';
 import { initPerfMode } from './utils/performanceMode';
 import { CreditToast } from './components/CreditToast';
 import { HomeStatsToast } from './components/HomeStatsToast';
+import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
+import { DailyChallengePopup } from './components/DailyChallengePopup';
 import { recordCreditTx } from './utils/creditHistory';
-import { generateDailyChallengeQuestions } from './utils/challengeGenerator';
+import { buildAutoMixQuestions, generateDailyChallengeQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
 
 const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [maintenanceState, setMaintenanceState] = useState<any>(null);
+  const [adminDashCrashed, setAdminDashCrashed] = useState(false);
+  const [showAdminCrashPopup, setShowAdminCrashPopup] = useState(false);
 
   const [appMcqCommunityDraft, setAppMcqCommunityDraft] = useState<{question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string} | null>(null);
 
   const [isAppLoading, setIsAppLoading] = useState(() => sessionStorage.getItem('nst_has_loaded') !== 'true');
 
   useEffect(() => { initPerfMode(); }, []);
+
+  // ── Immortal Storage: 30-din purani history cleanup (app open hone par) ──
+  // Sirf _history subcollection ki expired entries delete hoti hain.
+  // Main lesson documents KABHI delete nahi hote.
+  useEffect(() => {
+    import('./utils/lessonStorage').then(({ runHistoryCleanup }) => {
+      runHistoryCleanup();
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isAppLoading) {
@@ -393,51 +416,101 @@ const App: React.FC = () => {
     }
   }, [studentTab]);
 
-  // ── Home-page coin sync ───────────────────────────────────────────────────
-  // Jab bhi user HOME pe aata hai: earned pts ka ½ (level≥5) ya ¼ (level<5)
-  // coins mein convert karke account mein add ho jaata hai.
+  // ── Home-page coin sync + session queue consumption ──────────────────────
+  // Jab bhi user HOME pe aata hai:
+  //   1. Earned pts → coins convert (existing logic)
+  //   2. Session queue consume karo — agar sessions hain to grouped/single banner dikhao
   // localStorage key "nst_credit_sync_score_<uid>" last-synced pts track karta hai.
   useEffect(() => {
     if (studentTab !== 'HOME') return;
     const user = state.user;
     if (!user?.id) return;
 
+    // Study coins are held outside the profile until Home is opened.
+    // Consume the whole pool in one payout so separate study modes are combined.
+    const deferredStudyCoins = consumeDeferredStudyCoins(user.id);
+    if (deferredStudyCoins > 0) {
+      const updatedUser = { ...user, credits: (user.credits || 0) + deferredStudyCoins };
+      setState(prev => ({ ...prev, user: updatedUser }));
+      saveUserToLive(updatedUser);
+      fireCreditNotify({
+        type: 'EARN',
+        amount: deferredStudyCoins,
+        remaining: updatedUser.credits || 0,
+        source: 'reading',
+      });
+    }
+
+    // ── Step 1: Keep the legacy score-sync marker current ───────────────────
+    // Study coins are now held in the deferred study-reward pool below and
+    // paid together on Home. Do not convert score deltas here.
     const syncKey = `nst_credit_sync_score_${user.id}`;
     const raw = localStorage.getItem(syncKey);
     const currentScore = user.totalScore || 0;
 
     if (raw === null) {
-      // Pehli baar: sirf baseline set karo, coins nahi milenge purane pts ke liye
       localStorage.setItem(syncKey, String(currentScore));
-      return;
-    }
-
-    const lastSynced = parseInt(raw, 10);
-    const delta = currentScore - lastSynced;
-    if (delta <= 0) return;
-
-    // Sync point pehle update karo taaki double-award na ho
-    localStorage.setItem(syncKey, String(currentScore));
-
-    const routineOn = loadRoutineData(user.id).enabled;
-    const ratio = routineOn ? 0.5 : 0.25;
-    const coins = Math.floor(delta * ratio);
-    if (coins <= 0) return;
-
-    const newCredits = (user.credits || 0) + coins;
-    const updatedUser = { ...user, credits: newCredits };
-    setState(prev => ({ ...prev, user: updatedUser }));
-    saveUserToLive(updatedUser);
-
-    if (pendingSessionRef.current) {
-      // Pending session summary exists — put coins into the big home banner
-      // instead of firing the small CreditToast.
-      setPendingSessionSummary(prev =>
-        prev ? { ...prev, coinsEarned: (prev.coinsEarned ?? 0) + coins } : null
-      );
     } else {
-      fireCreditNotify({ type: 'EARN', amount: coins, remaining: newCredits, source: 'reading' });
+      const lastSynced = parseInt(raw, 10);
+      const delta = currentScore - lastSynced;
+      if (delta > 0) {
+        localStorage.setItem(syncKey, String(currentScore));
+      }
     }
+
+    // ── Step 2: Session queue consume karo ─────────────────────────────────
+    let queue = consumeSessionQueue();
+    if (queue.length === 0) {
+      if (deferredStudyCoins <= 0) return;
+      queue = [{
+        type: 'LESSON',
+        subject: '',
+        chapter: 'Study Rewards',
+        timeSecs: 0,
+        activityType: 'Study',
+        coinsEarned: deferredStudyCoins,
+      }];
+    } else if (deferredStudyCoins > 0) {
+      // Flashcard and older study payloads may not carry coin metadata even
+      // though the shared pending pool contains the earned total.
+      const reportedCoins = queue.reduce((sum, session) => sum + (session.coinsEarned || 0), 0);
+      const missingCoins = Math.max(0, deferredStudyCoins - reportedCoins);
+      if (missingCoins > 0) {
+        const last = queue.length - 1;
+        queue[last] = {
+          ...queue[last],
+          coinsEarned: (queue[last].coinsEarned || 0) + missingCoins,
+        };
+      }
+    }
+
+    // Har session ka credit history record karo + bonusPts augment karo
+    const discount = getLevelInfo(user.totalScore || 0).discount;
+    const augmentedQueue = queue.map(sess => {
+      const bonusPts = sess.sessionScore != null && sess.sessionScore > 0
+        ? Math.round(sess.sessionScore * discount / 100)
+        : 0;
+      if (sess.sessionScore != null && user.id) {
+        const actLabel = (sess.activityType === 'MCQ' || sess.type === 'MCQ') ? 'MCQ'
+          : sess.activityType === 'Writing' ? 'Writing Notes' : 'Reading Notes';
+        recordCreditTx(
+          user.id,
+          sess.coinsEarned || 0,
+          `EARN_SESSION_${(sess.activityType || sess.type || 'MCQ').toUpperCase()}`,
+          [actLabel, sess.chapter].filter(Boolean).join(' · ') || 'Study Session',
+          user.credits,
+          sess.sessionScore,
+          bonusPts,
+          sess.timeSecs,
+          sess.activityType || sess.type,
+          sess.chapter,
+        );
+      }
+      return { ...sess, bonusPts };
+    });
+
+    // Banner dikhao — merge with any already-displaying sessions
+    applySessionQueue(augmentedQueue);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
@@ -447,61 +520,57 @@ const App: React.FC = () => {
   const [streakLoginPopup, setStreakLoginPopup] = useState<{newStreak: number; prevStreak: number; isNewRecord: boolean} | null>(null);
   const [levelUpNotif, setLevelUpNotif] = useState<{level: number; label: string; emoji: string; color: string} | null>(null);
 
-  // ── HomeStatsToast — state.user update ke baad dikhao; 1.5s fallback ──────────
-  const [homeStatsVisible, setHomeStatsVisible] = useState(false);
-  const [mcqJustEnded, setMcqJustEnded] = useState(false);
-  const mcqFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!mcqJustEnded) return;
-    // Fallback: agar state.user 1.5s mein update na ho tab bhi dikhao (score refs se lo)
-    const snapScore = userTotalScoreRef.current;
-    const snapCredits = userCreditsRef.current;
-    const snapStart = scoreAtSessionStartRef.current;
-    const snapStartC = creditsAtSessionStartRef.current;
-    mcqFallbackTimerRef.current = setTimeout(() => {
-      if (!awaitingPostMcqDataRef.current) return; // score-effect ne handle kar liya
-      awaitingPostMcqDataRef.current = false;
-      const earned = Math.max(0, snapScore - snapStart);
-      const earnedC = Math.max(0, snapCredits - snapStartC);
-      setMcqSessionScore(earned);
-      setMcqSessionCredits(earnedC);
-      setMcqJustEnded(false);
-      if (revisionHubOpenRef.current) { pendingHomeStatsRef.current = true; } else { setHomeStatsVisible(true); }
-    }, 1500);
-    return () => { if (mcqFallbackTimerRef.current) clearTimeout(mcqFallbackTimerRef.current); };
-  }, [mcqJustEnded]);
+  // Toast state — must be declared BEFORE any useEffect that references it (TDZ guard)
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Session khatam hone pe credit history mein save karo (session card format)
-  const prevHomeStatsVisibleRef = useRef(false);
+  // ── MCQ session queue helpers ─────────────────────────────────────────────
+  // homeTabActiveRef: track karo ki user HOME pe hai (MCQ race-condition fix)
+  const homeTabActiveRef = useRef(false);
+  useEffect(() => { homeTabActiveRef.current = studentTab === 'HOME'; }, [studentTab]);
+
+  // Toast auto-dismiss
   useEffect(() => {
-    if (homeStatsVisible && !prevHomeStatsVisibleRef.current && state.user?.id) {
-      const bonusPts = Math.round(mcqSessionScore * (getLevelInfo(state.user.totalScore || 0).discount / 100));
-      const actLabel = mcqActivityType === 'MCQ' ? 'MCQ' : mcqActivityType === 'Writing' ? 'Writing Notes' : 'Reading Notes';
-      const desc = [actLabel, mcqChapterName].filter(Boolean).join(' · ');
-      recordCreditTx(
-        state.user.id,
-        mcqSessionCredits,
-        `EARN_SESSION_${mcqActivityType.toUpperCase()}`,
-        desc || 'Study Session',
-        state.user.credits,
-        // Extra session fields stored inline via type extension
-        mcqSessionScore,
-        bonusPts,
-        mcqSessionSeconds,
-        mcqActivityType,
-        mcqChapterName,
-      );
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 2800);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
+
+  // MCQ session ko queue karo + agar HOME pe already hain to turant banner dikhao
+  const enqueueMcqAndShow = (earned: number, earnedC: number, secs: number) => {
+    // ── Credit calculation ─────────────────────────────────────────────────────
+    // MCQ sessions ke liye earnedC = 0 hota hai (MCQ answering pe credits earn nahi
+    // hote). Reading sessions mein earnedC > 0 ho sakta hai (timer se). Dono cases
+    // mein ensure karo ki earned pts ka ⅙ (routine on) ya ⅛ (off) credit mile.
+    let finalCoins = earnedC;
+    const _sessUser = state.user;
+    if (earned > 0 && _sessUser?.id) {
+      const routineOn = loadRoutineData(_sessUser.id).enabled;
+      const ratio = routineOn ? (1 / 6) : 0.125;
+      const expectedCoins = Math.floor(earned * ratio);
+      finalCoins = Math.max(earnedC, expectedCoins);
+      // The study screen has already placed these coins in the shared pending
+      // pool. This function only creates the Home session summary.
+      localStorage.setItem(`nst_credit_sync_score_${_sessUser.id}`, String(_sessUser.totalScore || 0));
     }
-    prevHomeStatsVisibleRef.current = homeStatsVisible;
-  }, [homeStatsVisible]);
+    queueSession({
+      type: 'MCQ',
+      subject: '',
+      chapter: mcqChapterNameRef.current,
+      timeSecs: secs,
+      coinsEarned: finalCoins,
+      sessionScore: earned,
+      activityType: mcqActivityTypeRef.current,
+    });
+    // Agar user already HOME pe hai to abhi hi consume karo + merge
+    if (homeTabActiveRef.current) {
+      const queue = consumeSessionQueue();
+      applySessionQueue(queue);
+    }
+    // Agar HOME pe nahi — queue mein rahega, HOME tab pe aane pe dikhega
+  };
 
-  // ── MCQ session active flag + full session tracking ──────────────────────────
-  const [inMcqSession, setInMcqSession] = useState(false);
-  const [mcqSessionScore, setMcqSessionScore] = useState(0);
-  const [mcqSessionCredits, setMcqSessionCredits] = useState(0);
-  const [mcqSessionSeconds, setMcqSessionSeconds] = useState(0); // is session ki duration
-  const [mcqChapterName, setMcqChapterName] = useState('');
-  const [mcqActivityType, setMcqActivityType] = useState('MCQ');
+  // ── MCQ refs — useEffect ke pehle declare karna zaroori hai (production TDZ fix) ──
+  const mcqSessionSecondsRef = useRef(0);
   const scoreAtSessionStartRef = useRef(0);
   const creditsAtSessionStartRef = useRef(0);
   const sessionStartTimeRef = useRef(0); // session shuru hone ka timestamp
@@ -514,6 +583,44 @@ const App: React.FC = () => {
   // RevisionHub open hone pe HomeStatsToast defer karo — close hone pe dikhao
   const revisionHubOpenRef = useRef(false);
   const pendingHomeStatsRef = useRef(false);
+
+  // ── Fallback timer (1.5s) agar Firebase se score update late aaye ─────────
+  const [mcqJustEnded, setMcqJustEnded] = useState(false);
+  const mcqFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!mcqJustEnded) return;
+    const snapScore = userTotalScoreRef.current;
+    const snapCredits = userCreditsRef.current;
+    const snapStart = scoreAtSessionStartRef.current;
+    const snapStartC = creditsAtSessionStartRef.current;
+    const snapSecs = mcqSessionSecondsRef.current;
+    mcqFallbackTimerRef.current = setTimeout(() => {
+      if (!awaitingPostMcqDataRef.current) return; // score-effect ne handle kar liya
+      awaitingPostMcqDataRef.current = false;
+      const earned = Math.max(0, snapScore - snapStart);
+      const earnedC = Math.max(0, snapCredits - snapStartC);
+      setMcqSessionScore(earned);
+      setMcqSessionCredits(earnedC);
+      setMcqJustEnded(false);
+      enqueueMcqAndShow(earned, earnedC, snapSecs);
+    }, 1500);
+    return () => { if (mcqFallbackTimerRef.current) clearTimeout(mcqFallbackTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mcqJustEnded]);
+
+  // ── MCQ session active flag + full session tracking ──────────────────────────
+  const [inMcqSession, setInMcqSession] = useState(false);
+  const [mcqSessionScore, setMcqSessionScore] = useState(0);
+  const [mcqSessionCredits, setMcqSessionCredits] = useState(0);
+  const [mcqSessionSeconds, setMcqSessionSeconds] = useState(0); // is session ki duration
+  const [mcqChapterName, setMcqChapterName] = useState('');
+  const [mcqActivityType, setMcqActivityType] = useState('MCQ');
+  // Refs — enqueueMcqAndShow mein stale closures avoid karne ke liye
+  const mcqChapterNameRef = useRef('');
+  const mcqActivityTypeRef = useRef('MCQ');
+  useEffect(() => { mcqChapterNameRef.current = mcqChapterName; }, [mcqChapterName]);
+  useEffect(() => { mcqActivityTypeRef.current = mcqActivityType; }, [mcqActivityType]);
+  useEffect(() => { mcqSessionSecondsRef.current = mcqSessionSeconds; }, [mcqSessionSeconds]);
   useEffect(() => { userTotalScoreRef.current = state.user?.totalScore || 0; }, [state.user?.totalScore]);
   useEffect(() => { userCreditsRef.current = state.user?.credits || 0; }, [state.user?.credits]);
 
@@ -529,7 +636,9 @@ const App: React.FC = () => {
     setMcqSessionCredits(earnedC);
     setMcqJustEnded(false);
     // RevisionHub open hai to home pe jane pe dikhao
-    if (revisionHubOpenRef.current) { pendingHomeStatsRef.current = true; } else { setHomeStatsVisible(true); }
+    // Notification queue mein daal do — HOME tab pe aane pe dikhega
+    enqueueMcqAndShow(earned, earnedC, mcqSessionSecondsRef.current);
+    if (revisionHubOpenRef.current) { pendingHomeStatsRef.current = true; }
   }, [state.user?.totalScore, state.user?.credits]);
 
   // RevisionHub open/close track karo — toast defer karo jab tak hub band na ho
@@ -539,7 +648,13 @@ const App: React.FC = () => {
       revisionHubOpenRef.current = false;
       if (pendingHomeStatsRef.current) {
         pendingHomeStatsRef.current = false;
-        setTimeout(() => setHomeStatsVisible(true), 300);
+        // Session already queued — agar HOME tab pe hain to abhi consume + merge karo
+        if (homeTabActiveRef.current) {
+          setTimeout(() => {
+            const queue = consumeSessionQueue();
+            applySessionQueue(queue);
+          }, 300);
+        }
       }
     };
     window.addEventListener('iic-revision-hub-opened', openHandler);
@@ -549,6 +664,22 @@ const App: React.FC = () => {
       window.removeEventListener('iic-revision-hub-closed', closeHandler);
     };
   }, []);
+
+  // ── Pending lesson coins — deferred from session, applied 4s after HOME ─────
+  const pendingLessonCreditsRef = useRef(0);
+  const pendingLessonTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSessionCreditsEarned = useCallback((credits: number) => {
+    if (credits <= 0) return;
+    pendingLessonCreditsRef.current += credits;
+  }, []);
+
+  useEffect(() => {
+    if (studentTab !== 'HOME') return;
+    // LessonView now writes directly to the same deferred study pool.
+    return undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentTab]);
 
   // HOME tab pe EARN notifications suppress karo (HomeStatsToast mein dikhega)
   useEffect(() => { setHomeTabActive(studentTab === 'HOME'); }, [studentTab]);
@@ -583,17 +714,38 @@ const App: React.FC = () => {
   }, []);
   const [lastTestResult, setLastTestResult] = useState<MCQResult | null>(null);
   const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null); // NEW: For granular analysis
+  const [showDailyRankCard, setShowDailyRankCard] = useState(false);
   const [pendingSessionSummary, setPendingSessionSummary] = useState<SessionCompletePayload | null>(null);
-  const pendingSessionRef = useRef<SessionCompletePayload | null>(null);
-  useEffect(() => { pendingSessionRef.current = pendingSessionSummary; }, [pendingSessionSummary]);
+  // Grouped sessions — 2+ activities ek saath HOME pe aane pe
+  const [groupedSessions, setGroupedSessions] = useState<SessionCompletePayload[]>([]);
 
-  // Listen for lesson-complete events fired from MyRoutine
+  // Track currently displaying sessions so new ones can be MERGED (not replaced)
+  const displayedSessionsRef = useRef<SessionCompletePayload[]>([]);
+
+  // Safely show sessions — merges with any already-displaying banner
+  // Always uses GroupedSessionBanner (works for 1+ sessions)
+  const applySessionQueue = useCallback((newQueue: SessionCompletePayload[]) => {
+    if (newQueue.length === 0) return;
+    const merged = [...displayedSessionsRef.current, ...newQueue];
+    displayedSessionsRef.current = merged;
+    setPendingSessionSummary(null);
+    setGroupedSessions(merged);
+  }, []);
+
+  // Listen for lesson-complete events (Reading / Writing) — queue karo, HOME pe dikhao
   useEffect(() => {
     const unsub = onSessionComplete((payload) => {
-      setPendingSessionSummary(payload);
+      // Queue mein daalo
+      queueSession(payload);
+      // Agar HOME tab pe already hain to turant consume karo
+      if (homeTabActiveRef.current) {
+        const queue = consumeSessionQueue();
+        applySessionQueue(queue);
+      }
     });
     return unsub;
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applySessionQueue]);
   
   // CUSTOM DIALOG STATE (GLOBAL)
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
@@ -616,6 +768,8 @@ const App: React.FC = () => {
   const [popupQueue, setPopupQueue] = useState<('TRACKER' | 'CHALLENGE' | 'WELCOME')[]>([]);
   const [showUpdatePopup, setShowUpdatePopup] = useState(false); // NEW
   const [loadingContentType, setLoadingContentType] = useState<ContentType | undefined>(undefined); // NEW
+  const [showFreeSubjectPopup, setShowFreeSubjectPopup] = useState(false); // FREE LESSON POPUP
+  const [mcqLimitPopup, setMcqLimitPopup] = useState<{ used: number; limit: number; creditCost: number } | null>(null); // MCQ LIMIT POPUP
 
   // --- VERSION CONTROL INIT ---
   useEffect(() => {
@@ -934,6 +1088,11 @@ const App: React.FC = () => {
       }
   }, [state.user?.id, state.user?.lastLoginRewardDate, state.originalAdmin]);
 
+  // --- SMART CRASH PROTECTION: Subscribe to maintenance state ---
+  useEffect(() => {
+    return subscribeToMaintenance(setMaintenanceState);
+  }, []);
+
   // --- GLOBAL ERROR HANDLERS (app crash prevention) ---
   useEffect(() => {
     const handleWindowError = (event: ErrorEvent) => {
@@ -1003,6 +1162,30 @@ const App: React.FC = () => {
   }, [isOnline]);
 
   // --- LIVE SETTINGS & USER SYNC (REALTIME) ---
+  // Revision Hub has a local-first UI, but Firebase is the source of truth
+  // across cache clears and devices. Hydrate once whenever the active account
+  // changes; the mounted hub listens for the completion event and reloads.
+  useEffect(() => {
+      const userId = state.user?.id;
+      if (!userId || state.originalAdmin) {
+          setRevisionTrackerUser(null);
+          return;
+      }
+      hydrateRevisionTracker(userId).catch(err => {
+          console.warn('[IIC] Revision tracker restore skipped:', err);
+      });
+  }, [state.user?.id, state.originalAdmin]);
+
+  // Routine config/coins/claims Firebase restore — runs once per login.
+  // MyRoutine listens for 'iic-routine-hydrated' and reloads state.
+  useEffect(() => {
+      const userId = state.user?.id;
+      if (!userId || state.originalAdmin) return;
+      hydrateRoutineData(userId).catch(err => {
+          console.warn('[IIC] Routine hydration skipped:', err);
+      });
+  }, [state.user?.id, state.originalAdmin]);
+
   useEffect(() => {
       let unsubscribeUser: (() => void) | undefined;
 
@@ -1679,9 +1862,53 @@ const App: React.FC = () => {
             queue.push('TRACKER');
         }
 
-        // 2. Welcome/Promo Popup - DISABLED
+        // 2. Daily Challenge — auto-trigger every day (sirf tab jab admin ne enable kiya ho)
+        // Default: enabled (agar admin ne kabhi set nahi kiya to bhi chalta hai)
+        const autoChallengeOn = state.settings.dailyChallengeConfig?.autoChallengeEnabled !== false;
+        const lastChallengeDate = localStorage.getItem('nst_last_daily_challenge_date');
+        if (autoChallengeOn && lastChallengeDate !== new Date().toDateString()) {
+            queue.push('CHALLENGE');
+        }
 
         if (queue.length > 0) setPopupQueue(queue);
+
+        // 3. Yesterday's Daily Challenge Rank Card
+        const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
+        const lastCompleted = localStorage.getItem('nst_last_daily_challenge_completed');
+        const rankShownKey = `nst_rank_shown_${yesterday}`;
+        if (lastCompleted === yesterday && !localStorage.getItem(rankShownKey)) {
+            localStorage.setItem(rankShownKey, '1');
+            setTimeout(() => setShowDailyRankCard(true), 800);
+        }
+
+        // 4. Sunday Weekly Auto-Trigger — 100 questions from completed lessons
+        const isSunday = new Date().getDay() === 0;
+        const lastWeeklyAuto = localStorage.getItem('nst_last_weekly_auto_date');
+        if (isSunday && lastWeeklyAuto !== new Date().toDateString()) {
+            const weeklyQs = buildAutoMixQuestions(
+                state.user.classLevel || '10',
+                state.user.board || 'CBSE',
+                state.user.stream || null,
+                'WEEKLY'
+            );
+            if (weeklyQs.length > 0) {
+                const weeklyTest: WeeklyTest = {
+                    id: `weekly-auto-${Date.now()}`,
+                    name: `Weekly Test — ${new Date().toLocaleDateString()}`,
+                    description: "Sunday ka weekly mega test — 100 sawaal completed lessons se!",
+                    isActive: true,
+                    classLevel: state.user.classLevel || '10',
+                    questions: weeklyQs,
+                    totalQuestions: weeklyQs.length,
+                    passingScore: Math.ceil(0.6 * weeklyQs.length),
+                    createdAt: new Date().toISOString(),
+                    durationMinutes: 60,
+                    autoSubmitEnabled: true
+                };
+                localStorage.setItem('nst_last_weekly_auto_date', new Date().toDateString());
+                setTimeout(() => setActiveWeeklyTest(weeklyTest), 1500);
+            }
+        }
     }
   }, [state.user?.id, state.view, state.settings]);
 
@@ -1697,7 +1924,7 @@ const App: React.FC = () => {
     sessionStartTimeRef.current = 0;
     sessionEndProcessedRef.current = false;
     setMcqJustEnded(false);
-    setHomeStatsVisible(false);
+    // homeStatsVisible removed — queue-based system use hota hai ab
     if (!state.originalAdmin) {
         localStorage.setItem('nst_current_user', JSON.stringify(user));
     }
@@ -1711,22 +1938,21 @@ const App: React.FC = () => {
       return;
     }
 
-    try {
-      const schoolProfile = await getSchoolUserProfile(user.id);
-      if (schoolProfile) {
-        setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
-        return;
-      }
-    } catch (_) { /* not a school user, continue normal flow */ }
+    // School + Coaching profile checks parallel mein chalao — slow network pe time bachta hai
+    const [schoolProfile, coachingProfile] = await Promise.all([
+      getSchoolUserProfile(user.id).catch(() => null),
+      getCoachingUserProfile(user.id).catch(() => null),
+    ]);
 
-    // Check if this user is a Coaching Ecosystem user
-    try {
-      const coachingProfile = await getCoachingUserProfile(user.id);
-      if (coachingProfile) {
-        setState(prev => ({ ...prev, user, view: 'COACHING_ECOSYSTEM' as any }));
-        return;
-      }
-    } catch (_) { /* not a coaching user, continue normal flow */ }
+    if (schoolProfile) {
+      setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
+      return;
+    }
+
+    if (coachingProfile) {
+      setState(prev => ({ ...prev, user, view: 'COACHING_ECOSYSTEM' as any }));
+      return;
+    }
 
     // Check if onboarding is needed
     if ((user.role === 'STUDENT' || user.role === 'TEACHER') && !user.profileCompleted) {
@@ -1738,6 +1964,12 @@ const App: React.FC = () => {
         return;
     }
 
+    // Admin / Sub-Admin → seedha Admin Dashboard pe bhejo
+    if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
+      setState(prev => ({ ...prev, user, view: 'ADMIN_DASHBOARD' }));
+      return;
+    }
+
     setState(prev => ({
       ...prev,
       user,
@@ -1747,10 +1979,6 @@ const App: React.FC = () => {
       selectedStream: user.stream || null,
       language: user.board === 'BSEB' ? 'Hindi' : 'English',
     }));
-
-    if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
-      setTimeout(() => setAlertConfig({ isOpen: true, message: `👋 Welcome, ${user.name || 'Admin'}!\n\nAap Student Dashboard pe hain.\nAdmin Panel ke liye Profile → Admin Panel pe jayein.` }), 600);
-    }
   };
 
   const [logoutPending, setLogoutPending] = useState(false);
@@ -1970,6 +2198,15 @@ const App: React.FC = () => {
       if (state.selectedClass && state.selectedBoard) {
         const chapters = await fetchChapters(state.selectedBoard, state.selectedClass, state.selectedStream, subject, state.language);
         setState(prev => ({ ...prev, chapters, view: 'CHAPTERS', loading: false }));
+
+        // FREE SUBJECT LESSON POPUP — show once per user per subject
+        if (state.user) {
+          const popupKey = `nst_subject_intro_${state.user.id}_${subject.id}`;
+          if (!localStorage.getItem(popupKey)) {
+            localStorage.setItem(popupKey, '1');
+            setShowFreeSubjectPopup(true);
+          }
+        }
       }
     } catch (err) { setState(prev => ({ ...prev, chapters: [], view: 'CHAPTERS', loading: false })); }
   };
@@ -2001,6 +2238,42 @@ const App: React.FC = () => {
     setShowPremiumModal(false);
     setLoadingContentType(type);
     if (!tempSelectedChapter || !state.user) return;
+
+    // --- MCQ DAILY LIMIT GATE — block session launch if limit exceeded ---
+    if ((type === 'MCQ_SIMPLE' || type === 'MCQ_PRACTICE' || type === 'MCQ_TEST') &&
+        state.user.role !== 'ADMIN' && !state.originalAdmin && !forcePay) {
+        const _today = new Date().toISOString().split('T')[0];
+        const _mcqKey = `nst_mcq_daily_total_${_today}_${state.user.id}`;
+        const _mcqUsed = parseInt(localStorage.getItem(_mcqKey) || '0', 10);
+        // Determine tier
+        const _mcqSubValid = state.user.isPremium && state.user.subscriptionEndDate && new Date(state.user.subscriptionEndDate) > new Date();
+        const _mcqTier: 'FREE' | 'BASIC' | 'ULTRA' =
+            _mcqSubValid && state.user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+            _mcqSubValid && state.user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+        const _mcqLimit = getEffectiveDailyLimit('mcq', getLevelInfo(state.user.totalScore || 0).level, _mcqTier, state.settings);
+        if (_mcqLimit < UNLIMITED && _mcqUsed >= _mcqLimit) {
+            const _mcqCreditCost = (state.settings as any).mcqOverLimitCreditCost || 5;
+            setMcqLimitPopup({ used: _mcqUsed, limit: _mcqLimit, creditCost: _mcqCreditCost });
+            setLoadingContentType(undefined);
+            return;
+        }
+    }
+
+    // --- FREE SUBJECT LESSON — computed once, applied in all paths below ---
+    const _fsSubjectId = state.selectedSubject?.id || '';
+    const _fsFreeMap = state.user.subjectFreeLesson || {};
+    const _fsIsFreeLessonChapter = _fsSubjectId && _fsFreeMap[_fsSubjectId] === tempSelectedChapter.id;
+    const _fsIsFirstLesson = _fsSubjectId && !_fsFreeMap[_fsSubjectId] && state.user.role !== 'ADMIN' && !state.originalAdmin;
+    const _fsGrantFree = _fsIsFreeLessonChapter || _fsIsFirstLesson;
+
+    // If this is the first lesson in the subject, record it now (before any path branches)
+    if (_fsIsFirstLesson) {
+        const _fsUpdatedMap = { ..._fsFreeMap, [_fsSubjectId]: tempSelectedChapter.id };
+        const _fsUpdatedUser = { ...state.user, subjectFreeLesson: _fsUpdatedMap };
+        setState(prev => ({ ...prev, user: _fsUpdatedUser }));
+        localStorage.setItem('nst_current_user', JSON.stringify(_fsUpdatedUser));
+        saveUserToLive(_fsUpdatedUser);
+    }
 
     // --- SPECIFIC CONTENT LAUNCH (FROM NEW DASHBOARD) ---
     if (specificContent) {
@@ -2043,6 +2316,8 @@ const App: React.FC = () => {
             cost = 0;
         }
 
+        // FREE SUBJECT LESSON — first lesson in subject is fully free (all content types)
+        if (_fsGrantFree) cost = 0;
 
         // 2. Check & Deduct
         if (cost > 0 && state.user.role !== 'ADMIN' && !state.originalAdmin) {
@@ -2109,11 +2384,11 @@ const App: React.FC = () => {
         } else if (type === 'NOTES_HTML_PREMIUM') {
             actualContent = contentData?.premiumNotesHtml;
             subtitle = 'Premium Notes (Rich Text)';
-            cost = 5;
+            cost = _fsGrantFree ? 0 : 5;
         } else if (type === 'NOTES_IMAGE_AI') {
             actualContent = contentData?.aiImageLink;
             subtitle = 'AI Generated Visual Notes';
-            cost = contentData?.aiImagePrice !== undefined ? contentData.aiImagePrice : 5;
+            cost = _fsGrantFree ? 0 : (contentData?.aiImagePrice !== undefined ? contentData.aiImagePrice : 5);
         }
 
         if (!actualContent) {
@@ -2301,6 +2576,8 @@ const App: React.FC = () => {
         cost = 0;
     }
 
+    // FREE SUBJECT LESSON — apply to main path (already recorded at top of function)
+    if (_fsGrantFree) cost = 0;
 
     // --- ACCESS CONTROL LOGIC (Unified) ---
     let hasAccess = false;
@@ -2547,6 +2824,27 @@ const App: React.FC = () => {
     // 2. Firestore Sync (So Admin can see)
     await saveTestResult(state.user.id, attempt);
 
+    // 3. Daily Challenge Leaderboard — save score so rank can be shown tomorrow
+    const isDailyChallengeAttempt = activeWeeklyTest.id.startsWith('daily-challenge-') || activeWeeklyTest.id.startsWith('weekly-auto-');
+    if (isDailyChallengeAttempt && !state.originalAdmin) {
+        const today = new Date().toISOString().split('T')[0];
+        const timeTakenStr = localStorage.getItem(`weekly_test_start_${activeWeeklyTest.id}`);
+        const timeTaken = timeTakenStr ? Math.round((Date.now() - parseInt(timeTakenStr)) / 1000) : 0;
+        saveDailyChallengeScore({
+            userId: state.user.id,
+            userName: state.user.name || 'Student',
+            classLevel: state.user.classLevel || '10',
+            score,
+            totalQuestions: total,
+            percentage: Math.round((score / total) * 100),
+            timeTakenSeconds: timeTaken,
+            submittedAt: new Date().toISOString(),
+            date: today,
+        });
+        // Mark that user has taken today's challenge (for rank card tomorrow)
+        localStorage.setItem('nst_last_daily_challenge_completed', today);
+    }
+
     logActivity("TEST_SUBMIT", `Completed ${activeWeeklyTest.name} with score ${score}/${total}`);
 
     // REWARD LOGIC
@@ -2555,8 +2853,8 @@ const App: React.FC = () => {
 
     // NEW RULE BASED LOGIC
     const percentage = (score / total) * 100;
-    const isDaily = activeWeeklyTest.id.startsWith('daily-challenge-');
-    const category = isDaily ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST';
+    const isDailyForReward = activeWeeklyTest.id.startsWith('daily-challenge-');
+    const category = isDailyForReward ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST';
 
     // Fetch rules for this category
     const eligibleRules = (state.settings.prizeRules || [])
@@ -2588,7 +2886,7 @@ const App: React.FC = () => {
             rewardMsg = `🏆 Reward Unlocked: ${bestRule.label}`;
         }
     } else {
-        if (isDaily) {
+        if (isDailyForReward) {
              rewardMsg = `Daily Challenge Complete. Score: ${Math.round(percentage)}%.`;
         } else {
              rewardMsg = "Test Submitted!";
@@ -2704,46 +3002,77 @@ const App: React.FC = () => {
   };
 
   const handleStartDailyChallenge = async () => {
-      // 1. Generate Questions
+      // Generate Questions — pulls from full syllabus (all chapters) + globalChallengeMcq pool
+      // Same seed (date+board+class) ensures ALL users get IDENTICAL questions → fair leaderboard
       if (!state.user) return;
 
       const config = state.settings.dailyChallengeConfig || { rewardPercentage: 90, mode: 'AUTO', selectedChapterIds: [] };
-      const questions = generateDailyChallengeQuestions(
-          state.user.board || 'CBSE',
+
+      const result = await generateDailyChallengeQuestions(
           state.user.classLevel || '10',
-          state.user.stream,
-          config.mode,
-          config.selectedChapterIds || []
+          state.user.board || 'BSEB',
+          state.user.stream || null,
+          state.settings,
+          state.user.id,
+          'DAILY'
       );
 
-      if (questions.length === 0) {
-          setAlertConfig({isOpen: true, message: "Not enough content to generate a challenge yet. Try browsing some chapters first!"});
-          handlePopupClose('CHALLENGE'); // Close popup anyway
+      if (!result || result.questions.length === 0) {
+          setAlertConfig({isOpen: true, message: "Aaj ka challenge abhi available nahi hai. Admin se contact karo ya baad mein try karo!"});
+          handlePopupClose('CHALLENGE');
           return;
       }
 
-      // 2. Create Test Object
-      const testId = `daily-challenge-${Date.now()}`;
+      // Create Test Object — reuse consistent challenge ID (date+board+class) for leaderboard grouping
       const test: WeeklyTest = {
-          id: testId,
-          name: `Daily Challenge (${new Date().toLocaleDateString()})`,
-          description: "Win rewards by scoring high in this challenge!",
+          id: result.id,
+          name: result.name,
+          description: "Aaj ke sawaal — syllabus ke sabhi chapters se!",
           isActive: true,
           classLevel: state.user.classLevel || '10',
-          questions: questions,
-          totalQuestions: questions.length,
-          passingScore: Math.ceil((config.rewardPercentage / 100) * questions.length),
+          questions: result.questions,
+          totalQuestions: result.questions.length,
+          passingScore: Math.ceil((config.rewardPercentage / 100) * result.questions.length),
           createdAt: new Date().toISOString(),
-          durationMinutes: 15,
+          durationMinutes: result.durationMinutes,
           autoSubmitEnabled: true
       };
 
-      // 3. Set Active Test (Starts the test view)
       setActiveWeeklyTest(test);
-
-      // 4. Mark as Seen and Close Popup
       localStorage.setItem('nst_last_daily_challenge_date', new Date().toDateString());
-      setPopupQueue(prev => prev.slice(1)); // Manually close popup without triggering handlePopupClose again (which sets storage too)
+      setPopupQueue(prev => prev.slice(1));
+  };
+
+  /** Sunday Weekly Auto-Trigger — 100 questions from full syllabus (all chapters) */
+  const handleStartWeeklyAutoChallenge = async () => {
+      if (!state.user) return;
+      const result = await generateDailyChallengeQuestions(
+          state.user.classLevel || '10',
+          state.user.board || 'BSEB',
+          state.user.stream || null,
+          state.settings,
+          state.user.id,
+          'WEEKLY'
+      );
+      if (!result || result.questions.length === 0) {
+          setAlertConfig({isOpen: true, message: "Weekly test ke liye sawaal available nahi hai. Admin se contact karo!"});
+          return;
+      }
+      const test: WeeklyTest = {
+          id: result.id,
+          name: result.name,
+          description: "Is hafte ka mega test — syllabus ke sabhi chapters se!",
+          isActive: true,
+          classLevel: state.user.classLevel || '10',
+          questions: result.questions,
+          totalQuestions: result.questions.length,
+          passingScore: Math.ceil(0.6 * result.questions.length),
+          createdAt: new Date().toISOString(),
+          durationMinutes: result.durationMinutes,
+          autoSubmitEnabled: true
+      };
+      setActiveWeeklyTest(test);
+      localStorage.setItem('nst_last_weekly_auto_date', new Date().toDateString());
   };
 
   const goBack = () => {
@@ -2896,6 +3225,21 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {/* ── SMART CRASH PROTECTION: Admin Crash Popup ── */}
+      {showAdminCrashPopup && state.user && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && (
+        <AdminCrashPopup
+          errorMessage={maintenanceState?.crashes?.adminDashboard?.errorMessage || 'Admin dashboard crash hua'}
+          crashedAt={maintenanceState?.crashes?.adminDashboard?.crashedAt || Date.now()}
+          onMarkFixed={() => {
+            markCrashFixed('adminDashboard').catch(() => {});
+            setAdminDashCrashed(false);
+            setShowAdminCrashPopup(false);
+            setState(prev => ({ ...prev, view: 'ADMIN_DASHBOARD' as any }));
+          }}
+          onDismiss={() => setShowAdminCrashPopup(false)}
+        />
+      )}
+
       {/* LOGOUT OVERLAY */}
       {logoutPending && (
           <div className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white">
@@ -3126,7 +3470,7 @@ const App: React.FC = () => {
       </header>
       )}
 
-      <main id="main-content" className={`flex-1 w-full max-w-6xl mx-auto ${isFullScreen ? 'p-0' : 'p-4 mb-8'}`}>
+      <main id="main-content" className={`flex-1 w-full max-w-6xl mx-auto ${isFullScreen || state.view === ('STUDENT_DASHBOARD' as any) ? 'p-0' : 'p-4 mb-8'}`}>
         {!state.user ? (
             <ErrorBoundary fallbackLabel="Login" compact>
               <Auth onLogin={handleLogin} logActivity={logActivity} appSettings={state.settings} />
@@ -3134,8 +3478,17 @@ const App: React.FC = () => {
         ) : (
             <ErrorBoundary resetKey={state.view}>
             <>
-                {state.view === 'ADMIN_DASHBOARD' && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && (
-                  <ErrorBoundary fallbackLabel="Admin Dashboard" resetKey={state.view}>
+                {state.view === 'ADMIN_DASHBOARD' && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && !adminDashCrashed && (
+                  <ErrorBoundary
+                    fallbackLabel="Admin Dashboard"
+                    resetKey={state.view}
+                    onError={(error) => {
+                      reportMaintenanceCrash('adminDashboard', error?.message || 'Unknown error').catch(() => {});
+                      setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD' as any }));
+                      setAdminDashCrashed(true);
+                      setShowAdminCrashPopup(true);
+                    }}
+                  >
                     <Suspense fallback={<div className="min-h-screen flex items-center justify-center" aria-label="Loading admin dashboard" aria-busy="true"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
                       <AdminDashboard user={state.user} onNavigate={(v) => setState(prev => ({...prev, view: v}))} settings={state.settings} onUpdateSettings={updateSettings} onImpersonate={handleImpersonate} logActivity={logActivity} isDarkMode={darkMode} onToggleDarkMode={setDarkMode} />
                     </Suspense>
@@ -3194,7 +3547,23 @@ const App: React.FC = () => {
                     </ErrorBoundary>
                 ) : (
                     state.view === 'STUDENT_DASHBOARD' as any && (
-                        <ErrorBoundary fallbackLabel="Student Dashboard" resetKey={studentTab}>
+                        <>
+                        {/* ── SMART CRASH PROTECTION: Maintenance Banner (student home) ── */}
+                        {maintenanceState?.config?.active && state.user?.role !== 'ADMIN' && state.user?.role !== 'SUB_ADMIN' && (
+                          <MaintenanceBanner
+                            title={maintenanceState.config.title || 'System Maintenance'}
+                            message={maintenanceState.config.message || 'We are updating our system.'}
+                            onClick={() => {/* scroll into view handled by MaintenanceScreen */}}
+                          />
+                        )}
+                        <ErrorBoundary
+                          fallbackLabel="Student Dashboard"
+                          resetKey={studentTab}
+                          crashTarget="studentDashboard"
+                          maintenanceTitle={maintenanceState?.config?.title}
+                          maintenanceMessage={maintenanceState?.config?.message}
+                          maintenanceRetryMinutes={maintenanceState?.config?.retryMinutes}
+                        >
                           <StudentDashboard 
                               user={state.user} 
                               dailyStudySeconds={dailyStudySeconds} 
@@ -3223,7 +3592,17 @@ const App: React.FC = () => {
                               onOpenCoaching={() => setState(prev => ({...prev, view: 'COACHING_ECOSYSTEM' as any}))}
                           />
                         </ErrorBoundary>
+                        </>
                     )
+                )}
+
+                {/* Daily Challenge Rank Card — shown next day after completing daily challenge */}
+                {showDailyRankCard && state.user && (
+                    <DailyChallengeRankCard
+                        userId={state.user.id}
+                        classLevel={state.user.classLevel || '10'}
+                        onClose={() => setShowDailyRankCard(false)}
+                    />
                 )}
                 
                 {(!activeWeeklyTest && state.view === 'BOARDS') && (
@@ -3302,6 +3681,7 @@ const App: React.FC = () => {
                               isFirstChapter={_isFirstChapter}
                               onAdminBoard={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => setState(prev => ({...prev, view: 'ADMIN'})) : undefined}
                               onSendToMcqCommunity={(draft) => setAppMcqCommunityDraft(draft)}
+                              onSessionCreditsEarned={handleSessionCreditsEarned}
                onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
                                 try {
                                   const ch = state.selectedChapter;
@@ -3384,6 +3764,44 @@ const App: React.FC = () => {
           </div>
       )}
 
+      {/* MCQ LIMIT LOCKED POPUP */}
+      {mcqLimitPopup && state.user && (
+        <McqLimitLockedPopup
+          isOpen={true}
+          used={mcqLimitPopup.used}
+          limit={mcqLimitPopup.limit}
+          creditCost={mcqLimitPopup.creditCost}
+          userCredits={getTotalCredits(state.user)}
+          onPayCredits={() => {
+            // Deduct credits and allow MCQ session
+            const _updated = applyDeduction(state.user!, mcqLimitPopup.creditCost) ?? state.user!;
+            localStorage.setItem('nst_current_user', JSON.stringify(_updated));
+            saveUserToLive(_updated);
+            setState(prev => ({ ...prev, user: _updated }));
+            setMcqLimitPopup(null);
+            // Re-launch with forcePay=true to skip the gate
+            handleContentGeneration(
+              tempSelectedChapter ? ('MCQ_SIMPLE' as any) : 'MCQ_SIMPLE',
+              undefined,
+              true
+            );
+          }}
+          onGoHome={() => {
+            setMcqLimitPopup(null);
+            // Navigate to student dashboard home tab
+            setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD', lessonContent: null }));
+            setIsFullScreen(false);
+          }}
+        />
+      )}
+
+      {/* FREE SUBJECT LESSON POPUP */}
+      <FreeSubjectLessonPopup
+        isOpen={showFreeSubjectPopup}
+        subjectName={state.selectedSubject?.title || state.selectedSubject?.name || 'This Subject'}
+        onClose={() => setShowFreeSubjectPopup(false)}
+      />
+
       {state.loading && <LoadingOverlay dataReady={generationDataReady} customMessage={loadingMessage} type={loadingContentType} onComplete={handleLoadingAnimationComplete} />}
       {showPremiumModal && tempSelectedChapter && state.user && (
           <PremiumModal
@@ -3437,7 +3855,7 @@ const App: React.FC = () => {
       )}
       
       {/* POPUP QUEUE MANAGER */}
-      {/* {popupQueue.length > 0 && !showPremiumModal && !activeWeeklyTest && (
+      {popupQueue.length > 0 && !showPremiumModal && !activeWeeklyTest && (
           <>
             {popupQueue[0] === 'CHALLENGE' && (
                 <DailyChallengePopup
@@ -3447,7 +3865,7 @@ const App: React.FC = () => {
                 />
             )}
           </>
-      )} */}
+      )}
 
       {lastTestResult && state.user && (
         <Suspense fallback={null}>
@@ -3493,6 +3911,16 @@ const App: React.FC = () => {
               onConfirm={creditModal.onConfirm}
               onCancel={() => setCreditModal(null)}
           />
+      )}
+
+      {/* SIMPLE TOAST */}
+      {toastMessage && (
+          <div
+              className="fixed bottom-24 left-1/2 z-[9999] -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl pointer-events-none"
+              style={{ background: 'rgba(30,30,50,0.92)', backdropFilter: 'blur(8px)', maxWidth: '90vw', textAlign: 'center' }}
+          >
+              {toastMessage}
+          </div>
       )}
 
       {/* GLOBAL DIALOGS */}
@@ -3609,29 +4037,31 @@ const App: React.FC = () => {
           </div>
       )}
     </div>
-    {/* CreditToast hataya — HomeStatsToast se replace kiya */}
-    {/* Home page pe aate hi stats toast — pts, bonus, credits, time */}
-    {state.user && (
-      <HomeStatsToast
-        sessionScore={mcqSessionScore}
-        creditsEarned={mcqSessionCredits}
-        bonusPts={Math.round(mcqSessionScore * (getLevelInfo(state.user.totalScore || 0).discount / 100))}
-        sessionSeconds={mcqSessionSeconds}
-        chapterName={mcqChapterName}
-        activityType={mcqActivityType}
-        totalScore={state.user.totalScore || 0}
-        credits={state.user.credits || 0}
-        visible={homeStatsVisible}
-        onDismiss={() => { setHomeStatsVisible(false); setMcqSessionScore(0); setMcqSessionCredits(0); setMcqSessionSeconds(0); }}
-      />
-    )}
-    {/* Session summary banner — MCQ/Lesson khatam hote hi immediately dikhta hai */}
-    {pendingSessionSummary && (
+    {/* ── Session Notification System ────────────────────────────────────────
+        HOME tab pe aane pe dikhta hai:
+        • 1 activity → SessionSummaryBanner (single card)
+        • 2+ activities → GroupedSessionBanner (total + More button)
+    ────────────────────────────────────────────────────────────────────── */}
+
+    {/* Single activity banner */}
+    {pendingSessionSummary && !groupedSessions.length && (
       <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
         <div className="pointer-events-auto">
           <SessionSummaryBanner
             summary={pendingSessionSummary}
-            onDismiss={() => setPendingSessionSummary(null)}
+            onDismiss={() => { setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
+          />
+        </div>
+      </div>
+    )}
+
+    {/* Session banner — 1+ activities (always uses GroupedSessionBanner) */}
+    {groupedSessions.length >= 1 && (
+      <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
+        <div className="pointer-events-auto">
+          <GroupedSessionBanner
+            sessions={groupedSessions}
+            onDismiss={() => { setGroupedSessions([]); setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
           />
         </div>
       </div>
