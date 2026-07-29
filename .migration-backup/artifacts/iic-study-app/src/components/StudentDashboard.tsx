@@ -3758,13 +3758,42 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => { try { __routineTimeFlushRef.current(); } catch {} };
   }, [hwActiveHwId]);
 
-  // ── My Routine: mark page read immediately when page opens ──────────────────
+  // ── My Routine: mark page read only after MIN reading time ──────────────────
+  // Formula: READING_REWARD_BASE(5) × 5 × 60% = 15 seconds
+  // Page tab "read" count hogi jab user ne us page pe kam se kam 15 second padha ho.
+  const ROUTINE_PAGE_READ_MIN_SEC = Math.round(5 * 5 * 0.60); // 15 seconds
   useEffect(() => {
     if (!lucentNoteViewer?.id) return;
     const _lid = lucentNoteViewer.id;
     const _pi  = lucentPageIndex;
     if (isRoutinePageRead(_lid, _pi)) return; // already marked — skip
-    markRoutinePageRead(_lid, _pi);
+
+    const checkAndMark = () => {
+      if (isRoutinePageRead(_lid, _pi)) return true; // already done
+      // Stored time from previous visits on this page
+      const storedSecs = getPageTime(_lid, _pi);
+      // Live time in current session (since page opened)
+      const enterTs = (window as any).__routinePageEnterTs;
+      const liveSecs = (enterTs && (window as any).__routinePageLid === _lid && (window as any).__routinePageIdx === _pi)
+        ? Math.round((Date.now() - enterTs) / 1000)
+        : 0;
+      const totalSecs = storedSecs + liveSecs;
+      if (totalSecs >= ROUTINE_PAGE_READ_MIN_SEC) {
+        markRoutinePageRead(_lid, _pi);
+        return true;
+      }
+      return false;
+    };
+
+    // Check immediately (in case user revisited and already has enough time)
+    if (checkAndMark()) return;
+
+    // Poll every second until threshold reached or page changes
+    const timer = setInterval(() => {
+      if (checkAndMark()) clearInterval(timer);
+    }, 1000);
+
+    return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lucentPageIndex, lucentNoteViewer?.id]);
 
