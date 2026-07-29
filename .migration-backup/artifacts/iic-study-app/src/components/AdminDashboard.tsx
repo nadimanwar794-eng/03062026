@@ -1376,6 +1376,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [newSubAdminId, setNewSubAdminId] = useState('');
   const [viewingSubAdminReport, setViewingSubAdminReport] = useState<string | null>(null);
   const [viewingUserHistory, setViewingUserHistory] = useState<User | null>(null); // NEW: User History Modal
+  const [deletingPersonalData, setDeletingPersonalData] = useState<User | null>(null); // Delete Routine/Revision/DailyEvent data
+  const [personalDataDeleting, setPersonalDataDeleting] = useState(false);
   
   // --- USER EDIT MODAL STATE ---
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -2571,6 +2573,38 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           logAdminAction('USER_DELETE', `User moved to Recycle Bin`, currentUser, { targetId: userId });
           adminToast.success(`🗑️ User Recycle Bin mein move ho gaya`);
       }
+  };
+
+  // ── Delete user's personal study data (Routine / Revision Hub / Daily Event) ──
+  const deleteUserPersonalData = async (user: User) => {
+    setPersonalDataDeleting(true);
+    const uid = user.id;
+    let deleted = 0;
+    try {
+      // 1. routine_lessons subcollection
+      const routineLessonsSnap = await getDocs(collection(db, `users/${uid}/routine_lessons`));
+      for (const d of routineLessonsSnap.docs) {
+        await deleteDoc(d.ref);
+        deleted++;
+      }
+      // 2. revision_lessons subcollection
+      const revisionLessonsSnap = await getDocs(collection(db, `users/${uid}/revision_lessons`));
+      for (const d of revisionLessonsSnap.docs) {
+        await deleteDoc(d.ref);
+        deleted++;
+      }
+      // 3. routine_backup docs (config + autotrack)
+      try { await deleteDoc(doc(db, `users/${uid}/routine_backup/config`)); deleted++; } catch {}
+      try { await deleteDoc(doc(db, `users/${uid}/routine_backup/autotrack`)); deleted++; } catch {}
+
+      adminToast.success(`✅ ${user.name} ka personal study data delete ho gaya! (${deleted} records)`);
+      logAdminAction('USER_DATA_DELETE', `Personal study data deleted for user`, currentUser, { targetId: uid });
+    } catch (e: any) {
+      adminToast.error(`❌ Delete failed: ${e?.message || 'Network error'}`);
+    } finally {
+      setPersonalDataDeleting(false);
+      setDeletingPersonalData(null);
+    }
   };
 
   const openEditUser = (user: User) => {
@@ -16927,6 +16961,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                       onImpersonate && onImpersonate(u);
                                                   }
                                               }} className="p-2 text-slate-500 hover:text-green-600 bg-slate-50 rounded-lg" title="Impersonate (Login as User)"><Eye size={16} /></button>
+                                              <button onClick={() => setDeletingPersonalData(u)} className="p-2 text-slate-500 hover:text-orange-500 bg-slate-50 rounded-lg" title="Personal Data Delete (Routine / Revision / Daily Event)"><Database size={16} /></button>
                                               <button onClick={() => deleteUser(u.id)} className="p-2 text-slate-500 hover:text-red-600 bg-slate-50 rounded-lg" title="Delete"><Trash2 size={16} /></button>
                                           </>
                                       )}
@@ -16938,6 +16973,60 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               </div>
           </div>
           </ErrorBoundary>
+      )}
+
+      {/* --- DELETE PERSONAL DATA MODAL --- */}
+      {deletingPersonalData && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in">
+                  <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                          <Database size={22} className="text-orange-600" />
+                      </div>
+                      <div>
+                          <h3 className="font-black text-slate-800 text-lg">Personal Study Data Delete</h3>
+                          <p className="text-sm text-slate-500">Firebase data permanently delete hoga</p>
+                      </div>
+                  </div>
+
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5">
+                      <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Ye data delete hoga:</p>
+                      <ul className="text-xs text-orange-700 space-y-1 list-none">
+                          <li>📅 <span className="font-semibold">Routine Page</span> — routine lessons + backup (config &amp; autotrack)</li>
+                          <li>🧠 <span className="font-semibold">Revision Hub</span> — saare revision lesson buckets</li>
+                          <li>📆 <span className="font-semibold">Daily Event</span> — routine se linked data</li>
+                      </ul>
+                      <p className="text-xs text-orange-600 mt-2 font-medium">Note: Ye sirf Firebase data hai. User ka account safe rahega.</p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-5">
+                      <p className="text-xs text-slate-500 font-medium">User</p>
+                      <p className="font-black text-slate-800">{deletingPersonalData.name}</p>
+                      <p className="text-xs text-slate-500 font-mono">{deletingPersonalData.id}</p>
+                  </div>
+
+                  <div className="flex gap-3">
+                      <button
+                          onClick={() => setDeletingPersonalData(null)}
+                          disabled={personalDataDeleting}
+                          className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-50 transition disabled:opacity-50"
+                      >
+                          Cancel
+                      </button>
+                      <button
+                          onClick={() => deleteUserPersonalData(deletingPersonalData)}
+                          disabled={personalDataDeleting}
+                          className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                          {personalDataDeleting ? (
+                              <><Loader2 size={16} className="animate-spin" /> Deleting...</>
+                          ) : (
+                              <><Trash2 size={16} /> Delete Karo</>
+                          )}
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* --- USER HISTORY MODAL --- */}

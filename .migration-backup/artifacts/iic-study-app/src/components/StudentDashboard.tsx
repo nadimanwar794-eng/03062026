@@ -10072,49 +10072,6 @@ export const StudentDashboard: React.FC<Props> = ({
           />
         )}
 
-        {/* ── DAILY EVENT PAGE ── */}
-        {showDailyEventPage && (
-          <DailyEventPage
-            user={user}
-            settings={settings}
-            onBack={() => setShowDailyEventPage(false)}
-            onOpenRoutine={() => {
-              setShowDailyEventPage(false);
-              setShowMyRoutine(true);
-            }}
-            onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
-              if (lessonTitle) {
-                const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-                if (_isAdm) {
-                  setInitialRevisionLessonTitle(lessonTitle);
-                  setShowDailyEventPage(false);
-                  setShowRevisionHubScreen(true);
-                  return;
-                }
-                setCoinGate({
-                  cost: 50,
-                  originalCost: 100,
-                  discountPct: 50,
-                  reason: 'Revision Hub MCQ Session (Routine 50% OFF)',
-                  action: () => {
-                    setInitialRevisionLessonTitle(lessonTitle);
-                    setShowDailyEventPage(false);
-                    setShowRevisionHubScreen(true);
-                  },
-                });
-                return;
-              }
-              setShowDailyEventPage(false);
-              setShowRevisionHubScreen(true);
-            }}
-            onPracticeMistakes={(mistakes) => {
-              setHomeMistakes(mistakes);
-              setShowDailyEventPage(false);
-              setShowMistakePractice(true);
-            }}
-          />
-        )}
-
         </PullToRefresh>
       );
     }
@@ -17711,6 +17668,9 @@ export const StudentDashboard: React.FC<Props> = ({
               }
               // Close Progress Dashboard overlay if open — prevents it bleeding into other tabs.
               setShowProgressDashboard(false);
+              // Close Daily Event Page overlay if open — it's a top-level overlay and must
+              // be dismissed when the user switches tabs via the bottom nav.
+              setShowDailyEventPage(false);
               // Close the Important Notes overlay if it's open — otherwise the
               // overlay (z-[200]) keeps covering the dashboard even after the
               // user taps Home / Homework / Profile / Revision in bottom nav.
@@ -17814,6 +17774,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     setShowChat(false);
                     setShowStarredPage(false);
                     setShowRevisionHubScreen(false);
+                    setShowDailyEventPage(false);
                     if (showCommunityStarsPage) {
                       try { stopProfileStarRead(); } catch (_) {}
                       setShowCommunityStarsPage(false);
@@ -17835,6 +17796,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   setShowCompareView(false);
                   setShowRevisionHubScreen(false);
                   setShowMyRoutine(false);
+                  setShowDailyEventPage(false);
                   if (showCommunityStarsPage) {
                     try { stopProfileStarRead(); } catch (_) {}
                     setShowCommunityStarsPage(false);
@@ -21299,6 +21261,49 @@ RULES:
         );
       })()}
 
+
+      {/* ── DAILY EVENT PAGE — top-level overlay (works from any tab) ── */}
+      {showDailyEventPage && (
+        <DailyEventPage
+          user={user}
+          settings={settings}
+          onBack={() => setShowDailyEventPage(false)}
+          onOpenRoutine={() => {
+            setShowDailyEventPage(false);
+            setShowMyRoutine(true);
+          }}
+          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
+            if (lessonTitle) {
+              const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+              if (_isAdm) {
+                setInitialRevisionLessonTitle(lessonTitle);
+                setShowDailyEventPage(false);
+                setShowRevisionHubScreen(true);
+                return;
+              }
+              setCoinGate({
+                cost: 50,
+                originalCost: 100,
+                discountPct: 50,
+                reason: 'Revision Hub MCQ Session (Routine 50% OFF)',
+                action: () => {
+                  setInitialRevisionLessonTitle(lessonTitle);
+                  setShowDailyEventPage(false);
+                  setShowRevisionHubScreen(true);
+                },
+              });
+              return;
+            }
+            setShowDailyEventPage(false);
+            setShowRevisionHubScreen(true);
+          }}
+          onPracticeMistakes={(mistakes) => {
+            setHomeMistakes(mistakes);
+            setShowDailyEventPage(false);
+            setShowMistakePractice(true);
+          }}
+        />
+      )}
 
       {/* REVISION HUB FULL-SCREEN — MCQ · Revision · History · Performance */}
       {showRevisionHubScreen && (
