@@ -16965,6 +16965,16 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               <button onClick={() => deleteUser(u.id)} className="p-2 text-slate-500 hover:text-red-600 bg-slate-50 rounded-lg" title="Delete"><Trash2 size={16} /></button>
                                           </>
                                       )}
+                                      {/* Admin khud ka personal study data delete kar sake */}
+                                      {u.role === 'ADMIN' && u.id === currentUser?.id && (
+                                          <button
+                                              onClick={() => setDeletingPersonalData(u)}
+                                              className="p-2 text-slate-400 hover:text-orange-500 bg-slate-50 rounded-lg"
+                                              title="Apna Personal Study Data Delete Karo (Routine / Revision / Daily Event)"
+                                          >
+                                              <Database size={16} />
+                                          </button>
+                                      )}
                                   </td>
                               </tr>
                           ))}
