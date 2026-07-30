@@ -13378,8 +13378,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 style={{ color: _userLevelInfo.color, fontSize: 10, fontWeight: 900, letterSpacing: '-0.01em' }}
               >
                 {_userLevelInfo.emoji} {_isMax
-                  ? 'MAX LEVEL'
-                  : `${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
+                  ? `Lv.${_userLevelInfo.level} MAX`
+                  : `Lv.${_userLevelInfo.level}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
               </span>
             );
           })()}
