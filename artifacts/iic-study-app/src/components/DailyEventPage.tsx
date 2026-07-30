@@ -499,7 +499,7 @@ export const DailyEventPage: React.FC<Props> = ({
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1">
-            <h1 className="text-base font-black text-slate-900 leading-tight">📅 Aaj Ka Poora Kaam</h1>
+            <h1 className="text-base font-black text-slate-900 leading-tight">🗓️ Routine</h1>
           </div>
           <p className="text-[10px] font-bold text-slate-400 shrink-0">
             {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
