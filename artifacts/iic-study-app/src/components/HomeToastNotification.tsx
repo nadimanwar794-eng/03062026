@@ -23,6 +23,33 @@ interface Props {
 
 const DISPLAY_MS = 3500;
 
+function StatRow({
+  prev, delta, deltaLabel, curr, deltaColor,
+}: {
+  prev: string; delta: string; deltaLabel: string; curr: string; deltaColor: string;
+}) {
+  return (
+    <div className="flex items-center justify-between w-full gap-2">
+      {/* Previous value */}
+      <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        {prev}
+      </span>
+      {/* Arrow */}
+      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, flexShrink: 0 }}>→</span>
+      {/* Delta */}
+      <span style={{ color: deltaColor, fontSize: 14, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {delta} <span style={{ fontSize: 11, fontWeight: 700 }}>{deltaLabel}</span>
+      </span>
+      {/* Equals */}
+      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, flexShrink: 0 }}>=</span>
+      {/* New total */}
+      <span style={{ color: '#ffffff', fontSize: 14, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        {curr}
+      </span>
+    </div>
+  );
+}
+
 export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
   const [visible, setVisible] = useState(false);
 
@@ -54,61 +81,36 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
       {/* Safe area spacer */}
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
-      {/* Content */}
-      <div className="flex items-center justify-between px-3 py-2 gap-3">
+      {/* Rows */}
+      <div className="flex flex-col gap-1.5 px-4 py-2.5">
 
-        {/* LEFT: coin icon */}
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.3)' }}
-        >
-          <span style={{ fontSize: 16 }}>🪙</span>
-        </div>
+        {/* Row 1 — Credits */}
+        {showCr && (
+          <StatRow
+            prev={`${data.creditsBefore.toLocaleString('en-IN')}🪙`}
+            delta={`+${data.creditsEarned}`}
+            deltaLabel="CR"
+            curr={`${data.creditsAfter.toLocaleString('en-IN')}🪙`}
+            deltaColor="#34d399"
+          />
+        )}
 
-        {/* RIGHT: two rows */}
-        <div className="flex flex-col items-end gap-1 flex-1">
+        {/* Divider between rows */}
+        {showCr && showXp && (
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', borderRadius: 1 }} />
+        )}
 
-          {/* Row 1 — Credits */}
-          {showCr && (
-            <div
-              className="flex items-center gap-1.5 rounded-full px-3 py-[3px] self-end"
-              style={{ background: 'rgba(0,0,0,0.28)' }}
-            >
-              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                {data.creditsBefore.toLocaleString('en-IN')}🪙
-              </span>
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>→</span>
-              <span style={{ color: '#34d399', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-                +{data.creditsEarned} CR
-              </span>
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>=</span>
-              <span style={{ color: '#ffffff', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-                {data.creditsAfter.toLocaleString('en-IN')}🪙
-              </span>
-            </div>
-          )}
+        {/* Row 2 — XP */}
+        {showXp && (
+          <StatRow
+            prev={`${data.xpBefore.toLocaleString('en-IN')} XP`}
+            delta={`+${data.xpEarned}`}
+            deltaLabel="XP"
+            curr={`${data.xpAfter.toLocaleString('en-IN')} XP`}
+            deltaColor="#a78bfa"
+          />
+        )}
 
-          {/* Row 2 — XP */}
-          {showXp && (
-            <div
-              className="flex items-center gap-1.5 rounded-full px-3 py-[3px] self-end"
-              style={{ background: 'rgba(0,0,0,0.20)' }}
-            >
-              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                {data.xpBefore.toLocaleString('en-IN')} XP
-              </span>
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>→</span>
-              <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-                +{data.xpEarned} XP
-              </span>
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>=</span>
-              <span style={{ color: '#ffffff', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
-                {data.xpAfter.toLocaleString('en-IN')} XP
-              </span>
-            </div>
-          )}
-
-        </div>
       </div>
 
       {/* Auto-dismiss progress bar */}
