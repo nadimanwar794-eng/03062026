@@ -2029,28 +2029,10 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showSidebar, setShowSidebar] = useState(false);
   const [bgTtsOn, setBgTtsOn] = useState(false);
   const [_topBarInfoPhase, _setTopBarInfoPhase] = useState(0); // 0 = tier, 1 = expiry
-  // XP badge: HOME pe aate hi 5 sec ke liye dikhao, phir auto-hide
-  // "HOME" = activeTab HOME + koi bhi overlay (Revision/Routine/Community) band ho
+  // XP badge state + refs — useEffect is below (after showRevisionHubScreen/showMyRoutine declarations)
   const [showXpBadge, setShowXpBadge] = useState(false);
   const xpBadgeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const xpBadgeIsOnHomeRef = React.useRef(false);
-  React.useEffect(() => {
-    const isOnHome = activeTab === 'HOME' && !showRevisionHubScreen && !showMyRoutine && !showChat;
-    const wasOnHome = xpBadgeIsOnHomeRef.current;
-    xpBadgeIsOnHomeRef.current = isOnHome;
-    if (isOnHome && !wasOnHome) {
-      // Naya HOME visit — badge show karo
-      setShowXpBadge(true);
-      if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
-      xpBadgeTimerRef.current = setTimeout(() => setShowXpBadge(false), 5000);
-    } else if (!isOnHome) {
-      // HOME se gaye — badge hide karo
-      if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
-      setShowXpBadge(false);
-    }
-    return () => { if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, showRevisionHubScreen, showMyRoutine, showChat]);
   const [rewardEffect, setRewardEffect] = useState<{ amount: number; label: string } | null>(null);
   const triggerRewardEffect = (amount: number, label = 'Credits') => {
     setRewardEffect({ amount, label });
@@ -3351,6 +3333,23 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showRevisionHubScreen, setShowRevisionHubScreen] = useState(false);
   const [showMyRoutine, setShowMyRoutine] = useState(false);
   const [showDailyEventPage, setShowDailyEventPage] = useState(false);
+  // XP badge useEffect — yahan rakhna zaroori hai (showRevisionHubScreen/showMyRoutine/showChat ke baad)
+  // Pehle rakhne se TDZ crash hota tha (dependency array mein undeclared vars)
+  React.useEffect(() => {
+    const isOnHome = activeTab === 'HOME' && !showRevisionHubScreen && !showMyRoutine && !showChat;
+    const wasOnHome = xpBadgeIsOnHomeRef.current;
+    xpBadgeIsOnHomeRef.current = isOnHome;
+    if (isOnHome && !wasOnHome) {
+      setShowXpBadge(true);
+      if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
+      xpBadgeTimerRef.current = setTimeout(() => setShowXpBadge(false), 5000);
+    } else if (!isOnHome) {
+      if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
+      setShowXpBadge(false);
+    }
+    return () => { if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, showRevisionHubScreen, showMyRoutine, showChat]);
   // lessonTitle for auto-navigation when opening Revision Hub from Routine/Daily Event (coins already paid).
   const [initialRevisionLessonTitle, setInitialRevisionLessonTitle] = useState<string | null>(null);
   // Routine gate popup — shown when user tries to open a lesson in a routineApplied subject
