@@ -33,6 +33,7 @@ import {
 import { scheduleRoutineLessonForRevision } from '../utils/revisionTrackerV2';
 import { RoutineRevisionBadge } from './RoutineRevisionBadge';
 import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
+import { DailyEventPage } from './DailyEventPage';
 
 const TASK_COMPLETE_PTS = 100; // pts awarded per routine task completion
 
@@ -1597,9 +1598,12 @@ interface MyRoutineProps {
   onUserUpdate?: (u: any) => void;
   /** Navigate to Revision Hub tab — receives lessonId so caller can apply 50-coin discount */
   onGoToRevision?: (lessonId: string, lessonTitle?: string) => void;
+  settings?: any;
+  onOpenRevisionHub?: (lessonId?: string, lessonTitle?: string) => void;
+  onPracticeMistakes?: (mistakes: any[]) => void;
 }
 
-export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision }) => {
+export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes }) => {
   const userId = user?.id || 'guest';
   const mcqHistory: any[] = user?.mcqHistory || [];
   const subTier: UserSubTier = getUserSubTier(user);
@@ -2091,67 +2095,14 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 </button>
               </div>
             ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black text-slate-600 uppercase tracking-widest">📅 Aaj Ka Task</p>
-                  <button onClick={() => setShowCatManager(true)}
-                    className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg active:scale-95 transition flex items-center gap-1">
-                    <Plus size={11} /> Edit
-                  </button>
-                </div>
-                {categories.map(cat => {
-                  const si = cat.currentSubjectIndex % cat.subjects.length;
-                  const sub = cat.subjects[si];
-                  const subNotes = getNotesForSubject(sub, routineNotes);
-                  const safeIdx = subNotes.length > 0 ? Math.min(sub.currentLessonIndex, subNotes.length - 1) : -1;
-                  const lesson = safeIdx >= 0 ? subNotes[safeIdx] : null;
-                  const meta = SUBJECT_META[sub.subjectId] || DEFAULT_META;
-                  const subLabel = cat.subjects.length > 1
-                    ? `${capitalise(sub.subjectId)} (${si + 1}/${cat.subjects.length})`
-                    : capitalise(sub.subjectId);
-
-                  if (!lesson) return (
-                    <div key={cat.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                      <div className="p-4 text-center">
-                        <span className="text-2xl">{cat.emoji}</span>
-                        <p className="text-sm font-black text-slate-700 mt-1">{cat.categoryName}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{subLabel} — notes load ho rahe hain...</p>
-                      </div>
-                    </div>
-                  );
-                  return (
-                    <div key={`${cat.id}-${lesson.id}`} className="space-y-2">
-                      <TaskLessonCard
-                        label={`${cat.emoji} ${cat.categoryName}`}
-                        subjectName={subLabel}
-                        lessonTitle={lesson.lessonTitle || `Lesson ${safeIdx + 1}`}
-                        lessonId={lesson.id}
-                        totalPages={lesson.pages?.length || 0}
-                        meta={meta}
-                        mcqHistory={mcqHistory}
-                        onLessonComplete={(lid) => handleCategoryLessonComplete(cat.id, lid)}
-                        onGoToRevision={onGoToRevision}
-                      />
-                    </div>
-                  );
-                })}
-                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-                  <p className="text-xs font-black text-amber-700 mb-3">🪙 Summary</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: 'Balance', value: `${userCredits.toLocaleString('en-IN')}🪙` },
-                      { label: 'Per Lesson', value: `+${LESSON_COMPLETE_REWARD}🪙` },
-                      { label: 'Daily Claim', value: subTier !== 'NONE' ? `${dailyAmount}🪙/day` : 'No plan' },
-                      { label: 'Categories', value: `${categories.length}/${actualMaxSlots}` },
-                    ].map(item => (
-                      <div key={item.label} className="bg-white rounded-xl p-2.5 border border-amber-100">
-                        <p className="text-[9px] text-slate-400 font-medium">{item.label}</p>
-                        <p className="font-black text-slate-800 text-sm">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
+              <DailyEventPage
+                user={user as any}
+                settings={settings}
+                onBack={onBack}
+                onOpenRoutine={() => setActiveView('subjects')}
+                onOpenRevisionHub={onOpenRevisionHub || (() => {})}
+                onPracticeMistakes={onPracticeMistakes || (() => {})}
+              />
             )}
           </div>
         )}

@@ -21619,6 +21619,37 @@ RULES:
           lucentNotes={(settings?.lucentNotes || []) as any[]}
           onBack={() => setShowMyRoutine(false)}
           onUserUpdate={handleUserUpdate}
+          settings={settings}
+          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
+            if (lessonTitle) {
+              const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+              if (_isAdm) {
+                setInitialRevisionLessonTitle(lessonTitle);
+                setShowMyRoutine(false);
+                setShowRevisionHubScreen(true);
+                return;
+              }
+              setCoinGate({
+                cost: 50,
+                originalCost: 100,
+                discountPct: 50,
+                reason: 'Revision Hub MCQ Session (Routine 50% OFF)',
+                action: () => {
+                  setInitialRevisionLessonTitle(lessonTitle);
+                  setShowMyRoutine(false);
+                  setShowRevisionHubScreen(true);
+                },
+              });
+              return;
+            }
+            setShowMyRoutine(false);
+            setShowRevisionHubScreen(true);
+          }}
+          onPracticeMistakes={(mistakes) => {
+            setHomeMistakes(mistakes);
+            setShowMyRoutine(false);
+            setShowMistakePractice(true);
+          }}
           onGoToRevision={(lessonId, lessonTitle) => {
             // Coming from Routine → 50-coin gate first, then open RevisionHub auto-navigated
             if (lessonTitle) {
