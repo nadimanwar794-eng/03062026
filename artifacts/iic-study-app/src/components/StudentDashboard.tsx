@@ -6323,8 +6323,11 @@ export const StudentDashboard: React.FC<Props> = ({
       }, 2000);
     } else if (newCredits > prevCredits) {
       const added = newCredits - prevCredits;
+      const _prevXP = user.totalScore || 0;
+      const _newXP  = updatedUser.totalScore || 0;
+      const _xpGained = Math.max(0, _newXP - _prevXP);
       if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-      setCreditDeductToast({ visible: true, previous: prevCredits, deducted: added, current: newCredits, type: 'ADD' });
+      setCreditDeductToast({ visible: true, previous: prevCredits, deducted: added, current: newCredits, type: 'ADD', xpPrevious: _prevXP, xpEarned: _xpGained > 0 ? _xpGained : undefined, xpCurrent: _xpGained > 0 ? _newXP : undefined });
       creditToastTimerRef.current = setTimeout(() => {
         setCreditDeductToast(null);
       }, 2000);
