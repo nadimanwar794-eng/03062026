@@ -1689,6 +1689,9 @@ export const StudentDashboard: React.FC<Props> = ({
     deducted: number;
     current: number;
     type: 'ADD' | 'DEDUCT';
+    xpPrevious?: number;
+    xpEarned?: number;
+    xpCurrent?: number;
   } | null>(null);
   const creditToastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -2908,11 +2911,13 @@ export const StudentDashboard: React.FC<Props> = ({
           const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
+          const _prevXP = freshU.totalScore || 0;
+          const _newXP  = _prevXP + earned;
           deferStudyCoins(freshU.id, _coinEarned);
-          handleUserUpdate({ ...freshU, totalScore: (freshU.totalScore || 0) + earned });
+          handleUserUpdate({ ...freshU, totalScore: _newXP });
           // Always show top banner for timer coin earn (guaranteed, doesn't rely on handleUserUpdate diff)
           if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD' });
+          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD', xpPrevious: _prevXP, xpEarned: earned, xpCurrent: _newXP });
           creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
           triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}`);
         }
@@ -3204,13 +3209,14 @@ export const StudentDashboard: React.FC<Props> = ({
           const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
           const _prevCR = getTotalCredits(freshU);
           const _newCR  = _prevCR + _coinEarned;
-          const _newScore = (freshU.totalScore || 0) + earned;
+          const _prevXP2 = freshU.totalScore || 0;
+          const _newScore = _prevXP2 + earned;
           deferStudyCoins(freshU.id, _coinEarned);
           handleUserUpdate({ ...freshU, totalScore: _newScore });
           // Update credit-sync key so HOME-tab sync does NOT double-convert these pts to credits
           try { localStorage.setItem(`nst_credit_sync_score_${freshU.id}`, String(_newScore)); } catch {}
           if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD' });
+          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD', xpPrevious: _prevXP2, xpEarned: earned, xpCurrent: _newScore });
           creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
           triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}!`);
         }
@@ -26695,27 +26701,44 @@ RULES:
                 </span>
               </div>
 
-              {/* RIGHT: credit change pill */}
-              <div className="flex items-center gap-1.5 rounded-full px-3 py-1 shrink-0"
-                style={{ background: 'rgba(0,0,0,0.25)' }}>
-                {/* Previous */}
-                <span className="text-[12px] font-bold tabular-nums"
-                  style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  {creditDeductToast.previous.toLocaleString('en-IN')}🪙
-                </span>
-                {/* Arrow */}
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>→</span>
-                {/* Delta */}
-                <span className="text-[13px] font-black tabular-nums"
-                  style={{ color: deltaColor }}>
-                  {sign}{creditDeductToast.deducted}
-                </span>
-                {/* Equals */}
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>=</span>
-                {/* New total */}
-                <span className="text-[13px] font-black tabular-nums text-white">
-                  {creditDeductToast.current.toLocaleString('en-IN')}🪙
-                </span>
+              {/* RIGHT: credit + xp change pills */}
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {/* Row 1 — Credits */}
+                <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
+                  style={{ background: 'rgba(0,0,0,0.25)' }}>
+                  <span className="text-[12px] font-bold tabular-nums"
+                    style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    {creditDeductToast.previous.toLocaleString('en-IN')}🪙
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>→</span>
+                  <span className="text-[13px] font-black tabular-nums"
+                    style={{ color: deltaColor }}>
+                    {sign}{creditDeductToast.deducted} CR
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>=</span>
+                  <span className="text-[13px] font-black tabular-nums text-white">
+                    {creditDeductToast.current.toLocaleString('en-IN')}🪙
+                  </span>
+                </div>
+                {/* Row 2 — XP (only when earned) */}
+                {isAdd && creditDeductToast.xpEarned != null && (
+                  <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
+                    style={{ background: 'rgba(0,0,0,0.20)' }}>
+                    <span className="text-[12px] font-bold tabular-nums"
+                      style={{ color: 'rgba(255,255,255,0.6)' }}>
+                      {(creditDeductToast.xpPrevious ?? 0).toLocaleString('en-IN')} XP
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>→</span>
+                    <span className="text-[13px] font-black tabular-nums"
+                      style={{ color: '#a78bfa' }}>
+                      +{creditDeductToast.xpEarned} XP
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>=</span>
+                    <span className="text-[13px] font-black tabular-nums text-white">
+                      {(creditDeductToast.xpCurrent ?? 0).toLocaleString('en-IN')} XP
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
