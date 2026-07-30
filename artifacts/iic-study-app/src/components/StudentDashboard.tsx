@@ -13554,10 +13554,20 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className="shrink-0">
                 <button
                   onClick={() => onTabChange('STORE' as any)}
-                  className="inline-flex items-center gap-[2px] px-2 py-[3px] rounded-full text-[8px] font-black text-white whitespace-nowrap active:scale-90 transition-transform"
+                  className="inline-flex flex-col items-end gap-0 px-2 py-[3px] rounded-full text-white whitespace-nowrap active:scale-90 transition-transform"
                 >
-                  <Crown size={9} />
-                  <span>{user.credits} CR</span>
+                  {(() => {
+                    const _lvlInfo = getLevelInfo(user.totalScore || 0);
+                    return (
+                      <span className="text-[7px] font-black text-white/70 leading-none">
+                        Lv.{_lvlInfo.level} | {(user.totalScore || 0).toLocaleString('en-IN')} PTS
+                      </span>
+                    );
+                  })()}
+                  <span className="inline-flex items-center gap-[2px] text-[8px] font-black leading-none">
+                    <Crown size={9} />
+                    {user.credits} CR
+                  </span>
                 </button>
               </div>
             )}
