@@ -1,7 +1,8 @@
 /**
- * HomeToastNotification — Top-bar style, 2 rows
+ * HomeToastNotification — Full-width top-bar overlay style
+ * Theme ke saath color change hota hai (--nst-top-bar-grad CSS variable)
  * Row 1: old credits → +earned CR = new credits
- * Row 2: old XP → +earned XP = new XP
+ * Row 2: old XP     → +earned XP = new XP
  */
 
 import React, { useEffect, useState } from 'react';
@@ -20,6 +21,8 @@ interface Props {
   onDismiss: () => void;
 }
 
+const DISPLAY_MS = 3500;
+
 export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
   const [visible, setVisible] = useState(false);
 
@@ -28,7 +31,7 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
     const hideT = setTimeout(() => {
       setVisible(false);
       setTimeout(onDismiss, 350);
-    }, 3500);
+    }, DISPLAY_MS);
     return () => { clearTimeout(showT); clearTimeout(hideT); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -37,56 +40,87 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
   const showCr = data.creditsEarned > 0;
   if (!showXp && !showCr) return null;
 
-  const pillStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 5,
-    background: 'rgba(0,0,0,0.72)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: 999,
-    padding: '5px 12px',
-    userSelect: 'none',
-    transform: visible ? 'translateX(0)' : 'translateX(calc(100% + 20px))',
-    transition: 'transform 0.35s cubic-bezier(.34,1.4,.64,1)',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
-    whiteSpace: 'nowrap' as const,
-  };
-
-  const muted: React.CSSProperties = { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 700 };
-  const arrow: React.CSSProperties = { color: 'rgba(255,255,255,0.35)', fontSize: 11 };
-  const old: React.CSSProperties  = { color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums' };
-  const cur: React.CSSProperties  = { color: '#ffffff', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' };
-
   return (
     <div
-      className="fixed z-[99999] flex flex-col items-end gap-2 pointer-events-none"
-      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 10px)', right: 10 }}
+      className="fixed left-0 right-0 z-[99999] pointer-events-none"
+      style={{
+        top: 0,
+        background: 'var(--nst-top-bar-grad)',
+        transform: visible ? 'translateY(0)' : 'translateY(-110%)',
+        transition: 'transform 0.35s cubic-bezier(.34,1.4,.64,1)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+      }}
     >
-      {/* Row 1 — Credits */}
-      {showCr && (
-        <div style={pillStyle}>
-          <span style={old}>{data.creditsBefore.toLocaleString('en-IN')}🪙</span>
-          <span style={arrow}>→</span>
-          <span style={{ ...muted, color: '#34d399', fontSize: 13, fontWeight: 900 }}>
-            +{data.creditsEarned} CR
-          </span>
-          <span style={arrow}>=</span>
-          <span style={cur}>{data.creditsAfter.toLocaleString('en-IN')}🪙</span>
-        </div>
-      )}
+      {/* Safe area spacer */}
+      <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
-      {/* Row 2 — XP */}
-      {showXp && (
-        <div style={{ ...pillStyle, transitionDelay: showCr ? '70ms' : '0ms' }}>
-          <span style={old}>{data.xpBefore.toLocaleString('en-IN')} XP</span>
-          <span style={arrow}>→</span>
-          <span style={{ ...muted, color: '#a78bfa', fontSize: 13, fontWeight: 900 }}>
-            +{data.xpEarned} XP
-          </span>
-          <span style={arrow}>=</span>
-          <span style={cur}>{data.xpAfter.toLocaleString('en-IN')} XP</span>
+      {/* Content */}
+      <div className="flex items-center justify-between px-3 py-2 gap-3">
+
+        {/* LEFT: coin icon */}
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.3)' }}
+        >
+          <span style={{ fontSize: 16 }}>🪙</span>
         </div>
-      )}
+
+        {/* RIGHT: two rows */}
+        <div className="flex flex-col items-end gap-1 flex-1">
+
+          {/* Row 1 — Credits */}
+          {showCr && (
+            <div
+              className="flex items-center gap-1.5 rounded-full px-3 py-[3px] self-end"
+              style={{ background: 'rgba(0,0,0,0.28)' }}
+            >
+              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                {data.creditsBefore.toLocaleString('en-IN')}🪙
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>→</span>
+              <span style={{ color: '#34d399', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                +{data.creditsEarned} CR
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>=</span>
+              <span style={{ color: '#ffffff', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                {data.creditsAfter.toLocaleString('en-IN')}🪙
+              </span>
+            </div>
+          )}
+
+          {/* Row 2 — XP */}
+          {showXp && (
+            <div
+              className="flex items-center gap-1.5 rounded-full px-3 py-[3px] self-end"
+              style={{ background: 'rgba(0,0,0,0.20)' }}
+            >
+              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+                {data.xpBefore.toLocaleString('en-IN')} XP
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>→</span>
+              <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                +{data.xpEarned} XP
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>=</span>
+              <span style={{ color: '#ffffff', fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                {data.xpAfter.toLocaleString('en-IN')} XP
+              </span>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* Auto-dismiss progress bar */}
+      <div className="h-[2px] relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
+        <div
+          className="h-full absolute left-0 top-0"
+          style={{
+            background: 'rgba(255,255,255,0.7)',
+            animation: `credit-toast-bar ${DISPLAY_MS}ms linear forwards`,
+          }}
+        />
+      </div>
     </div>
   );
 };
