@@ -593,6 +593,23 @@ const App: React.FC = () => {
     if (homeTabActiveRef.current) {
       const queue = consumeSessionQueue();
       applySessionQueue(queue);
+      // XP + CR toast bhi turant dikhao (studentTab useEffect tab fire nahi hota jab tab same ho)
+      const _u = state.user;
+      if (_u) {
+        const _discount = getLevelInfo(_u.totalScore || 0).discount;
+        const _bonusPts = earned > 0 ? Math.round(earned * _discount / 100) : 0;
+        const _xpEarned = earned + _bonusPts;
+        if (_xpEarned > 0 || finalCoins > 0) {
+          const _xpAfter = _u.totalScore || 0;
+          const _xpBefore = Math.max(0, _xpAfter - _xpEarned);
+          const _creditsAfter = _u.credits || 0;
+          const _creditsBefore = Math.max(0, _creditsAfter - finalCoins);
+          setHomeToastData({
+            xpBefore: _xpBefore, xpEarned: _xpEarned, xpAfter: _xpAfter,
+            creditsBefore: _creditsBefore, creditsEarned: finalCoins, creditsAfter: _creditsAfter,
+          });
+        }
+      }
     }
     // Agar HOME pe nahi — queue mein rahega, HOME tab pe aane pe dikhega
   };
@@ -771,6 +788,24 @@ const App: React.FC = () => {
       if (homeTabActiveRef.current) {
         const queue = consumeSessionQueue();
         applySessionQueue(queue);
+        // XP + CR toast bhi turant dikhao (studentTab useEffect tab fire nahi hota jab tab same ho)
+        const _score = payload.sessionScore ?? 0;
+        const _creds = (payload.coinsEarned ?? 0) + (payload.creditsEarned ?? 0);
+        const _totalScore = userTotalScoreRef.current;
+        const _credits = userCreditsRef.current;
+        const _discount = getLevelInfo(_totalScore).discount;
+        const _bonusPts = _score > 0 ? Math.round(_score * _discount / 100) : 0;
+        const _xpEarned = _score + _bonusPts;
+        if (_xpEarned > 0 || _creds > 0) {
+          const _xpAfter = _totalScore;
+          const _xpBefore = Math.max(0, _xpAfter - _xpEarned);
+          const _creditsAfter = _credits;
+          const _creditsBefore = Math.max(0, _creditsAfter - _creds);
+          setHomeToastData({
+            xpBefore: _xpBefore, xpEarned: _xpEarned, xpAfter: _xpAfter,
+            creditsBefore: _creditsBefore, creditsEarned: _creds, creditsAfter: _creditsAfter,
+          });
+        }
       }
     });
     return unsub;
