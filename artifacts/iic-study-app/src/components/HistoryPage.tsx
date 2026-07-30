@@ -749,43 +749,7 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings, ini
                     );
                 })}
 
-                {/* Login Sessions divider */}
-                {loginSessions.length > 0 && (
-                    <>
-                        <div className="flex items-center gap-2 pt-2">
-                            <div className="flex-1 h-px bg-slate-200" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Login Sessions</span>
-                            <div className="flex-1 h-px bg-slate-200" />
-                        </div>
-                        {loginSessions.map((s, i) => {
-                            const isCurrent = i === 0;
-                            const loginDate = new Date(s.loginAt);
-                            const isValid = !isNaN(loginDate.getTime());
-                            return (
-                                <div key={s.id} className="nst-card p-3 transition-all" style={{ borderColor: isCurrent ? levelBorder : '#e2e8f0', background: isCurrent ? levelBg : 'white' }}>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0"
-                                                style={{ background: isCurrent ? levelColor + '25' : '#f1f5f9', color: isCurrent ? levelColor : '#64748b' }}>
-                                                {isCurrent ? '🟢' : `#${i+1}`}
-                                            </div>
-                                            <div>
-                                                {isCurrent && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full mr-1" style={{ background: levelColor + '20', color: levelColor }}>CURRENT</span>}
-                                                <span className="text-xs font-bold text-slate-800">{isValid ? formatLoginTime(s.loginAt) : '—'}</span>
-                                                <p className="text-[10px] text-slate-400">{isValid ? loginDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</p>
-                                            </div>
-                                        </div>
-                                        {s.durationSec !== undefined
-                                            ? <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: isCurrent ? levelColor+'20':'#ede9fe', color: isCurrent ? levelColor:'#7c3aed' }}>⏱ {formatLoginDuration(s.durationSec)}</span>
-                                            : <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Active</span>
-                                        }
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </>
-                )}
-                <p className="text-center text-[10px] text-slate-400 pt-1">Local device storage</p>
+                <p className="text-center text-[10px] text-slate-400 pt-1">Device pe locally saved</p>
             </div>
             );
         })()}

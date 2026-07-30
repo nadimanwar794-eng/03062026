@@ -433,12 +433,7 @@ const App: React.FC = () => {
       const updatedUser = { ...user, credits: (user.credits || 0) + deferredStudyCoins };
       setState(prev => ({ ...prev, user: updatedUser }));
       saveUserToLive(updatedUser);
-      fireCreditNotify({
-        type: 'EARN',
-        amount: deferredStudyCoins,
-        remaining: updatedUser.credits || 0,
-        source: 'reading',
-      });
+      // Notification HomeToastNotification me combined dikhayi jaayegi — alag EARN toast nahi
     }
 
     // ── Step 1: Keep the legacy score-sync marker current ───────────────────
@@ -543,11 +538,7 @@ const App: React.FC = () => {
     // Sessions still tracked internally (for any remaining listeners), but no big banner shown
     applySessionQueue(augmentedQueue);
 
-    // Pts + bonus pts notification — same time as HomeStatsToast appears
-    const totalPts = augmentedQueue.reduce((sum, s) => sum + (s.sessionScore || 0) + (s.bonusPts || 0), 0);
-    if (totalPts > 0) {
-      setTimeout(() => fireCreditNotify({ type: 'POINTS', amount: totalPts, message: `+${totalPts}⭐` }), 150);
-    }
+    // XP HomeToastNotification me already dikh raha hai — alag POINTS toast nahi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
