@@ -1991,46 +1991,69 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 shrink-0">
-        <button onClick={onBack} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center active:scale-90 transition">
-          <ChevronLeft size={20} className="text-slate-700" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="font-black text-slate-900 text-base flex items-center gap-1.5">
-            <CalendarCheck size={18} className="text-blue-600 shrink-0" /> My Routine
-          </h1>
-          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {/* Class/mode chip — tap to change */}
-            {data.routineMode === 'SCHOOL' && data.selectedClass ? (
-              <button onClick={() => setShowRoutineSetup(true)}
-                className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                🏫 {data.selectedBoard ? `${data.selectedBoard} · ` : ''}Class {data.selectedClass} <span className="text-blue-400">✎</span>
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-100 shrink-0">
+        {/* Row 1: back · title · chips · actions */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center active:scale-90 transition shrink-0">
+            <ChevronLeft size={20} className="text-slate-700" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-black text-slate-900 text-sm flex items-center gap-1">
+              <CalendarCheck size={15} className="text-blue-600 shrink-0" /> My Routine
+            </h1>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {data.routineMode === 'SCHOOL' && data.selectedClass ? (
+                <button onClick={() => setShowRoutineSetup(true)}
+                  className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
+                  🏫 Class {data.selectedClass} <span className="text-blue-400">✎</span>
+                </button>
+              ) : data.routineMode === 'COMPETITION' && (data.selectedBooks?.length || data.selectedBook) ? (
+                <button onClick={() => setShowRoutineSetup(true)}
+                  className="flex items-center gap-1 bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
+                  🏆 {data.selectedBooks?.length ? `${data.selectedBooks.length} books` : data.selectedBook} <span className="text-orange-400">✎</span>
+                </button>
+              ) : (
+                <button onClick={() => setShowRoutineSetup(true)}
+                  className="flex items-center gap-1 bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
+                  ⚙️ Setup
+                </button>
+              )}
+              <button onClick={() => setShowCatManager(true)} className="text-[10px] font-bold text-blue-500 active:opacity-70">
+                {categories.length === 0 ? '+ Category' : `${categories.length} cat.`}
               </button>
-            ) : data.routineMode === 'COMPETITION' && (data.selectedBooks?.length || data.selectedBook) ? (
-              <button onClick={() => setShowRoutineSetup(true)}
-                className="flex items-center gap-1 bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                🏆 {data.selectedBooks?.length ? `${data.selectedBooks.length} book${data.selectedBooks.length > 1 ? 's' : ''}` : data.selectedBook} <span className="text-orange-400">✎</span>
-              </button>
-            ) : (
-              <button onClick={() => setShowRoutineSetup(true)}
-                className="flex items-center gap-1 bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                ⚙️ Setup karo
-              </button>
-            )}
-            <button onClick={() => setShowCatManager(true)} className="text-[10px] font-bold text-blue-500 active:opacity-70">
-              {categories.length === 0 ? '+ Category add karo' : `${categories.length} categories`}
-            </button>
+            </div>
+          </div>
+          {/* Routine ON/OFF toggle — compact */}
+          <button onClick={toggleRoutine}
+            className={`relative w-12 h-6 rounded-full transition-all duration-300 shrink-0 ${data.enabled ? 'bg-blue-600' : 'bg-slate-200'}`}
+            title={data.enabled ? 'Routine ON' : 'Routine OFF'}>
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${data.enabled ? 'left-6' : 'left-0.5'}`} />
+          </button>
+          <button onClick={() => setShowInfo(true)} className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center active:scale-90 shrink-0">
+            <HelpCircle size={15} className="text-indigo-500" />
+          </button>
+          <button onClick={() => setTick(t => t + 1)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90 shrink-0">
+            <RefreshCw size={13} className="text-slate-500" />
+          </button>
+          <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full shrink-0">
+            <span className="text-xs leading-none">🪙</span>
+            <span className="text-xs font-black text-amber-700">{userCredits.toLocaleString('en-IN')}</span>
           </div>
         </div>
-        <button onClick={() => setShowInfo(true)} className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center active:scale-90">
-          <HelpCircle size={16} className="text-indigo-500" />
-        </button>
-        <button onClick={() => setTick(t => t + 1)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90">
-          <RefreshCw size={14} className="text-slate-500" />
-        </button>
-        <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-full shrink-0">
-          <span className="text-sm leading-none">🪙</span>
-          <span className="text-sm font-black text-amber-700">{userCredits.toLocaleString('en-IN')}</span>
+        {/* Row 2: tab bar — always visible */}
+        <div className="mx-4 mb-2 flex bg-slate-100 rounded-2xl p-1 gap-1">
+          <button onClick={() => setActiveView('home')}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === 'home' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
+            🎯 Daily Hub
+          </button>
+          <button onClick={() => setActiveView('subjects')}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === 'subjects' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
+            📚 Subjects
+          </button>
+          <button onClick={() => setActiveView('tracking')}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === 'tracking' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
+            📊 Tracking
+          </button>
         </div>
       </div>
 
@@ -2044,21 +2067,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
       )}
 
       <div className="flex-1 overflow-y-auto overscroll-contain pb-24">
-        {/* ON/OFF */}
-        <div className="mx-4 mt-4 space-y-3">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4">
-            <div className="flex-1">
-              <p className="font-black text-slate-800 text-sm">Routine {data.enabled ? 'ON 🟢' : 'OFF ⚫'}</p>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {data.enabled ? `${categories.length} categories · 1 lesson/day each` : 'Routine band hai'}
-              </p>
-            </div>
-            <button onClick={toggleRoutine}
-              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${data.enabled ? 'bg-blue-600' : 'bg-slate-200'}`}>
-              <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${data.enabled ? 'left-7' : 'left-0.5'}`} />
-            </button>
-          </div>
-        </div>
 
         {/* TODAY */}
         {activeView === 'home' && (
@@ -2092,32 +2100,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 onOpenTracking={() => setActiveView('tracking')}
               />
             )}
-          </div>
-        )}
-
-        {/* SHARED TAB BAR — shown in Subjects & Tracking views */}
-        {(activeView === 'subjects' || activeView === 'tracking') && (
-          <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 pt-3 pb-2">
-            <div className="flex items-center gap-3 mb-2">
-              <button onClick={onBack} className="bg-slate-100 p-2 rounded-full active:scale-95 transition text-slate-700">
-                <ChevronLeft size={18} />
-              </button>
-              <h1 className="text-base font-black text-slate-900 flex-1">🗓️ Routine</h1>
-            </div>
-            <div className="flex bg-slate-100 rounded-2xl p-1 gap-1">
-              <button onClick={() => setActiveView('home')}
-                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black text-slate-500 transition-all active:bg-white">
-                🎯 Daily Hub
-              </button>
-              <button onClick={() => setActiveView('subjects')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === 'subjects' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
-                📚 Subjects
-              </button>
-              <button onClick={() => setActiveView('tracking')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === 'tracking' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
-                📊 Tracking
-              </button>
-            </div>
           </div>
         )}
 
