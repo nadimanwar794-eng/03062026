@@ -1,8 +1,7 @@
 /**
  * HomeToastNotification — Top-bar mein chota sa notification
- * Home pe aane pe XP + Credits dono ek notification mein dikhata hai.
+ * Home pe aane pe XP aur Credits alag-alag rows mein dikhata hai.
  * 3 seconds baad auto-hide ho jaata hai.
- * Format: ⭐ 1000 + 300 = 1300 XP  |  🪙 1200 + 75 = 1275 CR
  */
 
 import React, { useEffect, useState } from 'react';
@@ -25,9 +24,7 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Slide in
     const showT = setTimeout(() => setVisible(true), 40);
-    // Auto-hide after 3s
     const hideT = setTimeout(() => {
       setVisible(false);
       setTimeout(onDismiss, 350);
@@ -50,17 +47,16 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
       }}
     >
       <div
-        className="w-full flex items-center justify-center gap-3 px-4 rounded-xl shadow-lg"
+        className="w-full flex flex-col justify-center px-4 py-1.5 rounded-xl shadow-lg gap-0.5"
         style={{
-          height: '44px',
           background: 'linear-gradient(90deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)',
           border: '1px solid rgba(251,191,36,0.4)',
         }}
       >
-        {/* XP pill */}
+        {/* Row 1: XP */}
         {showXp && (
-          <div className="flex items-center gap-1 text-[12px] font-black whitespace-nowrap">
-            <span>⭐</span>
+          <div className="flex items-center gap-1 text-[11px] font-black whitespace-nowrap">
+            <span className="text-[10px]">⭐</span>
             {data.xpEarned > 0 ? (
               <>
                 <span className="text-slate-400">{data.xpBefore.toLocaleString('en-IN')}</span>
@@ -72,25 +68,20 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
             ) : (
               <span className="text-white">{data.xpAfter.toLocaleString('en-IN')}</span>
             )}
-            <span className="text-slate-400 text-[10px] font-semibold ml-0.5">XP</span>
+            <span className="text-slate-400 text-[9px] font-semibold ml-0.5">XP</span>
           </div>
         )}
 
-        {/* Divider */}
-        {showXp && showCr && (
-          <div className="h-4 w-px bg-slate-600 shrink-0" />
-        )}
-
-        {/* Credits pill */}
+        {/* Row 2: Credits */}
         {showCr && (
-          <div className="flex items-center gap-1 text-[12px] font-black whitespace-nowrap">
-            <span>🪙</span>
-            <span className="text-slate-400">{data.creditsBefore.toLocaleString()}</span>
+          <div className="flex items-center gap-1 text-[11px] font-black whitespace-nowrap">
+            <span className="text-[10px]">🪙</span>
+            <span className="text-slate-400">{data.creditsBefore.toLocaleString('en-IN')}</span>
             <span className="text-slate-500">+</span>
-            <span className="text-amber-400">{data.creditsEarned.toLocaleString()}</span>
+            <span className="text-amber-400">{data.creditsEarned.toLocaleString('en-IN')}</span>
             <span className="text-slate-500">=</span>
-            <span className="text-white">{data.creditsAfter.toLocaleString()}</span>
-            <span className="text-slate-400 text-[10px] font-semibold ml-0.5">CR</span>
+            <span className="text-white">{data.creditsAfter.toLocaleString('en-IN')}</span>
+            <span className="text-slate-400 text-[9px] font-semibold ml-0.5">CR</span>
           </div>
         )}
       </div>
