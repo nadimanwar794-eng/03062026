@@ -455,8 +455,6 @@ const App: React.FC = () => {
       const delta = currentScore - lastSynced;
       if (delta > 0) {
         localStorage.setItem(syncKey, String(currentScore));
-        // Pts notification — same timing as coin notification
-        setTimeout(() => fireCreditNotify({ type: 'POINTS', amount: delta, message: `+${delta}⭐` }), 120);
       }
     }
 
@@ -513,6 +511,12 @@ const App: React.FC = () => {
 
     // Banner dikhao — merge with any already-displaying sessions
     applySessionQueue(augmentedQueue);
+
+    // Pts + bonus pts notification — same time as HomeStatsToast appears
+    const totalPts = augmentedQueue.reduce((sum, s) => sum + (s.sessionScore || 0) + (s.bonusPts || 0), 0);
+    if (totalPts > 0) {
+      setTimeout(() => fireCreditNotify({ type: 'POINTS', amount: totalPts, message: `+${totalPts}⭐` }), 150);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
