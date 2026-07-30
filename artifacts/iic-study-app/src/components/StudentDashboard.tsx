@@ -13372,15 +13372,16 @@ export const StudentDashboard: React.FC<Props> = ({
             const _isMax        = !_nextLvl;
             const _currentScore = user.totalScore || 0;
             const _nextScore    = _nextLvl ? _nextLvl.minScore : _currentScore;
+            const _fmt = (n: number) => n >= 1_00_000 ? `${(n/1_00_000).toFixed(n%1_00_000===0?0:1)}L` : n >= 1000 ? `${(n/1000).toFixed(n%1000===0?0:1)}K` : String(n);
             return (
               <div className="flex-1 flex justify-center">
                 <span
                   className="whitespace-nowrap px-2.5 py-0.5 rounded-full"
-                  style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}
+                  style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: 600, letterSpacing: '0.01em', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
                 >
                   {_isMax
-                    ? `Lv.${_userLevelInfo.level} ${_userLevelInfo.label} MAX`
-                    : `Lv.${_userLevelInfo.level} ${_userLevelInfo.label}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
+                    ? `Lv.${_userLevelInfo.level} · MAX`
+                    : `Lv.${_userLevelInfo.level} · ${_fmt(_currentScore)} / ${_fmt(_nextScore)} XP`}
                 </span>
               </div>
             );
