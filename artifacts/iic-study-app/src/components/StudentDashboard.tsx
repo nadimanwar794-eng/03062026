@@ -6597,7 +6597,7 @@ export const StudentDashboard: React.FC<Props> = ({
           </div>
 
           {/* Lesson list */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 pb-[72px] space-y-3">
             {classLessons.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <span className="text-5xl">📚</span>
@@ -9316,7 +9316,7 @@ export const StudentDashboard: React.FC<Props> = ({
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 pb-[72px] space-y-3">
             {lucentChapterEntries.map(entry => {
               const topicNames = [...new Set((entry.pages || []).map(page => (page.topicName || '').trim()).filter(Boolean))];
               const hasMcqs = (entry.pages || []).some(page => page.mcqs && page.mcqs.length > 0);
@@ -16990,7 +16990,7 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto pb-8">
+            <div className="flex-1 overflow-y-auto pb-[72px]">
               {/* Topics tab */}
               {lucentLessonCompareTab === 'topics' && (
                 <div className="px-3 pt-3 space-y-2">
@@ -18276,7 +18276,7 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3 pb-6">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3 pb-[72px]">
               {inboxTab === 'MESSAGES' && (() => {
                 const now = Date.now();
                 const msgs = (user.inbox || []).filter(msg => {
@@ -22244,7 +22244,7 @@ RULES:
               <p className="text-[11px] text-slate-500">{allNotifications.length} message{allNotifications.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 pb-[72px] space-y-3">
             {allNotifications.length === 0 && (
               <div className="text-center py-16 text-slate-400">
                 <Bell size={40} className="mx-auto mb-3 opacity-30" />
@@ -25618,7 +25618,7 @@ RULES:
             </div>
           </div>
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-10">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-[72px]">
 
             {/* TIER HEADER */}
             <div className="grid grid-cols-3 gap-1.5 sticky top-0 z-10 pb-2" style={{ background: tierTheme.profileBg }}>

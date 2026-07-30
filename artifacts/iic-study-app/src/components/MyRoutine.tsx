@@ -1198,7 +1198,7 @@ function AddCategorySheet({ allNotes, existingCategories, routineMode, selectedC
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subjects Chuno</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-[72px]">
           {filtered.length === 0 ? (
             <div className="text-center py-10">
               <p className="text-sm font-bold text-slate-400">
@@ -1403,7 +1403,7 @@ function CategoryEditSheet({ category, allNotes, existingCategories, routineMode
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><X size={16} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[72px] space-y-5">
 
           {/* Current subjects */}
           <div>
@@ -1516,7 +1516,7 @@ function CategoryManagerSheet({ categories, tier, level, userCredits, data, onRe
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90"><X size={16} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[72px] space-y-4">
           {usedCount < actualMax ? (
             <button onClick={onAddOpen}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 text-white font-black text-sm active:scale-[0.98] transition shadow-sm">

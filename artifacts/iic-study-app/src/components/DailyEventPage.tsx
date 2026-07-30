@@ -300,23 +300,36 @@ export const DailyEventPage: React.FC<Props> = ({
   }, []);
   const todayMistakes = useMemo(() => allMistakes.slice(0, 100), [allMistakes]);
 
-  // Track how many mistakes were practiced (fixed) today — these are removed from
-  // the bank so allMistakes wouldn't show them; use session history instead.
+  // Track how many mistakes were practiced today using session history
   const todayPracticed = useMemo(() => {
     try {
       const midnight = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
       const sessions = getMistakeSessions();
       return sessions
         .filter((s) => s.date >= midnight)
-        .reduce((sum, s) => sum + (s.total || 0), 0);
+        .reduce((sum, s) => sum + (s.correct || 0), 0); // count only FIXED (correct) ones
     } catch { return 0; }
   }, []);
 
-  // Total ever = currently in bank + already fixed today
-  const totalEver = allMistakes.length + todayPracticed;
+  // Total ever CREATED = high-water mark (only grows, never shrinks)
+  // Fixes double-count: allMistakes.length is "remaining", not total ever made
+  const TOTAL_EVER_KEY = `iic_mistake_total_ever_${user.id}`;
+  const totalEver = useMemo(() => {
+    try {
+      const stored = parseInt(localStorage.getItem(TOTAL_EVER_KEY) || '0', 10) || 0;
+      // High-water mark: if bank currently has more than stored, update
+      const hwm = Math.max(stored, allMistakes.length);
+      if (hwm > stored) {
+        try { localStorage.setItem(TOTAL_EVER_KEY, String(hwm)); } catch {}
+      }
+      return hwm;
+    } catch { return allMistakes.length; }
+  }, [allMistakes.length, TOTAL_EVER_KEY]);
+
   const remainingMistakes = allMistakes.length;
 
-  const availableMilestones = Math.floor(allMistakes.length / MILESTONE_EVERY);
+  // Milestone based on total ever created (not just current remaining)
+  const availableMilestones = Math.floor(totalEver / MILESTONE_EVERY);
   const unclaimedMilestones = Math.max(0, availableMilestones - claimedMilestones);
 
   const handleClaimMilestone = useCallback(() => {
@@ -443,7 +456,7 @@ export const DailyEventPage: React.FC<Props> = ({
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-10 px-4 pt-4 space-y-4">
+      <div className="flex-1 overflow-y-auto pb-[80px] px-4 pt-4 space-y-4">
 
         {/* ── 1. ROUTINE ─────────────────────────────────────────────────── */}
         <SectionCard
