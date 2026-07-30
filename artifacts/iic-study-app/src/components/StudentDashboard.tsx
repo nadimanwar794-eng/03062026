@@ -13356,6 +13356,36 @@ export const StudentDashboard: React.FC<Props> = ({
                       Hey, {fullName} 👋
                     </span>
                   </div>
+                  {/* Level XP bar */}
+                  {(() => {
+                    const _progress = getLevelProgress(user.totalScore || 0);
+                    const _nextLvl  = getNextLevelInfo(user.totalScore || 0);
+                    const _isMax    = !_nextLvl;
+                    return (
+                      <div className="flex items-center gap-[5px] mt-[3px]">
+                        <span style={{ color: _userLevelInfo.color, fontSize: 8.5, fontWeight: 900, letterSpacing: '-0.01em' }}>
+                          {_userLevelInfo.emoji} Lv.{_userLevelInfo.level}
+                        </span>
+                        <div
+                          className="relative rounded-full overflow-hidden"
+                          style={{ width: 64, height: 3.5, background: 'rgba(255,255,255,0.13)' }}
+                        >
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full"
+                            style={{
+                              width: `${_isMax ? 100 : _progress}%`,
+                              background: _userLevelInfo.color,
+                              boxShadow: `0 0 5px ${_userLevelInfo.glowColor}`,
+                              transition: 'width 0.7s cubic-bezier(0.34,1.1,0.64,1)',
+                            }}
+                          />
+                        </div>
+                        <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 7.5, fontWeight: 700 }}>
+                          {_isMax ? 'MAX' : `${_progress}%`}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );

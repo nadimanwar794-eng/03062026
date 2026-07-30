@@ -455,6 +455,8 @@ const App: React.FC = () => {
       const delta = currentScore - lastSynced;
       if (delta > 0) {
         localStorage.setItem(syncKey, String(currentScore));
+        // Pts notification — same timing as coin notification
+        setTimeout(() => fireCreditNotify({ type: 'POINTS', amount: delta, message: `+${delta}⭐` }), 120);
       }
     }
 
