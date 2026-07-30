@@ -104,13 +104,15 @@ export const DailyEventPage: React.FC<Props> = ({
   const levelInfo = useMemo(() => getLevelInfo(user.totalScore || 0), [user.totalScore]);
 
   // ── Claim Success Overlay ────────────────────────────────────────────────
-  const [claimOverlay, setClaimOverlay] = useState<{ ptsAdded: number; todayTotal: number } | null>(null);
+  const [claimOverlay, setClaimOverlay] = useState<{ ptsAdded: number; todayTotal: number; xpBefore: number; xpAfter: number } | null>(null);
 
   const showClaimOverlay = useCallback((ptsAdded: number) => {
     const todayTotal = getDailyScoreEarned(user.id);
-    setClaimOverlay({ ptsAdded, todayTotal });
+    const xpBefore = user.totalScore || 0;
+    const xpAfter = xpBefore + ptsAdded;
+    setClaimOverlay({ ptsAdded, todayTotal, xpBefore, xpAfter });
     setTimeout(() => setClaimOverlay(null), 2800);
-  }, [user.id]);
+  }, [user.id, user.totalScore]);
 
   // ── Mistake Milestone (100 pts per 100 mistakes) ─────────────────────────
   const MILESTONE_KEY = `iic_mistake_milestone_claimed_${user.id}`;
@@ -1119,6 +1121,26 @@ export const DailyEventPage: React.FC<Props> = ({
               <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 flex items-center justify-between">
                 <p className="text-[12px] font-black text-indigo-700">Aaj Ke Total Pts</p>
                 <p className="text-xl font-black text-indigo-600">{claimOverlay.todayTotal} ⭐</p>
+              </div>
+
+              {/* XP before → after */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total XP</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-center">
+                    <p className="text-[9px] text-slate-400 font-bold mb-0.5">Pehle</p>
+                    <p className="text-[13px] font-black text-slate-500">{claimOverlay.xpBefore.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="flex-1 flex items-center gap-1 justify-center">
+                    <div className="h-px flex-1 bg-slate-200" />
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">+{claimOverlay.ptsAdded}</span>
+                    <div className="h-px flex-1 bg-slate-200" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[9px] text-emerald-600 font-bold mb-0.5">Ab</p>
+                    <p className="text-[13px] font-black text-emerald-600">{claimOverlay.xpAfter.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
               </div>
 
               {/* Progress bar */}
