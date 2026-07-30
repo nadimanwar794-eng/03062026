@@ -36,7 +36,7 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showXp = data.xpEarned > 0;
+  const showXp = data.xpAfter > 0 || data.xpEarned > 0;
   const showCr = data.creditsEarned > 0;
   if (!showXp && !showCr) return null;
 
@@ -61,11 +61,17 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
         {showXp && (
           <div className="flex items-center gap-1 text-[12px] font-black whitespace-nowrap">
             <span>⭐</span>
-            <span className="text-slate-400">{data.xpBefore.toLocaleString()}</span>
-            <span className="text-slate-500">+</span>
-            <span className="text-yellow-400">{data.xpEarned.toLocaleString()}</span>
-            <span className="text-slate-500">=</span>
-            <span className="text-white">{data.xpAfter.toLocaleString()}</span>
+            {data.xpEarned > 0 ? (
+              <>
+                <span className="text-slate-400">{data.xpBefore.toLocaleString('en-IN')}</span>
+                <span className="text-slate-500">+</span>
+                <span className="text-yellow-400">{data.xpEarned.toLocaleString('en-IN')}</span>
+                <span className="text-slate-500">=</span>
+                <span className="text-white">{data.xpAfter.toLocaleString('en-IN')}</span>
+              </>
+            ) : (
+              <span className="text-white">{data.xpAfter.toLocaleString('en-IN')}</span>
+            )}
             <span className="text-slate-400 text-[10px] font-semibold ml-0.5">XP</span>
           </div>
         )}
