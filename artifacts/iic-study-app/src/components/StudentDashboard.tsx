@@ -13373,14 +13373,16 @@ export const StudentDashboard: React.FC<Props> = ({
             const _currentScore = user.totalScore || 0;
             const _nextScore    = _nextLvl ? _nextLvl.minScore : _currentScore;
             return (
-              <span
-                className="flex-1 text-center whitespace-nowrap"
-                style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 500, letterSpacing: '-0.01em' }}
-              >
-                {_isMax
-                  ? `Lv.${_userLevelInfo.level} ${_userLevelInfo.label} MAX`
-                  : `Lv.${_userLevelInfo.level} ${_userLevelInfo.label}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
-              </span>
+              <div className="flex-1 flex justify-center">
+                <span
+                  className="whitespace-nowrap px-2.5 py-0.5 rounded-full"
+                  style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}
+                >
+                  {_isMax
+                    ? `Lv.${_userLevelInfo.level} ${_userLevelInfo.label} MAX`
+                    : `Lv.${_userLevelInfo.level} ${_userLevelInfo.label}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
+                </span>
+              </div>
             );
           })()}
 

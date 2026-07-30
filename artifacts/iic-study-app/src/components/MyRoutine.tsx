@@ -6,7 +6,7 @@ import {
   FlaskConical, Landmark, BarChart3, Plus, Minus,
   Check, ChevronDown, ChevronUp, Sparkles, RefreshCw,
   ListChecks, LayoutGrid, HelpCircle, X, CheckCircle2, XCircle,
-  Lock, Trash2,
+  Lock, Trash2, Settings,
 } from 'lucide-react';
 import {
   loadRoutineData, saveRoutineData, checkAndResetDaily,
@@ -1632,6 +1632,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [showRoutineSetup, setShowRoutineSetup] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [activeView, setActiveView] = useState<'home' | 'subjects' | 'tracking'>('home');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' | 'coin' } | null>(null);
   const [tick, setTick] = useState(0);
@@ -1992,7 +1993,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
 
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-100 shrink-0">
-        {/* Row 1: back · title · chips · actions */}
+        {/* Row 1: back · title · actions */}
         <div className="px-4 pt-3 pb-2 flex items-center gap-2">
           <button onClick={onBack} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center active:scale-90 transition shrink-0">
             <ChevronLeft size={20} className="text-slate-700" />
@@ -2001,27 +2002,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
             <h1 className="font-black text-slate-900 text-sm flex items-center gap-1">
               <CalendarCheck size={15} className="text-blue-600 shrink-0" /> My Routine
             </h1>
-            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              {data.routineMode === 'SCHOOL' && data.selectedClass ? (
-                <button onClick={() => setShowRoutineSetup(true)}
-                  className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                  🏫 Class {data.selectedClass} <span className="text-blue-400">✎</span>
-                </button>
-              ) : data.routineMode === 'COMPETITION' && (data.selectedBooks?.length || data.selectedBook) ? (
-                <button onClick={() => setShowRoutineSetup(true)}
-                  className="flex items-center gap-1 bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                  🏆 {data.selectedBooks?.length ? `${data.selectedBooks.length} books` : data.selectedBook} <span className="text-orange-400">✎</span>
-                </button>
-              ) : (
-                <button onClick={() => setShowRoutineSetup(true)}
-                  className="flex items-center gap-1 bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full active:opacity-70 transition">
-                  ⚙️ Setup
-                </button>
-              )}
-              <button onClick={() => setShowCatManager(true)} className="text-[10px] font-bold text-blue-500 active:opacity-70">
-                {categories.length === 0 ? '+ Category' : `${categories.length} cat.`}
-              </button>
-            </div>
           </div>
           {/* Routine ON/OFF toggle — compact */}
           <button onClick={toggleRoutine}
@@ -2032,6 +2012,54 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           <button onClick={() => setShowInfo(true)} className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center active:scale-90 shrink-0">
             <HelpCircle size={15} className="text-indigo-500" />
           </button>
+          {/* Settings button — Class & Category */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowSettingsMenu(s => !s)}
+              className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90 transition"
+            >
+              <Settings size={15} className="text-slate-600" />
+            </button>
+            {showSettingsMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSettingsMenu(false)} />
+                <div className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-xl border border-slate-200 w-52 overflow-hidden">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-4 pt-3 pb-1">Settings</p>
+                  <button
+                    onClick={() => { setShowSettingsMenu(false); setShowRoutineSetup(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition text-left"
+                  >
+                    <span className="text-base">🏫</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-black text-slate-800">Class / Mode</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {data.routineMode === 'SCHOOL' && data.selectedClass
+                          ? `Class ${data.selectedClass}`
+                          : data.routineMode === 'COMPETITION' && (data.selectedBooks?.length || data.selectedBook)
+                          ? `${data.selectedBooks?.length ? `${data.selectedBooks.length} books` : data.selectedBook}`
+                          : 'Setup nahi hai'}
+                      </p>
+                    </div>
+                    <span className="text-slate-400 text-xs">✎</span>
+                  </button>
+                  <div className="h-px bg-slate-100 mx-4" />
+                  <button
+                    onClick={() => { setShowSettingsMenu(false); setShowCatManager(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition text-left"
+                  >
+                    <span className="text-base">📂</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-black text-slate-800">Categories</p>
+                      <p className="text-[10px] text-slate-400">
+                        {categories.length === 0 ? 'Koi category nahi' : `${categories.length} categories`}
+                      </p>
+                    </div>
+                    <span className="text-slate-400 text-xs">✎</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         {/* Row 2: tab bar — always visible */}
         <div className="mx-4 mb-2 flex bg-slate-100 rounded-2xl p-1 gap-1">
