@@ -2029,6 +2029,20 @@ export const StudentDashboard: React.FC<Props> = ({
   const [showSidebar, setShowSidebar] = useState(false);
   const [bgTtsOn, setBgTtsOn] = useState(false);
   const [_topBarInfoPhase, _setTopBarInfoPhase] = useState(0); // 0 = tier, 1 = expiry
+  // XP badge: HOME pe aate hi 5 sec ke liye dikhao, phir auto-hide
+  const [showXpBadge, setShowXpBadge] = useState(false);
+  const xpBadgeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => {
+    if (activeTab === 'HOME') {
+      setShowXpBadge(true);
+      if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
+      xpBadgeTimerRef.current = setTimeout(() => setShowXpBadge(false), 5000);
+    } else {
+      if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
+      setShowXpBadge(false);
+    }
+    return () => { if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current); };
+  }, [activeTab]);
   const [rewardEffect, setRewardEffect] = useState<{ amount: number; label: string } | null>(null);
   const triggerRewardEffect = (amount: number, label = 'Credits') => {
     setRewardEffect({ amount, label });
@@ -13375,7 +13389,7 @@ export const StudentDashboard: React.FC<Props> = ({
             );
           })()}
 
-          {/* Centre: XP progress */}
+          {/* Centre: XP progress — HOME pe 5 sec ke liye dikhta hai, phir hide */}
           {(() => {
             const _nextLvl      = getNextLevelInfo(user.totalScore || 0);
             const _isMax        = !_nextLvl;
@@ -13383,7 +13397,15 @@ export const StudentDashboard: React.FC<Props> = ({
             const _nextScore    = _nextLvl ? _nextLvl.minScore : _currentScore;
             const _fmt = (n: number) => n >= 1_00_000 ? `${(n/1_00_000).toFixed(n%1_00_000===0?0:1)}L` : n >= 1000 ? `${(n/1000).toFixed(n%1000===0?0:1)}K` : String(n);
             return (
-              <div className="flex-1 flex justify-center">
+              <div
+                className="flex-1 flex justify-center overflow-hidden"
+                style={{
+                  maxWidth: showXpBadge ? 160 : 0,
+                  opacity: showXpBadge ? 1 : 0,
+                  transition: 'max-width 0.35s ease, opacity 0.3s ease',
+                  pointerEvents: showXpBadge ? 'auto' : 'none',
+                }}
+              >
                 <span
                   className="whitespace-nowrap px-2.5 py-0.5 rounded-full"
                   style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: 600, letterSpacing: '0.01em', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
