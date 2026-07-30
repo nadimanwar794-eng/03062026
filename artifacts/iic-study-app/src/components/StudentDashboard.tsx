@@ -12693,14 +12693,6 @@ export const StudentDashboard: React.FC<Props> = ({
             >
               <BadgeCheck size={19} className="text-blue-300 shrink-0" />
             </button>
-            {/* Daily Event — top bar shortcut */}
-            <button
-              className="active:scale-90 transition-transform ml-0.5"
-              onClick={() => { hapticStrong(); setShowDailyEventPage(true); }}
-              title="Daily Event"
-            >
-              <span style={{ fontSize: 17, lineHeight: 1 }}>🎯</span>
-            </button>
           </div>
 
           {/* RIGHT: event + streak + mail + bulb + dots */}
