@@ -12681,7 +12681,7 @@ export const StudentDashboard: React.FC<Props> = ({
         style={{ background: tierTheme.topBarGrad }}
       >
         {/* Main Header Row */}
-        <div className="flex items-center justify-between w-full px-3 pt-3 pb-2">
+        <div className="flex items-center justify-between w-full px-3 pt-2.5 pb-1.5">
           {/* LEFT: logo + app name + verified badge — only the badge tap opens What's New */}
           <div className="flex items-center gap-2 shrink-0">
             <span className="font-black text-[23px] leading-tight tracking-tight uppercase text-white whitespace-nowrap">
@@ -13564,6 +13564,25 @@ export const StudentDashboard: React.FC<Props> = ({
 
           </div>
         </div>
+
+        {/* Level progress bar — bottom of top bar */}
+        {(() => {
+          const _progress = getLevelProgress(user.totalScore || 0);
+          const _isMax    = !getNextLevelInfo(user.totalScore || 0);
+          return (
+            <div className="w-full relative" style={{ height: 3, background: 'rgba(255,255,255,0.13)' }}>
+              <div
+                style={{
+                  position: 'absolute', inset: '0 auto 0 0',
+                  width: `${_isMax ? 100 : _progress}%`,
+                  background: tierTheme.primary,
+                  boxShadow: `0 0 6px ${tierTheme.primary}99`,
+                  transition: 'width 0.8s cubic-bezier(0.34,1.1,0.64,1)',
+                }}
+              />
+            </div>
+          );
+        })()}
       </div>
 
       {/* LIFETIME POPUP — enhanced with white shimmer */}
