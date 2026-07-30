@@ -13,8 +13,8 @@ import { recalculateSubscriptionStatus, addSubscription } from './utils/subscrip
 import { getLevelInfo, getLevelLimitBonus, getEffectiveDailyLimit, UNLIMITED } from './utils/levelSystem';
 import { fireCreditNotify, setHomeTabActive } from './utils/creditNotify';
 import { onSessionComplete, queueSession, consumeSessionQueue, SessionCompletePayload } from './utils/sessionNotify';
-import { SessionSummaryBanner } from './components/SessionSummaryBanner';
-import { GroupedSessionBanner } from './components/GroupedSessionBanner';
+import { HomeToastNotification, type HomeToastData } from './components/HomeToastNotification';
+import { recordActivityEntry } from './utils/loginHistory';
 import { loadRoutineData } from './utils/routineStorage';
 import { hydrateRevisionTracker } from './utils/revisionFirebase';
 import { setRevisionTrackerUser } from './utils/revisionTrackerV2';
@@ -509,7 +509,38 @@ const App: React.FC = () => {
       return { ...sess, bonusPts };
     });
 
-    // Banner dikhao — merge with any already-displaying sessions
+    // ── Save to Activity History ────────────────────────────────────────────
+    const totalPtsEarned   = augmentedQueue.reduce((a, s) => a + (s.sessionScore  ?? 0), 0);
+    const totalBonusEarned = augmentedQueue.reduce((a, s) => a + (s.bonusPts      ?? 0), 0);
+    const totalCredEarned  = deferredStudyCoins > 0
+      ? deferredStudyCoins
+      : augmentedQueue.reduce((a, s) => a + (s.coinsEarned ?? 0) + (s.creditsEarned ?? 0), 0);
+    const xpAfter          = user.totalScore || 0;
+    const xpBefore         = Math.max(0, xpAfter - totalPtsEarned - totalBonusEarned);
+    const creditsBefore    = user.credits || 0;
+    const creditsAfter     = creditsBefore + totalCredEarned;
+
+    if ((totalPtsEarned + totalBonusEarned > 0 || totalCredEarned > 0) && user.id) {
+      recordActivityEntry(user.id, {
+        activities: [...new Set(augmentedQueue.map(s => s.activityType || s.type || 'Study'))],
+        chapter:   augmentedQueue.length === 1 ? augmentedQueue[0].chapter : undefined,
+        subject:   augmentedQueue.length === 1 ? augmentedQueue[0].subject : undefined,
+        ptsEarned:     totalPtsEarned,
+        bonusPts:      totalBonusEarned,
+        creditsEarned: totalCredEarned,
+        xpBefore, xpAfter,
+        creditsBefore, creditsAfter,
+        timeSecs: augmentedQueue.reduce((a, s) => a + (s.timeSecs ?? 0), 0),
+      });
+
+      // Show small top-bar toast instead of big popup
+      setHomeToastData({
+        xpBefore, xpEarned: totalPtsEarned + totalBonusEarned, xpAfter,
+        creditsBefore, creditsEarned: totalCredEarned, creditsAfter,
+      });
+    }
+
+    // Sessions still tracked internally (for any remaining listeners), but no big banner shown
     applySessionQueue(augmentedQueue);
 
     // Pts + bonus pts notification — same time as HomeStatsToast appears
@@ -722,14 +753,16 @@ const App: React.FC = () => {
   const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null); // NEW: For granular analysis
   const [showDailyRankCard, setShowDailyRankCard] = useState(false);
   const [pendingSessionSummary, setPendingSessionSummary] = useState<SessionCompletePayload | null>(null);
-  // Grouped sessions — 2+ activities ek saath HOME pe aane pe
+  // Grouped sessions — kept for queue merging logic
   const [groupedSessions, setGroupedSessions] = useState<SessionCompletePayload[]>([]);
+  // New: small top-bar toast data
+  const [homeToastData, setHomeToastData] = useState<HomeToastData | null>(null);
 
   // Track currently displaying sessions so new ones can be MERGED (not replaced)
   const displayedSessionsRef = useRef<SessionCompletePayload[]>([]);
 
   // Safely show sessions — merges with any already-displaying banner
-  // Always uses GroupedSessionBanner (works for 1+ sessions)
+  // Always uses HomeToastNotification (replaces old GroupedSessionBanner)
   const applySessionQueue = useCallback((newQueue: SessionCompletePayload[]) => {
     if (newQueue.length === 0) return;
     const merged = [...displayedSessionsRef.current, ...newQueue];
@@ -4043,34 +4076,15 @@ const App: React.FC = () => {
           </div>
       )}
     </div>
-    {/* ── Session Notification System ────────────────────────────────────────
-        HOME tab pe aane pe dikhta hai:
-        • 1 activity → SessionSummaryBanner (single card)
-        • 2+ activities → GroupedSessionBanner (total + More button)
+    {/* ── Session Notification — small top-bar toast (3s auto-hide) ─────────
+        Home pe aane pe XP + Credits dono ek chote banner mein dikhta hai.
+        Bada popup ab nahi aata — Activity History mein save hota hai.
     ────────────────────────────────────────────────────────────────────── */}
-
-    {/* Single activity banner */}
-    {pendingSessionSummary && !groupedSessions.length && (
-      <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
-        <div className="pointer-events-auto">
-          <SessionSummaryBanner
-            summary={pendingSessionSummary}
-            onDismiss={() => { setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
-          />
-        </div>
-      </div>
-    )}
-
-    {/* Session banner — 1+ activities (always uses GroupedSessionBanner) */}
-    {groupedSessions.length >= 1 && (
-      <div className="fixed inset-x-0 top-0 z-[9990] pointer-events-none">
-        <div className="pointer-events-auto">
-          <GroupedSessionBanner
-            sessions={groupedSessions}
-            onDismiss={() => { setGroupedSessions([]); setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
-          />
-        </div>
-      </div>
+    {homeToastData && (
+      <HomeToastNotification
+        data={homeToastData}
+        onDismiss={() => { setHomeToastData(null); setGroupedSessions([]); setPendingSessionSummary(null); displayedSessionsRef.current = []; }}
+      />
     )}
     </ErrorBoundary>
   );

@@ -13,7 +13,7 @@ import { parseMCQText } from '../utils/mcqParser';
 import { saveTopicNotes } from '../utils/revisionTrackerV2';
 import { TOP_BAR_EFFECTS, EFFECT_CATEGORIES, TopBarEffectsLayer } from '../utils/topBarEffects';
 import { generateSecureRandomString, generateSecureRandomId } from '../utils/cryptoUtils';
-import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson, subscribeSuggestions, adminReplySuggestion, deleteSuggestion, reactToSuggestion, resolvesuggestion, applyNoteCorrection, applyMcqCorrection, applyMcqFullEdit, saveMcqLesson, deleteMcqLesson } from '../firebase'; // IMPORT FIREBASE
+import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, getUsersPage, subscribeToRecentUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts, resetAllContent, recoverContentFromCache, checkRecoveryStatus, backupAllContentToFirebase, restoreContentFromFirebaseBackup, rebuildContentIndex, deleteHomeworkEntry, deleteLucentEntry, subscribeToDemands, updateDemandStatus, subscribeGlobalChat, subscribeSupportChat, deleteGlobalMessage, deleteSupportMessage, subscribeAllSupportThreads, sendGlobalMessage, sendSupportMessage, subscribeToCompareAnalytics, deleteCompareAnalyticsByQuery, addCompreBookNote, deleteCompreBookNote, getCompreBookNotes, updateCompreBookNote, getAppFeedbacks, exportBackupAsJson, importBackupFromJson, subscribeSuggestions, adminReplySuggestion, deleteSuggestion, reactToSuggestion, resolvesuggestion, applyNoteCorrection, applyMcqCorrection, applyMcqFullEdit, saveMcqLesson, deleteMcqLesson } from '../firebase'; // IMPORT FIREBASE
 import { subscribeToMaintenance, saveMaintenance, clearMaintenance, markCrashFixed, MaintenanceState, MaintenanceTarget } from '../utils/maintenanceManager';
 import { ref, set, onValue, update, push, get, query as rtdbQueryAdmin, orderByChild as obcAdmin, limitToLast as ltlAdmin } from "firebase/database";
 import { doc, deleteDoc, setDoc, getDocs, collection, writeBatch, deleteField } from "firebase/firestore";
@@ -632,6 +632,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [showChat, setShowChat] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [usersLastDoc, setUsersLastDoc] = useState<any>(null);
+  const [usersHasMore, setUsersHasMore] = useState(false);
+  const [usersLoadingMore, setUsersLoadingMore] = useState(false);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const [activeErrorCount, setActiveErrorCount] = useState(0);
   const [criticalErrorSummary, setCriticalErrorSummary] = useState<{count:number,users:number,lastTs:number,topMsg:string} | null>(null);
@@ -1955,33 +1958,35 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           setIsFirebaseConnected(checkFirebaseConnection());
       }, 5000); 
 
-      // SUBSCRIBE TO USERS (Live Sync)
-      const unsubUsers = subscribeToUsers((cloudUsers) => {
+      // LOAD USERS (Paginated — 100 at a time to save Firebase reads)
+      getUsersPage().then(({ users: cloudUsers, lastDoc, hasMore }) => {
           if (cloudUsers && cloudUsers.length > 0) {
-              // 1. Detect New Users (Real-time)
+              setUsers(cloudUsers);
+              setUsersLastDoc(lastDoc);
+              setUsersHasMore(hasMore);
+              prevUsersRef.current = cloudUsers;
+              localStorage.setItem('nst_users', JSON.stringify(cloudUsers));
+          }
+      }).catch(() => {
+          // Fallback: use cached users from localStorage if network fails
+      });
+
+      // WATCH only the 10 newest users for new-signup notifications (saves reads)
+      const unsubUsers = subscribeToRecentUsers((recentUsers) => {
+          if (recentUsers && recentUsers.length > 0) {
               const prevUsers = prevUsersRef.current;
-              if (prevUsers.length > 0) { 
-                  const newUsers = cloudUsers.filter(u => !prevUsers.some(p => p.id === u.id));
+              if (prevUsers.length > 0) {
+                  const newUsers = recentUsers.filter(u => !prevUsers.some(p => p.id === u.id));
                   if (newUsers.length > 0) {
-                      const names = newUsers.map(u => u.name).join(', ');
-                      // Disabled new user popup as per request
-                      // setAlertConfig({
-                      //     isOpen: true, 
-                      //     message: `🎉 New Student Registered: ${names}`
-                      // });
+                      // New user detected — prepend to list
+                      setUsers(prev => {
+                          const merged = [...newUsers, ...prev.filter(p => !newUsers.some(n => n.id === p.id))];
+                          localStorage.setItem('nst_users', JSON.stringify(merged));
+                          prevUsersRef.current = merged;
+                          return merged;
+                      });
                   }
               }
-
-              // 2. Sort by CreatedAt DESC (Newest First)
-              const sortedUsers = [...cloudUsers].sort((a,b) => {
-                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                  return dateB - dateA;
-              });
-
-              setUsers(sortedUsers);
-              prevUsersRef.current = sortedUsers;
-              localStorage.setItem('nst_users', JSON.stringify(sortedUsers));
           }
       });
 
@@ -2576,6 +2581,25 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   };
 
   // ── Delete user's personal study data (Routine / Revision Hub / Daily Event) ──
+  const loadMoreUsers = async () => {
+      if (!usersLastDoc || usersLoadingMore) return;
+      setUsersLoadingMore(true);
+      try {
+          const { users: more, lastDoc, hasMore } = await getUsersPage(usersLastDoc);
+          if (more.length > 0) {
+              setUsers(prev => {
+                  const merged = [...prev, ...more.filter(u => !prev.some(p => p.id === u.id))];
+                  localStorage.setItem('nst_users', JSON.stringify(merged));
+                  return merged;
+              });
+              setUsersLastDoc(lastDoc);
+              setUsersHasMore(hasMore);
+          }
+      } finally {
+          setUsersLoadingMore(false);
+      }
+  };
+
   const deleteUserPersonalData = async (user: User) => {
     setPersonalDataDeleting(true);
     const uid = user.id;
@@ -16981,6 +17005,18 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       </tbody>
                   </table>
               </div>
+              {usersHasMore && (
+                  <div className="flex justify-center mt-4">
+                      <button
+                          onClick={loadMoreUsers}
+                          disabled={usersLoadingMore}
+                          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition disabled:opacity-50"
+                      >
+                          {usersLoadingMore ? <><Loader2 size={16} className="animate-spin" /> Loading...</> : 'Load More Users'}
+                      </button>
+                  </div>
+              )}
+              <p className="text-center text-xs text-slate-400 mt-2">{users.length} users loaded</p>
           </div>
           </ErrorBoundary>
       )}
