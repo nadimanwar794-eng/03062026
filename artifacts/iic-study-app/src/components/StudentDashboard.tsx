@@ -26704,43 +26704,40 @@ RULES:
                 </span>
               </div>
 
-              {/* RIGHT: credit + xp change pills */}
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                {/* Row 1 — Credits */}
-                <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
-                  style={{ background: 'rgba(0,0,0,0.25)' }}>
-                  <span className="text-[12px] font-bold tabular-nums"
-                    style={{ color: 'rgba(255,255,255,0.6)' }}>
+              {/* RIGHT: credit + xp single row */}
+              <div className="flex items-center gap-0 shrink-0">
+                {/* Credits */}
+                <div className="flex items-center gap-[5px]">
+                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                     {creditDeductToast.previous.toLocaleString('en-IN')}🪙
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>→</span>
-                  <span className="text-[13px] font-black tabular-nums"
-                    style={{ color: deltaColor }}>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>→</span>
+                  <span style={{ color: deltaColor, fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                     {sign}{creditDeductToast.deducted} CR
                   </span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>=</span>
-                  <span className="text-[13px] font-black tabular-nums text-white">
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>=</span>
+                  <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                     {creditDeductToast.current.toLocaleString('en-IN')}🪙
                   </span>
                 </div>
-                {/* Row 2 — XP (only when earned) */}
+                {/* Divider + XP (only on ADD with xp data) */}
                 {isAdd && creditDeductToast.xpEarned != null && (
-                  <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
-                    style={{ background: 'rgba(0,0,0,0.20)' }}>
-                    <span className="text-[12px] font-bold tabular-nums"
-                      style={{ color: 'rgba(255,255,255,0.6)' }}>
-                      {(creditDeductToast.xpPrevious ?? 0).toLocaleString('en-IN')} XP
-                    </span>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>→</span>
-                    <span className="text-[13px] font-black tabular-nums"
-                      style={{ color: '#a78bfa' }}>
-                      +{creditDeductToast.xpEarned} XP
-                    </span>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>=</span>
-                    <span className="text-[13px] font-black tabular-nums text-white">
-                      {(creditDeductToast.xpCurrent ?? 0).toLocaleString('en-IN')} XP
-                    </span>
-                  </div>
+                  <>
+                    <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.18)', flexShrink: 0, margin: '0 6px' }} />
+                    <div className="flex items-center gap-[5px]">
+                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        {(creditDeductToast.xpPrevious ?? 0).toLocaleString('en-IN')} XP
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>→</span>
+                      <span style={{ color: '#a78bfa', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        +{creditDeductToast.xpEarned} XP
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>=</span>
+                      <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        {(creditDeductToast.xpCurrent ?? 0).toLocaleString('en-IN')} XP
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

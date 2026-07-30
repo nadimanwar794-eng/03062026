@@ -1,8 +1,6 @@
 /**
- * HomeToastNotification — Full-width top-bar overlay style
- * Theme ke saath color change hota hai (--nst-top-bar-grad CSS variable)
- * Row 1: old credits → +earned CR = new credits
- * Row 2: old XP     → +earned XP = new XP
+ * HomeToastNotification — Full-width top-bar overlay, single row
+ * Left: credit change  |  Right: XP change
  */
 
 import React, { useEffect, useState } from 'react';
@@ -22,33 +20,6 @@ interface Props {
 }
 
 const DISPLAY_MS = 3500;
-
-function StatRow({
-  prev, delta, deltaLabel, curr, deltaColor,
-}: {
-  prev: string; delta: string; deltaLabel: string; curr: string; deltaColor: string;
-}) {
-  return (
-    <div className="flex items-center justify-between w-full gap-2">
-      {/* Previous value */}
-      <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-        {prev}
-      </span>
-      {/* Arrow */}
-      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, flexShrink: 0 }}>→</span>
-      {/* Delta */}
-      <span style={{ color: deltaColor, fontSize: 14, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
-        {delta} <span style={{ fontSize: 11, fontWeight: 700 }}>{deltaLabel}</span>
-      </span>
-      {/* Equals */}
-      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, flexShrink: 0 }}>=</span>
-      {/* New total */}
-      <span style={{ color: '#ffffff', fontSize: 14, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-        {curr}
-      </span>
-    </div>
-  );
-}
 
 export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
   const [visible, setVisible] = useState(false);
@@ -75,50 +46,62 @@ export const HomeToastNotification: React.FC<Props> = ({ data, onDismiss }) => {
         background: 'var(--nst-top-bar-grad)',
         transform: visible ? 'translateY(0)' : 'translateY(-110%)',
         transition: 'transform 0.35s cubic-bezier(.34,1.4,.64,1)',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.45)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
       }}
     >
-      {/* Safe area spacer */}
+      {/* Safe area */}
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
-      {/* Rows */}
-      <div className="flex flex-col gap-1.5 px-4 py-2.5">
+      {/* Single row */}
+      <div className="flex items-center px-3 py-1.5">
 
-        {/* Row 1 — Credits */}
+        {/* LEFT — Credits */}
         {showCr && (
-          <StatRow
-            prev={`${data.creditsBefore.toLocaleString('en-IN')}🪙`}
-            delta={`+${data.creditsEarned}`}
-            deltaLabel="CR"
-            curr={`${data.creditsAfter.toLocaleString('en-IN')}🪙`}
-            deltaColor="#34d399"
-          />
+          <div className="flex items-center gap-[5px] flex-1 justify-center">
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              {data.creditsBefore.toLocaleString('en-IN')}🪙
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>→</span>
+            <span style={{ color: '#34d399', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              +{data.creditsEarned} CR
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>=</span>
+            <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              {data.creditsAfter.toLocaleString('en-IN')}🪙
+            </span>
+          </div>
         )}
 
-        {/* Divider between rows */}
+        {/* Divider */}
         {showCr && showXp && (
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', borderRadius: 1 }} />
+          <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.18)', flexShrink: 0, margin: '0 4px' }} />
         )}
 
-        {/* Row 2 — XP */}
+        {/* RIGHT — XP */}
         {showXp && (
-          <StatRow
-            prev={`${data.xpBefore.toLocaleString('en-IN')} XP`}
-            delta={`+${data.xpEarned}`}
-            deltaLabel="XP"
-            curr={`${data.xpAfter.toLocaleString('en-IN')} XP`}
-            deltaColor="#a78bfa"
-          />
+          <div className="flex items-center gap-[5px] flex-1 justify-center">
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              {data.xpBefore.toLocaleString('en-IN')} XP
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>→</span>
+            <span style={{ color: '#a78bfa', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              +{data.xpEarned} XP
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>=</span>
+            <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              {data.xpAfter.toLocaleString('en-IN')} XP
+            </span>
+          </div>
         )}
 
       </div>
 
-      {/* Auto-dismiss progress bar */}
+      {/* Progress bar */}
       <div className="h-[2px] relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)' }}>
         <div
           className="h-full absolute left-0 top-0"
           style={{
-            background: 'rgba(255,255,255,0.7)',
+            background: 'rgba(255,255,255,0.65)',
             animation: `credit-toast-bar ${DISPLAY_MS}ms linear forwards`,
           }}
         />
