@@ -13347,7 +13347,8 @@ export const StudentDashboard: React.FC<Props> = ({
             const overflowPx = isLong ? Math.min(90, (fullName.length - 10) * 7) : 0;
             return (
               <div className="flex items-center gap-2 shrink-0 min-w-0">
-                <div className="flex flex-col shrink-0 min-w-0">
+                <div className="flex items-center gap-[7px] shrink-0 min-w-0">
+                  {/* Greeting */}
                   <div className="overflow-hidden" style={isLong ? { maskImage: 'linear-gradient(to right, black 72%, transparent 100%)', maxWidth: '168px' } : {}}>
                     <span
                       className={`text-[13px] font-black text-white leading-tight whitespace-nowrap inline-block${isLong ? ' nst-name-scroll' : ''}`}
@@ -13356,19 +13357,19 @@ export const StudentDashboard: React.FC<Props> = ({
                       Hey, {fullName} 👋
                     </span>
                   </div>
-                  {/* Level XP bar */}
+                  {/* Level XP bar — same line, right of name */}
                   {(() => {
                     const _progress = getLevelProgress(user.totalScore || 0);
                     const _nextLvl  = getNextLevelInfo(user.totalScore || 0);
                     const _isMax    = !_nextLvl;
                     return (
-                      <div className="flex items-center gap-[5px] mt-[3px]">
-                        <span style={{ color: _userLevelInfo.color, fontSize: 8.5, fontWeight: 900, letterSpacing: '-0.01em' }}>
+                      <div className="flex items-center gap-[4px] shrink-0">
+                        <span style={{ color: _userLevelInfo.color, fontSize: 8.5, fontWeight: 900, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
                           {_userLevelInfo.emoji} Lv.{_userLevelInfo.level}
                         </span>
                         <div
                           className="relative rounded-full overflow-hidden"
-                          style={{ width: 64, height: 3.5, background: 'rgba(255,255,255,0.13)' }}
+                          style={{ width: 52, height: 3.5, background: 'rgba(255,255,255,0.13)' }}
                         >
                           <div
                             className="absolute inset-y-0 left-0 rounded-full"
@@ -13380,7 +13381,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             }}
                           />
                         </div>
-                        <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 7.5, fontWeight: 700 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 7.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
                           {_isMax ? 'MAX' : `${_progress}%`}
                         </span>
                       </div>
