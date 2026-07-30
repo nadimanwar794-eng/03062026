@@ -13378,8 +13378,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 500, letterSpacing: '-0.01em' }}
               >
                 {_isMax
-                  ? `Lv.${_userLevelInfo.level} MAX`
-                  : `Lv.${_userLevelInfo.level}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
+                  ? `Lv.${_userLevelInfo.level} ${_userLevelInfo.label} MAX`
+                  : `Lv.${_userLevelInfo.level} ${_userLevelInfo.label}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
               </span>
             );
           })()}

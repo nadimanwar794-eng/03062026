@@ -2032,13 +2032,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           <button onClick={() => setShowInfo(true)} className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center active:scale-90 shrink-0">
             <HelpCircle size={15} className="text-indigo-500" />
           </button>
-          <button onClick={() => setTick(t => t + 1)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:scale-90 shrink-0">
-            <RefreshCw size={13} className="text-slate-500" />
-          </button>
-          <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full shrink-0">
-            <span className="text-xs leading-none">🪙</span>
-            <span className="text-xs font-black text-amber-700">{userCredits.toLocaleString('en-IN')}</span>
-          </div>
         </div>
         {/* Row 2: tab bar — always visible */}
         <div className="mx-4 mb-2 flex bg-slate-100 rounded-2xl p-1 gap-1">
