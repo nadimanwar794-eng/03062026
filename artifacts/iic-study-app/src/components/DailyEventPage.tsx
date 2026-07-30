@@ -26,6 +26,8 @@ interface Props {
   onOpenRoutine: () => void;
   onOpenRevisionHub: (lessonId?: string, lessonTitle?: string) => void;
   onPracticeMistakes: (mistakes: MistakeEntry[]) => void;
+  onOpenSubjects?: () => void;
+  onOpenTracking?: () => void;
 }
 
 // ── Small reusable pieces ─────────────────────────────────────────────────────
@@ -87,7 +89,7 @@ const TaskRow: React.FC<{ emoji: string; title: string; sub: string; done: boole
 // ── Main component ────────────────────────────────────────────────────────────
 
 export const DailyEventPage: React.FC<Props> = ({
-  user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes,
+  user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = useMemo(() => {
@@ -487,20 +489,43 @@ export const DailyEventPage: React.FC<Props> = ({
     <div className="fixed inset-0 z-[220] bg-slate-50 flex flex-col h-[100dvh]">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 shrink-0">
-        <button
-          onClick={onBack}
-          className="bg-slate-100 p-2 rounded-full active:scale-95 transition text-slate-700"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex-1">
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Daily Hub</p>
-          <h1 className="text-base font-black text-slate-900 leading-tight">📅 Aaj Ka Poora Kaam</h1>
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shrink-0">
+        {/* Row 1: back + title + date */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="bg-slate-100 p-2 rounded-full active:scale-95 transition text-slate-700"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-base font-black text-slate-900 leading-tight">📅 Aaj Ka Poora Kaam</h1>
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 shrink-0">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </p>
         </div>
-        <p className="text-[10px] font-bold text-slate-400 shrink-0">
-          {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-        </p>
+        {/* Row 2: nav tabs */}
+        <div className="mx-4 mb-2 flex bg-slate-100 rounded-2xl p-1 gap-1">
+          <button
+            onClick={onBack}
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black bg-white text-blue-600 shadow-sm transition-all"
+          >
+            🎯 Daily Hub
+          </button>
+          <button
+            onClick={() => onOpenSubjects?.()}
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black text-slate-500 transition-all active:bg-white"
+          >
+            📚 Subjects
+          </button>
+          <button
+            onClick={() => onOpenTracking?.()}
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black text-slate-500 transition-all active:bg-white"
+          >
+            📊 Tracking
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-[80px] px-4 pt-4 space-y-4">
