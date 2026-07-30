@@ -2030,19 +2030,27 @@ export const StudentDashboard: React.FC<Props> = ({
   const [bgTtsOn, setBgTtsOn] = useState(false);
   const [_topBarInfoPhase, _setTopBarInfoPhase] = useState(0); // 0 = tier, 1 = expiry
   // XP badge: HOME pe aate hi 5 sec ke liye dikhao, phir auto-hide
+  // "HOME" = activeTab HOME + koi bhi overlay (Revision/Routine/Community) band ho
   const [showXpBadge, setShowXpBadge] = useState(false);
   const xpBadgeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const xpBadgeIsOnHomeRef = React.useRef(false);
   React.useEffect(() => {
-    if (activeTab === 'HOME') {
+    const isOnHome = activeTab === 'HOME' && !showRevisionHubScreen && !showMyRoutine && !showChat;
+    const wasOnHome = xpBadgeIsOnHomeRef.current;
+    xpBadgeIsOnHomeRef.current = isOnHome;
+    if (isOnHome && !wasOnHome) {
+      // Naya HOME visit — badge show karo
       setShowXpBadge(true);
       if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
       xpBadgeTimerRef.current = setTimeout(() => setShowXpBadge(false), 5000);
-    } else {
+    } else if (!isOnHome) {
+      // HOME se gaye — badge hide karo
       if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current);
       setShowXpBadge(false);
     }
     return () => { if (xpBadgeTimerRef.current) clearTimeout(xpBadgeTimerRef.current); };
-  }, [activeTab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, showRevisionHubScreen, showMyRoutine, showChat]);
   const [rewardEffect, setRewardEffect] = useState<{ amount: number; label: string } | null>(null);
   const triggerRewardEffect = (amount: number, label = 'Credits') => {
     setRewardEffect({ amount, label });
