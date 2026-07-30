@@ -2060,21 +2060,23 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           </div>
         </div>
 
-        {/* DAILY HUB */}
+        {/* Tabs */}
+        <div className="mx-4 mt-4 flex bg-slate-100 rounded-2xl p-1 gap-1">
+          {([
+            ['home', 'Today', <Target size={13} />],
+            ['subjects', 'Subjects', <LayoutGrid size={13} />],
+            ['tracking', 'Tracking', <ListChecks size={13} />],
+          ] as const).map(([id, label, icon]) => (
+            <button key={id} onClick={() => setActiveView(id)}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-black transition-all ${activeView === id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>
+              {icon} {label}
+            </button>
+          ))}
+        </div>
+
+        {/* TODAY */}
         {activeView === 'home' && (
           <div className="mx-4 mt-4 space-y-3">
-            {/* Quick nav buttons — Subjects & Tracking */}
-            <div className="flex gap-3">
-              <button onClick={() => setActiveView('subjects')}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-slate-200 text-slate-700 font-black text-sm active:scale-95 transition shadow-sm">
-                <LayoutGrid size={16} className="text-blue-500" /> Subjects
-              </button>
-              <button onClick={() => setActiveView('tracking')}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-slate-200 text-slate-700 font-black text-sm active:scale-95 transition shadow-sm">
-                <ListChecks size={16} className="text-emerald-500" /> Tracking
-              </button>
-            </div>
-
             {!data.enabled ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
                 <CalendarCheck size={44} className="text-slate-200 mx-auto mb-3" />
@@ -2108,16 +2110,10 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         {/* SUBJECTS */}
         {activeView === 'subjects' && (
           <div className="mx-4 mt-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setActiveView('home')}
-                className="flex items-center gap-1 text-blue-600 font-black text-xs active:scale-95 transition">
-                ← Daily Hub
-              </button>
-              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{subjects.length} Subjects</p>
-            </div>
+            <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{subjects.length} Subjects</p>
             {subjects.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
-                <p className="text-sm text-slate-400">Daily Hub mein categories add karo pehle</p>
+                <p className="text-sm text-slate-400">Today tab mein categories add karo pehle</p>
               </div>
             ) : subjects.map(sub => (
               <SubjectCard key={sub.id} sub={sub} lessons={subjectGroups[sub.id] || []} mcqHistory={mcqHistory}
@@ -2131,13 +2127,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         {/* TRACKING */}
         {activeView === 'tracking' && (
           <div className="mx-4 mt-4">
-            <div className="flex items-center gap-3 mb-3">
-              <button onClick={() => setActiveView('home')}
-                className="flex items-center gap-1 text-blue-600 font-black text-xs active:scale-95 transition">
-                ← Daily Hub
-              </button>
-              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">📊 Pura Syllabus Progress</p>
-            </div>
+            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">📊 Pura Syllabus Progress</p>
             <TrackingView subjectGroups={subjectGroups} subjects={subjects} mcqHistory={mcqHistory} />
           </div>
         )}
