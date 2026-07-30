@@ -13357,53 +13357,55 @@ export const StudentDashboard: React.FC<Props> = ({
         {/* SECOND LINE: greeting + Level / Credits / Subscription pills */}
         <div className="flex items-center justify-between w-full mt-0 pt-0.5 px-4 pb-1">
 
-          {/* Left: two-line greeting */}
+          {/* Left: greeting + stacked level bar */}
           {(() => {
             const fullName = user.name || "Student";
             const isLong = fullName.length > 10;
             const overflowPx = isLong ? Math.min(90, (fullName.length - 10) * 7) : 0;
+            const _progress = getLevelProgress(user.totalScore || 0);
+            const _nextLvl  = getNextLevelInfo(user.totalScore || 0);
+            const _isMax    = !_nextLvl;
+            const _currentScore = user.totalScore || 0;
+            const _nextScore    = _nextLvl ? _nextLvl.minScore : _currentScore;
             return (
-              <div className="flex items-center gap-2 shrink-0 min-w-0">
-                <div className="flex items-center gap-[7px] shrink-0 min-w-0">
-                  {/* Greeting */}
-                  <div className="overflow-hidden" style={isLong ? { maskImage: 'linear-gradient(to right, black 72%, transparent 100%)', maxWidth: '168px' } : {}}>
-                    <span
-                      className={`text-[13px] font-black text-white leading-tight whitespace-nowrap inline-block${isLong ? ' nst-name-scroll' : ''}`}
-                      style={isLong ? { '--nst-scroll': `-${overflowPx}px` } as React.CSSProperties : {}}
-                    >
-                      Hey, {fullName} 👋
-                    </span>
+              <div className="flex flex-col gap-[3px] shrink-0 min-w-0" style={{ maxWidth: '68%' }}>
+                {/* Greeting */}
+                <div className="overflow-hidden" style={isLong ? { maskImage: 'linear-gradient(to right, black 78%, transparent 100%)' } : {}}>
+                  <span
+                    className={`text-[13px] font-black text-white leading-tight whitespace-nowrap inline-block${isLong ? ' nst-name-scroll' : ''}`}
+                    style={isLong ? { '--nst-scroll': `-${overflowPx}px` } as React.CSSProperties : {}}
+                  >
+                    Hey, {fullName} 👋
+                  </span>
+                </div>
+                {/* Level name + pts row */}
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span style={{ color: _userLevelInfo.color, fontSize: 8.5, fontWeight: 900, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+                    {_userLevelInfo.emoji} {_userLevelInfo.label}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 7.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {_isMax ? 'MAX LEVEL' : `${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} PTS`}
+                  </span>
+                </div>
+                {/* Progress bar + Lv.X */}
+                <div className="flex items-center gap-[4px] w-full">
+                  <div
+                    className="relative flex-1 rounded-full overflow-hidden"
+                    style={{ height: 3.5, background: 'rgba(255,255,255,0.13)' }}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{
+                        width: `${_isMax ? 100 : _progress}%`,
+                        background: _userLevelInfo.color,
+                        boxShadow: `0 0 5px ${_userLevelInfo.glowColor}`,
+                        transition: 'width 0.7s cubic-bezier(0.34,1.1,0.64,1)',
+                      }}
+                    />
                   </div>
-                  {/* Level XP bar — same line, right of name */}
-                  {(() => {
-                    const _progress = getLevelProgress(user.totalScore || 0);
-                    const _nextLvl  = getNextLevelInfo(user.totalScore || 0);
-                    const _isMax    = !_nextLvl;
-                    return (
-                      <div className="flex items-center gap-[4px] shrink-0">
-                        <span style={{ color: _userLevelInfo.color, fontSize: 8.5, fontWeight: 900, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-                          {_userLevelInfo.emoji} Lv.{_userLevelInfo.level}
-                        </span>
-                        <div
-                          className="relative rounded-full overflow-hidden"
-                          style={{ width: 52, height: 3.5, background: 'rgba(255,255,255,0.13)' }}
-                        >
-                          <div
-                            className="absolute inset-y-0 left-0 rounded-full"
-                            style={{
-                              width: `${_isMax ? 100 : _progress}%`,
-                              background: _userLevelInfo.color,
-                              boxShadow: `0 0 5px ${_userLevelInfo.glowColor}`,
-                              transition: 'width 0.7s cubic-bezier(0.34,1.1,0.64,1)',
-                            }}
-                          />
-                        </div>
-                        <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 7.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                          {_isMax ? 'MAX' : `${_progress}%`}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                  <span style={{ color: _userLevelInfo.color, fontSize: 8, fontWeight: 900, whiteSpace: 'nowrap' }}>
+                    Lv.{_userLevelInfo.level}
+                  </span>
                 </div>
               </div>
             );
@@ -13571,20 +13573,10 @@ export const StudentDashboard: React.FC<Props> = ({
               <div className="shrink-0">
                 <button
                   onClick={() => onTabChange('STORE' as any)}
-                  className="inline-flex flex-col items-end gap-0 px-2 py-[3px] rounded-full text-white whitespace-nowrap active:scale-90 transition-transform"
+                  className="inline-flex items-center gap-[2px] px-2 py-[3px] rounded-full text-white whitespace-nowrap active:scale-90 transition-transform text-[8px] font-black leading-none"
                 >
-                  {(() => {
-                    const _lvlInfo = getLevelInfo(user.totalScore || 0);
-                    return (
-                      <span className="text-[7px] font-black text-white/70 leading-none">
-                        Lv.{_lvlInfo.level} | {(user.totalScore || 0).toLocaleString('en-IN')} PTS
-                      </span>
-                    );
-                  })()}
-                  <span className="inline-flex items-center gap-[2px] text-[8px] font-black leading-none">
-                    <Crown size={9} />
-                    {user.credits} CR
-                  </span>
+                  <Crown size={9} />
+                  {user.credits} CR
                 </button>
               </div>
             )}
