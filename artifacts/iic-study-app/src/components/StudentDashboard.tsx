@@ -13375,9 +13375,9 @@ export const StudentDashboard: React.FC<Props> = ({
             return (
               <span
                 className="flex-1 text-center whitespace-nowrap"
-                style={{ color: _userLevelInfo.color, fontSize: 10, fontWeight: 900, letterSpacing: '-0.01em' }}
+                style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 500, letterSpacing: '-0.01em' }}
               >
-                {_userLevelInfo.emoji} {_isMax
+                {_isMax
                   ? `Lv.${_userLevelInfo.level} MAX`
                   : `Lv.${_userLevelInfo.level}  ${_currentScore.toLocaleString('en-IN')} / ${_nextScore.toLocaleString('en-IN')} XP`}
               </span>
