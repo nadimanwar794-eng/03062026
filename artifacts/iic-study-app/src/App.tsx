@@ -442,6 +442,7 @@ const App: React.FC = () => {
     const syncKey = `nst_credit_sync_score_${user.id}`;
     const raw = localStorage.getItem(syncKey);
     const currentScore = user.totalScore || 0;
+    let xpDeltaFromSync = 0;
 
     if (raw === null) {
       localStorage.setItem(syncKey, String(currentScore));
@@ -449,6 +450,7 @@ const App: React.FC = () => {
       const lastSynced = parseInt(raw, 10);
       const delta = currentScore - lastSynced;
       if (delta > 0) {
+        xpDeltaFromSync = delta;
         localStorage.setItem(syncKey, String(currentScore));
       }
     }
@@ -464,6 +466,7 @@ const App: React.FC = () => {
         timeSecs: 0,
         activityType: 'Study',
         coinsEarned: deferredStudyCoins,
+        sessionScore: xpDeltaFromSync > 0 ? xpDeltaFromSync : undefined,
       }];
     } else if (deferredStudyCoins > 0) {
       // Flashcard and older study payloads may not carry coin metadata even
