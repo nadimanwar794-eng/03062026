@@ -19112,7 +19112,7 @@ export const StudentDashboard: React.FC<Props> = ({
             </div>
 
             {/* Page list */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            <div className="flex-1 overflow-y-auto px-4 pt-3 pb-24 space-y-2">
               {pages.map((pg, idx) => {
                 const pgNo = pg.pageNo ? `Pg ${pg.pageNo}` : `Page ${idx + 1}`;
                 const topic = (pg.topicName || '').trim();
