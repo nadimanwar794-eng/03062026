@@ -1987,6 +1987,14 @@ const App: React.FC = () => {
   ];
 
   const handleLogin = async (user: User) => {
+    // ── Account switch detection — naye account ka data purane se mix na ho ──
+    const lastUserId = localStorage.getItem('nst_last_user_id');
+    if (lastUserId && lastUserId !== user.id) {
+      // Different account — clear all previous user's local cache first
+      clearUserCache();
+    }
+    localStorage.setItem('nst_last_user_id', user.id);
+
     // ── Login pe session tracking reset — spurious home toast na aaye ────
     awaitingPostMcqDataRef.current = false;
     sessionStartTimeRef.current = 0;
@@ -2054,10 +2062,44 @@ const App: React.FC = () => {
   const [cloudUser, setCloudUser] = useState<User | null>(null);
   const [showCloudRecoveryModal, setShowCloudRecoveryModal] = useState(false);
 
+  // ── User-specific local cache keys — cleared on logout / account switch ─────
+  // Device-level settings (dark mode, voice, zoom, haptic, etc.) are kept.
+  const USER_CACHE_KEYS = [
+    'nst_current_user', 'nst_user_history', 'nst_users',
+    'nst_activity_log', 'nst_board_notes', 'nst_claimed_notifs_v1',
+    'nst_daily_study_seconds', 'nst_hidden_notifs', 'nst_display_level',
+    'nst_last_daily_challenge_completed', 'nst_last_daily_challenge_date',
+    'nst_last_daily_tracker_date', 'nst_last_read_update',
+    'nst_last_refresh_ts', 'nst_last_reload_at', 'nst_last_weekly_auto_date',
+    'nst_leaderboard', 'nst_morning_banner', 'nst_pending_sync_results',
+    'nst_recycle_bin', 'nst_revision_tracker_v2', 'nst_seen_notif_ids',
+    'nst_seen_notifs_v1', 'nst_starred_notes_v1', 'nst_store_last_visit',
+    'nst_streak_popup_date', 'nst_timer_date', 'nst_universal_analysis_logs',
+  ];
+  const clearUserCache = () => {
+    USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k));
+    // Also clear any per-user prefixed keys left from this session
+    const allKeys = Object.keys(localStorage);
+    allKeys.forEach(k => {
+      if (
+        k.startsWith('nst_credit_sync_score_') ||
+        k.startsWith('nst_deferred_study_coins_') ||
+        k.startsWith('nst_routine_') ||
+        k.startsWith('nst_score_log_') ||
+        k.startsWith('nst_credit_history_') ||
+        k.startsWith('nst_activity_history_') ||
+        k.startsWith('nst_board_choice_')
+      ) localStorage.removeItem(k);
+    });
+    // localforage (async — best-effort)
+    storage.removeItem('nst_active_student_tab').catch(() => {});
+    storage.removeItem('nst_user_history').catch(() => {});
+  };
+
   const performLogout = () => {
     logActivity("LOGOUT", "User Logged Out");
-    localStorage.removeItem('nst_current_user');
-    localStorage.removeItem('nst_user_history'); // Clear Saved Notes on logout to prevent bleeding across accounts
+    clearUserCache();
+    localStorage.removeItem('nst_last_user_id'); // reset account tracker
     setState(prev => ({ ...prev, user: null, originalAdmin: null, view: 'BOARDS', selectedBoard: null, selectedClass: null, selectedStream: null, selectedSubject: null, lessonContent: null, language: 'English' }));
     setDailyStudySeconds(0);
   };
