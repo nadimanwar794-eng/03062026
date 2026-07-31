@@ -4332,23 +4332,6 @@ export const StudentDashboard: React.FC<Props> = ({
   // forces a remount of the ripple <span> so its CSS animation re-fires.
   // We deliberately skip HOME so the home tab feels clean and minimal.
   const [navTapKeys, setNavTapKeys] = useState<Record<string, number>>({});
-  const [routineFlash, setRoutineFlash] = useState(false);
-  // Routine nav button: cycles current icon (2s) → 🎯 (0.7s) → repeat
-  React.useEffect(() => {
-    let flashTimer: ReturnType<typeof setTimeout>;
-    let resetTimer: ReturnType<typeof setTimeout>;
-    const cycle = () => {
-      flashTimer = setTimeout(() => {
-        setRoutineFlash(true);
-        resetTimer = setTimeout(() => {
-          setRoutineFlash(false);
-          cycle();
-        }, 700);
-      }, 2000);
-    };
-    cycle();
-    return () => { clearTimeout(flashTimer); clearTimeout(resetTimer); };
-  }, []);
   const [navTabTooltip, setNavTabTooltip] = useState<{label: string; desc: string; emoji: string} | null>(null);
   const navTabTooltipTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -18036,13 +18019,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             className="nav-ripple-burst pointer-events-none absolute inset-0 m-auto rounded-full"
                           />
                         )}
-                        {tab.id === 'MY_ROUTINE' && routineFlash ? (
-                          <span
-                            style={{ fontSize: 22, lineHeight: 1 }}
-                            className="transition-all duration-300"
-                          >🎯</span>
-                        ) : (
-                          <Icon
+                        <Icon
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className="transition-colors duration-300"
@@ -18053,7 +18030,6 @@ export const StudentDashboard: React.FC<Props> = ({
                                 : "none"
                             }
                           />
-                        )}
                         {isLocked && (
                           <span className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full p-[2px] border border-white shadow-sm">
                             <Lock size={8} className="text-white" />
