@@ -2082,7 +2082,9 @@ const App: React.FC = () => {
     const allKeys = Object.keys(localStorage);
     allKeys.forEach(k => {
       if (
-        k.startsWith('nst_credit_sync_score_') ||
+        // nst_credit_sync_score_<uid> is intentionally kept — it's already per-user
+        // (UID is in the key), so no cross-account bleed. Clearing it resets XP
+        // delta tracking and causes "0 XP" notifications after re-login.
         k.startsWith('nst_deferred_study_coins_') ||
         k.startsWith('nst_routine_') ||
         k.startsWith('nst_score_log_') ||
