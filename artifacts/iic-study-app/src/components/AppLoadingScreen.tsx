@@ -37,7 +37,7 @@ const THEME_STYLES: Record<ThemeVariant, {
     badge: 'text-gray-500',
   },
   blue: {
-    bg: 'bg-black',
+    bg: 'bg-[#000000]',
    text: 'text-white',
     subtext: 'text-blue-400/70',
     boxBg: 'bg-blue-950/60',
@@ -171,7 +171,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
     setTimeout(() => setLogoTapped(false), 600);
   };
 
-  const t = THEME_STYLES[themeVariant];
+  const t = THEME_STYLES.light;
   const iconColor1 = 'text-blue-500';
   const iconColor2 = 'text-violet-600';
   const iconColor3 = 'text-rose-500';
@@ -182,7 +182,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete, 
   const iconColor8 = 'text-orange-500';
 
   return (
-    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${t.bg} ${t.text} overflow-hidden w-full mx-auto`}>
+    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center ${THEME_STYLES.light.bg} ${THEME_STYLES.light.text} overflow-hidden w-full mx-auto`}>
 
       <div className="relative z-10 flex flex-col items-center w-full px-8">
         <button

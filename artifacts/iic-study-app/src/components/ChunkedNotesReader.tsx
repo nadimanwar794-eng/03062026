@@ -612,6 +612,13 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const [inlineCorrectionSubmitting, setInlineCorrectionSubmitting] = useState(false);
   const [inlineCorrectionDone, setInlineCorrectionDone] = useState(false);
   const [inlineCorrectionError, setInlineCorrectionError] = useState(false);
+
+  // ── Multi-select Mode (Long Press) ──
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressFiredRef = useRef<boolean>(false);
+
   // Track which point indices have already been submitted this session (prevents duplicate sends)
   const [submittedPointIndices, setSubmittedPointIndices] = useState<Set<number>>(new Set());
   // Reset submitted set when the note identity changes (component reused across different notes)
@@ -2225,9 +2232,69 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   ★ IMP
                 </span>
               )}
+              {isMultiSelectMode && !topic.isHeading && (
+                <div
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${selectedIndices.has(idx) ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 bg-white/50'}`}>
+                    {selectedIndices.has(idx) && <Check size={14} className="text-white" />}
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => {
+                onPointerDown={(e) => {
+                  if (topic.isHeading) return;
+                  if (!isMultiSelectMode) {
+                    longPressFiredRef.current = false;
+                    longPressTimeoutRef.current = setTimeout(() => {
+                      try { if (navigator.vibrate) navigator.vibrate(100); } catch {}
+                      longPressFiredRef.current = true;
+                      setIsMultiSelectMode(true);
+                      setSelectedIndices(new Set([idx]));
+                    }, 800); // Trigger multi-select after 800ms
+                  }
+                }}
+                onPointerUp={() => {
+                  if (longPressTimeoutRef.current) {
+                    clearTimeout(longPressTimeoutRef.current);
+                    longPressTimeoutRef.current = null;
+                  }
+                }}
+                onPointerCancel={() => {
+                  if (longPressTimeoutRef.current) {
+                    clearTimeout(longPressTimeoutRef.current);
+                    longPressTimeoutRef.current = null;
+                  }
+                }}
+                onClick={(e) => {
+                  if (longPressTimeoutRef.current) {
+                    clearTimeout(longPressTimeoutRef.current);
+                    longPressTimeoutRef.current = null;
+                  }
+
+                  if (longPressFiredRef.current) {
+                    // Ignore the synthetic click that fires right after the long press
+                    longPressFiredRef.current = false;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                  }
+
+                  if (isMultiSelectMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedIndices(prev => {
+                      const next = new Set(prev);
+                      if (next.has(idx)) next.delete(idx);
+                      else next.add(idx);
+                      return next;
+                    });
+                    return;
+                  }
+
                   try { if (navigator.vibrate) navigator.vibrate(isActive ? 30 : 50); } catch {}
                   if (isActive) {
                     stopAll();
@@ -2242,9 +2309,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     startFromIndex(idx);
                   }
                 }}
-                aria-label={isActive ? 'Stop reading this line' : 'Read from this line'}
+                aria-label={isMultiSelectMode ? (selectedIndices.has(idx) ? 'Deselect this line' : 'Select this line') : (isActive ? 'Stop reading this line' : 'Read from this line')}
                 title={isActive ? 'Tap to stop' : 'Tap to read from here'}
-                className="w-full text-left pl-4 pr-10 py-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                className={`w-full text-left pl-4 py-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 ${isMultiSelectMode ? 'pr-14' : 'pr-10'}`}
               >
                 <p
                   className={`leading-relaxed ${isActive ? 'text-yellow-900' : ''}`}
@@ -2515,6 +2582,75 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
         })}
       </div>
     </div>
+    {/* Multi-Select Action Bar */}
+    {isMultiSelectMode && (
+      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.05)] border-t border-slate-200 p-3 z-[60] flex items-center justify-between safe-bottom">
+        <div className="flex flex-col">
+          <span className="text-sm font-bold text-slate-800">{selectedIndices.size} selected</span>
+          <button
+            type="button"
+            className="text-xs font-semibold text-slate-500 hover:text-slate-700 text-left"
+            onClick={() => {
+              setIsMultiSelectMode(false);
+              setSelectedIndices(new Set());
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={selectedIndices.size === 0}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-sm disabled:opacity-50 transition-colors"
+            onClick={() => {
+              // Unmark
+              selectedIndices.forEach(idx => {
+                const topic = activeTopicList[idx];
+                if (topic && !topic.isHeading) {
+                  const isStarredNow = isStarred ? isStarred(topic.text) : false;
+                  const isMarked2Now = isMarked2 ? isMarked2(topic.text) : false;
+                  if (isAdmin && useImportantMark2 && isMarked2Now && onMark2Toggle) {
+                      onMark2Toggle(topic.text);
+                  } else if (!(isAdmin && useImportantMark2) && isStarredNow && onStarToggle) {
+                      onStarToggle(topic.text);
+                  }
+                }
+              });
+              setIsMultiSelectMode(false);
+              setSelectedIndices(new Set());
+            }}
+          >
+            Unmark
+          </button>
+          <button
+            type="button"
+            disabled={selectedIndices.size === 0}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm disabled:opacity-50 transition-colors shadow-sm"
+            onClick={() => {
+              // Mark
+              selectedIndices.forEach(idx => {
+                const topic = activeTopicList[idx];
+                if (topic && !topic.isHeading) {
+                  const isStarredNow = isStarred ? isStarred(topic.text) : false;
+                  const isMarked2Now = isMarked2 ? isMarked2(topic.text) : false;
+                  if (isAdmin && useImportantMark2 && !isMarked2Now && onMark2Toggle) {
+                      onMark2Toggle(topic.text);
+                  } else if (!(isAdmin && useImportantMark2) && !isStarredNow && onStarToggle) {
+                      onStarToggle(topic.text);
+                  }
+                }
+              });
+              setIsMultiSelectMode(false);
+              setSelectedIndices(new Set());
+            }}
+          >
+            Mark
+          </button>
+        </div>
+      </div>
+    )}
+
     {/* Admin WhiteBoard overlay */}
     {isAdmin && showAdminBoard && (
       <AdminWhiteBoard onClose={() => setShowAdminBoard(false)} />
