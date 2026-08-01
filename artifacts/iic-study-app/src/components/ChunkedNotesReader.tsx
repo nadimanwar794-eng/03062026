@@ -2254,7 +2254,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       longPressFiredRef.current = true;
                       setIsMultiSelectMode(true);
                       setSelectedIndices(new Set([idx]));
-                    }, 800); // Trigger multi-select after 800ms
+                    }, 2000); // Trigger multi-select after 2 seconds
+                  }
+                }}
+                onPointerMove={() => {
+                  // Cancel long press if user is just scrolling
+                  if (longPressTimeoutRef.current) {
+                    clearTimeout(longPressTimeoutRef.current);
+                    longPressTimeoutRef.current = null;
                   }
                 }}
                 onPointerUp={() => {
