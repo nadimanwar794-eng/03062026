@@ -226,6 +226,9 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const _canAccessSmart   = isUltraUser || isBasicUser || isAdmin;
   const _canAccessExplain = isUltraUser || isAdmin;
 
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasLongPressRef = useRef(false);
+
   const NOTE_PAGES = useMemo(() => {
     if (!noteSections) return [] as { key: 'book' | 'smart' | 'explain'; label: string; badge?: string; badgeColor?: string; locked: boolean; text: string }[];
     return [
@@ -2227,7 +2230,36 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
               )}
               <button
                 type="button"
-                onClick={() => {
+                onPointerDown={(e) => {
+                  if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                  wasLongPressRef.current = false;
+                  longPressTimerRef.current = setTimeout(() => {
+                    wasLongPressRef.current = true;
+                    if (onStarToggle && !(isAdmin && useImportantMark2)) {
+                      if (freeStarLocked) {
+                        if (onUpgradeClick) onUpgradeClick();
+                      } else {
+                        try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
+                        onStarToggle(topic.text);
+                      }
+                    } else if (isAdmin && useImportantMark2 && onMark2Toggle) {
+                      try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
+                      onMark2Toggle(topic.text);
+                    }
+                  }, 1000);
+                }}
+                onPointerUp={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
+                onPointerLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
+                onPointerCancel={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
+                onContextMenu={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                  if (wasLongPressRef.current) {
+                    wasLongPressRef.current = false;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                  }
                   try { if (navigator.vibrate) navigator.vibrate(isActive ? 30 : 50); } catch {}
                   if (isActive) {
                     stopAll();
@@ -2245,6 +2277,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 aria-label={isActive ? 'Stop reading this line' : 'Read from this line'}
                 title={isActive ? 'Tap to stop' : 'Tap to read from here'}
                 className="w-full text-left pl-4 pr-10 py-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
               >
                 <p
                   className={`leading-relaxed ${isActive ? 'text-yellow-900' : ''}`}
