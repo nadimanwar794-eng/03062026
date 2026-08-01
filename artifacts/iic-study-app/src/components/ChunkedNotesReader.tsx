@@ -2292,9 +2292,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       setIsMultiSelectMode(true);
                       setSelectedTopics(new Set([idx]));
                     } else if (onStarToggle && !(isAdmin && useImportantMark2)) {
-
-                    if (onStarToggle && !(isAdmin && useImportantMark2)) {
-
                       if (freeStarLocked) {
                         if (onUpgradeClick) onUpgradeClick();
                       } else {
@@ -2307,8 +2304,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     }
 
                   }, isAdmin ? 3000 : 500);
-
-                  }, 500);
 
                 }}
                 onPointerUp={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
