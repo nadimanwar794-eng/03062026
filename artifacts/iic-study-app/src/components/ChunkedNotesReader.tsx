@@ -2286,15 +2286,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   wasLongPressRef.current = false;
                   longPressTimerRef.current = setTimeout(() => {
                     wasLongPressRef.current = true;
-
                     if (isAdmin && !useImportantMark2) {
                       try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
                       setIsMultiSelectMode(true);
                       setSelectedTopics(new Set([idx]));
                     } else if (onStarToggle && !(isAdmin && useImportantMark2)) {
-
-                    if (onStarToggle && !(isAdmin && useImportantMark2)) {
-
                       if (freeStarLocked) {
                         if (onUpgradeClick) onUpgradeClick();
                       } else {
@@ -2305,11 +2301,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
                       onMark2Toggle(topic.text);
                     }
-
                   }, isAdmin ? 3000 : 500);
-
-                  }, 500);
-
                 }}
                 onPointerUp={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
                 onPointerLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
@@ -2324,7 +2316,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     return;
                   }
 
-
                   if (isAdmin && isMultiSelectMode) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -2335,7 +2326,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     if (newSel.size === 0) setIsMultiSelectMode(false);
                     return;
                   }
-
 
                   try { if (navigator.vibrate) navigator.vibrate(isActive ? 30 : 50); } catch {}
                   if (isActive) {

@@ -4955,7 +4955,7 @@ export const StudentDashboard: React.FC<Props> = ({
       source ? { lessonTitle: source.lessonTitle, subject: source.subject, pageNo: source.pageNo as any, pageIndex: source.pageIndex as any } : undefined
     ).catch(() => {});
     try { if (navigator.vibrate) navigator.vibrate(alreadyMarked ? 20 : 60); } catch {}
-    showAlert(alreadyMarked ? '❌ Important mark hataya' : '⭐ Sab students ko Important dikhega!', alreadyMarked ? 'INFO' : 'SUCCESS');
+    // showAlert(alreadyMarked ? '❌ Important mark hataya' : '⭐ Sab students ko Important dikhega!', alreadyMarked ? 'INFO' : 'SUCCESS');
   };
 
   // Helper: for any ChunkedNotesReader — returns whether topic is admin-globally-important.
