@@ -2345,13 +2345,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   <Square size={12} fill="currentColor" />
                 </span>
               )}
-              {/* Star button — only visible on the line currently being read by
-                  TTS. When TTS stops, the star disappears. The amber background
-                  on already-starred lines still indicates "saved to Important
-                  Notes". To un-star later, tap the line to start TTS again,
-                  then tap the star. ~28px hit area for easy tapping. */}
+              {/* Star button — visible when the line is active OR when it is already marked.
+                  This allows a user to un-star it later directly without needing to start TTS again.
+                  ~28px hit area for easy tapping. */}
               {/* Regular star button — hidden when admin is in Mark 2 mode */}
-              {onStarToggle && isActive && !(isAdmin && useImportantMark2) && (
+              {onStarToggle && (isActive || starred) && !(isAdmin && useImportantMark2) && (
                 freeStarLocked ? (
                   /* Free L1–L4: show locked star — tapping shows upgrade hint */
                   <button
@@ -2390,8 +2388,8 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   </button>
                 )
               )}
-              {/* Important Mark 2 button — only visible to admins when Mark 2 mode is ON */}
-              {isAdmin && useImportantMark2 && onMark2Toggle && (
+              {/* Important Mark 2 button — visible to admins when Mark 2 mode is ON and line is active OR already marked */}
+              {isAdmin && useImportantMark2 && onMark2Toggle && (isActive || marked2) && (
                 <button
                   type="button"
                   onClick={(e) => {
