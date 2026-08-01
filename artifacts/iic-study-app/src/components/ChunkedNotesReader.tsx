@@ -2246,7 +2246,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
                       onMark2Toggle(topic.text);
                     }
-                  }, 1000);
+                  }, 500);
                 }}
                 onPointerUp={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
                 onPointerLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
@@ -2303,73 +2303,6 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 >
                   <Square size={12} fill="currentColor" />
                 </span>
-              )}
-              {/* Star button — only visible on the line currently being read by
-                  TTS. When TTS stops, the star disappears. The amber background
-                  on already-starred lines still indicates "saved to Important
-                  Notes". To un-star later, tap the line to start TTS again,
-                  then tap the star. ~28px hit area for easy tapping. */}
-              {/* Regular star button — hidden when admin is in Mark 2 mode */}
-              {onStarToggle && isActive && !(isAdmin && useImportantMark2) && (
-                freeStarLocked ? (
-                  /* Free L1–L4: show locked star — tapping shows upgrade hint */
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onUpgradeClick) onUpgradeClick();
-                    }}
-                    onPointerDown={(e) => { e.stopPropagation(); }}
-                    style={{ width: '28px', height: '28px', padding: 0 }}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full inline-flex items-center justify-center transition-all shadow-sm border-2 z-10 bg-slate-100 border-slate-300 text-slate-400"
-                    aria-label="Star locked — reach Level 5 to unlock"
-                    title="⭐ Level 5 par unlock hoga | Basic/Ultra se bhi available"
-                  >
-                    🔒
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      try { if (navigator.vibrate) navigator.vibrate(40); } catch {}
-                      onStarToggle(topic.text);
-                    }}
-                    onPointerDown={(e) => { e.stopPropagation(); }}
-                    style={{ width: '28px', height: '28px', padding: 0 }}
-                    className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full inline-flex items-center justify-center transition-all shadow-sm border-2 z-10 ${
-                      starred
-                        ? 'text-amber-600 bg-amber-100 border-amber-400 hover:bg-amber-200'
-                        : 'text-amber-500 bg-white border-amber-300 hover:bg-amber-50'
-                    }`}
-                    aria-label={starred ? 'Remove star' : 'Star this note'}
-                    title={starred ? 'Tap to un-star' : 'Tap to add to Important Notes'}
-                  >
-                    <Star size={15} className={starred ? 'fill-amber-500' : ''} />
-                  </button>
-                )
-              )}
-              {/* Important Mark 2 button — only visible to admins when Mark 2 mode is ON */}
-              {isAdmin && useImportantMark2 && onMark2Toggle && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    try { if (navigator.vibrate) navigator.vibrate(40); } catch {}
-                    onMark2Toggle(topic.text);
-                  }}
-                  onPointerDown={(e) => { e.stopPropagation(); }}
-                  style={{ width: '28px', height: '28px', padding: 0 }}
-                  className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full inline-flex items-center justify-center transition-all shadow-sm border-2 z-10 ${
-                    marked2
-                      ? 'text-orange-600 bg-orange-100 border-orange-400 hover:bg-orange-200'
-                      : 'text-orange-400 bg-white border-orange-200 hover:bg-orange-50'
-                  }`}
-                  aria-label={marked2 ? 'Remove Important Mark 2' : 'Important Mark 2'}
-                  title={marked2 ? 'Tap to remove Important Mark 2' : 'Tap to mark as Important 2 (changes background)'}
-                >
-                  <Flame size={13} className={marked2 ? 'fill-orange-500' : ''} />
-                </button>
               )}
               {/* 📋 Copy button — Admin only — copies this topic's plain text */}
               {isAdmin && !isActive && !showSuggestionPanel && !(isAdmin && useImportantMark2) && (
