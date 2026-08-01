@@ -2163,6 +2163,57 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
       )}
 
       {/* Topic list — tap any line to start TTS from that line */}
+      {/* Admin Batch Action Bar */}
+      {isAdmin && isMultiSelectMode && (
+        <div className="sticky top-0 left-0 right-0 z-50 bg-indigo-600 text-white flex items-center justify-between px-4 py-3 shadow-md mx-[-16px] mb-4" style={{ borderRadius: '0 0 16px 16px' }}>
+           <div className="flex items-center gap-2">
+             <button onClick={() => { setIsMultiSelectMode(false); setSelectedTopics(new Set()); }} className="p-1 rounded-full hover:bg-white/20">
+               <X size={20} />
+             </button>
+             <span className="font-semibold text-sm">{selectedTopics.size} Selected</span>
+           </div>
+           <div className="flex gap-3">
+             <button
+                className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-white/20"
+                onClick={() => {
+                  if (onStarToggle) {
+                    Array.from(selectedTopics).forEach(idx => {
+                       const text = activeTopicList[idx].text;
+                       const isImp = isAdminImportant ? isAdminImportant(text) : false;
+                       if (!isImp) {
+                         onStarToggle(text);
+                       }
+                    });
+                  }
+                  setIsMultiSelectMode(false);
+                  setSelectedTopics(new Set());
+                }}
+             >
+               <Star size={16} /> Mark Imp
+             </button>
+             <button
+                className="flex items-center gap-1 bg-red-500/20 text-red-100 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-red-500/40"
+                onClick={() => {
+                  if (onStarToggle) {
+                    Array.from(selectedTopics).forEach(idx => {
+                       const text = activeTopicList[idx].text;
+                       const isImp = isAdminImportant ? isAdminImportant(text) : false;
+                       if (isImp) {
+                         onStarToggle(text);
+                       }
+                    });
+                  }
+                  setIsMultiSelectMode(false);
+                  setSelectedTopics(new Set());
+                }}
+             >
+               <Trash2 size={16} /> Unmark
+             </button>
+           </div>
+        </div>
+      )}
+
+      {/* Topic list — tap any line to start TTS from that line */}
       <div className="space-y-1.5">
         {activeTopicList.map((topic, idx) => {
           const isActive = isReading && activeIdx === idx;
@@ -2235,7 +2286,11 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                   wasLongPressRef.current = false;
                   longPressTimerRef.current = setTimeout(() => {
                     wasLongPressRef.current = true;
-                    if (onStarToggle && !(isAdmin && useImportantMark2)) {
+                    if (isAdmin && !useImportantMark2) {
+                      try { if (navigator.vibrate) navigator.vibrate(50); } catch {}
+                      setIsMultiSelectMode(true);
+                      setSelectedTopics(new Set([idx]));
+                    } else if (onStarToggle && !(isAdmin && useImportantMark2)) {
                       if (freeStarLocked) {
                         if (onUpgradeClick) onUpgradeClick();
                       } else {
@@ -2246,7 +2301,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                       try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
                       onMark2Toggle(topic.text);
                     }
-                  }, 500);
+                  }, isAdmin ? 3000 : 500);
                 }}
                 onPointerUp={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
                 onPointerLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
@@ -2260,6 +2315,18 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     e.stopPropagation();
                     return;
                   }
+
+                  if (isAdmin && isMultiSelectMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const newSel = new Set(selectedTopics);
+                    if (newSel.has(idx)) newSel.delete(idx);
+                    else newSel.add(idx);
+                    setSelectedTopics(newSel);
+                    if (newSel.size === 0) setIsMultiSelectMode(false);
+                    return;
+                  }
+
                   try { if (navigator.vibrate) navigator.vibrate(isActive ? 30 : 50); } catch {}
                   if (isActive) {
                     stopAll();
