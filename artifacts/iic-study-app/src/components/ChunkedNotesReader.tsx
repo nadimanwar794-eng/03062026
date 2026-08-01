@@ -226,6 +226,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   const _canAccessSmart   = isUltraUser || isBasicUser || isAdmin;
   const _canAccessExplain = isUltraUser || isAdmin;
 
+  const [isAdminMultiMarkMode, setIsAdminMultiMarkMode] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasLongPressRef = useRef(false);
 
@@ -1260,6 +1261,22 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
   return (
     <>
     <div className={className || ''}>
+      {/* Admin multi-mark mode active banner */}
+      {isAdminMultiMarkMode && (
+        <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-indigo-600 text-white font-medium text-sm sticky top-0 z-[100] shadow-md">
+          <div className="flex items-center gap-2">
+            <Star size={16} className="fill-white" />
+            <span>Multi-Mark Mode Active</span>
+          </div>
+          <button
+            onClick={() => setIsAdminMultiMarkMode(false)}
+            className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-xs font-bold transition"
+          >
+            Done
+          </button>
+        </div>
+      )}
+
       {/* Rotate toast — full-width top banner, same position as app top banners */}
       {rotateToast && (
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold pointer-events-none animate-in slide-in-from-top-2 fade-in duration-300"
@@ -2233,6 +2250,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 onPointerDown={(e) => {
                   if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
                   wasLongPressRef.current = false;
+
                   longPressTimerRef.current = setTimeout(() => {
                     wasLongPressRef.current = true;
                     if (onStarToggle && !(isAdmin && useImportantMark2)) {
@@ -2245,6 +2263,14 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     } else if (isAdmin && useImportantMark2 && onMark2Toggle) {
                       try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
                       onMark2Toggle(topic.text);
+                    }
+
+                    if (isAdmin) {
+                      // Schedule multi-mark mode activation if admin continues holding
+                      longPressTimerRef.current = setTimeout(() => {
+                        try { if (navigator.vibrate) navigator.vibrate([30, 30, 50]); } catch {}
+                        setIsAdminMultiMarkMode(true);
+                      }, 2500); // 500ms + 2500ms = 3000ms total
                     }
                   }, 500);
                 }}
@@ -2260,6 +2286,18 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                     e.stopPropagation();
                     return;
                   }
+
+                  if (isAdminMultiMarkMode) {
+                    if (onStarToggle && !(isAdmin && useImportantMark2)) {
+                      try { if (navigator.vibrate) navigator.vibrate([30]); } catch {}
+                      onStarToggle(topic.text);
+                    } else if (isAdmin && useImportantMark2 && onMark2Toggle) {
+                      try { if (navigator.vibrate) navigator.vibrate([30]); } catch {}
+                      onMark2Toggle(topic.text);
+                    }
+                    return;
+                  }
+
                   try { if (navigator.vibrate) navigator.vibrate(isActive ? 30 : 50); } catch {}
                   if (isActive) {
                     stopAll();
