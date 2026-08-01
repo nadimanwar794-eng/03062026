@@ -2617,10 +2617,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 if (topic && !topic.isHeading) {
                   const isStarredNow = isStarred ? isStarred(topic.text) : false;
                   const isMarked2Now = isMarked2 ? isMarked2(topic.text) : false;
-                  if (isAdmin && useImportantMark2 && isMarked2Now && onMark2Toggle) {
-                      onMark2Toggle(topic.text);
-                  } else if (!(isAdmin && useImportantMark2) && isStarredNow && onStarToggle) {
-                      onStarToggle(topic.text);
+                  if (isAdmin && useImportantMark2 && onMark2Toggle) {
+                      if (isMarked2Now) onMark2Toggle(topic.text);
+                  } else if (onStarToggle) {
+                      if (isStarredNow) onStarToggle(topic.text);
                   }
                 }
               });
@@ -2641,10 +2641,10 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
                 if (topic && !topic.isHeading) {
                   const isStarredNow = isStarred ? isStarred(topic.text) : false;
                   const isMarked2Now = isMarked2 ? isMarked2(topic.text) : false;
-                  if (isAdmin && useImportantMark2 && !isMarked2Now && onMark2Toggle) {
-                      onMark2Toggle(topic.text);
-                  } else if (!(isAdmin && useImportantMark2) && !isStarredNow && onStarToggle) {
-                      onStarToggle(topic.text);
+                  if (isAdmin && useImportantMark2 && onMark2Toggle) {
+                      if (!isMarked2Now) onMark2Toggle(topic.text);
+                  } else if (onStarToggle) {
+                      if (!isStarredNow) onStarToggle(topic.text);
                   }
                 }
               });

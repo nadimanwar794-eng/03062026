@@ -1,0 +1,13 @@
+<<<<<<< SEARCH
+                  if (isAdmin && useImportantMark2 && isMarked2Now && onMark2Toggle) {
+                      onMark2Toggle(topic.text);
+                  } else if (!(isAdmin && useImportantMark2) && isStarredNow && onStarToggle) {
+                      onStarToggle(topic.text);
+                  }
+=======
+                  if (isAdmin && useImportantMark2 && isMarked2Now && onMark2Toggle) {
+                      onMark2Toggle(topic.text);
+                  } else if (!(isAdmin && useImportantMark2) && isStarredNow && onStarToggle) {
+                      onStarToggle(topic.text);
+                  }
+>>>>>>> REPLACE
