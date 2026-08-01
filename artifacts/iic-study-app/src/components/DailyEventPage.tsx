@@ -8,13 +8,14 @@ import {
   ArrowLeft, BookOpen, BrainCircuit, CalendarCheck,
   Clock, Target, ChevronRight, Zap, CheckCircle, Lock,
 } from 'lucide-react';
-import { loadRoutineData } from '../utils/routineStorage';
+import { loadRoutineData, getUserSubTier, getDailyClaimAmount } from '../utils/routineStorage';
+import { getLevelInfo } from '../utils/levelSystem';
 import { getDueItems, getAllBuckets } from '../utils/revisionTrackerV2';
 import { getMistakeBankSync } from '../utils/mistakeBank';
 import { getAutoTrackSnapshot, getLessonStats, isLessonRewarded } from '../utils/routineAutoTrack';
 import { RoutineRevisionBadge } from './RoutineRevisionBadge';
 import { getMistakeSessions } from '../utils/mistakeAnalytics';
-import { tryEarnScore } from '../utils/scoreSystem';
+import { tryEarnScore, getDailyScoreEarned } from '../utils/scoreSystem';
 import type { User, SystemSettings } from '../types';
 import type { MistakeEntry } from '../utils/mistakeBank';
 
@@ -25,6 +26,8 @@ interface Props {
   onOpenRoutine: () => void;
   onOpenRevisionHub: (lessonId?: string, lessonTitle?: string) => void;
   onPracticeMistakes: (mistakes: MistakeEntry[]) => void;
+  onOpenSubjects?: () => void;
+  onOpenTracking?: () => void;
 }
 
 // ── Small reusable pieces ─────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ const TaskRow: React.FC<{ emoji: string; title: string; sub: string; done: boole
 // ── Main component ────────────────────────────────────────────────────────────
 
 export const DailyEventPage: React.FC<Props> = ({
-  user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes,
+  user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = useMemo(() => {
@@ -95,9 +98,25 @@ export const DailyEventPage: React.FC<Props> = ({
   }, []);
   const lucentNotes = useMemo(() => (settings?.lucentNotes || []) as any[], [settings]);
 
-  // ── Mistake Milestone (17 pts per 100 mistakes, no coins) ────────────────
+  // ── Level / coin-per-task ────────────────────────────────────────────────
+  const subTier = useMemo(() => getUserSubTier(user as any), [user]);
+  const dailyAmount = useMemo(() => getDailyClaimAmount(subTier), [subTier]);
+  const levelInfo = useMemo(() => getLevelInfo(user.totalScore || 0), [user.totalScore]);
+
+  // ── Claim Success Overlay ────────────────────────────────────────────────
+  const [claimOverlay, setClaimOverlay] = useState<{ ptsAdded: number; todayTotal: number; xpBefore: number; xpAfter: number } | null>(null);
+
+  const showClaimOverlay = useCallback((ptsAdded: number) => {
+    const todayTotal = getDailyScoreEarned(user.id);
+    const xpBefore = user.totalScore || 0;
+    const xpAfter = xpBefore + ptsAdded;
+    setClaimOverlay({ ptsAdded, todayTotal, xpBefore, xpAfter });
+    setTimeout(() => setClaimOverlay(null), 2800);
+  }, [user.id, user.totalScore]);
+
+  // ── Mistake Milestone (100 pts per 100 mistakes) ─────────────────────────
   const MILESTONE_KEY = `iic_mistake_milestone_claimed_${user.id}`;
-  const MILESTONE_PTS = 17; // ⅙ of 100 ≈ 17 pts per milestone
+  const MILESTONE_PTS = 100; // 100 pts per 100 mistakes milestone
   const MILESTONE_EVERY = 100;
 
   const [claimedMilestones, setClaimedMilestones] = useState<number>(() => {
@@ -121,14 +140,15 @@ export const DailyEventPage: React.FC<Props> = ({
     try {
       const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
       const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
-      tryEarnScore(user.id, TASK_PTS, tier, isPrem, 0, 'DAILY_TASK_COMPLETE', undefined, undefined, `Daily Task Complete`);
+      const earned = tryEarnScore(user.id, TASK_PTS, tier, isPrem, 0, 'DAILY_TASK_COMPLETE', undefined, undefined, `Daily Task Complete`);
       const next = new Set(claimedTasks).add(lessonId);
       localStorage.setItem(TASK_CLAIMED_KEY, JSON.stringify([...next]));
       setClaimedTasks(next);
       setLastClaimedTask(lessonId);
       setTimeout(() => setLastClaimedTask(null), 2500);
+      showClaimOverlay(earned);
     } catch (e) { console.error('Task pts claim failed', e); }
-  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, claimedTasks, TASK_CLAIMED_KEY]);
+  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, claimedTasks, TASK_CLAIMED_KEY, showClaimOverlay]);
 
   // ── Routine ───────────────────────────────────────────────────────────────
   const routineData = useMemo(() => {
@@ -187,6 +207,9 @@ export const DailyEventPage: React.FC<Props> = ({
 
   const tasksDone  = todaySlots.filter((s: any) => s.done).length;
   const tasksTotal = todaySlots.length;
+  // Coin-per-task: daily claim divided evenly across tasks (shown on reward buttons)
+  const coinPerTask = tasksTotal > 0 && routineEnabled && dailyAmount > 0
+    ? Math.ceil(dailyAmount / tasksTotal) : 0;
 
   // ── Daily done slot persistence (save today's done lessons for tomorrow's history) ──
   const DAILY_DONE_KEY = useCallback((date: string) => `iic_routine_daily_${user.id}_${date}`, [user.id]);
@@ -290,38 +313,120 @@ export const DailyEventPage: React.FC<Props> = ({
   }, []);
   const todayMistakes = useMemo(() => allMistakes.slice(0, 100), [allMistakes]);
 
-  // Track how many mistakes were practiced (fixed) today — these are removed from
-  // the bank so allMistakes wouldn't show them; use session history instead.
+  // Track how many mistakes were practiced today using session history
   const todayPracticed = useMemo(() => {
     try {
       const midnight = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
       const sessions = getMistakeSessions();
       return sessions
         .filter((s) => s.date >= midnight)
-        .reduce((sum, s) => sum + (s.total || 0), 0);
+        .reduce((sum, s) => sum + (s.correct || 0), 0); // count only FIXED (correct) ones
     } catch { return 0; }
   }, []);
 
-  // Total ever = currently in bank + already fixed today
-  const totalEver = allMistakes.length + todayPracticed;
+  // Total ever CREATED = high-water mark (only grows, never shrinks)
+  // Fixes double-count: allMistakes.length is "remaining", not total ever made
+  const TOTAL_EVER_KEY = `iic_mistake_total_ever_${user.id}`;
+  const totalEver = useMemo(() => {
+    try {
+      const stored = parseInt(localStorage.getItem(TOTAL_EVER_KEY) || '0', 10) || 0;
+      // High-water mark: if bank currently has more than stored, update
+      const hwm = Math.max(stored, allMistakes.length);
+      if (hwm > stored) {
+        try { localStorage.setItem(TOTAL_EVER_KEY, String(hwm)); } catch {}
+      }
+      return hwm;
+    } catch { return allMistakes.length; }
+  }, [allMistakes.length, TOTAL_EVER_KEY]);
+
   const remainingMistakes = allMistakes.length;
 
-  const availableMilestones = Math.floor(allMistakes.length / MILESTONE_EVERY);
+  // Milestone based on total ever created (not just current remaining)
+  const availableMilestones = Math.floor(totalEver / MILESTONE_EVERY);
   const unclaimedMilestones = Math.max(0, availableMilestones - claimedMilestones);
+
+  // ── Mistake Session Reward (claim once per day when todayPracticed > 0) ──
+  const MISTAKE_SESSION_CLAIMED_KEY = `iic_mistake_session_pts_claimed_${user.id}_${new Date().toISOString().split('T')[0]}`;
+  const MISTAKE_SESSION_PTS = 100;
+  const [mistakeSessionClaimed, setMistakeSessionClaimed] = useState<boolean>(() => {
+    try { return localStorage.getItem(MISTAKE_SESSION_CLAIMED_KEY) === '1'; } catch { return false; }
+  });
+  const handleClaimMistakeSession = useCallback(() => {
+    try {
+      const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
+      const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
+      const earned = tryEarnScore(user.id, MISTAKE_SESSION_PTS, tier, isPrem, 0, 'MISTAKE_SESSION_COMPLETE', undefined, undefined, 'Mistake Practice Session Complete');
+      localStorage.setItem(MISTAKE_SESSION_CLAIMED_KEY, '1');
+      setMistakeSessionClaimed(true);
+      showClaimOverlay(earned);
+    } catch (e) { console.error('Mistake session pts claim failed', e); }
+  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, MISTAKE_SESSION_CLAIMED_KEY, showClaimOverlay]);
+
+  // ── Lesson Tracker 1hr Reward ─────────────────────────────────────────────
+  const LESSON_1HR_CLAIMED_KEY = `iic_lesson_1hr_pts_claimed_${user.id}_${new Date().toISOString().split('T')[0]}`;
+  const LESSON_1HR_PTS = 100;
+  const [claimed1hrLessons, setClaimed1hrLessons] = useState<Set<string>>(() => {
+    try {
+      const arr = JSON.parse(localStorage.getItem(LESSON_1HR_CLAIMED_KEY) || '[]') as string[];
+      return new Set(arr);
+    } catch { return new Set(); }
+  });
+  const handleClaim1hrLesson = useCallback((lessonTitle: string) => {
+    try {
+      const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
+      const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
+      const earned = tryEarnScore(user.id, LESSON_1HR_PTS, tier, isPrem, 0, 'LESSON_1HR_COMPLETE', undefined, undefined, `1 Hour Study: ${lessonTitle}`);
+      const next = new Set(claimed1hrLessons).add(lessonTitle);
+      localStorage.setItem(LESSON_1HR_CLAIMED_KEY, JSON.stringify([...next]));
+      setClaimed1hrLessons(next);
+      showClaimOverlay(earned);
+    } catch (e) { console.error('1hr lesson pts claim failed', e); }
+  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, LESSON_1HR_CLAIMED_KEY, claimed1hrLessons, showClaimOverlay]);
 
   const handleClaimMilestone = useCallback(() => {
     try {
       const totalPts = MILESTONE_PTS * unclaimedMilestones;
       const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
       const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
-      tryEarnScore(user.id, totalPts, tier, isPrem, 0, 'MISTAKE_MILESTONE', undefined, undefined, `Mistake Bank ${claimedMilestones + 1}×100 milestone`);
+      const earned = tryEarnScore(user.id, totalPts, tier, isPrem, 0, 'MISTAKE_MILESTONE', undefined, undefined, `Mistake Bank ${claimedMilestones + 1}×100 milestone`);
       const newClaimed = claimedMilestones + unclaimedMilestones;
       localStorage.setItem(MILESTONE_KEY, String(newClaimed));
       setClaimedMilestones(newClaimed);
       setClaimSuccess(true);
       setTimeout(() => setClaimSuccess(false), 3000);
+      showClaimOverlay(earned);
     } catch (e) { console.error('Milestone claim failed', e); }
-  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, claimedMilestones, unclaimedMilestones, MILESTONE_KEY]);
+  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, claimedMilestones, unclaimedMilestones, MILESTONE_KEY, showClaimOverlay]);
+
+  // ── Revision Hub 100 pts Claim ────────────────────────────────────────────
+  const REV_NOTES_CLAIMED_KEY = `iic_rev_notes_pts_claimed_${user.id}_${todayStr}`;
+  const REV_MCQ_CLAIMED_KEY   = `iic_rev_mcq_pts_claimed_${user.id}_${todayStr}`;
+  const REV_PTS = 100;
+
+  const [revNotesClaimed, setRevNotesClaimed] = useState<boolean>(() => {
+    try { return localStorage.getItem(REV_NOTES_CLAIMED_KEY) === '1'; } catch { return false; }
+  });
+  const [revMcqClaimed, setRevMcqClaimed] = useState<boolean>(() => {
+    try { return localStorage.getItem(REV_MCQ_CLAIMED_KEY) === '1'; } catch { return false; }
+  });
+
+  const handleClaimRevisionPts = useCallback((type: 'notes' | 'mcq') => {
+    try {
+      const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
+      const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
+      const label = type === 'notes' ? 'Revision Hub Notes Complete' : 'Revision Hub MCQ Complete';
+      const activity = type === 'notes' ? 'REVISION_NOTES_COMPLETE' : 'REVISION_MCQ_COMPLETE';
+      const earned = tryEarnScore(user.id, REV_PTS, tier, isPrem, 0, activity, undefined, undefined, label);
+      if (type === 'notes') {
+        localStorage.setItem(REV_NOTES_CLAIMED_KEY, '1');
+        setRevNotesClaimed(true);
+      } else {
+        localStorage.setItem(REV_MCQ_CLAIMED_KEY, '1');
+        setRevMcqClaimed(true);
+      }
+      showClaimOverlay(earned);
+    } catch (e) { console.error('Revision pts claim failed', e); }
+  }, [user.id, user.subscriptionLevel, user.subscriptionTier, user.isPremium, REV_NOTES_CLAIMED_KEY, REV_MCQ_CLAIMED_KEY, showClaimOverlay]);
 
   // ── Lesson Tracker ────────────────────────────────────────────────────────
   // Primary source: routineAutoTrack timings (what actually tracks reading time)
@@ -383,26 +488,9 @@ export const DailyEventPage: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[220] bg-slate-50 flex flex-col h-[100dvh]">
+    <div>
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 shrink-0">
-        <button
-          onClick={onBack}
-          className="bg-slate-100 p-2 rounded-full active:scale-95 transition text-slate-700"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex-1">
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Daily Hub</p>
-          <h1 className="text-base font-black text-slate-900 leading-tight">📅 Aaj Ka Poora Kaam</h1>
-        </div>
-        <p className="text-[10px] font-bold text-slate-400 shrink-0">
-          {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-        </p>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pb-10 px-4 pt-4 space-y-4">
+      <div className="px-4 pt-4 space-y-4 pb-6">
 
         {/* ── 1. ROUTINE ─────────────────────────────────────────────────── */}
         <SectionCard
@@ -503,26 +591,31 @@ export const DailyEventPage: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* ── 100 pts Claim button — always visible, gray jab tak done nahi ── */}
+                  {/* ── 100 pts + coin Claim button ── */}
                   <div className="mt-2">
                     {claimedTasks.has(slot.lessonId) ? (
                       <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
-                        <span className="text-[11px] font-black text-emerald-700">✅ +{TASK_PTS}⭐ pts Claim Ho Gaye!</span>
+                        <span className="text-[11px] font-black text-emerald-700">✅ +{TASK_PTS} pts{coinPerTask > 0 ? ` + ${coinPerTask} 🪙` : ''} Claim Ho Gaye!</span>
                       </div>
                     ) : lastClaimedTask === slot.lessonId ? (
                       <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
-                        <span className="text-[11px] font-black text-emerald-700">✅ +{TASK_PTS}⭐ pts Mil Gaye!</span>
+                        <span className="text-[11px] font-black text-emerald-700">✅ +{TASK_PTS} pts{coinPerTask > 0 ? ` + ${coinPerTask} 🪙` : ''} Mil Gaye!</span>
                       </div>
                     ) : slot.done ? (
                       <button
                         onClick={() => handleClaimTaskPts(slot.lessonId)}
                         className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm shadow-orange-200"
                       >
-                        🎁 Claim +{TASK_PTS}⭐ pts
+                        🎁 Claim +{TASK_PTS} ⭐pts
+                        {coinPerTask > 0 && (
+                          <span className="text-[10px] bg-white/30 px-2 py-0.5 rounded-full font-black">
+                            +{coinPerTask} 🪙
+                          </span>
+                        )}
                       </button>
                     ) : (
                       <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
-                        🔒 +{TASK_PTS}⭐ pts — Task Complete Karo
+                        🔒 +{TASK_PTS} pts{coinPerTask > 0 ? ` + ${coinPerTask} 🪙` : ''} — Task Complete Karo
                       </div>
                     )}
                   </div>
@@ -535,14 +628,17 @@ export const DailyEventPage: React.FC<Props> = ({
                       onGoToRevision={(lessonId, lessonTitle) => onOpenRevisionHub(lessonId, lessonTitle)}
                     />
                   ) : (
-                    <div className="mt-2 rounded-xl bg-slate-100 border border-slate-200 p-3 flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                    <div className="mt-2 rounded-xl bg-slate-100 border border-slate-200 p-3 flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center shrink-0 mt-0.5">
                         <Lock size={15} className="text-slate-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-black text-slate-500">🔒 Revision Hub</p>
+                        <p className="text-[10px] font-black text-rose-500 mt-0.5">
+                          Unlock: 100 🪙 coin · Task complete pe 50% OFF → 50 🪙/session
+                        </p>
                         <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                          Aaj ka lesson complete karo → <span className="font-bold">"{slot.lessonTitle}"</span> unlock hoga
+                          Lesson complete karo → <span className="font-bold">"{slot.lessonTitle}"</span> unlock hoga
                         </p>
                       </div>
                     </div>
@@ -620,13 +716,14 @@ export const DailyEventPage: React.FC<Props> = ({
               const total = dueNotes.length + notesReviewedToday;
               const done  = notesReviewedToday;
               const pct   = total > 0 ? Math.round((done / total) * 100) : 100;
+              const isDone = done === total && total > 0;
               return (
-                <div className={`rounded-xl px-3 py-2.5 border ${done === total && total > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
+                <div className={`rounded-xl px-3 py-2.5 border ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">{done === total && total > 0 ? '✅' : '📖'}</span>
+                      <span className="text-sm">{isDone ? '✅' : '📖'}</span>
                       <div>
-                        <p className={`text-[11px] font-black ${done === total && total > 0 ? 'text-emerald-700' : 'text-indigo-800'}`}>
+                        <p className={`text-[11px] font-black ${isDone ? 'text-emerald-700' : 'text-indigo-800'}`}>
                           Notes
                         </p>
                         <p className="text-[9px] text-slate-400">
@@ -634,18 +731,37 @@ export const DailyEventPage: React.FC<Props> = ({
                         </p>
                       </div>
                     </div>
-                    <p className={`text-[10px] font-black ${done === total && total > 0 ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                    <p className={`text-[10px] font-black ${isDone ? 'text-emerald-600' : 'text-indigo-600'}`}>
                       {total === 0 ? '—' : `${pct}%`}
                     </p>
                   </div>
                   {total > 0 && (
                     <div className="h-1.5 bg-indigo-200 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${done === total ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                        className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
                   )}
+                  {/* ── Notes 100 pts claim ── */}
+                  <div className="mt-2">
+                    {revNotesClaimed ? (
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
+                        <span className="text-[11px] font-black text-emerald-700">✅ +{REV_PTS}⭐ pts Claim Ho Gaye!</span>
+                      </div>
+                    ) : isDone ? (
+                      <button
+                        onClick={() => handleClaimRevisionPts('notes')}
+                        className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-200"
+                      >
+                        🎁 Claim +{REV_PTS}⭐ pts — Notes Done!
+                      </button>
+                    ) : (
+                      <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
+                        🔒 +{REV_PTS}⭐ pts — Notes 100% Complete Karo
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -655,13 +771,14 @@ export const DailyEventPage: React.FC<Props> = ({
               const total = dueMcq.length + mcqDoneToday;
               const done  = mcqDoneToday;
               const pct   = total > 0 ? Math.round((done / total) * 100) : 100;
+              const isDone = done === total && total > 0;
               return (
-                <div className={`rounded-xl px-3 py-2.5 border ${done === total && total > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-violet-50 border-violet-200'}`}>
+                <div className={`rounded-xl px-3 py-2.5 border ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-violet-50 border-violet-200'}`}>
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">{done === total && total > 0 ? '✅' : '🧠'}</span>
+                      <span className="text-sm">{isDone ? '✅' : '🧠'}</span>
                       <div>
-                        <p className={`text-[11px] font-black ${done === total && total > 0 ? 'text-emerald-700' : 'text-violet-800'}`}>
+                        <p className={`text-[11px] font-black ${isDone ? 'text-emerald-700' : 'text-violet-800'}`}>
                           MCQ Practice
                         </p>
                         <p className="text-[9px] text-slate-400">
@@ -669,18 +786,37 @@ export const DailyEventPage: React.FC<Props> = ({
                         </p>
                       </div>
                     </div>
-                    <p className={`text-[10px] font-black ${done === total && total > 0 ? 'text-emerald-600' : 'text-violet-600'}`}>
+                    <p className={`text-[10px] font-black ${isDone ? 'text-emerald-600' : 'text-violet-600'}`}>
                       {total === 0 ? '—' : `${pct}%`}
                     </p>
                   </div>
                   {total > 0 && (
                     <div className="h-1.5 bg-violet-200 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${done === total ? 'bg-emerald-500' : 'bg-violet-500'}`}
+                        className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-violet-500'}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
                   )}
+                  {/* ── MCQ 100 pts claim ── */}
+                  <div className="mt-2">
+                    {revMcqClaimed ? (
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
+                        <span className="text-[11px] font-black text-emerald-700">✅ +{REV_PTS}⭐ pts Claim Ho Gaye!</span>
+                      </div>
+                    ) : isDone ? (
+                      <button
+                        onClick={() => handleClaimRevisionPts('mcq')}
+                        className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-200"
+                      >
+                        🎁 Claim +{REV_PTS}⭐ pts — MCQ Done!
+                      </button>
+                    ) : (
+                      <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
+                        🔒 +{REV_PTS}⭐ pts — MCQ 100% Complete Karo
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -806,7 +942,24 @@ export const DailyEventPage: React.FC<Props> = ({
                 );
               })()}
 
-              {/* Claim button — appears when milestone(s) available */}
+              {/* Claim button for completing a practice session (once per day) */}
+              {todayPracticed > 0 && (
+                mistakeSessionClaimed ? (
+                  <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-100 border border-emerald-300">
+                    <span className="text-[11px] font-black text-emerald-700">✅ +{MISTAKE_SESSION_PTS} pts Practice Reward Claimed!</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleClaimMistakeSession}
+                    className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-sm shadow-rose-200"
+                  >
+                    🎁 Claim +{MISTAKE_SESSION_PTS} ⭐pts
+                    <span className="text-[10px] bg-white/30 px-2 py-0.5 rounded-full">Practice Session</span>
+                  </button>
+                )
+              )}
+
+              {/* Milestone claim button — appears when milestone(s) available */}
               {unclaimedMilestones > 0 && (
                 <button
                   onClick={handleClaimMilestone}
@@ -864,9 +1017,14 @@ export const DailyEventPage: React.FC<Props> = ({
                   {/* ── Aur padhna hai (< 1 hr) ── */}
                   {needsMore.length > 0 && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
-                      <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest mb-2">
-                        ⏳ Aur Padhna Hai (1 hour target)
-                      </p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[10px] font-black text-orange-700 uppercase tracking-widest">
+                          ⏳ Aur Padhna Hai (1 hour target)
+                        </p>
+                        <span className="text-[9px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                          1hr = +{LESSON_1HR_PTS} ⭐pts
+                        </span>
+                      </div>
                       <div className="space-y-2">
                         {needsMore.map((h, i) => {
                           const pct = Math.min(100, Math.round((h.totalTimeSec / ONE_HOUR) * 100));
@@ -900,7 +1058,7 @@ export const DailyEventPage: React.FC<Props> = ({
                   {sufficient.length > 0 && (
                     <div className="space-y-1.5">
                       {sufficient.map((h, i) => (
-                        <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                        <div key={i} className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 space-y-1.5">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-[11px] font-black text-emerald-800 truncate">✅ {h.lessonTitle}</p>
@@ -908,6 +1066,20 @@ export const DailyEventPage: React.FC<Props> = ({
                             </div>
                             <p className="text-[10px] font-black text-emerald-700 shrink-0">{formatTime(h.totalTimeSec)}</p>
                           </div>
+                          {/* 1hr reward claim button */}
+                          {claimed1hrLessons.has(h.lessonTitle) ? (
+                            <div className="flex items-center justify-center gap-1 py-1 rounded-lg bg-emerald-100 border border-emerald-300">
+                              <span className="text-[10px] font-black text-emerald-700">✅ +{LESSON_1HR_PTS} pts Claimed!</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleClaim1hrLesson(h.lessonTitle)}
+                              className="w-full py-1.5 rounded-lg font-black text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+                            >
+                              🎁 Claim +{LESSON_1HR_PTS} ⭐pts
+                              <span className="text-[9px] bg-white/30 px-1.5 py-0.5 rounded-full">1 Hour Bonus</span>
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -920,6 +1092,84 @@ export const DailyEventPage: React.FC<Props> = ({
         })()}
 
       </div>
+
+      {/* ── Claim Success Overlay ─────────────────────────────────────────── */}
+      {claimOverlay && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setClaimOverlay(null)}
+        >
+          <div className="mx-6 bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-xs animate-[pop_0.3s_cubic-bezier(0.34,1.56,0.64,1)]">
+            {/* Gold top banner */}
+            <div className="bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-5 text-center">
+              <p className="text-4xl mb-1">🎉</p>
+              <p className="text-white font-black text-xl">Badhaai Ho!</p>
+              <p className="text-white/90 text-[11px] font-bold mt-0.5">Points Mil Gaye!</p>
+            </div>
+
+            {/* Stats */}
+            <div className="px-5 py-5 space-y-3">
+
+              {/* Pts added (big) */}
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 flex items-center justify-between">
+                <p className="text-[12px] font-black text-amber-700">Abhi Mila</p>
+                <p className="text-2xl font-black text-amber-600">+{claimOverlay.ptsAdded} ⭐</p>
+              </div>
+
+              {/* Aaj ka total */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 flex items-center justify-between">
+                <p className="text-[12px] font-black text-indigo-700">Aaj Ke Total Pts</p>
+                <p className="text-xl font-black text-indigo-600">{claimOverlay.todayTotal} ⭐</p>
+              </div>
+
+              {/* XP before → after */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total XP</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-center">
+                    <p className="text-[9px] text-slate-400 font-bold mb-0.5">Pehle</p>
+                    <p className="text-[13px] font-black text-slate-500">{claimOverlay.xpBefore.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="flex-1 flex items-center gap-1 justify-center">
+                    <div className="h-px flex-1 bg-slate-200" />
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">+{claimOverlay.ptsAdded}</span>
+                    <div className="h-px flex-1 bg-slate-200" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[9px] text-emerald-600 font-bold mb-0.5">Ab</p>
+                    <p className="text-[13px] font-black text-emerald-600">{claimOverlay.xpAfter.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Daily Progress</p>
+                  <p className="text-[9px] font-black text-slate-500">Aaj Kamaye</p>
+                </div>
+                <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all"
+                    style={{ width: `${Math.min(100, Math.round((claimOverlay.todayTotal / 5000) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5">
+              <button
+                onClick={() => setClaimOverlay(null)}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-black text-sm active:scale-95 transition-all"
+              >
+                🚀 Aage Badhte Hain!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
