@@ -4901,22 +4901,24 @@ export const StudentDashboard: React.FC<Props> = ({
     let didStar = false;
     setStarredNotes(prev => {
       const alreadySaved = prev.some(n => n.noteKey === noteKey && n.topicText === topicText);
+      let updated;
       if (alreadySaved) {
-        // Already saved → show a soft message and return prev unchanged.
-        try { showAlert('This note is already saved. Swipe to remove it in the Saved Notes page.', 'INFO'); } catch {}
-        return prev;
+        // Un-save the note
+        updated = prev.filter(n => !(n.noteKey === noteKey && n.topicText === topicText));
+      } else {
+        // Save the note
+        updated = [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            noteKey,
+            topicText,
+            savedAt: new Date().toISOString(),
+            ...(source ? { source } : {}),
+          },
+        ];
+        didStar = true;
       }
-      const updated = [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          noteKey,
-          topicText,
-          savedAt: new Date().toISOString(),
-          ...(source ? { source } : {}),
-        },
-      ];
-      didStar = true;
       try { localStorage.setItem('nst_starred_notes_v1', JSON.stringify(updated)); } catch {}
       return updated;
     });
