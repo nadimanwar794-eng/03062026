@@ -1,0 +1,194 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() == 'ADMIN';
+    }
+
+    function isSubAdmin() {
+      return isSignedIn() && getUserRole() == 'SUB_ADMIN';
+    }
+
+    function isAdminOrSubAdmin() {
+      return isAdmin() || isSubAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      allow read: if isUser(userId) || isAdminOrSubAdmin();
+      allow create: if isUser(userId) && request.resource.data.id == userId
+                    && (!request.resource.data.keys().hasAll(['role']) || request.resource.data.role in ['FREE', 'STUDENT'])
+                    && (!request.resource.data.keys().hasAll(['coins']) || request.resource.data.coins == 0);
+      allow update: if (isUser(userId) &&
+                       (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'subscriptionTier', 'subscriptionLevel', 'coins'])))
+                    || isAdminOrSubAdmin();
+      allow delete: if isAdmin();
+
+      // History, Routine, Revision subcollections
+      match /{subcol}/{docId} {
+        allow read, write: if isUser(userId) || isAdminOrSubAdmin();
+      }
+    }
+
+    // USER COINS (Wallet)
+    match /user_coins/{userId} {
+      allow read: if isUser(userId) || isAdminOrSubAdmin();
+
+      // Allow users to update their own coins, but restrict huge jumps to prevent hacking.
+      // Coins increment should not be massive in a single request.
+      allow create: if isAdminOrSubAdmin() || (isUser(userId) && request.resource.data.coins <= 100);
+      allow update: if isAdminOrSubAdmin() ||
+                            (isUser(userId) &&
+                            // Only allow increments up to 500 at a time to prevent massive cheating
+                            (request.resource.data.coins - (resource == null ? 0 : resource.data.coins)) <= 500);
+    }
+
+    // LEADERBOARDS
+    match /daily_challenge_leaderboard/{dateKey} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+
+      match /scores/{userId} {
+        allow read: if isSignedIn();
+        allow create, update: if isUser(userId) || isAdminOrSubAdmin();
+      }
+    }
+
+    match /suggestion_leaderboard/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isUser(userId) || isAdminOrSubAdmin();
+    }
+
+    // CONTENT & MEDIA
+    match /published_themes/{themeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /published_animations/{animId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /user_themes/{docId} {
+      allow read, write: if isAdminOrSubAdmin(); // Actually users might read this? Let's allow users to read
+      allow read: if isSignedIn();
+    }
+
+    match /user_animations/{docId} {
+      allow read, write: if isAdminOrSubAdmin();
+      allow read: if isSignedIn();
+    }
+
+    match /content_data/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /lesson_meta/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /lucent_entries/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /homework_entries/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /mcq_lessons/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /compre_notes/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /trash_homework_entries/{docId} {
+      allow read, write: if isAdminOrSubAdmin();
+    }
+    match /trash_lucent_entries/{docId} {
+      allow read, write: if isAdminOrSubAdmin();
+    }
+
+    // FEEDBACK
+    match /app_feedback/{feedbackId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdminOrSubAdmin();
+    }
+
+    // AI LOGS
+    match /ai_interactions/{docId} {
+      allow read, write: if isAdminOrSubAdmin();
+    }
+
+    // ADMIN CONFIGURATIONS
+    match /admin_settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    match /admin_secure/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_stats/{docId} {
+      allow read, write: if isAdminOrSubAdmin();
+    }
+
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+
+    // PUBLIC / COMMUNITY
+    match /public_activity/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdminOrSubAdmin();
+    }
+
+    match /universal_analysis_logs/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdminOrSubAdmin();
+    }
+
+    match /demand_requests/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdminOrSubAdmin();
+    }
+
+    match /custom_syllabus/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrSubAdmin();
+    }
+  }
+}
