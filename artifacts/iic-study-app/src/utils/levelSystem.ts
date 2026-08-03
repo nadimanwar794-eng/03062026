@@ -180,7 +180,7 @@ const _MCQ_FREE  = [ 50,  80, 100, 120, 150, 180, 200, 220, 250, 280, 300, 350, 
 const _MCQ_BASIC = [ 60,  96, 120, 144, 180, 216, 240, 264, 300, 336, 360, 420, 480, 540, 600];
 const _MCQ_ULTRA = [ 75, 120, 150, 180, 225, 270, 300, 330, 375, 420, 450, 525, 600, 675, 750];
 
-// ── Star lock: Free users cannot bookmark at L1–L4; unlocks at L5 ────────────
+// ── Star lock: Disabled (Free users can always bookmark) ────────────
 /** Returns true when a Free-tier user at this level has the star/bookmark feature locked. */
 export const isFreeStarLocked = (level: number): boolean => false;
 
