@@ -97,26 +97,29 @@ service cloud.firestore {
 
     match /demand_requests/{requestId} {
       allow read: if isSignedIn();
-      // Users can submit demands
-      allow create, update: if isSignedIn();
+      allow create: if isSignedIn() && (!request.resource.data.keys().hasAny(['userId']) || request.resource.data.userId == request.auth.uid);
+      allow update: if isSignedIn() && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']));
     }
 
     match /public_activity/{activityId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn(); // Log activity
+      // Ensure users cannot spoof the userId in activity feeds
+      allow create: if isSignedIn() && (!request.resource.data.keys().hasAny(['userId']) || request.resource.data.userId == request.auth.uid);
     }
 
     match /universal_analysis_logs/{logId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && (!request.resource.data.keys().hasAny(['userId']) || request.resource.data.userId == request.auth.uid);
     }
 
     match /ai_interactions/{interactionId} {
-      allow read, create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (!request.resource.data.keys().hasAny(['userId']) || request.resource.data.userId == request.auth.uid);
     }
 
     match /app_feedback/{feedbackId} {
-      allow read, create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (!request.resource.data.keys().hasAny(['userId']) || request.resource.data.userId == request.auth.uid);
     }
 
     match /daily_challenge_leaderboard/{dateKey}/scores/{userId} {

@@ -33,38 +33,58 @@
 
     "chat": {
       "dm": {
-         // Users can chat
-         ".write": "auth != null"
+         "$dmUserId": {
+           // Ensure only the intended DM recipient or an Admin can write here
+           ".write": "auth != null && (auth.uid === $dmUserId || root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'SUB_ADMIN')",
+           "$msgId": {
+             // Ensure sender identity is genuine
+             ".validate": "!newData.hasChild('userId') || newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+           }
+         }
       },
       "universal": {
-         // Users can chat
-         ".write": "auth != null"
+         ".write": "auth != null",
+         "$msgId": {
+           // Ensure sender identity is genuine in Universal Chat
+           ".validate": "!newData.hasChild('userId') || newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'SUB_ADMIN'"
+         }
       }
     },
 
     "suggestions": {
-       // Users can create/update suggestions
-       ".write": "auth != null"
+       ".write": "auth != null",
+       "$suggestionId": {
+         // Ensure submitter identity is not spoofed
+         ".validate": "!newData.hasChild('uid') || newData.child('uid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+       }
     },
 
     "demand_requests": {
-       // Users can request content
-       ".write": "auth != null"
+       ".write": "auth != null",
+       "$requestId": {
+         ".validate": "!newData.hasChild('userId') || newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+       }
     },
 
     "public_activity": {
-       // Activity logging
-       ".write": "auth != null"
+       ".write": "auth != null",
+       "$activityId": {
+         ".validate": "!newData.hasChild('userId') || newData.child('userId').val() === auth.uid"
+       }
     },
 
     "universal_analysis_logs": {
-       // Users run analysis
-       ".write": "auth != null"
+       ".write": "auth != null",
+       "$logId": {
+         ".validate": "!newData.hasChild('userId') || newData.child('userId').val() === auth.uid"
+       }
     },
 
     "ai_interactions": {
-       // Users interacting with AI
-       ".write": "auth != null"
+       ".write": "auth != null",
+       "$interactionId": {
+         ".validate": "!newData.hasChild('userId') || newData.child('userId').val() === auth.uid"
+       }
     },
 
     // ------------------------------------------------------------------------
