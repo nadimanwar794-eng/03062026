@@ -132,6 +132,11 @@
     "trash": {
        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'SUB_ADMIN')"
     },
+    "redeem_codes": {
+       ".read": "auth != null",
+       // Users must be able to run transactions to increment usedCount and append to redeemedBy
+       ".write": "auth != null"
+    },
     "__backup__": {
        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || root.child('users').child(auth.uid).child('role').val() === 'SUB_ADMIN')"
     }

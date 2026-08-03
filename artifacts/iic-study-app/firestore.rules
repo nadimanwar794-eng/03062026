@@ -178,6 +178,11 @@ service cloud.firestore {
     match /trash_homework_entries/{docId} {
       allow read, write: if isAdminOrSubAdmin();
     }
+    match /redeem_codes/{docId} {
+      allow read: if isSignedIn();
+      // Users must be able to write to update the used count/claimed arrays
+      allow write: if isSignedIn();
+    }
     match /trash_lucent_entries/{docId} {
       allow read, write: if isAdminOrSubAdmin();
     }
