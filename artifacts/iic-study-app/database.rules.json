@@ -17,16 +17,16 @@
 
         // Prevent hacking huge score/credit/coin values via client-side manipulation
         "totalScore": {
-           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 50000)"
+           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 1000000)"
         },
         "credits": {
-           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 50000)"
+           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 1000000)"
         },
         "giftedCredits": {
-           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 50000)"
+           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 1000000)"
         },
         "bonusCredits": {
-           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 50000)"
+           ".validate": "!data.exists() || !newData.isNumber() || !data.isNumber() || (newData.val() <= data.val() + 1000000)"
         }
       }
     },

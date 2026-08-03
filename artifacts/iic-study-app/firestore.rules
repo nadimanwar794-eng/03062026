@@ -63,12 +63,12 @@ service cloud.firestore {
       allow read: if isSignedIn();
 
       allow create: if isSignedIn() && request.auth.uid == userId
-                    && request.resource.data.get('coins', 0) <= 50000;
+                    && request.resource.data.get('coins', 0) <= 1000000;
 
       allow update: if isSignedIn() && request.auth.uid == userId
                     && (
                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['coins'])
-                      || (request.resource.data.get('coins', 0) <= resource.data.get('coins', 0) + 50000)
+                      || (request.resource.data.get('coins', 0) <= resource.data.get('coins', 0) + 1000000)
                     );
     }
 
@@ -83,11 +83,11 @@ service cloud.firestore {
     match /suggestion_leaderboard/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.auth.uid == userId
-                    && request.resource.data.get('totalCoins', 0) <= 50000;
+                    && request.resource.data.get('totalCoins', 0) <= 1000000;
       allow update: if isSignedIn() && request.auth.uid == userId
                     && (
                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['totalCoins'])
-                      || (request.resource.data.get('totalCoins', 0) <= resource.data.get('totalCoins', 0) + 50000)
+                      || (request.resource.data.get('totalCoins', 0) <= resource.data.get('totalCoins', 0) + 1000000)
                     );
     }
 
