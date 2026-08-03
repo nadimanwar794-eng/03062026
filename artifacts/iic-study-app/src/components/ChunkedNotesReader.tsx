@@ -743,7 +743,7 @@ export const ChunkedNotesReader: React.FC<Props> = ({ content, className, langua
     (isStarred && isStarred(text)) || (isMarked2 && isMarked2(text)) || (isAdminImportant && isAdminImportant(text)),
     [isStarred, isMarked2, isAdminImportant]);
 
-  // Star lock: Free-tier users are locked at Level 1–4; unlocks at Level 5.
+  // Star lock: Free-tier users used to be locked at Level 1–4; now unlocked for all.
   // Basic/Ultra/Admin users always have star access.
   // Fallback order: explicit userLevel prop → readingScoreConfig.userLevel → 5 (safe/unlocked).
   const _effectiveUserLevel = userLevel ?? readingScoreConfig?.userLevel ?? 5;
