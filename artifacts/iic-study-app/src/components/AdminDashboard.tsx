@@ -414,6 +414,26 @@ const MODELS = [
     "mixtral-8x7b-32768"
 ];
 
+// Safe helper to get subject name for any class/competition to prevent ReferenceError
+const getSubjectNameSafe = (classLevel: string, subjectId: string): string => {
+    if (classLevel === 'COMPETITION') {
+        return LUCENT_SUBJECT_OPTIONS_BASE.find(o => o.id === subjectId)?.name || subjectId;
+    }
+    try {
+        const cn612Level = classLevel as any;
+        const seen = new Set<string>();
+        let name = subjectId;
+        (['Science', 'Commerce', 'Arts', null] as any[]).forEach((stream: string | null) => {
+            getSubjectsList(cn612Level, stream).forEach(s => {
+                if (s.id === subjectId) name = s.name;
+            });
+        });
+        return name;
+    } catch {
+        return subjectId;
+    }
+};
+
 const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSettings, onImpersonate, logActivity, isDarkMode, onToggleDarkMode, user }) => {
 
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');

@@ -948,7 +948,16 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
 
   const availableBooks = useMemo(() => {
     const s = new Set<string>();
-    allNotes.forEach(n => { const bk = (n as any).bookName?.trim(); if (bk) s.add(bk); });
+    allNotes.forEach(n => {
+      const bk = (n as any).bookName?.trim();
+      // Hide single-subject competition books from routine, keep only Lucent & other multi-subject books
+      if (bk) {
+        const bkLower = bk.toLowerCase();
+        if (!bkLower.includes('speedy') && !bkLower.includes('sar sangrah') && !bkLower.includes('mcq practice')) {
+           s.add(bk);
+        }
+      }
+    });
     return Array.from(s).sort();
   }, [allNotes]);
 
