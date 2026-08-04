@@ -2268,7 +2268,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   : { ...note, board: bulkMoveTargetBoard };
 
                 // Keep MCQ sync in sync with board changes
-                const subjectName = cn612SubjectOptions.find(o => o.id === newNote.subject)?.name || newNote.subject;
+                const subjectName = getSubjectNameSafe(newNote.classLevel, newNote.subject);
                 syncClassNotesMcqsToRevisionHub(newNote, subjectName).catch(console.error);
 
                 return newNote;
@@ -2322,12 +2322,12 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           const currentNotes: any[] = [...(localSettings.lucentNotes || [])];
           if (mode === 'move') {
               currentNotes.splice(origIdx, 1, newEntry);
-              const subjName = cn612SubjectOptions.find(o => o.id === newEntry.subject)?.name || newEntry.subject;
+              const subjName = getSubjectNameSafe(newEntry.classLevel, newEntry.subject);
               syncClassNotesMcqsToRevisionHub(newEntry, subjName).catch(console.error);
               await saveLucentEntryDirectly(currentNotes, `✅ "${entry.lessonTitle}" move ho gaya → Class ${bnMcTargetClass} / ${bnMcTargetSubject}`);
           } else {
               currentNotes.push(newEntry);
-              const subjName = cn612SubjectOptions.find(o => o.id === newEntry.subject)?.name || newEntry.subject;
+              const subjName = getSubjectNameSafe(newEntry.classLevel, newEntry.subject);
               syncClassNotesMcqsToRevisionHub(newEntry, subjName).catch(console.error);
               await saveLucentEntryDirectly(currentNotes, `✅ "${entry.lessonTitle}" copy ho gaya → Class ${bnMcTargetClass} / ${bnMcTargetSubject}`);
           }
@@ -9634,7 +9634,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           const updatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
 
                                           const target = LUCENT_CLASS_TARGETS.find(t => t.id === newLucent.classLevel)?.label || newLucent.classLevel;
-                                          const subjName = cn612SubjectOptions.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
+                                          const subjName = getSubjectNameSafe(newLucent.classLevel, newLucent.subject);
                                           syncClassNotesMcqsToRevisionHub(entry, subjName).catch(console.error);
                                           setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                                           saveLucentEntryDirectly(updated, `✅ Lesson saved → ${target}!`, updatedNotifs);
@@ -10650,7 +10650,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                       const currentNotes = localSettings.lucentNotes || [];
                                                       const updatedNote = currentNotes.find((n: any) => n.id === bnModalEntry.id);
                                                       if (updatedNote) {
-                                                          const subjName = cn612SubjectOptions.find(o => o.id === updatedNote.subject)?.name || updatedNote.subject;
+                                                          const subjName = getSubjectNameSafe(updatedNote.classLevel, updatedNote.subject);
                                                           syncClassNotesMcqsToRevisionHub(updatedNote, subjName).catch(console.error);
                                                       }
                                                       saveLucentEntryDirectly(currentNotes, '✅ Lucent Lesson Updated!');
@@ -13086,7 +13086,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               const entry: LucentNoteEntry = { id: Date.now().toString(), subject: newLucent.subject, bookName: cbn || undefined, classLevel: newLucent.classLevel, board: newLucent.board || undefined, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
                                               const updated = [...(localSettings.lucentNotes || []), entry];
                                               const target3 = LUCENT_CLASS_TARGETS.find(t => t.id === newLucent.classLevel)?.label || newLucent.classLevel;
-                                              const subjName = cn612SubjectOptions.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
+                                              const subjName = getSubjectNameSafe(newLucent.classLevel, newLucent.subject);
                                               syncClassNotesMcqsToRevisionHub(entry, subjName).catch(console.error);
                                               setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                                               saveLucentEntryDirectly(updated, `✅ Multi-page lesson saved → ${cbn} (${target3})!`);
@@ -13460,7 +13460,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               bnUpdatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
                                               bnSaveMsg = `✅ Lesson saved → ${target2}!`;
                                           }
-                                          const subjName = cn612SubjectOptions.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
+                                          const subjName = LUCENT_SUBJECT_OPTIONS_BASE.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
                                           syncClassNotesMcqsToRevisionHub(finalEntryToSync, subjName).catch(console.error);
                                           setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                                           saveLucentEntryDirectly(bnLucentUpdated, bnSaveMsg, bnUpdatedNotifs);
