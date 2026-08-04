@@ -6774,7 +6774,11 @@ export const StudentDashboard: React.FC<Props> = ({
                         )}
                         {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                           const _ls = getLessonStats(entry.id, entry.pages.length);
-                          if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                          if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
+                             return (
+                               <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{entry.pages.length}pg</span></div>
+                             );
+                          }
                           const _lc = getProgressColor5(_ls.pct);
                           return (
                             <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -7080,7 +7084,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       </p>
                       {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                         const _ls = getLessonStats(entry.id, entry.pages.length);
-                        if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                        if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
+                           return (
+                               <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{entry.pages.length}pg</span></div>
+                           );
+                        }
                         const _lc = getProgressColor5(_ls.pct);
                         return (
                           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -9171,7 +9179,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       {(() => {
                         const _be = competitionNotes.filter(n => (n.bookName?.trim() || 'Lucent') === bookName);
                         const _bms = getMultiLessonStats(_be.map(n => ({ id: n.id, pageCount: n.pages.length })));
-                        if (_bms.pagesRead === 0 && _bms.totalTime === 0) return null;
+                        if (_bms.pagesRead === 0 && _bms.totalTime === 0) {
+                          return (
+                             <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{_bms.totalPages}pg</span></div>
+                          );
+                        }
                         const _bc = getProgressColor5(_bms.pct);
                         return (
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -9398,7 +9410,11 @@ export const StudentDashboard: React.FC<Props> = ({
                     )}
                     {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                       const _ls = getLessonStats(entry.id, entry.pages.length);
-                      if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                      if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
+                          return (
+                               <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{entry.pages.length}pg</span></div>
+                          );
+                      }
                       const _lc = getProgressColor5(_ls.pct);
                       return (
                         <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
