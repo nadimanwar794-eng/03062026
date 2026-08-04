@@ -257,10 +257,16 @@ function TaskLessonCard({
           <p className="text-xs text-slate-500 font-medium truncate">{lessonTitle}</p>
           {/* Mini progress bar */}
           <div className="flex items-center gap-2 mt-1.5">
-            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 shrink-0">{readCount}/{totalPages}p</span>
+            {totalPages > 0 ? (
+                <>
+                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 shrink-0">{readCount}/{totalPages}p</span>
+                </>
+            ) : (
+                <span className="text-[10px] font-bold text-slate-400 shrink-0">0 pages</span>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -950,14 +956,21 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
     const s = new Set<string>();
     allNotes.forEach(n => {
       const bk = (n as any).bookName?.trim();
-      // Hide single-subject competition books from routine, keep only Lucent & other multi-subject books
       if (bk) {
-        const bkLower = bk.toLowerCase();
-        if (!bkLower.includes('speedy') && !bkLower.includes('sar sangrah') && !bkLower.includes('mcq practice')) {
-           s.add(bk);
-        }
+          const bkLower = bk.toLowerCase();
+          if (bkLower !== 'speedy science' && bkLower !== 'speedy social science' && bkLower !== 'sar sangrah' && bkLower !== 'mcq practice') {
+              s.add(bk);
+          }
+      } else if ((n as any).classLevel === 'COMPETITION') {
+          s.add('Lucent');
       }
     });
+
+    // Ensure Lucent is included if there's any competition note, as fallback
+    if (allNotes.some(n => (n as any).classLevel === 'COMPETITION')) {
+       s.add('Lucent');
+    }
+
     return Array.from(s).sort();
   }, [allNotes]);
 
