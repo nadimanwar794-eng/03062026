@@ -13446,21 +13446,22 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           let bnLucentUpdated: LucentNoteEntry[];
                                           let bnSaveMsg: string;
                                           let bnUpdatedNotifs: any[] | undefined;
+                                          let finalEntryToSync: LucentNoteEntry;
                                           if (cn612EditingId) {
-                                              const updatedEntry: LucentNoteEntry = { id: cn612EditingId, subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
-                                              bnLucentUpdated = (localSettings.lucentNotes || []).map((n: LucentNoteEntry) => n.id === cn612EditingId ? updatedEntry : n);
+                                              finalEntryToSync = { id: cn612EditingId, subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
+                                              bnLucentUpdated = (localSettings.lucentNotes || []).map((n: LucentNoteEntry) => n.id === cn612EditingId ? finalEntryToSync : n);
                                               bnSaveMsg = `✅ Lesson Updated!`;
                                               setCn612EditingId(null);
                                           } else {
-                                              const newEntry: LucentNoteEntry = { id: Date.now().toString(), subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
-                                              bnLucentUpdated = [...(localSettings.lucentNotes || []), newEntry];
+                                              finalEntryToSync = { id: Date.now().toString(), subject: newLucent.subject, bookName: newLucent.bookName.trim() || undefined, classLevel: newLucent.classLevel, lessonTitle: newLucent.lessonTitle.trim(), pages: validPages, mcqOnly: newLucent.mcqOnly || undefined, createdAt: new Date().toISOString() };
+                                              bnLucentUpdated = [...(localSettings.lucentNotes || []), finalEntryToSync];
                                               const newNotif = { id: `lucent-${Date.now()}`, title: `📚 New Lucent Entry: ${newLucent.lessonTitle.trim()}`, body: `Naya Lucent lesson add ho gaya hai. Abhi padho!`, type: 'CONTENT', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() };
                                               const currentNotifs = localSettings.notifications || [];
                                               bnUpdatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
                                               bnSaveMsg = `✅ Lesson saved → ${target2}!`;
                                           }
                                           const subjName = cn612SubjectOptions.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
-                                          syncClassNotesMcqsToRevisionHub(newEntry, subjName).catch(console.error);
+                                          syncClassNotesMcqsToRevisionHub(finalEntryToSync, subjName).catch(console.error);
                                           setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                                           saveLucentEntryDirectly(bnLucentUpdated, bnSaveMsg, bnUpdatedNotifs);
                                       }} disabled={isSavingLucent} className={`w-full mt-2 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 ${cn612EditingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
