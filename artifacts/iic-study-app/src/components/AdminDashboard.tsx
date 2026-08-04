@@ -9634,6 +9634,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                           const updatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
 
                                           const target = LUCENT_CLASS_TARGETS.find(t => t.id === newLucent.classLevel)?.label || newLucent.classLevel;
+                                          const subjName = cn612SubjectOptions.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
+                                          syncClassNotesMcqsToRevisionHub(entry, subjName).catch(console.error);
                                           setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                                           saveLucentEntryDirectly(updated, `✅ Lesson saved → ${target}!`, updatedNotifs);
                                       }} disabled={isSavingLucent} className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
@@ -13457,6 +13459,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                               bnUpdatedNotifs = [newNotif, ...currentNotifs].slice(0, 30);
                                               bnSaveMsg = `✅ Lesson saved → ${target2}!`;
                                           }
+                                          const subjName = cn612SubjectOptions.find(o => o.id === newLucent.subject)?.name || newLucent.subject;
+                                          syncClassNotesMcqsToRevisionHub(newEntry, subjName).catch(console.error);
                                           setNewLucent({ subject: newLucent.subject, bookName: '', classLevel: newLucent.classLevel, board: newLucent.board, lessonTitle: '', mcqOnly: false, pages: [{ id: Date.now().toString(), pageNo: '1', content: '', chunkNotes: '', htmlNotes: '' }] });
                                           saveLucentEntryDirectly(bnLucentUpdated, bnSaveMsg, bnUpdatedNotifs);
                                       }} disabled={isSavingLucent} className={`w-full mt-2 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 ${cn612EditingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
