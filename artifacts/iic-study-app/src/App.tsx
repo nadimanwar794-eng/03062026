@@ -3739,7 +3739,7 @@ const App: React.FC = () => {
                 )}
                 {state.view === 'SUBJECTS' && state.selectedClass && (
                   <ErrorBoundary fallbackLabel="Subject Selection" compact>
-                    <SubjectSelection classLevel={state.selectedClass} stream={state.selectedStream} board={state.selectedBoard || undefined} onSelect={handleSubjectSelect} onBack={goBack} settings={state.settings} />
+                    <SubjectSelection classLevel={state.selectedClass} stream={state.selectedStream} board={state.selectedBoard || undefined} onSelect={handleSubjectSelect} onBack={goBack} settings={state.settings} lucentNotes={(state.settings?.lucentNotes || []) as any[]} />
                   </ErrorBoundary>
                 )}
                 {state.view === 'LESSON' && state.lessonContent && (
