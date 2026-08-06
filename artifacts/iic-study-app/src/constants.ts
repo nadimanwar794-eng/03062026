@@ -157,7 +157,7 @@ export const getClassSubjectOptions = (classLevel: string): { id: string; name: 
     const seen = new Set<string>();
     const results: { id: string; name: string }[] = [];
     ([`Science`, `Commerce`, `Arts`, null] as (string | null)[]).forEach(stream => {
-      getSubjectsList(classLevel, stream).forEach(s => {
+      getSubjectsList(classLevel, stream, undefined, undefined).forEach(s => {
         if (!seen.has(s.id)) { seen.add(s.id); results.push({ id: s.id, name: s.name }); }
       });
     });
@@ -184,7 +184,8 @@ export const getSubjectsList = (classLevel: string, stream: string | null, board
   let adminRevisionSubjects: Array<{ id: string; name: string; icon: string; classLevels: string[]; streams: string[] }> = [];
   try {
       const settingsRaw = localStorage.getItem('nst_system_settings');
-          const s = settingsObj || (settingsRaw ? JSON.parse(settingsRaw) : null);
+          let s = settingsObj;
+          if (!s && settingsRaw) { try { s = JSON.parse(settingsRaw); } catch {} }
       if (s) {
           // const s = JSON.parse(settingsRaw);
           hiddenDefaultSubjects = Array.isArray(s.hiddenDefaultSubjects) ? s.hiddenDefaultSubjects : [];
@@ -214,8 +215,10 @@ export const getSubjectsList = (classLevel: string, stream: string | null, board
       // page-wise list of notes/MCQs in StudentDashboard.
       try {
           const settingsRaw = localStorage.getItem('nst_system_settings');
-          const s = settingsObj || (settingsRaw ? JSON.parse(settingsRaw) : null);
-          const finalSettingsObj = settingsObj || (settingsRaw ? JSON.parse(settingsRaw) : null);
+          let s = settingsObj;
+          if (!s && settingsRaw) { try { s = JSON.parse(settingsRaw); } catch {} }
+          let finalSettingsObj = settingsObj;
+          if (!finalSettingsObj && settingsRaw) { try { finalSettingsObj = JSON.parse(settingsRaw); } catch {} }
           const customBooks: Array<{ id: string; name: string }> = Array.isArray(finalSettingsObj?.customBooks)
               ? finalSettingsObj.customBooks
               : [];
