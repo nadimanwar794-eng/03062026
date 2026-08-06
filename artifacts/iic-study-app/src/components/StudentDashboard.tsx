@@ -2920,10 +2920,8 @@ export const StudentDashboard: React.FC<Props> = ({
           deferStudyCoins(freshU.id, _coinEarned);
           handleUserUpdate({ ...freshU, totalScore: _newXP });
           // Always show top banner for timer coin earn (guaranteed, doesn't rely on handleUserUpdate diff)
-          if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD', xpPrevious: _prevXP, xpEarned: earned, xpCurrent: _newXP });
-          creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
-          triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}`);
+          // Muted timer rewards: accumulated via deferStudyCoins for Home payout.
+          // Removed setCreditDeductToast & triggerRewardEffect here.
         }
       }
     }, 1000);
@@ -3219,10 +3217,8 @@ export const StudentDashboard: React.FC<Props> = ({
           handleUserUpdate({ ...freshU, totalScore: _newScore });
           // Update credit-sync key so HOME-tab sync does NOT double-convert these pts to credits
           try { localStorage.setItem(`nst_credit_sync_score_${freshU.id}`, String(_newScore)); } catch {}
-          if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD', xpPrevious: _prevXP2, xpEarned: earned, xpCurrent: _newScore });
-          creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
-          triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}!`);
+          // Muted timer rewards: accumulated via deferStudyCoins for Home payout.
+          // Removed setCreditDeductToast & triggerRewardEffect here.
         }
       }
     }, 1000);
