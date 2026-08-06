@@ -2110,7 +2110,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const tasks: Promise<void>[] = [];
 
       classes.forEach((cls) => {
-        const subs = getSubjectsList(cls, stream, board).filter(
+        const subs = getSubjectsList(cls, stream, board, settings).filter(
           (s) => !(settings?.hiddenSubjects || []).includes(s.id),
         );
         subs.forEach((sub) => {
@@ -4420,7 +4420,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const stream = (user.stream || 'Science') as any;
       // Resolve subject by name. Try exact (case-insensitive) match first,
       // then a normalised match that ignores hyphens / extra whitespace.
-      const subs = getSubjectsList(cls, stream, board);
+      const subs = getSubjectsList(cls, stream, board, settings);
       const wanted = (hit.subjectName || '').toLowerCase().replace(/[-\s]+/g, ' ').trim();
       let subj = subs.find(s => s.name.toLowerCase() === hit.subjectName?.toLowerCase());
       if (!subj) {
@@ -4464,7 +4464,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const board = (hit.board === 'BSEB' ? 'BSEB' : hit.board === 'NCERT_HI' ? 'NCERT_HI' : 'NCERT_EN') as 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
       const cls = hit.classLevel;
       const stream = (user.stream || 'Science') as any;
-      const subs = getSubjectsList(cls, stream, board);
+      const subs = getSubjectsList(cls, stream, board, settings);
       const wanted = (hit.subjectName || '').toLowerCase().replace(/[-\s]+/g, ' ').trim();
       let subj = subs.find(s => s.name.toLowerCase() === hit.subjectName?.toLowerCase());
       if (!subj) subj = subs.find(s => s.name.toLowerCase().replace(/[-\s]+/g, ' ').trim() === wanted);
@@ -9972,7 +9972,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const _sc3D    = _masterAll3D || (settings?.homeSchoolCard3D ?? false);
 
               const ClassBtn = ({ c }: { c: string }) => {
-                const subjectCount = getSubjectsList(c, _stream, _board).length;
+                const subjectCount = getSubjectsList(c, _stream, _board, settings).length;
                 const isBoard = boardClasses.includes(c);
                 const cardStyle3D = _card3D ? {
                   background: _c612Bg,
@@ -10197,7 +10197,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const subjects = getSubjectsList(
                 (activeSessionClass as any) || user.classLevel || "10",
                 user.stream || "Science",
-                activeSessionBoard || user.board,
+                activeSessionBoard || user.board, settings
               ).filter(s => !(settings?.hiddenSubjects || []).includes(s.id));
               const targetSubject = subjects.find(s => s.id === subjectId) || subjects[0];
               if (targetSubject) {
@@ -10242,7 +10242,7 @@ export const StudentDashboard: React.FC<Props> = ({
             const subjects = getSubjectsList(
               (activeSessionClass as any) || user.classLevel || "10",
               user.stream || "Science",
-              activeSessionBoard || user.board,
+              activeSessionBoard || user.board, settings
             ).filter((s) => !(settings?.hiddenSubjects || []).includes(s.id));
             let targetSubject = selectedSubject;
 
