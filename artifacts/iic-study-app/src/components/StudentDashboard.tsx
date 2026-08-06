@@ -2110,7 +2110,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const tasks: Promise<void>[] = [];
 
       classes.forEach((cls) => {
-        const subs = getSubjectsList(cls, stream, board).filter(
+        const subs = getSubjectsList(cls, stream, board, settings).filter(
           (s) => !(settings?.hiddenSubjects || []).includes(s.id),
         );
         subs.forEach((sub) => {
@@ -2920,10 +2920,8 @@ export const StudentDashboard: React.FC<Props> = ({
           deferStudyCoins(freshU.id, _coinEarned);
           handleUserUpdate({ ...freshU, totalScore: _newXP });
           // Always show top banner for timer coin earn (guaranteed, doesn't rely on handleUserUpdate diff)
-          if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD', xpPrevious: _prevXP, xpEarned: earned, xpCurrent: _newXP });
-          creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
-          triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}`);
+          // Muted timer rewards: accumulated via deferStudyCoins for Home payout.
+          // Removed setCreditDeductToast & triggerRewardEffect here.
         }
       }
     }, 1000);
@@ -3219,10 +3217,8 @@ export const StudentDashboard: React.FC<Props> = ({
           handleUserUpdate({ ...freshU, totalScore: _newScore });
           // Update credit-sync key so HOME-tab sync does NOT double-convert these pts to credits
           try { localStorage.setItem(`nst_credit_sync_score_${freshU.id}`, String(_newScore)); } catch {}
-          if (creditToastTimerRef.current) clearTimeout(creditToastTimerRef.current);
-          setCreditDeductToast({ visible: true, previous: _prevCR, deducted: _coinEarned, current: _newCR, type: 'ADD', xpPrevious: _prevXP2, xpEarned: earned, xpCurrent: _newScore });
-          creditToastTimerRef.current = setTimeout(() => setCreditDeductToast(null), 2000);
-          triggerRewardEffect(earned, `+${earned} pts ${tabEmoji} ${rewardReason}!`);
+          // Muted timer rewards: accumulated via deferStudyCoins for Home payout.
+          // Removed setCreditDeductToast & triggerRewardEffect here.
         }
       }
     }, 1000);
@@ -4424,7 +4420,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const stream = (user.stream || 'Science') as any;
       // Resolve subject by name. Try exact (case-insensitive) match first,
       // then a normalised match that ignores hyphens / extra whitespace.
-      const subs = getSubjectsList(cls, stream, board);
+      const subs = getSubjectsList(cls, stream, board, settings);
       const wanted = (hit.subjectName || '').toLowerCase().replace(/[-\s]+/g, ' ').trim();
       let subj = subs.find(s => s.name.toLowerCase() === hit.subjectName?.toLowerCase());
       if (!subj) {
@@ -4468,7 +4464,7 @@ export const StudentDashboard: React.FC<Props> = ({
       const board = (hit.board === 'BSEB' ? 'BSEB' : hit.board === 'NCERT_HI' ? 'NCERT_HI' : 'NCERT_EN') as 'BSEB' | 'NCERT_EN' | 'NCERT_HI';
       const cls = hit.classLevel;
       const stream = (user.stream || 'Science') as any;
-      const subs = getSubjectsList(cls, stream, board);
+      const subs = getSubjectsList(cls, stream, board, settings);
       const wanted = (hit.subjectName || '').toLowerCase().replace(/[-\s]+/g, ' ').trim();
       let subj = subs.find(s => s.name.toLowerCase() === hit.subjectName?.toLowerCase());
       if (!subj) subj = subs.find(s => s.name.toLowerCase().replace(/[-\s]+/g, ' ').trim() === wanted);
@@ -4891,20 +4887,19 @@ export const StudentDashboard: React.FC<Props> = ({
   );
   const unreadNotifCount = allNotifications.filter(n => !seenNotifIds.includes(n.id)).length;
 
-  // Star a note topic — ONE-WAY ONLY. Once saved, the user cannot un-save it
-  // from the source location (lesson / homework / book viewer). Removal is
-  // possible only from the dedicated "Saved Notes" page via swipe-to-delete.
-  // This prevents accidental tap-to-unstar and double-saves of the same note.
-  // Also syncs to Firebase so we can show global "X students saved this"
-  // social-proof counts (Firebase de-dupes by userId so count won't inflate).
+  // Star a note topic — Also syncs to Firebase so we can show global
+  // "X students saved this" social-proof counts.
   const toggleStarNote = (noteKey: string, topicText: string, source?: StarredNoteSource) => {
     let didStar = false;
+    let didUnstar = false;
     setStarredNotes(prev => {
       const alreadySaved = prev.some(n => n.noteKey === noteKey && n.topicText === topicText);
       if (alreadySaved) {
-        // Already saved → show a soft message and return prev unchanged.
-        try { showAlert('This note is already saved. Swipe to remove it in the Saved Notes page.', 'INFO'); } catch {}
-        return prev;
+        // Already saved → remove it.
+        const updated = prev.filter(n => !(n.noteKey === noteKey && n.topicText === topicText));
+        didUnstar = true;
+        try { localStorage.setItem('nst_starred_notes_v1', JSON.stringify(updated)); } catch {}
+        return updated;
       }
       const updated = [
         ...prev,
@@ -4931,6 +4926,13 @@ export const StudentDashboard: React.FC<Props> = ({
             pageNo: source.pageNo as any,
             pageIndex: source.pageIndex as any,
           } : undefined);
+        }
+      } catch {}
+    } else if (didUnstar) {
+      try { if (navigator.vibrate) navigator.vibrate(20); } catch {}
+      try {
+        if (user?.id) {
+          import('../services/noteStars').then(m => m.recordNoteUnstar(user.id, topicText)).catch(()=>{});
         }
       } catch {}
     }
@@ -6768,7 +6770,11 @@ export const StudentDashboard: React.FC<Props> = ({
                         )}
                         {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                           const _ls = getLessonStats(entry.id, entry.pages.length);
-                          if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                          if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
+                             return (
+                               <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{entry.pages.length}pg</span></div>
+                             );
+                          }
                           const _lc = getProgressColor5(_ls.pct);
                           return (
                             <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -7074,7 +7080,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       </p>
                       {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                         const _ls = getLessonStats(entry.id, entry.pages.length);
-                        if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                        if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
+                           return (
+                               <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{entry.pages.length}pg</span></div>
+                           );
+                        }
                         const _lc = getProgressColor5(_ls.pct);
                         return (
                           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -9165,7 +9175,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       {(() => {
                         const _be = competitionNotes.filter(n => (n.bookName?.trim() || 'Lucent') === bookName);
                         const _bms = getMultiLessonStats(_be.map(n => ({ id: n.id, pageCount: n.pages.length })));
-                        if (_bms.pagesRead === 0 && _bms.totalTime === 0) return null;
+                        if (_bms.pagesRead === 0 && _bms.totalTime === 0) {
+                          return (
+                             <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{_bms.totalPages}pg</span></div>
+                          );
+                        }
                         const _bc = getProgressColor5(_bms.pct);
                         return (
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -9392,7 +9406,11 @@ export const StudentDashboard: React.FC<Props> = ({
                     )}
                     {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                       const _ls = getLessonStats(entry.id, entry.pages.length);
-                      if (_ls.pagesRead === 0 && _ls.totalTime === 0) return null;
+                      if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
+                          return (
+                               <div className="mt-1.5"><span className="text-[9px] font-bold text-slate-400">0/{entry.pages.length}pg</span></div>
+                          );
+                      }
                       const _lc = getProgressColor5(_ls.pct);
                       return (
                         <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -9954,7 +9972,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const _sc3D    = _masterAll3D || (settings?.homeSchoolCard3D ?? false);
 
               const ClassBtn = ({ c }: { c: string }) => {
-                const subjectCount = getSubjectsList(c, _stream, _board).length;
+                const subjectCount = getSubjectsList(c, _stream, _board, settings).length;
                 const isBoard = boardClasses.includes(c);
                 const cardStyle3D = _card3D ? {
                   background: _c612Bg,
@@ -10179,7 +10197,7 @@ export const StudentDashboard: React.FC<Props> = ({
               const subjects = getSubjectsList(
                 (activeSessionClass as any) || user.classLevel || "10",
                 user.stream || "Science",
-                activeSessionBoard || user.board,
+                activeSessionBoard || user.board, settings
               ).filter(s => !(settings?.hiddenSubjects || []).includes(s.id));
               const targetSubject = subjects.find(s => s.id === subjectId) || subjects[0];
               if (targetSubject) {
@@ -10224,7 +10242,7 @@ export const StudentDashboard: React.FC<Props> = ({
             const subjects = getSubjectsList(
               (activeSessionClass as any) || user.classLevel || "10",
               user.stream || "Science",
-              activeSessionBoard || user.board,
+              activeSessionBoard || user.board, settings
             ).filter((s) => !(settings?.hiddenSubjects || []).includes(s.id));
             let targetSubject = selectedSubject;
 

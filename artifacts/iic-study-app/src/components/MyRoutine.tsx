@@ -257,10 +257,16 @@ function TaskLessonCard({
           <p className="text-xs text-slate-500 font-medium truncate">{lessonTitle}</p>
           {/* Mini progress bar */}
           <div className="flex items-center gap-2 mt-1.5">
-            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 shrink-0">{readCount}/{totalPages}p</span>
+            {totalPages > 0 ? (
+                <>
+                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 shrink-0">{readCount}/{totalPages}p</span>
+                </>
+            ) : (
+                <span className="text-[10px] font-bold text-slate-400 shrink-0">0 pages</span>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -948,12 +954,28 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
 
   const availableBooks = useMemo(() => {
     const s = new Set<string>();
-    allNotes.forEach(n => { const bk = (n as any).bookName?.trim(); if (bk) s.add(bk); });
+    allNotes.forEach(n => {
+      const bk = (n as any).bookName?.trim();
+      if (bk) {
+          const bkLower = bk.toLowerCase();
+          if (bkLower !== 'speedy science' && bkLower !== 'speedy social science' && bkLower !== 'sar sangrah' && bkLower !== 'mcq practice') {
+              s.add(bk);
+          }
+      } else if ((n as any).classLevel === 'COMPETITION') {
+          s.add('Lucent');
+      }
+    });
+
+    // Ensure Lucent is included if there's any competition note, as fallback
+    if (allNotes.some(n => (n as any).classLevel === 'COMPETITION')) {
+       s.add('Lucent');
+    }
+
     return Array.from(s).sort();
   }, [allNotes]);
 
   const selectedBook = Array.from(selectedBooks)[0] || '';
-  const canSave = mode === 'SCHOOL' ? !!classLevel : mode === 'COMPETITION' ? !!selectedBook : false;
+  const canSave = mode === 'SCHOOL' ? !!classLevel : mode === 'COMPETITION' ? selectedBooks.size > 0 : false;
 
   return (
     <div className="fixed inset-0 z-[600] flex items-end bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
@@ -1018,23 +1040,35 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
           )}
 
           {mode === 'COMPETITION' && (
-            <label className="block">
-              <span className="block text-xs font-black text-slate-600 mb-1.5">Book name</span>
-              <div className="relative">
-                <select
-                  value={selectedBook}
-                  onChange={e => setSelectedBooks(e.target.value ? new Set([e.target.value]) : new Set())}
-                  className="w-full appearance-none rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-3 pr-10 text-sm font-black text-orange-800 outline-none focus:border-orange-500"
-                >
-                  <option value="">Book name chuno</option>
-                  {availableBooks.map(book => <option key={book} value={book}>{book}</option>)}
-                </select>
-                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-orange-400" />
+            <div className="block">
+              <span className="block text-xs font-black text-slate-600 mb-1.5">Select Books (Multiple possible)</span>
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto p-1">
+                {availableBooks.map(book => (
+                  <label key={book} className="flex items-center gap-3 p-3 rounded-xl border border-orange-100 bg-orange-50/50 cursor-pointer active:bg-orange-100 transition-colors">
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${selectedBooks.has(book) ? 'border-orange-500 bg-orange-500' : 'border-slate-300 bg-white'}`}>
+                      {selectedBooks.has(book) && <span className="text-white text-xs font-bold">✓</span>}
+                    </div>
+                    <span className="text-sm font-black text-orange-800 flex-1">{book}</span>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={selectedBooks.has(book)}
+                      onChange={(e) => {
+                        setSelectedBooks(prev => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(book);
+                          else next.delete(book);
+                          return next;
+                        });
+                      }}
+                    />
+                  </label>
+                ))}
               </div>
               {availableBooks.length === 0 && (
                 <span className="block text-xs text-slate-400 font-medium mt-2">Koi book notes nahi mili — pehle notes add karo.</span>
               )}
-            </label>
+            </div>
           )}
         </div>
         <div className="px-5 pb-8 pt-3 border-t border-slate-100 shrink-0 space-y-2.5">
@@ -1042,11 +1076,11 @@ function RoutineSetupSheet({ allNotes, currentMode, currentBoard, currentClass, 
             onClick={() => {
               if (!canSave) return;
               if (mode === 'SCHOOL') onSave('SCHOOL', board, classLevel, []);
-              if (mode === 'COMPETITION') onSave('COMPETITION', null, null, [selectedBook]);
+              if (mode === 'COMPETITION') onSave('COMPETITION', null, null, Array.from(selectedBooks));
             }}
             disabled={!canSave}
             className={`w-full py-3.5 rounded-2xl font-black text-sm transition active:scale-[0.98] ${canSave ? mode === 'COMPETITION' ? 'bg-orange-500 text-white shadow-sm' : 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
-            {!mode ? 'Pehle option chuno' : !canSave ? mode === 'SCHOOL' ? 'Class chuno' : 'Book name chuno' : 'Save Karo ✓'}
+            {!mode ? 'Pehle option chuno' : !canSave ? mode === 'SCHOOL' ? 'Class chuno' : 'Kam se kam 1 book chuno' : 'Save Karo ✓'}
           </button>
           {/* Destination hint — tells user where they'll land after saving */}
           <div className="flex items-center justify-center gap-1.5">
@@ -1623,10 +1657,19 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
   // classLevel filter of their own.
   const routineNotes = useMemo(() => {
     if (data.routineMode === 'SCHOOL') {
-      return allNotes.filter(n => (n as any).classLevel !== 'COMPETITION');
+      return allNotes.filter(n => {
+        if ((n as any).classLevel === 'COMPETITION') return false;
+
+        // Filter by user's selected board
+        if (data.selectedBoard && data.selectedBoard !== 'ALL_BOARDS' && data.selectedBoard !== '') {
+           const noteBoard = (n as any).board;
+           if (noteBoard && noteBoard !== data.selectedBoard && noteBoard !== 'ALL_BOARDS') return false;
+        }
+        return true;
+      });
     }
     return allNotes;
-  }, [allNotes, data.routineMode]);
+  }, [allNotes, data.routineMode, data.selectedBoard]);
   const [showCatManager, setShowCatManager] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
