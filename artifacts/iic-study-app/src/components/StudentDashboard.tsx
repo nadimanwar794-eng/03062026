@@ -69,7 +69,7 @@ import { downloadAsMHTML, downloadAsHTML, downloadElementAsHTML } from "../utils
 import { renderMathInHtml, formatExplanationHtml } from "../utils/mathUtils";
 import { recordLogin, updateSessionDuration, getLoginHistory, formatDuration, formatLoginTime, type LoginSession } from "../utils/loginHistory";
 import { getNewContentItems, markContentItemSeen, markAllContentItemsSeen, formatContentDate, type ContentNotifItem } from "../utils/contentNotifications";
-import { saveRecentHomework, getRecentHomeworks, removeRecentHomework, getRecentChapters, removeRecentChapter, saveRecentLucent, getRecentLucent, removeRecentLucent, markNoteFullyRead, getFullyReadMap, markReadToday, getReadingStreak, getReadDates, getBestReadingDay, getTodayItemCount, type RecentChapterEntry, type RecentHwEntry, type RecentLucentEntry, type StreakInfo, type BestDay } from "../utils/recentReads";
+import { clearAllRecentReads, saveRecentHomework, getRecentHomeworks, removeRecentHomework, getRecentChapters, removeRecentChapter, saveRecentLucent, getRecentLucent, removeRecentLucent, markNoteFullyRead, getFullyReadMap, markReadToday, getReadingStreak, getReadDates, getBestReadingDay, getTodayItemCount, type RecentChapterEntry, type RecentHwEntry, type RecentLucentEntry, type StreakInfo, type BestDay } from "../utils/recentReads";
 import { markRoutinePageRead, markRoutineMcqDone, isRoutinePageRead, isRoutineMcqDone, updateRoutineMcqScore, recordMistake, addPageTime, isLessonAutoComplete, isLessonRewarded, markLessonRewarded, markRoutinePageMcqDone, updateRoutinePageMcqScore, isRoutinePageMcqDone, getRoutinePageMcqScore, getAutoPageBoxState, getPageTime, getLessonStats, getMultiLessonStats, getProgressColor5, getProgressTicks } from "../utils/routineAutoTrack";
 import { loadRoutineData, saveRoutineData, checkAndResetDaily, generateDailyTask, advanceLessonInCycle, getDiscountFactor, hasActiveDiscount, getPageReadReward, LESSON_COMPLETE_REWARD, unlockRevisionLesson } from "../utils/routineStorage";
 import { SubscriptionEngine } from "../utils/engines/subscriptionEngine";
@@ -4755,6 +4755,13 @@ export const StudentDashboard: React.FC<Props> = ({
   const dismissRecentHw = (id: string) => {
     removeRecentHomework(id);
     setRecentHw(getRecentHomeworks());
+  };
+
+  const clearAllResumes = () => {
+    clearAllRecentReads();
+    setRecentChapters([]);
+    setRecentHw([]);
+    setRecentLucent([]);
   };
 
   // Open a competition homework lesson with a Reading Mode coin gate (20 CR, once per lesson).
@@ -9855,9 +9862,12 @@ export const StudentDashboard: React.FC<Props> = ({
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: tierTheme.primary }}>Continue Reading</p>
                   </div>
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: tierTheme.primary, background: `${tierTheme.primary}10` }}>
-                    {allMerged.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => clearAllResumes()} className="text-[9px] font-bold px-2 py-0.5 rounded-full text-white bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all">Clear All</button>
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: tierTheme.primary, background: `${tierTheme.primary}10` }}>
+                      {allMerged.length}
+                    </span>
+                  </div>
                 </div>
                 {/* Filter chips */}
                 {showFilterChips && FILTER_CHIPS.length > 1 && (
