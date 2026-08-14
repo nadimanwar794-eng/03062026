@@ -1443,7 +1443,7 @@ function CategoryEditSheet({ category, allNotes, existingCategories, routineMode
           {/* Current subjects */}
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Is Category Ke Subjects</p>
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] overflow-hidden shadow-sm">
               {subjects.map((sub, i) => {
                 const key = `${sub.bookName}||${sub.classLevel || ''}||${sub.subjectId}`;
                 const canRemove = subjects.length > 1;
@@ -1564,7 +1564,7 @@ function CategoryManagerSheet({ categories, tier, level, userCredits, data, onRe
           )}
 
           {categories.length > 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] overflow-hidden shadow-sm">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 pt-3 pb-1">Active Categories</p>
               {categories.map((cat, i) => (
                 <div key={cat.id} className={`flex items-center gap-3 px-4 py-3 ${i < categories.length - 1 ? 'border-b border-slate-100' : ''}`}>
@@ -1635,9 +1635,10 @@ interface MyRoutineProps {
   settings?: any;
   onOpenRevisionHub?: (lessonId?: string, lessonTitle?: string) => void;
   onPracticeMistakes?: (mistakes: any[]) => void;
+  onOpenLesson?: (lessonId: string) => void;
 }
 
-export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes }) => {
+export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes, onOpenLesson }) => {
   const userId = user?.id || 'guest';
   const mcqHistory: any[] = user?.mcqHistory || [];
   const subTier: UserSubTier = getUserSubTier(user);
@@ -2136,14 +2137,14 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
         {activeView === 'home' && (
           <div className="mx-4 mt-4 space-y-3">
             {!data.enabled ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+              <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] p-8 text-center">
                 <CalendarCheck size={44} className="text-slate-200 mx-auto mb-3" />
                 <p className="font-black text-slate-700 mb-1">Routine OFF Hai</p>
                 <p className="text-sm text-slate-500 mb-4">ON karo daily tasks dekhne ke liye</p>
                 <button onClick={toggleRoutine} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-black text-sm active:scale-95 transition">Routine ON Karo</button>
               </div>
             ) : categories.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+              <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] p-8 text-center">
                 <span className="text-5xl mb-3 block">📚</span>
                 <p className="font-black text-slate-700 mb-1">Koi Category Nahi</p>
                 <p className="text-sm text-slate-500 mb-4">Pehle ek category add karo — phir daily task shuru hoga</p>
@@ -2162,6 +2163,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 onPracticeMistakes={onPracticeMistakes || (() => {})}
                 onOpenSubjects={() => setActiveView('subjects')}
                 onOpenTracking={() => setActiveView('tracking')}
+                onOpenLesson={onOpenLesson}
               />
             )}
           </div>
@@ -2172,7 +2174,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
           <div className="mx-4 mt-4 space-y-3">
             <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{subjects.length} Subjects</p>
             {subjects.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
+              <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] p-6 text-center">
                 <p className="text-sm text-slate-400">Daily Hub mein categories add karo pehle</p>
               </div>
             ) : subjects.map(sub => (

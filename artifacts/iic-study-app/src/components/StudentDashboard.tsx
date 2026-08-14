@@ -3781,18 +3781,43 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => { try { __routineTimeFlushRef.current(); } catch {} };
   }, [hwActiveHwId]);
 
-  // ── My Routine: mark page read only after MIN reading time ──────────────────
-  // Formula: READING_REWARD_BASE(5) × 5 × 60% = 15 seconds
-  // Page tab "read" count hogi jab user ne us page pe kam se kam 15 second padha ho.
-  const ROUTINE_PAGE_READ_MIN_SEC = Math.round(5 * 5 * 0.60); // 15 seconds
+  // ── My Routine: mark page read only after MIN reading time (Dynamic Word Count) ──────────────────
+  const [readingProgressInfo, setReadingProgressInfo] = useState<{pct: number, leftSec: number, reqSec: number} | null>(null);
+
   useEffect(() => {
-    if (!lucentNoteViewer?.id) return;
+    if (!lucentNoteViewer?.id) {
+      setReadingProgressInfo(null);
+      return;
+    }
     const _lid = lucentNoteViewer.id;
     const _pi  = lucentPageIndex;
-    if (isRoutinePageRead(_lid, _pi)) return; // already marked — skip
+
+    // 1. Get current page content and calculate required time
+    const pageObj = lucentNoteViewer.pages?.[_pi];
+    const htmlContent = pageObj?.text || '';
+
+    // Strip HTML to count pure words
+    const tmp = document.createElement('div');
+    tmp.innerHTML = htmlContent;
+    const textOnly = tmp.textContent || tmp.innerText || '';
+    const wordCount = textOnly.trim().split(/\s+/).filter(Boolean).length;
+
+    // Calculate required time: 150 words per minute (WPM) = 2.5 words per second
+    // Min 10 seconds, Max 300 seconds (5 mins)
+    let dynamicReqSec = Math.round(wordCount / 2.5);
+    if (dynamicReqSec < 10) dynamicReqSec = 10;
+    if (dynamicReqSec > 300) dynamicReqSec = 300;
+
+    if (isRoutinePageRead(_lid, _pi)) {
+      setReadingProgressInfo({ pct: 100, leftSec: 0, reqSec: dynamicReqSec });
+      return; // already marked — skip
+    }
 
     const checkAndMark = () => {
-      if (isRoutinePageRead(_lid, _pi)) return true; // already done
+      if (isRoutinePageRead(_lid, _pi)) {
+        setReadingProgressInfo({ pct: 100, leftSec: 0, reqSec: dynamicReqSec });
+        return true; // already done
+      }
       // Stored time from previous visits on this page
       const storedSecs = getPageTime(_lid, _pi);
       // Live time in current session (since page opened)
@@ -3801,8 +3826,15 @@ export const StudentDashboard: React.FC<Props> = ({
         ? Math.round((Date.now() - enterTs) / 1000)
         : 0;
       const totalSecs = storedSecs + liveSecs;
-      if (totalSecs >= ROUTINE_PAGE_READ_MIN_SEC) {
+
+      const pct = Math.min(100, Math.round((totalSecs / dynamicReqSec) * 100));
+      const leftSec = Math.max(0, dynamicReqSec - totalSecs);
+
+      setReadingProgressInfo({ pct, leftSec, reqSec: dynamicReqSec });
+
+      if (totalSecs >= dynamicReqSec) {
         markRoutinePageRead(_lid, _pi);
+        setReadingProgressInfo({ pct: 100, leftSec: 0, reqSec: dynamicReqSec });
         return true;
       }
       return false;
@@ -3818,7 +3850,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lucentPageIndex, lucentNoteViewer?.id]);
+  }, [lucentPageIndex, lucentNoteViewer?.id, lucentNoteViewer?.pages]);
 
   // ── My Routine: midnight reset + lesson-complete reward ───────────────────────
   useEffect(() => {
@@ -3831,6 +3863,65 @@ export const StudentDashboard: React.FC<Props> = ({
 
         // Midnight reset
         if (_rd.lastResetDate !== _today) {
+          // --- Mailbox Integration for Unclaimed Task Rewards ---
+          // Before resetting, check if yesterday's task was completed but the 100 points reward was unclaimed.
+          const _yesterday = new Date();
+          _yesterday.setDate(_yesterday.getDate() - 1);
+          const _yesterdayStr = _yesterday.toISOString().split('T')[0];
+          const _yTask = _rd.dailyTasks[_yesterdayStr];
+
+          if (_yTask) {
+             const TASK_CLAIMED_KEY = `iic_task_pts_claimed_${_fu.id}_${_yesterdayStr}`;
+             let _claimed = false;
+             try {
+                const arr = JSON.parse(localStorage.getItem(TASK_CLAIMED_KEY) || '[]');
+                _claimed = arr.length > 0;
+             } catch { }
+
+             // Check if all lessons in yesterday's task were complete
+             let _allDone = false;
+             const _yLucentNotes = (settings?.lucentNotes || []) as any[];
+
+             // Get lessons for yesterday
+             const yLessons = [];
+             if (_yTask.scienceLessonId) yLessons.push(_yTask.scienceLessonId);
+             if (_yTask.socialScienceLessonId) yLessons.push(_yTask.socialScienceLessonId);
+             (_yTask.otherTasks || []).forEach((t: any) => { if (t.lessonId) yLessons.push(t.lessonId); });
+
+             if (yLessons.length > 0) {
+               _allDone = yLessons.every((lid: string) => {
+                 const _note = _yLucentNotes.find((n: any) => n.id === lid);
+                 const _totalPages = _note?.pages?.length || 0;
+                 return _totalPages > 0 && isLessonAutoComplete(lid, _totalPages);
+               });
+             }
+
+             if (_allDone && !_claimed) {
+                // Task was fully completed but user forgot to claim! Send reward to Mailbox.
+                const inboxMsg = {
+                  id: `auto-task-gift-${_yesterdayStr}-${Date.now()}`,
+                  text: 'You completed all your Routine tasks yesterday but forgot to claim your reward. Here is your bonus!',
+                  type: 'GIFT',
+                  date: new Date().toISOString(),
+                  read: false,
+                  isClaimed: false,
+                  gift: { type: 'CREDITS', value: 100 }
+                };
+
+                // Add to user's inbox immediately
+                handleUserUpdate({
+                  ..._fu,
+                  inbox: [inboxMsg, ...(_fu.inbox || [])]
+                });
+
+                // Mark as claimed so we don't send it again
+                try {
+                  localStorage.setItem(TASK_CLAIMED_KEY, JSON.stringify(['auto-claimed']));
+                } catch {}
+             }
+          }
+          // --------------------------------------------------------
+
           _rd = checkAndResetDaily(_rd);
           // Generate fresh daily task with real lesson IDs
           const _lucentNotes = (settings?.lucentNotes || []) as any[];
@@ -21684,6 +21775,13 @@ RULES:
           onBack={() => setShowMyRoutine(false)}
           onUserUpdate={handleUserUpdate}
           settings={settings}
+          onOpenLesson={(lessonId: string) => {
+            const lesson = (settings?.lucentNotes || []).find((l: any) => l.id === lessonId);
+            if (lesson) {
+              setLucentNoteViewer(_withSortedPages(lesson));
+              setShowMyRoutine(false);
+            }
+          }}
           onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
             if (lessonTitle) {
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
