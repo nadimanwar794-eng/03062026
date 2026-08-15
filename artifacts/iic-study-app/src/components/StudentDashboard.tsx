@@ -18975,7 +18975,6 @@ export const StudentDashboard: React.FC<Props> = ({
                     tryOpenLucentNote(entry, 0);
                   } else {
                     setLucentPageListViewer(_withSortedPages(entry));
-                    tryOpenLucentNote(entry, item.pageIndex);
                   }
                   setShowInbox(false);
                 };
@@ -19438,10 +19437,11 @@ export const StudentDashboard: React.FC<Props> = ({
             setLucentPageIndex(Math.max(0, (prevLesson.pages?.length || 1) - 1));
           }
         };
-        const goNext = () => {
+        const goNext = (targetIdx?: number) => {
           const _isAdm2 = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
           if (safeIndex < totalPages - 1) {
-            const _nextIdx = safeIndex + 1;
+            const _nextIdx = targetIdx !== undefined ? targetIdx : safeIndex + 1;
+            if (_nextIdx >= totalPages) return;
             if (_isAdm2 || isPgReadUnlocked(entry.id, _nextIdx)) {
               setLucentPageIndex(_nextIdx);
             } else {
@@ -19459,16 +19459,10 @@ export const StudentDashboard: React.FC<Props> = ({
                 } : undefined
               );
             }
-          } else if (nextLesson) {
-            if (_isAdm2 || isPgReadUnlocked(nextLesson.id, 0)) {
-              stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0);
-            } else {
-              showCoinGate(20, 'Next Chapter', () => { markPgReadUnlocked(nextLesson.id, 0); stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); });
-            }
           }
         };
         const canGoPrev = safeIndex > 0 || !!prevLesson;
-        const canGoNext = safeIndex < totalPages - 1 || !!nextLesson;
+        const canGoNext = safeIndex < totalPages - 1;
         const autoSyncOn = lucentAutoSync;
 
         // ── Lucent Topic Continuation: merge consecutive pages with same topicName ──
@@ -20273,8 +20267,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           : safeIndex + 1;
                         if (nextIdx < totalPages) {
                           setTimeout(() => setLucentPageIndex(nextIdx), 400);
-                        } else if (nextLesson) {
-                          setTimeout(() => { stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); }, 600);
                         }
                       }
                     }}
@@ -20329,7 +20321,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     <div className="mt-6 mb-3 px-1">
                       {lucentNextPageAfterTopic ? (
                         <button
-                          onClick={() => { stopSpeech(); setLucentPageIndex(lucentEffectiveNextIdx); }}
+                          onClick={() => { stopSpeech(); goNext(lucentEffectiveNextIdx); }}
                           className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-slate-900 border border-slate-700/70 active:scale-[0.98] transition-all group shadow-lg"
                         >
                           <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center shrink-0 group-hover:bg-indigo-500/30 transition-colors">
@@ -20347,7 +20339,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       ) : safeIndex < totalPages - 1 ? (
                         /* Within same lesson — next page */
                         <button
-                          onClick={() => { stopSpeech(); setLucentPageIndex(safeIndex + 1); }}
+                          onClick={() => { stopSpeech(); goNext(); }}
                           className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-slate-900 border border-slate-700/70 active:scale-[0.98] transition-all group shadow-lg"
                         >
                           <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center shrink-0 group-hover:bg-indigo-500/30 transition-colors">
@@ -20360,21 +20352,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             </p>
                           </div>
                           <ChevronRight size={17} className="text-slate-500 shrink-0 group-hover:text-indigo-400 transition-colors" />
-                        </button>
-                      ) : nextLesson ? (
-                        /* End of lesson — next lesson */
-                        <button
-                          onClick={() => { stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); }}
-                          className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-slate-900 border border-slate-700/70 active:scale-[0.98] transition-all group shadow-lg"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0 group-hover:bg-violet-500/30 transition-colors">
-                            <BookOpen size={16} className="text-violet-400" />
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.14em]">Agla Chapter</p>
-                            <p className="text-sm font-semibold text-white truncate mt-0.5">{nextLesson.lessonTitle}</p>
-                          </div>
-                          <ChevronRight size={17} className="text-slate-500 shrink-0 group-hover:text-violet-400 transition-colors" />
                         </button>
                       ) : null}
                     </div>
@@ -26068,9 +26045,12 @@ RULES:
             return;
           }
           markContentItemSeen(user.id, item.id);
-          setLucentNoteViewer(_withSortedPages(entry));
-          setLucentPageListViewer(_withSortedPages(entry));
-          setLucentPageIndex(item.pageIndex);
+          if (entry.mcqOnly) {
+            lucentInitialTabRef.current = { tab: 'MCQS' };
+            tryOpenLucentNote(entry, 0);
+          } else {
+            setLucentPageListViewer(_withSortedPages(entry));
+          }
           setShowContentNewSheet(false);
         };
 
