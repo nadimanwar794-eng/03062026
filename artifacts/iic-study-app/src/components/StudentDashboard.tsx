@@ -19350,7 +19350,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     ...(mode === 'WRITING' ? { viewMode: 'html' as const } : {}),
                   };
                   setLucentPageListViewer(null);
-                  tryOpenLucentNote(plEntry, idx);
+                  tryOpenLucentNote(plEntry, idx, { force: true });
                 };
                 return (
                   <div
@@ -19362,7 +19362,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   >
                     {/* ── Main tap area (students + admin) ── */}
                     <button
-                      onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
+                      onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx, { force: true }); }}
                       className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
                       style={{ background: settings?.contentListCardBg || '#ffffff' }}
                     >
