@@ -19048,7 +19048,6 @@ export const StudentDashboard: React.FC<Props> = ({
                     tryOpenLucentNote(entry, 0);
                   } else {
                     setLucentPageListViewer(_withSortedPages(entry));
-                    tryOpenLucentNote(entry, item.pageIndex);
                   }
                   setShowInbox(false);
                 };
@@ -21565,6 +21564,18 @@ RULES:
             setShowDailyEventPage(false);
             setShowMistakePractice(true);
           }}
+          onOpenLesson={(lessonId: string) => {
+            const lesson = (settings?.lucentNotes || []).find((l: any) => l.id === lessonId);
+            if (lesson) {
+              if (lesson.mcqOnly) {
+                lucentInitialTabRef.current = { tab: 'MCQS' };
+                tryOpenLucentNote(lesson, 0);
+              } else {
+                setLucentPageListViewer(_withSortedPages(lesson));
+              }
+              setShowDailyEventPage(false);
+            }
+          }}
         />
       )}
 
@@ -21652,12 +21663,28 @@ RULES:
             return;
           }
           const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { tryOpenLucentNote(_todayLesson, 0); return; }
-          // Routine task bhi coins kaatega — discount based on yesterday's completion
           const _entry = _todayLesson;
+          if (isAdm) {
+            if (_entry.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_entry, 0);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_entry));
+            }
+            return;
+          }
+          // Routine task bhi coins kaatega — discount based on yesterday's completion
           const _pi    = 0;
           const _pgKey = `nst_pg_r_${user.id}_${_entry.id}_${_pi}`;
-          if (localStorage.getItem(_pgKey) === '1') { tryOpenLucentNote(_entry, _pi); return; }
+          if (localStorage.getItem(_pgKey) === '1') {
+            if (_entry.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_entry, 0);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_entry));
+            }
+            return;
+          }
           const balance = getTotalCredits(user);
           if (balance < _routineCost) {
             showAlert(`⚠️ Coins kam hain! ${_routineCost} CR chahiye, aapke paas sirf ${balance} CR hai.`, 'INFO');
@@ -21670,7 +21697,12 @@ RULES:
             reason: 'Routine Task',
             action: () => {
               try { localStorage.setItem(_pgKey, '1'); } catch {}
-              tryOpenLucentNote(_entry, _pi);
+              if (_entry.mcqOnly) {
+                lucentInitialTabRef.current = { tab: 'MCQS' };
+                tryOpenLucentNote(_entry, 0);
+              } else {
+                setLucentPageListViewer(_withSortedPages(_entry));
+              }
             },
           });
         };
@@ -21685,7 +21717,7 @@ RULES:
           setRoutineGate(null);
           setRoutineIgnoredEntryIds(prev => new Set(prev).add(_entry.id));
           const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { setLucentNoteViewer(_withSortedPages(_entry)); setLucentPageIndex(routineGate.pageIdx); return; }
+          if (isAdm) { setLucentPageListViewer(_withSortedPages(_entry)); return; }
           if (_entry.mcqOnly) {
             lucentInitialTabRef.current = { tab: 'MCQS' };
             tryOpenLucentNote(_entry, 0);
@@ -21844,7 +21876,12 @@ RULES:
           onOpenLesson={(lessonId: string) => {
             const lesson = (settings?.lucentNotes || []).find((l: any) => l.id === lessonId);
             if (lesson) {
-              setLucentNoteViewer(_withSortedPages(lesson));
+              if (lesson.mcqOnly) {
+                lucentInitialTabRef.current = { tab: 'MCQS' };
+                tryOpenLucentNote(lesson, 0);
+              } else {
+                setLucentPageListViewer(_withSortedPages(lesson));
+              }
               setShowMyRoutine(false);
             }
           }}
@@ -26113,9 +26150,12 @@ RULES:
             return;
           }
           markContentItemSeen(user.id, item.id);
-          setLucentNoteViewer(_withSortedPages(entry));
-          setLucentPageListViewer(_withSortedPages(entry));
-          setLucentPageIndex(item.pageIndex);
+          if (entry.mcqOnly) {
+            lucentInitialTabRef.current = { tab: 'MCQS' };
+            tryOpenLucentNote(entry, 0);
+          } else {
+            setLucentPageListViewer(_withSortedPages(entry));
+          }
           setShowContentNewSheet(false);
         };
 
