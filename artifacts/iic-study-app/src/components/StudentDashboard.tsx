@@ -18972,7 +18972,6 @@ export const StudentDashboard: React.FC<Props> = ({
                     tryOpenLucentNote(entry, 0);
                   } else {
                     setLucentPageListViewer(_withSortedPages(entry));
-                    tryOpenLucentNote(entry, item.pageIndex);
                   }
                   setShowInbox(false);
                 };
@@ -26025,9 +26024,12 @@ RULES:
             return;
           }
           markContentItemSeen(user.id, item.id);
-          setLucentNoteViewer(_withSortedPages(entry));
-          setLucentPageListViewer(_withSortedPages(entry));
-          setLucentPageIndex(item.pageIndex);
+          if (entry.mcqOnly) {
+            lucentInitialTabRef.current = { tab: 'MCQS' };
+            tryOpenLucentNote(entry, 0);
+          } else {
+            setLucentPageListViewer(_withSortedPages(entry));
+          }
           setShowContentNewSheet(false);
         };
 
