@@ -4650,7 +4650,7 @@ export const StudentDashboard: React.FC<Props> = ({
       if (_rg.enabled) {
         const _subjectId = (entry.subject || '').toLowerCase().trim();
         const _subConf = (_rg.subjects || []).find((s: any) => s.id === _subjectId);
-        if (_subConf?.routineApplied && !routineIgnoredEntryIds.has(entry.id)) {
+        if ((!_subConf || _subConf.routineApplied !== false) && !routineIgnoredEntryIds.has(entry.id)) {
           const _todayStr = new Date().toISOString().split('T')[0];
           const _todayTask = _rg.dailyTasks?.[_todayStr];
           // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
@@ -7073,7 +7073,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (!_rg.enabled) return false; // routine OFF → no lock
                   const _sid = (entry.subject || '').toLowerCase().trim();
                   const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
-                  if (!(_sc?.routineApplied)) return false;
+                  if (_sc && _sc.routineApplied === false) return false;
                   // Only show lock if NOT today's assigned lesson
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
@@ -7103,7 +7103,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (!_rg.enabled) return false;
                   const _sid = (entry.subject || '').toLowerCase().trim();
                   const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
-                  if (!(_sc?.routineApplied)) return false;
+                  if (_sc && _sc.routineApplied === false) return false;
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
                   // Also check routineCategories (new system)
