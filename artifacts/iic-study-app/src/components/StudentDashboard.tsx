@@ -21652,12 +21652,28 @@ RULES:
             return;
           }
           const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { tryOpenLucentNote(_todayLesson, 0); return; }
+          if (isAdm) {
+            if (_todayLesson.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_todayLesson, 0);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_todayLesson));
+            }
+            return;
+          }
           // Routine task bhi coins kaatega — discount based on yesterday's completion
           const _entry = _todayLesson;
           const _pi    = 0;
           const _pgKey = `nst_pg_r_${user.id}_${_entry.id}_${_pi}`;
-          if (localStorage.getItem(_pgKey) === '1') { tryOpenLucentNote(_entry, _pi); return; }
+          if (localStorage.getItem(_pgKey) === '1') {
+            if (_entry.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_entry, _pi);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_entry));
+            }
+            return;
+          }
           const balance = getTotalCredits(user);
           if (balance < _routineCost) {
             showAlert(`⚠️ Coins kam hain! ${_routineCost} CR chahiye, aapke paas sirf ${balance} CR hai.`, 'INFO');
@@ -21670,7 +21686,12 @@ RULES:
             reason: 'Routine Task',
             action: () => {
               try { localStorage.setItem(_pgKey, '1'); } catch {}
-              tryOpenLucentNote(_entry, _pi);
+              if (_entry.mcqOnly) {
+                lucentInitialTabRef.current = { tab: 'MCQS' };
+                tryOpenLucentNote(_entry, _pi);
+              } else {
+                setLucentPageListViewer(_withSortedPages(_entry));
+              }
             },
           });
         };
