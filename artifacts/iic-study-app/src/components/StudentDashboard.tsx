@@ -9467,45 +9467,117 @@ export const StudentDashboard: React.FC<Props> = ({
               const topicNames = [...new Set((entry.pages || []).map(page => (page.topicName || '').trim()).filter(Boolean))];
               const hasMcqs = (entry.pages || []).some(page => page.mcqs && page.mcqs.length > 0);
               const isLocked = _lucentIsLocked(entry);
+              const _isEntryRoutineGated = (() => {
+                try {
+                  const _rg = loadRoutineData(user.id);
+                  if (!_rg.enabled) return false; // routine OFF → no lock
+                  const _sid = (entry.subject || '').toLowerCase().trim();
+                  const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
+
+                  if (_sc && _sc.routineApplied === false) return false;
+                  // Only show lock if NOT today's assigned lesson
+                  const _todayStr = new Date().toISOString().split('T')[0];
+                  const _tt = _rg.dailyTasks?.[_todayStr];
+                  // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
+                  const _otherMatch = (_tt?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
+                  // Also check routineCategories (new system)
+                  const _eAllNotes = (settings?.lucentNotes || []) as any[];
+                  const _eIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                    const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                    const sub = cat.subjects?.[si];
+                    if (!sub) return false;
+                    const subNotes = _eAllNotes.filter((n: any) =>
+                      (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                      (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                      (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                    );
+                    const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                    return lesson?.id === entry.id;
+                  });
+                  if (_eIsCatToday) return false;
+                  return !(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id || _otherMatch);
+                } catch { return false; }
+              })();
+              const _isEntryTodayRoutine = (() => {
+                try {
+                  const _rg = loadRoutineData(user.id);
+                  if (!_rg.enabled) return false;
+                  const _sid = (entry.subject || '').toLowerCase().trim();
+                  const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
+
+                  if (_sc && _sc.routineApplied === false) return false;
+                  const _todayStr = new Date().toISOString().split('T')[0];
+                  const _tt = _rg.dailyTasks?.[_todayStr];
+                  // Also check routineCategories (new system)
+                  const _etAllNotes = (settings?.lucentNotes || []) as any[];
+                  const _etIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                    const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                    const sub = cat.subjects?.[si];
+                    if (!sub) return false;
+                    const subNotes = _etAllNotes.filter((n: any) =>
+                      (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                      (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                      (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                    );
+                    const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                    return lesson?.id === entry.id;
+                  });
+                  return !!(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id) || _etIsCatToday;
+                } catch { return false; }
+              })();
+              const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+              const _showEntryRoutineLock = _isEntryRoutineGated && !_isAdminUser;
 
               return (
-                <button
-                  key={entry.id}
-                  onClick={() => {
-                    if (isLocked) {
-                      showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
-                      return;
-                    }
-                    if (entry.mcqOnly) {
-                      lucentInitialTabRef.current = { tab: 'MCQS' };
-                      tryOpenLucentNote(entry, 0);
-                    } else {
-                      setLucentPageListViewer(_withSortedPages(entry));
-                    }
-                  }}
-                  className={`w-full rounded-2xl p-3 text-left flex items-center gap-3 border-2 transition-all hover:shadow-md active:scale-[0.98] ${isLocked ? 'opacity-75' : ''}`}
-                  style={{
-                    background: settings?.contentListCardBg || (isDarkMode ? '#1e293b' : '#ffffff'),
-                    borderColor: isLocked ? '#ef4444' : (settings?.contentListCardBorder || `${tierTheme.primary}55`),
-                  }}
-                >
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLocked ? 'bg-red-100 text-red-500' : ''}`}
-                    style={isLocked ? undefined : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                <div key={entry.id} className={`nst-lesson-card border-2 rounded-2xl overflow-hidden hover:shadow-md transition-all ${isLocked ? 'opacity-75' : ''}`} style={{
+                  background: _isEntryTodayRoutine ? (isDarkMode ? '#292524' : '#fffbeb') : (settings?.contentListCardBg || (isDarkMode ? '#1e293b' : '#ffffff')),
+                  borderColor: isLocked ? '#ef4444' : _isEntryTodayRoutine ? '#f59e0b' : _showEntryRoutineLock ? '#f59e0b' : (settings?.contentListCardBorder || `${tierTheme.primary}55`)
+                }}>
+                  {_isEntryTodayRoutine && (
+                    <div className="bg-amber-500 px-3 py-1 flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-white uppercase tracking-wider">📅 Aaj Ka Task</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (isLocked) {
+                        showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
+                        return;
+                      }
+                      if (_showEntryRoutineLock) {
+                        setRoutineGate({ entry, pageIdx: 0 });
+                        return;
+                      }
+                      if (entry.mcqOnly) {
+                        lucentInitialTabRef.current = { tab: 'MCQS' };
+                        tryOpenLucentNote(entry, 0);
+                      } else {
+                        setLucentPageListViewer(_withSortedPages(entry));
+                      }
+                    }}
+                    className="w-full p-3 text-left flex items-center gap-3 active:scale-[0.98]"
                   >
-                    {isLocked ? <span className="text-xl">🔒</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
-                    {isLocked ? (
-                      <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
-                    ) : (
-                      <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {entry.mcqOnly ? <span className="text-emerald-600 font-black">🎯 MCQ Only</span> : <span>{entry.pages.length} page{entry.pages.length !== 1 ? 's' : ''}</span>}
-                        {topicNames.length > 0 && <span>• {topicNames.length} topic{topicNames.length !== 1 ? 's' : ''}</span>}
-                        {hasMcqs && <span className="px-1.5 py-0.5 rounded text-[9px] font-black" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>MCQ</span>}
-                      </p>
-                    )}
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLocked ? 'bg-red-100 text-red-500' : _showEntryRoutineLock ? 'bg-amber-50 text-amber-500' : _isEntryTodayRoutine ? 'bg-amber-100' : ''}`}
+                      style={(isLocked || _showEntryRoutineLock || _isEntryTodayRoutine) ? undefined : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                    >
+                      {isLocked ? <span className="text-xl">🔒</span> : _showEntryRoutineLock ? <span className="text-xl">🔒</span> : _isEntryTodayRoutine ? <span className="text-xl" style={{ color: '#d97706' }}>📅</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
+                      {isLocked ? (
+                        <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
+                      ) : _showEntryRoutineLock ? (
+                        <p className="text-[11px] text-amber-600 font-black mt-0.5">🔒 Complete Today's Routine to unlock</p>
+                      ) : _isEntryTodayRoutine ? (
+                        <p className="text-[11px] text-amber-700 font-black mt-0.5">✅ Aaj ka lesson — tap to open</p>
+                      ) : (
+                        <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {entry.mcqOnly ? <span className="text-emerald-600 font-black">🎯 MCQ Only</span> : <span>{entry.pages.length} page{entry.pages.length !== 1 ? 's' : ''}</span>}
+                          {topicNames.length > 0 && <span>• {topicNames.length} topic{topicNames.length !== 1 ? 's' : ''}</span>}
+                          {hasMcqs && <span className="px-1.5 py-0.5 rounded text-[9px] font-black" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>MCQ</span>}
+                        </p>
+                      )}
                     {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                       const _ls = getLessonStats(entry.id, entry.pages.length);
                       if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
@@ -9524,7 +9596,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     })()}
                   </div>
                   <ChevronRight size={18} className="shrink-0 text-slate-400" />
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
