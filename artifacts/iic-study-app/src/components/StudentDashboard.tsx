@@ -4623,21 +4623,32 @@ export const StudentDashboard: React.FC<Props> = ({
     if (!entry) return;
     entry = _withSortedPages(entry);
     const isAdmin = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-    if (isAdmin || extraOpts?.force) {
-      setLucentNoteViewer(entry);
-      setLucentPageIndex(pageIdx);
+
+    // Instead of forcing notes view immediately, force page list view
+    if ((isAdmin || extraOpts?.force) && !entry.mcqOnly) {
+      setLucentPageListViewer(entry);
       return;
     }
+    if ((isAdmin || extraOpts?.force) && entry.mcqOnly) {
+       setLucentNoteViewer(entry);
+       setLucentPageIndex(pageIdx);
+       return;
+    }
+
     // Check content lock — requires valid redeem code
     if (_lucentIsLocked(entry)) {
       showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
       return;
     }
     // Sample lesson — permanently free for everyone, no daily limit
-    if (entry.isSampleLesson) {
-      setLucentNoteViewer(entry);
-      setLucentPageIndex(pageIdx);
+    if (entry.isSampleLesson && !entry.mcqOnly) {
+      setLucentPageListViewer(entry);
       return;
+    }
+    if (entry.isSampleLesson && entry.mcqOnly) {
+       setLucentNoteViewer(entry);
+       setLucentPageIndex(pageIdx);
+       return;
     }
 
     // ── My Routine gate ────────────────────────────────────────────────────────
@@ -21705,8 +21716,6 @@ RULES:
           const _entry = routineGate.entry;
           setRoutineGate(null);
           setRoutineIgnoredEntryIds(prev => new Set(prev).add(_entry.id));
-          const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { setLucentNoteViewer(_withSortedPages(_entry)); setLucentPageIndex(routineGate.pageIdx); return; }
           if (_entry.mcqOnly) {
             lucentInitialTabRef.current = { tab: 'MCQS' };
             tryOpenLucentNote(_entry, 0);
@@ -21865,7 +21874,7 @@ RULES:
           onOpenLesson={(lessonId: string) => {
             const lesson = (settings?.lucentNotes || []).find((l: any) => l.id === lessonId);
             if (lesson) {
-              setLucentNoteViewer(_withSortedPages(lesson));
+              setLucentPageListViewer(_withSortedPages(lesson));
               setShowMyRoutine(false);
             }
           }}
