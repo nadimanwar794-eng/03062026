@@ -19504,11 +19504,6 @@ export const StudentDashboard: React.FC<Props> = ({
         const goPrev = () => {
           if (safeIndex > 0) {
             setLucentPageIndex(safeIndex - 1);
-          } else if (prevLesson) {
-            // Hop to last page of previous lesson
-            stopSpeech();
-            setLucentNoteViewer(prevLesson);
-            setLucentPageIndex(Math.max(0, (prevLesson.pages?.length || 1) - 1));
           }
         };
         const goNext = () => {
@@ -19532,16 +19527,10 @@ export const StudentDashboard: React.FC<Props> = ({
                 } : undefined
               );
             }
-          } else if (nextLesson) {
-            if (_isAdm2 || isPgReadUnlocked(nextLesson.id, 0)) {
-              stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0);
-            } else {
-              showCoinGate(20, 'Next Chapter', () => { markPgReadUnlocked(nextLesson.id, 0); stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); });
-            }
           }
         };
-        const canGoPrev = safeIndex > 0 || !!prevLesson;
-        const canGoNext = safeIndex < totalPages - 1 || !!nextLesson;
+        const canGoPrev = safeIndex > 0;
+        const canGoNext = safeIndex < totalPages - 1;
         const autoSyncOn = lucentAutoSync;
 
         // ── Lucent Topic Continuation: merge consecutive pages with same topicName ──
@@ -20346,8 +20335,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           : safeIndex + 1;
                         if (nextIdx < totalPages) {
                           setTimeout(() => setLucentPageIndex(nextIdx), 400);
-                        } else if (nextLesson) {
-                          setTimeout(() => { stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); }, 600);
                         }
                       }
                     }}
@@ -20433,21 +20420,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             </p>
                           </div>
                           <ChevronRight size={17} className="text-slate-500 shrink-0 group-hover:text-indigo-400 transition-colors" />
-                        </button>
-                      ) : nextLesson ? (
-                        /* End of lesson — next lesson */
-                        <button
-                          onClick={() => { stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); }}
-                          className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-slate-900 border border-slate-700/70 active:scale-[0.98] transition-all group shadow-lg"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0 group-hover:bg-violet-500/30 transition-colors">
-                            <BookOpen size={16} className="text-violet-400" />
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.14em]">Agla Chapter</p>
-                            <p className="text-sm font-semibold text-white truncate mt-0.5">{nextLesson.lessonTitle}</p>
-                          </div>
-                          <ChevronRight size={17} className="text-slate-500 shrink-0 group-hover:text-violet-400 transition-colors" />
                         </button>
                       ) : null}
                     </div>
@@ -21680,12 +21652,28 @@ RULES:
             return;
           }
           const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { tryOpenLucentNote(_todayLesson, 0); return; }
+          if (isAdm) {
+            if (_todayLesson.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_todayLesson, 0);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_todayLesson));
+            }
+            return;
+          }
           // Routine task bhi coins kaatega — discount based on yesterday's completion
           const _entry = _todayLesson;
           const _pi    = 0;
           const _pgKey = `nst_pg_r_${user.id}_${_entry.id}_${_pi}`;
-          if (localStorage.getItem(_pgKey) === '1') { tryOpenLucentNote(_entry, _pi); return; }
+          if (localStorage.getItem(_pgKey) === '1') {
+            if (_entry.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_entry, _pi);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_entry));
+            }
+            return;
+          }
           const balance = getTotalCredits(user);
           if (balance < _routineCost) {
             showAlert(`⚠️ Coins kam hain! ${_routineCost} CR chahiye, aapke paas sirf ${balance} CR hai.`, 'INFO');
@@ -21698,7 +21686,12 @@ RULES:
             reason: 'Routine Task',
             action: () => {
               try { localStorage.setItem(_pgKey, '1'); } catch {}
-              tryOpenLucentNote(_entry, _pi);
+              if (_entry.mcqOnly) {
+                lucentInitialTabRef.current = { tab: 'MCQS' };
+                tryOpenLucentNote(_entry, _pi);
+              } else {
+                setLucentPageListViewer(_withSortedPages(_entry));
+              }
             },
           });
         };
