@@ -150,7 +150,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   const [lastRatedTopic, setLastRatedTopic] = useState<string | null>(null);
   const [perfFilter, setPerfFilter] = useState<'all' | 'weak' | 'average' | 'strong' | 'mastered'>('all');
   const [activeRevSession, setActiveRevSession] = useState<WeakBucket | null>(null);
-  const [activeNotesModal, setActiveNotesModal] = useState<WeakBucket[] | null>(null);
+  const [showAllNotesModal, setShowAllNotesModal] = useState(false);
 
   // ── Real MCQ session (TodayMcqSession) state ────────────────────────────
   const [revMcqSessionActive, setRevMcqSessionActive] = useState(false);
@@ -575,11 +575,11 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50/40 to-white pb-24">
 
       {/* All-notes reader modal */}
-      {activeNotesModal && (
+      {showAllNotesModal && (
         <TodayAllNotesModal
-          dueNotes={activeNotesModal}
+          dueNotes={dueNotes}
           user={user}
-          onClose={() => setActiveNotesModal(null)}
+          onClose={() => setShowAllNotesModal(false)}
           onTopicsMarked={(markedBuckets) => {
             markedBuckets.forEach(b => {
               const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
@@ -591,7 +591,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
               const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
               onUpdateUser(updated);
             }
-            setActiveNotesModal(null);
+            setShowAllNotesModal(false);
             reload();
           }}
         />
@@ -982,34 +982,21 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                   ? <EmptyCard msg="No notes pending today!" />
                   : (
                     <>
-                      <div className="space-y-3">
-                        {notesGroups.map(sg => (
-                          <div key={sg.subjectId} className="bg-white rounded-2xl border border-indigo-100 shadow-sm overflow-hidden">
-                            <div className="px-4 py-2 bg-indigo-50/50 border-b border-indigo-50">
-                              <p className="text-[11px] font-black uppercase tracking-wide text-indigo-700">{sg.subjectName}</p>
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                              {sg.chapters.flatMap(cg => cg.buckets).map(b => (
-                                <button
-                                  key={`${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`}
-                                  onClick={() => setActiveNotesModal([b])}
-                                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50/30 transition-colors text-left"
-                                >
-                                  <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                                  <p className="text-sm font-semibold text-slate-800 flex-1 min-w-0 truncate">{b.topic}</p>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                      {/* Flat scrollable topic list — ~5 rows visible */}
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="overflow-y-auto" style={{ maxHeight: '280px' }}>
+                          {dueNotes.map((b, i) => (
+                            <NotesBucketCard key={`${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`} b={b} />
+                          ))}
+                        </div>
                       </div>
                       {/* ── "Revision Notes" bottom button ── */}
                       <button
-                        onClick={() => setActiveNotesModal(dueNotes)}
+                        onClick={() => setShowAllNotesModal(true)}
                         className="mt-3 w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-black py-3.5 rounded-2xl shadow-lg shadow-indigo-200 transition-all"
                       >
                         <BookOpen size={16} />
-                        📖 Ek Saath Saare Notes Padho
+                        📖 Revision Notes Padho
                       </button>
                     </>
                   )

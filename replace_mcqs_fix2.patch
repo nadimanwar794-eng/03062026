@@ -1,0 +1,57 @@
+--- artifacts/iic-study-app/src/components/RevisionHubV2.tsx
++++ artifacts/iic-study-app/src/components/RevisionHubV2.tsx
+@@ -1085,25 +1085,29 @@
+                             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+-                              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100">
+-                                <p className="text-[10px] font-bold text-emerald-700">Kisi bhi topic pe tap karo — sab topics mixed milenge ⚡</p>
+-                              </div>
+-                              <div className="overflow-y-auto" style={{ maxHeight: '280px' }}>
+-                                {withQs.map((b) => (
+-                                  <button
+-                                    key={`${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`}
+-                                    onClick={startPracticeAll}
+-                                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0 hover:bg-emerald-50 active:bg-emerald-100 transition-colors text-left"
+-                                  >
+-                                    <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+-                                    <p className="text-sm font-semibold text-slate-800 flex-1 min-w-0 truncate">{b.topic}</p>
+-                                    <span className="shrink-0 text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">
+-                                      {b.wrongQuestions.length}Q
+-                                    </span>
+-                                  </button>
+-                                ))}
+-                              </div>
++                            <div className="space-y-3">
++                              {groupBySubjectChapter(withQs).map(sg => (
++                                <div key={sg.subjectId} className="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
++                                  <div className="px-4 py-2 bg-emerald-50/50 border-b border-emerald-50">
++                                    <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700">{sg.subjectName}</p>
++                                  </div>
++                                  <div className="divide-y divide-slate-100">
++                                    {sg.chapters.flatMap(cg => cg.buckets).map(b => (
++                                      <button
++                                        key={`${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`}
++                                        onClick={() => startPracticeTopic(b)}
++                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50/30 transition-colors text-left"
++                                      >
++                                        <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
++                                        <p className="text-sm font-semibold text-slate-800 flex-1 min-w-0 truncate">{b.topic}</p>
++                                        <span className="shrink-0 text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">
++                                          {b.wrongQuestions.length}Q
++                                        </span>
++                                      </button>
++                                    ))}
++                                  </div>
++                                </div>
++                              ))}
+                             </div>
++                            </div>
+
+                             <button
+                               onClick={startPracticeAll}
+                               className="mt-3 w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-black py-3.5 rounded-2xl shadow-lg shadow-emerald-200 transition-all"
+                             >
+                               <Target size={16} />
+-                              Start Mixed Practice
++                              Ek Saath Mixed Practice Start
+                             </button>
+                           </>
