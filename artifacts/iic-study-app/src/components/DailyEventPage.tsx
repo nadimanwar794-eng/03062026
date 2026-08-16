@@ -94,7 +94,7 @@ const TaskRow: React.FC<{ emoji: string; title: string; sub: string; done: boole
 // ── Main component ────────────────────────────────────────────────────────────
 
 export const DailyEventPage: React.FC<Props> = ({
-  user, settings, onUpdateUser, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking, onOpenLesson,
+  user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking, onOpenLesson,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = useMemo(() => {
