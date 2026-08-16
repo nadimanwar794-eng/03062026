@@ -98,6 +98,7 @@ import { PullToRefresh } from "./PullToRefresh";
 import pLimit from "p-limit";
 import { RedeemSection } from "./RedeemSection";
 import { Store } from "./Store";
+import { AppStore } from "./AppStore";
 import {
   Globe,
   Gift,
@@ -3068,7 +3069,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // student returns to exactly where they were when they tap that tab again.
   // Eg: creating an MCQ on Home → tap Profile → tap Home → MCQ creator restores.
   // Reading a homework note → tap GK → tap Homework → same note reopens.
-  type LogicalTab = 'HOME' | 'HOMEWORK' | 'REVISION_V2' | 'GK' | 'VIDEO' | 'PROFILE' | 'HISTORY' | 'PROGRESS';
+  type LogicalTab = 'HOME' | 'HOMEWORK' | 'REVISION_V2' | 'GK' | 'VIDEO' | 'PROFILE' | 'APP_STORE' | 'HISTORY' | 'PROGRESS';
   const [currentLogicalTab, setCurrentLogicalTab] = useState<LogicalTab>('HOME');
 
   // ── MY MISTAKE COUNT (lightweight: synced via storage event + 30s poll) ──
@@ -10714,6 +10715,17 @@ export const StudentDashboard: React.FC<Props> = ({
         />
       );
     }
+    if ((activeTab as string) === "APP_STORE") {
+      if (settings?.appStorePageHidden) {
+        return (
+          <div className="text-center py-20 bg-slate-50 rounded-2xl border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-700">App Store unavailable</h3>
+            <p className="text-sm text-slate-500 mt-1">This page has been hidden by admin.</p>
+          </div>
+        );
+      }
+      return <AppStore settings={settings} user={user} onUserUpdate={handleUserUpdate} />;
+    }
     if ((activeTab as string) === "THEME_CUSTOMIZER") {
       // Only admins can access Theme Customizer — all other users are redirected
       const _isAdminTC = user.role === 'ADMIN' || user.role === 'SUB_ADMIN' || isImpersonating;
@@ -17894,6 +17906,7 @@ export const StudentDashboard: React.FC<Props> = ({
                 case 'GK':       return { ...empty, activeTab: 'HOME', showDailyGkHistory: true };
                 case 'VIDEO':    return { ...empty, activeTab: 'UNIVERSAL_VIDEO' };
                 case 'PROFILE':  return { ...empty, activeTab: 'PROFILE' };
+                case 'APP_STORE':return { ...empty, activeTab: 'APP_STORE' };
                 case 'HISTORY':  return { ...empty, activeTab: 'HISTORY' };
                 case 'PROGRESS': return { ...empty, activeTab: 'HOME' };
                 default:         return empty;
@@ -17916,6 +17929,7 @@ export const StudentDashboard: React.FC<Props> = ({
               GK:        ['HOME'],
               VIDEO:     ['UNIVERSAL_VIDEO'],
               PROFILE:   ['PROFILE'],
+              APP_STORE: ['APP_STORE'],
               HISTORY:   ['HISTORY'],
               PROGRESS:  ['HOME'],
             };
@@ -17925,6 +17939,7 @@ export const StudentDashboard: React.FC<Props> = ({
               HOMEWORK:           { emoji: '📚', desc: 'Admin assignments and homework' },
               COMMUNITY_SUPPORT:  { emoji: '💬', desc: 'Community chat and support' },
               IMPORTANT:          { emoji: '⭐', desc: 'Starred and important notes' },
+              APP_STORE:          { emoji: '📱', desc: 'Admin recommended apps' },
               PROFILE:            { emoji: '👤', desc: 'Profile, credits and settings' },
               REVISION_V2:        { emoji: '🔁', desc: 'Spaced revision and weak topics' },
               PROGRESS:           { emoji: '📊', desc: 'Daily stats, XP, streak aur Revision Hub progress' },
@@ -18098,6 +18113,20 @@ export const StudentDashboard: React.FC<Props> = ({
                   setShowChat(true);
                 },
               },
+
+              // Slot C — Apps store (admin-toggleable)
+              ...(!settings?.appStorePageHidden && !(settings?.hiddenBottomNavButtons || []).includes('APP_STORE')
+                ? [
+                    {
+                      id: "APP_STORE" as const,
+                      label: "Apps",
+                      Icon: ShoppingBag,
+                      filledOnActive: true,
+                      isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showProgressDashboard && !showChat && currentLogicalTab === "APP_STORE",
+                      onClick: () => switchToLogicalTab("APP_STORE"),
+                    },
+                  ]
+                : []),
 
               // Profile — always visible, pinned to the right of bottom nav
               {
