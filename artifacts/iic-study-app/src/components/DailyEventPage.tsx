@@ -3,6 +3,7 @@
  * DailyEventPage — Unified daily study hub
  * Shows: Routine · Revision Hub · My Mistakes · Lesson Tracker
  */
+import { toast } from 'sonner';
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   ArrowLeft, BookOpen, BrainCircuit, CalendarCheck,
@@ -1248,6 +1249,11 @@ export const DailyEventPage: React.FC<Props> = ({
               const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
               const earned = tryEarnScore(user.id, notesPts, tier, isPrem, 0, 'REVISION_NOTES_READ', undefined, undefined, `${markedBuckets.length} Revision Note(s) Read`);
               showClaimOverlay(earned);
+              setTimeout(() => {
+                toast.success("Reading Task Completed!", {
+                  description: `${markedBuckets.length} topics marked as read.`
+                });
+              }, 500);
             }
             setShowAllNotesModal(false);
             reloadRevision();
