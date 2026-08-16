@@ -1244,6 +1244,10 @@ export const DailyEventPage: React.FC<Props> = ({
               const notesPts = markedBuckets.length * 5;
               const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
               onUpdateUser(updated);
+              const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
+              const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
+              const earned = tryEarnScore(user.id, notesPts, tier, isPrem, 0, 'REVISION_NOTES_READ', undefined, undefined, `${markedBuckets.length} Revision Note(s) Read`);
+              showClaimOverlay(earned);
             }
             setShowAllNotesModal(false);
             reloadRevision();
