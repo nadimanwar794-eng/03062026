@@ -7242,6 +7242,32 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                               </div>
                           </div>
 
+                          {/* ── Global Chat Hide/Unhide ── */}
+                          <div className="bg-cyan-50 p-4 rounded-xl border border-cyan-200 mt-4">
+                              <div className="flex justify-between items-center">
+                                  <div>
+                                      <p className="font-bold text-cyan-900 text-sm flex items-center gap-2">
+                                          🌐 Global Chat Hide
+                                      </p>
+                                      <p className="text-xs text-cyan-700 mt-0.5">
+                                          ON = Global tab chhupta hai chat se. OFF = Normal.
+                                      </p>
+                                  </div>
+                                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                      <input
+                                          type="checkbox"
+                                          checked={localSettings.hideGlobalChat || false}
+                                          onChange={e => setLocalSettings({
+                                              ...localSettings,
+                                              hideGlobalChat: e.target.checked
+                                          })}
+                                          className="sr-only peer"
+                                      />
+                                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                                  </label>
+                              </div>
+                          </div>
+
                           {/* ── Universal Chat Hide/Unhide ── */}
                           <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mt-4">
                               <div className="flex justify-between items-center">
@@ -18346,7 +18372,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           </div>
       )}
       
-      {showChat && <UniversalChat user={user as any} onClose={() => setShowChat(false)} isAdmin={false} />}
+      {showChat && <UniversalChat user={user as any} onClose={() => setShowChat(false)} isAdmin={false} hideGlobalTab={localSettings.hideGlobalChat} />}
 
       {/* SUB-ADMIN REPORT MODAL */}
       {viewingSubAdminReport && (

@@ -3821,6 +3821,7 @@ const App: React.FC = () => {
                 isAdmin={false}
                 defaultTab="MCQ"
                 initialMcqDraft={appMcqCommunityDraft}
+                hideGlobalTab={!!state.settings?.hideGlobalChat}
               />
             </Suspense>
           </div>
