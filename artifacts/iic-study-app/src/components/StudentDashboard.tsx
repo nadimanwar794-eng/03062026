@@ -21517,6 +21517,7 @@ RULES:
         <DailyEventPage
           user={user}
           settings={settings}
+          onUpdateUser={handleUserUpdate}
           onBack={() => setShowDailyEventPage(false)}
           onOpenRoutine={() => {
             setShowDailyEventPage(false);
