@@ -28,6 +28,7 @@ import {
 import type { SystemSettings, User, StudentTab, TopicItem } from '../types';
 import { TodayMcqSession } from './TodayMcqSession';
 import { setMcqNotifSuppressed } from '../utils/creditNotify';
+import { toast } from 'sonner';
 import {
   getDueItems, getUpcomingItems, markNotesReviewed, markMcqDone,
   clearTracker, getAllBuckets, getTrackerMap, bucketKey, keywordsForBucket,
@@ -581,18 +582,28 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
           user={user}
           onClose={() => setShowAllNotesModal(false)}
           onTopicsMarked={(markedBuckets) => {
-            markedBuckets.forEach(b => {
-              const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
-              markNotesReviewed(k, revisionConfig);
-            });
-            // ── +5 pts per topic notes padha ──────────────────────────────
-            if (onUpdateUser && markedBuckets.length > 0) {
-              const notesPts = markedBuckets.length * 5;
-              const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
-              onUpdateUser(updated);
+            try {
+              markedBuckets.forEach(b => {
+                const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
+                markNotesReviewed(k, revisionConfig);
+              });
+              // ── +5 pts per topic notes padha ──────────────────────────────
+              if (onUpdateUser && markedBuckets.length > 0) {
+                const notesPts = markedBuckets.length * 5;
+                const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
+                onUpdateUser(updated);
+                setTimeout(() => {
+                  toast.success("Reading Task Completed!", {
+                    description: `${markedBuckets.length} topics marked as read.`
+                  });
+                }, 500);
+              }
+            } catch (err) {
+              console.error("Error marking topics as read:", err);
+            } finally {
+              setShowAllNotesModal(false);
+              reload();
             }
-            setShowAllNotesModal(false);
-            reload();
           }}
         />
       )}
