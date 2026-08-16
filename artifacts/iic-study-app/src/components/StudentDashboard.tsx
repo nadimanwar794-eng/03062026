@@ -4624,12 +4624,17 @@ export const StudentDashboard: React.FC<Props> = ({
     entry = _withSortedPages(entry);
     const isAdmin = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
 
-    // Instead of forcing notes view immediately, force page list view
-    if ((isAdmin || extraOpts?.force) && !entry.mcqOnly) {
+    // Always show page list if it is not mcqOnly, force bypasses the admin "always list" mode.
+    if (!extraOpts?.force && !entry.mcqOnly) {
       setLucentPageListViewer(entry);
       return;
     }
-    if ((isAdmin || extraOpts?.force) && entry.mcqOnly) {
+    if (!extraOpts?.force && entry.mcqOnly) {
+       setLucentNoteViewer(entry);
+       setLucentPageIndex(pageIdx);
+       return;
+    }
+    if (extraOpts?.force) {
        setLucentNoteViewer(entry);
        setLucentPageIndex(pageIdx);
        return;
@@ -19374,7 +19379,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   >
                     {/* ── Main tap area (students + admin) ── */}
                     <button
-                      onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
+                      onClick={() => { lucentInitialTabRef.current = { tab: "NOTES", viewMode: "chunk" }; tryOpenLucentNote(plEntry, idx, { force: true }); }}
                       className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
                       style={{ background: settings?.contentListCardBg || '#ffffff' }}
                     >
