@@ -39,7 +39,6 @@ interface Props {
   onSendToMcqCommunity?: (draft: { question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string }) => void;
   /** If set, auto-navigate to this lesson's MCQ on open — matched by lessonTitle (Routine / Daily Event shortcut, coins already paid by caller) */
   initialLessonTitle?: string | null;
-  autoStartMcq?: boolean;
 }
 
 const TABS: { id: HubTab; label: string; icon: React.ReactNode }[] = [
@@ -83,11 +82,11 @@ const TIER_STYLES: Record<string, { bg: string; text: string; label: string }> =
 
 export const RevisionHubScreen: React.FC<Props> = ({
   user, settings, onBack, onTabChange, onNavigateContent, onUpdateUser, onMcqAnswer, onSendToMcqCommunity,
-  initialLessonTitle, autoStartMcq
+  initialLessonTitle,
 }) => {
   const theme = useAppTheme();
   const primary = theme.primary || '#6366f1';
-  const [activeTab, setActiveTab]           = useState<HubTab>(autoStartMcq ? 'REVISION' : 'MCQ');
+  const [activeTab, setActiveTab]           = useState<HubTab>('MCQ');
   const [mcqSelectedClass, setMcqSelectedClass]     = useState<string | null>(null);
   const [mcqSelectedSubject, setMcqSelectedSubject] = useState<string | null>(null);
   const [mcqSelectedLesson, setMcqSelectedLesson]   = useState<any | null>(null);
@@ -972,7 +971,6 @@ export const RevisionHubScreen: React.FC<Props> = ({
             onUpdateUser={onUpdateUser}
             hideHeader={true}
             onMcqAnswer={onMcqAnswer}
-            autoStartMcq={autoStartMcq}
           />
         )}
 
