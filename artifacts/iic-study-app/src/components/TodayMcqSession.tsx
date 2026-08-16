@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, MCQItem, MCQResult, TopicItem, SystemSettings } from '../types';
-import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
+import { X, CheckCircle, ChevronLeft, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
