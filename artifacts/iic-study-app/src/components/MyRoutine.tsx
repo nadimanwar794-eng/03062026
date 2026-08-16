@@ -2273,6 +2273,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
               <DailyEventPage
                 user={user as any}
                 settings={settings}
+                onUpdateUser={onUserUpdate}
                 onBack={onBack}
                 onOpenRoutine={() => setActiveView('subjects')}
                 onOpenRevisionHub={onOpenRevisionHub || (() => {})}
