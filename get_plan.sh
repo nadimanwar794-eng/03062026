@@ -1,0 +1,6 @@
+echo "Plan for removing App Store and adding Hide Global Chat toggle:"
+echo "1. Remove references to AppStore in src/components/StudentDashboard.tsx (imports, conditional renders, logical tabs, bottom nav button)."
+echo "2. Remove references to AppStore in src/types.ts (DownloadApp, DownloadAppStore, appStorePageHidden, downloadApps, etc.)."
+echo "3. Remove references to AppStore in src/components/AdminPowerManager.tsx."
+echo "4. Remove references to AppStore in src/components/AdminHelp.tsx."
+echo "5. Add 'Hide Global Chat' toggle in src/components/AdminDashboard.tsx under visibility settings (near Universal Chat Hide/Unhide) linking to localSettings.hideGlobalChat."

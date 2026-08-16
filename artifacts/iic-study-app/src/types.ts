@@ -44,20 +44,6 @@ export interface ExternalApp {
   creditCost: number;
 }
 
-// NEW: Download App for the in-app App Store page
-export type DownloadAppStore = 'PLAY_STORE' | 'GOOGLE_DRIVE' | 'MEDIAFIRE' | 'APP_STORE' | 'OTHER';
-
-export interface DownloadApp {
-  id: string;
-  name: string;
-  description?: string;
-  iconUrl?: string;
-  downloadUrl: string;
-  store: DownloadAppStore;
-  version?: string;
-  size?: string;
-}
-
 export interface SubjectProgress {
   currentChapterIndex: number; // Starts at 0 (Chapter 1)
   totalMCQsSolved: number; // Must reach 100 to advance index
@@ -911,8 +897,6 @@ export interface SystemSettings {
   enableMcqUnlockRestriction?: boolean; // NEW
   lessonUnlockPolicy?: 'SEQUENTIAL_100_MCQ' | 'ALL_OPEN'; // NEW
   externalApps?: ExternalApp[]; // NEW
-  downloadApps?: DownloadApp[]; // NEW: In-app App Store entries (download links)
-  appStorePageHidden?: boolean; // NEW: Hide the App Store tab/page for students
   starredPageHidden?: boolean;  // Hide the Important/GK starred notes tab from nav
   chatRooms?: ChatRoom[]; // NEW
   engagementRewards?: EngagementReward[];
@@ -1610,7 +1594,7 @@ export interface StudentTestAttempt {
   answers: Record<number, number>; // question index -> selected answer index
 }
 
-export type StudentTab = 'HOME' | 'EXPLORE' | 'COURSES' | 'ROUTINE' | 'HISTORY' | 'REDEEM' | 'PREMIUM' | 'GAME' | 'EARN' | 'WEEKLY_TEST' | 'PROFILE' | 'LEADERBOARD' | 'STORE' | 'VIDEO' | 'PDF' | 'MCQ' | 'ANALYTICS' | 'PRIZES' | 'REWARDS' | 'UPDATES' | 'IIC_GALLERY' | 'SUPPORT' | 'CUSTOM_PAGE' | 'AI_CHAT' | 'REVISION' | 'MCQ_REVIEW' | 'AI_HUB' | 'AI_STUDIO' | 'UNIVERSAL_VIDEO' | 'DOWNLOADS' | 'APP_STORE' | 'THEME_BUILDER';
+export type StudentTab = 'HOME' | 'EXPLORE' | 'COURSES' | 'ROUTINE' | 'HISTORY' | 'REDEEM' | 'PREMIUM' | 'GAME' | 'EARN' | 'WEEKLY_TEST' | 'PROFILE' | 'LEADERBOARD' | 'STORE' | 'VIDEO' | 'PDF' | 'MCQ' | 'ANALYTICS' | 'PRIZES' | 'REWARDS' | 'UPDATES' | 'IIC_GALLERY' | 'SUPPORT' | 'CUSTOM_PAGE' | 'AI_CHAT' | 'REVISION' | 'MCQ_REVIEW' | 'AI_HUB' | 'AI_STUDIO' | 'UNIVERSAL_VIDEO' | 'DOWNLOADS' | 'THEME_BUILDER';
 
 export interface UserCustomTheme {
   id: string;
