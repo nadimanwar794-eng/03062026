@@ -1713,7 +1713,7 @@ interface MyRoutineProps {
   /** Navigate to Revision Hub tab — receives lessonId so caller can apply 50-coin discount */
   onGoToRevision?: (lessonId: string, lessonTitle?: string) => void;
   settings?: any;
-  onOpenRevisionHub?: (lessonId?: string, lessonTitle?: string) => void;
+  onOpenRevisionHub?: (lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => void;
   onPracticeMistakes?: (mistakes: any[]) => void;
   onOpenLesson?: (lessonId: string) => void;
 }
@@ -2273,7 +2273,6 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
               <DailyEventPage
                 user={user as any}
                 settings={settings}
-                onUpdateUser={onUserUpdate}
                 onBack={onBack}
                 onOpenRoutine={() => setActiveView('subjects')}
                 onOpenRevisionHub={onOpenRevisionHub || (() => {})}
