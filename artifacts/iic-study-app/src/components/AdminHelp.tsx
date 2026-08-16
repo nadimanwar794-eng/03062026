@@ -450,7 +450,7 @@ const SECTIONS: HelpSection[] = [
                 icon: <Eye size={16} />,
                 title: '👁️ Visibility Tab',
                 subtitle: 'Toggle bottom nav and features (inside Power Manager)',
-                desc: 'Show/hide major tabs like Revision Hub and App Store. Temporarily disable specific features from here. Useful during maintenance mode or feature rollout.',
+                desc: 'Show/hide major tabs like Revision Hub. Temporarily disable specific features from here. Useful during maintenance mode or feature rollout.',
                 color: 'blue',
                 tags: ['Feature Toggle', 'Tab Visibility', 'Maintenance']
             },
