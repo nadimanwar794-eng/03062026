@@ -876,24 +876,7 @@ export const DailyEventPage: React.FC<Props> = ({
                   ))}
                 </div>
                 <button
-                  onClick={() => {
-                    const topics: TopicItem[] = dueMcq.map((b: WeakBucket) => ({
-                      id: `${b.chapterId}_${b.topic}`,
-                      chapterId: b.chapterId,
-                      chapterName: b.chapterTitle || b.chapterId,
-                      name: b.topic,
-                      score: 0,
-                      lastAttempt: '',
-                      status: 'WEAK' as any,
-                      nextRevision: null,
-                      mcqDueDate: null,
-                      subjectId: b.subjectId,
-                      subjectName: b.subjectName,
-                      isSubTopic: true,
-                    }));
-                    setRevMcqTopics(topics);
-                    setRevMcqSessionActive(true);
-                  }}
+                  onClick={() => onOpenRevisionHub()}
                   className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-black flex items-center justify-center gap-1.5 transition-colors border-t border-emerald-100"
                 >
                   <Target size={13} /> Practice MCQ
