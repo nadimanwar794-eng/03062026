@@ -10,7 +10,10 @@ import {
 } from 'lucide-react';
 import { loadRoutineData, getUserSubTier, getDailyClaimAmount } from '../utils/routineStorage';
 import { getLevelInfo } from '../utils/levelSystem';
-import { getDueItems, getAllBuckets } from '../utils/revisionTrackerV2';
+import { getDueItems, getAllBuckets, bucketKey, markNotesReviewed, type WeakBucket } from '../utils/revisionTrackerV2';
+import { TodayAllNotesModal } from './TodayAllNotesModal';
+import { TodayMcqSession } from './TodayMcqSession';
+import type { TopicItem } from '../types';
 import { getMistakeBankSync } from '../utils/mistakeBank';
 import { getAutoTrackSnapshot, getLessonStats, isLessonRewarded } from '../utils/routineAutoTrack';
 import { RoutineRevisionBadge } from './RoutineRevisionBadge';
@@ -29,6 +32,7 @@ interface Props {
   onOpenSubjects?: () => void;
   onOpenTracking?: () => void;
   onOpenLesson?: (lessonId: string) => void;
+  onUpdateUser?: (u: User) => void;
 }
 
 // ── Small reusable pieces ─────────────────────────────────────────────────────
@@ -106,6 +110,12 @@ export const DailyEventPage: React.FC<Props> = ({
 
   // ── Claim Success Overlay ────────────────────────────────────────────────
   const [claimOverlay, setClaimOverlay] = useState<{ ptsAdded: number; todayTotal: number; xpBefore: number; xpAfter: number } | null>(null);
+  const [showAllNotesModal, setShowAllNotesModal] = useState(false);
+  const [revMcqSessionActive, setRevMcqSessionActive] = useState(false);
+  const [revMcqTopics, setRevMcqTopics] = useState<TopicItem[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const reloadRevision = useCallback(() => setRefreshTick(t => t + 1), []);
 
   const showClaimOverlay = useCallback((ptsAdded: number) => {
     const todayTotal = getDailyScoreEarned(user.id);
@@ -284,7 +294,7 @@ export const DailyEventPage: React.FC<Props> = ({
   // ── Revision Hub ─────────────────────────────────────────────────────────
   const dueItems = useMemo(() => {
     try { return getDueItems(); } catch { return []; }
-  }, []);
+  }, [refreshTick]);
   const dueNotes = dueItems.filter((b: any) => !b.stage || b.stage === 'NOTES');
   const dueMcq   = dueItems.filter((b: any) => b.stage === 'MCQ');
 
@@ -756,115 +766,195 @@ export const DailyEventPage: React.FC<Props> = ({
               </div>
             )}
 
-            {/* ── Notes slot ── */}
-            {(() => {
-              const total = dueNotes.length + notesReviewedToday;
-              const done  = notesReviewedToday;
-              const pct   = total > 0 ? Math.round((done / total) * 100) : 100;
-              const isDone = done === total && total > 0;
-              return (
-                <div className={`rounded-xl px-3 py-2.5 border ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{isDone ? '✅' : '📖'}</span>
-                      <div>
-                        <p className={`text-[11px] font-black ${isDone ? 'text-emerald-700' : 'text-indigo-800'}`}>
-                          Notes
-                        </p>
-                        <p className="text-[9px] text-slate-400">
-                          {total === 0 ? 'Aaj koi notes due nahi' : `${done}/${total} reviewed`}
-                        </p>
-                      </div>
-                    </div>
-                    <p className={`text-[10px] font-black ${isDone ? 'text-emerald-600' : 'text-indigo-600'}`}>
-                      {total === 0 ? '—' : `${pct}%`}
-                    </p>
-                  </div>
-                  {total > 0 && (
-                    <div className="h-1.5 bg-indigo-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  )}
-                  {/* ── Notes 100 pts claim ── */}
-                  <div className="mt-2">
-                    {revNotesClaimed ? (
-                      <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
-                        <span className="text-[11px] font-black text-emerald-700">✅ +{REV_PTS}⭐ pts Claim Ho Gaye!</span>
-                      </div>
-                    ) : isDone ? (
-                      <button
-                        onClick={() => handleClaimRevisionPts('notes')}
-                        className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-200"
-                      >
-                        🎁 Claim +{REV_PTS}⭐ pts — Notes Done!
-                      </button>
-                    ) : (
-                      <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
-                        🔒 +{REV_PTS}⭐ pts — Notes 100% Complete Karo
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
 
-            {/* ── MCQ slot ── */}
-            {(() => {
-              const total = dueMcq.length + mcqDoneToday;
-              const done  = mcqDoneToday;
-              const pct   = total > 0 ? Math.round((done / total) * 100) : 100;
-              const isDone = done === total && total > 0;
-              return (
-                <div className={`rounded-xl px-3 py-2.5 border ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-violet-50 border-violet-200'}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{isDone ? '✅' : '🧠'}</span>
-                      <div>
-                        <p className={`text-[11px] font-black ${isDone ? 'text-emerald-700' : 'text-violet-800'}`}>
-                          MCQ Practice
-                        </p>
-                        <p className="text-[9px] text-slate-400">
-                          {total === 0 ? 'Aaj koi MCQ due nahi' : `${done}/${total} complete`}
-                        </p>
-                      </div>
+            {/* Notes due today */}
+            {dueNotes.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm overflow-hidden mb-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border-b border-indigo-100">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center"><BookOpen size={13} /></div>
+                  <p className="text-[12px] font-black text-indigo-800">Notes To Read Today</p>
+                  <span className="ml-auto text-[10px] font-bold bg-indigo-200 text-indigo-700 rounded-full px-2 py-0.5">{dueNotes.length}</span>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-[200px] overflow-y-auto">
+                  {dueNotes.map((b: WeakBucket) => (
+                    <div key={`${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`} className="flex items-center gap-3 px-3 py-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                      <p className="text-[11px] font-bold text-slate-700 flex-1 min-w-0 truncate">{b.topic}</p>
+                      {b.subjectName && (
+                        <span className="text-[9px] text-slate-400 shrink-0 truncate max-w-[70px]">{b.subjectName}</span>
+                      )}
                     </div>
-                    <p className={`text-[10px] font-black ${isDone ? 'text-emerald-600' : 'text-violet-600'}`}>
-                      {total === 0 ? '—' : `${pct}%`}
-                    </p>
-                  </div>
-                  {total > 0 && (
-                    <div className="h-1.5 bg-violet-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-violet-500'}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  )}
-                  {/* ── MCQ 100 pts claim ── */}
-                  <div className="mt-2">
-                    {revMcqClaimed ? (
-                      <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
-                        <span className="text-[11px] font-black text-emerald-700">✅ +{REV_PTS}⭐ pts Claim Ho Gaye!</span>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowAllNotesModal(true)}
+                  className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-black flex items-center justify-center gap-1.5 transition-colors border-t border-indigo-100"
+                >
+                  <BookOpen size={13} /> Read Notes
+                </button>
+              </div>
+            ) : (
+              /* Original Notes Slot logic for when total == 0 or done */
+              (() => {
+                const total = dueNotes.length + notesReviewedToday;
+                const done  = notesReviewedToday;
+                const pct   = total > 0 ? Math.round((done / total) * 100) : 100;
+                const isDone = done === total && total > 0;
+                return (
+                  <div className={`rounded-xl px-3 py-2.5 border ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'} mb-3`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{isDone ? '✅' : '📖'}</span>
+                        <div>
+                          <p className={`text-[11px] font-black ${isDone ? 'text-emerald-700' : 'text-indigo-800'}`}>
+                            Notes
+                          </p>
+                          <p className="text-[9px] text-slate-400">
+                            {total === 0 ? 'Aaj koi notes due nahi' : `${done}/${total} reviewed`}
+                          </p>
+                        </div>
                       </div>
-                    ) : isDone ? (
-                      <button
-                        onClick={() => handleClaimRevisionPts('mcq')}
-                        className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-200"
-                      >
-                        🎁 Claim +{REV_PTS}⭐ pts — MCQ Done!
-                      </button>
-                    ) : (
-                      <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
-                        🔒 +{REV_PTS}⭐ pts — MCQ 100% Complete Karo
+                      <p className={`text-[10px] font-black ${isDone ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                        {total === 0 ? '—' : `${pct}%`}
+                      </p>
+                    </div>
+                    {total > 0 && (
+                      <div className="h-1.5 bg-indigo-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     )}
+                    {/* ── Notes 100 pts claim ── */}
+                    <div className="mt-2">
+                      {revNotesClaimed ? (
+                        <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
+                          <span className="text-[11px] font-black text-emerald-700">✅ +{REV_PTS}⭐ pts Claim Ho Gaye!</span>
+                        </div>
+                      ) : isDone ? (
+                        <button
+                          onClick={() => handleClaimRevisionPts('notes')}
+                          className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-200"
+                        >
+                          🎁 Claim +{REV_PTS}⭐ pts — Notes Done!
+                        </button>
+                      ) : (
+                        <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
+                          🔒 +{REV_PTS}⭐ pts — Notes 100% Complete Karo
+                        </div>
+                      )}
+                    </div>
                   </div>
+                );
+              })()
+            )}
+
+            {/* MCQ due today */}
+            {dueMcq.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm overflow-hidden mb-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border-b border-emerald-100">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center"><Target size={13} /></div>
+                  <p className="text-[12px] font-black text-emerald-800">MCQ Practice For Today</p>
+                  <span className="ml-auto text-[10px] font-bold bg-emerald-200 text-emerald-700 rounded-full px-2 py-0.5">{dueMcq.length}</span>
                 </div>
-              );
-            })()}
+                <div className="divide-y divide-slate-100 max-h-[200px] overflow-y-auto">
+                  {dueMcq.map((b: WeakBucket) => (
+                    <div key={`${b.subjectId}::${b.chapterId}::${b.pageKey}::${b.topic}`} className="flex items-center gap-3 px-3 py-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-slate-700 truncate">{b.topic}</p>
+                        <p className="text-[9px] text-slate-400 truncate">{b.subjectName} · {b.chapterTitle || b.chapterId}</p>
+                      </div>
+                      {b.wrongQuestions && b.wrongQuestions.length > 0 && (
+                        <span className="text-[9px] font-black text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-md shrink-0">
+                          {b.wrongQuestions.length} Qs
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    const topics: TopicItem[] = dueMcq.map((b: WeakBucket) => ({
+                      id: `${b.chapterId}_${b.topic}`,
+                      chapterId: b.chapterId,
+                      chapterName: b.chapterTitle || b.chapterId,
+                      name: b.topic,
+                      score: 0,
+                      lastAttempt: '',
+                      status: 'WEAK' as any,
+                      nextRevision: null,
+                      mcqDueDate: null,
+                      subjectId: b.subjectId,
+                      subjectName: b.subjectName,
+                      isSubTopic: true,
+                    }));
+                    setRevMcqTopics(topics);
+                    setRevMcqSessionActive(true);
+                  }}
+                  className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-black flex items-center justify-center gap-1.5 transition-colors border-t border-emerald-100"
+                >
+                  <Target size={13} /> Practice MCQ
+                </button>
+              </div>
+            ) : (
+              /* Original MCQ Slot logic */
+              (() => {
+                const total = dueMcq.length + mcqDoneToday;
+                const done  = mcqDoneToday;
+                const pct   = total > 0 ? Math.round((done / total) * 100) : 100;
+                const isDone = done === total && total > 0;
+                return (
+                  <div className={`rounded-xl px-3 py-2.5 border ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-violet-50 border-violet-200'}`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{isDone ? '✅' : '🧠'}</span>
+                        <div>
+                          <p className={`text-[11px] font-black ${isDone ? 'text-emerald-700' : 'text-violet-800'}`}>
+                            MCQ Practice
+                          </p>
+                          <p className="text-[9px] text-slate-400">
+                            {total === 0 ? 'Aaj koi MCQ due nahi' : `${done}/${total} complete`}
+                          </p>
+                        </div>
+                      </div>
+                      <p className={`text-[10px] font-black ${isDone ? 'text-emerald-600' : 'text-violet-600'}`}>
+                        {total === 0 ? '—' : `${pct}%`}
+                      </p>
+                    </div>
+                    {total > 0 && (
+                      <div className="h-1.5 bg-violet-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-violet-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    )}
+                    {/* ── MCQ 100 pts claim ── */}
+                    <div className="mt-2">
+                      {revMcqClaimed ? (
+                        <div className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300">
+                          <span className="text-[11px] font-black text-emerald-700">✅ +{REV_PTS}⭐ pts Claim Ho Gaye!</span>
+                        </div>
+                      ) : isDone ? (
+                        <button
+                          onClick={() => handleClaimRevisionPts('mcq')}
+                          className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-200"
+                        >
+                          🎁 Claim +{REV_PTS}⭐ pts — MCQ Done!
+                        </button>
+                      ) : (
+                        <div className="w-full py-2 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed">
+                          🔒 +{REV_PTS}⭐ pts — MCQ 100% Complete Karo
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+
 
             {/* ── Skipped pages ── */}
             {skippedPages.length > 0 && (
@@ -1137,6 +1227,43 @@ export const DailyEventPage: React.FC<Props> = ({
         })()}
 
       </div>
+
+
+      {/* ── Modals from Revision Hub ────────────────────────────────────── */}
+      {showAllNotesModal && (
+        <TodayAllNotesModal
+          dueNotes={dueNotes}
+          user={user}
+          onClose={() => setShowAllNotesModal(false)}
+          onTopicsMarked={(markedBuckets) => {
+            markedBuckets.forEach(b => {
+              const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
+              markNotesReviewed(k, settings?.revisionConfig);
+            });
+            if (onUpdateUser && markedBuckets.length > 0) {
+              const notesPts = markedBuckets.length * 5;
+              const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
+              onUpdateUser(updated);
+            }
+            setShowAllNotesModal(false);
+            reloadRevision();
+          }}
+        />
+      )}
+
+      {revMcqSessionActive && (
+        <TodayMcqSession
+          user={user}
+          topics={revMcqTopics}
+          settings={settings}
+          onUpdateUser={onUpdateUser}
+          onClose={() => setRevMcqSessionActive(false)}
+          onComplete={(_results) => {
+            setRevMcqSessionActive(false);
+            reloadRevision();
+          }}
+        />
+      )}
 
       {/* ── Claim Success Overlay ─────────────────────────────────────────── */}
       {claimOverlay && (
