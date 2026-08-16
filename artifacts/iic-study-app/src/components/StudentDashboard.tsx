@@ -3327,6 +3327,7 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [showStarredPage, setShowStarredPage] = useState(false);
   const [showRevisionHubScreen, setShowRevisionHubScreen] = useState(false);
+  const [initialRevisionAutoStartMcq, setInitialRevisionAutoStartMcq] = useState(false);
   const [showMyRoutine, setShowMyRoutine] = useState(false);
   const [showDailyEventPage, setShowDailyEventPage] = useState(false);
   // XP badge useEffect — yahan rakhna zaroori hai (showRevisionHubScreen/showMyRoutine/showChat ke baad)
@@ -21552,7 +21553,12 @@ RULES:
             setShowDailyEventPage(false);
             setShowMyRoutine(true);
           }}
-          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
+          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => {
+            if (autoStartMcq) {
+              setInitialRevisionAutoStartMcq(true);
+            } else {
+              setInitialRevisionAutoStartMcq(false);
+            }
             if (lessonTitle) {
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
               if (_isAdm) {
@@ -21591,7 +21597,8 @@ RULES:
           user={user}
           settings={settings}
           initialLessonTitle={initialRevisionLessonTitle}
-          onBack={() => { setShowRevisionHubScreen(false); setInitialRevisionLessonTitle(null); }}
+          autoStartMcq={initialRevisionAutoStartMcq}
+          onBack={() => { setShowRevisionHubScreen(false); setInitialRevisionLessonTitle(null); setInitialRevisionAutoStartMcq(false); }}
           onTabChange={onTabChange}
           onNavigateContent={(type, chapterId, topicName, subjectName) => {
             setShowRevisionHubScreen(false);
@@ -21884,7 +21891,12 @@ RULES:
               setShowMyRoutine(false);
             }
           }}
-          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
+          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => {
+            if (autoStartMcq) {
+              setInitialRevisionAutoStartMcq(true);
+            } else {
+              setInitialRevisionAutoStartMcq(false);
+            }
             if (lessonTitle) {
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
               if (_isAdm) {

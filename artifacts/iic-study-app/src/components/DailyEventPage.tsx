@@ -28,7 +28,7 @@ interface Props {
   settings?: SystemSettings;
   onBack: () => void;
   onOpenRoutine: () => void;
-  onOpenRevisionHub: (lessonId?: string, lessonTitle?: string) => void;
+  onOpenRevisionHub: (lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => void;
   onPracticeMistakes: (mistakes: MistakeEntry[]) => void;
   onOpenSubjects?: () => void;
   onOpenTracking?: () => void;
@@ -876,7 +876,7 @@ export const DailyEventPage: React.FC<Props> = ({
                   ))}
                 </div>
                 <button
-                  onClick={() => onOpenRevisionHub()}
+                  onClick={() => onOpenRevisionHub(undefined, undefined, true)}
                   className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-black flex items-center justify-center gap-1.5 transition-colors border-t border-emerald-100"
                 >
                   <Target size={13} /> Practice MCQ
