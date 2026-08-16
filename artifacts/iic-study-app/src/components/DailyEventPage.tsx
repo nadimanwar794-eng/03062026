@@ -1237,26 +1237,31 @@ export const DailyEventPage: React.FC<Props> = ({
           user={user}
           onClose={() => setShowAllNotesModal(false)}
           onTopicsMarked={(markedBuckets) => {
-            markedBuckets.forEach(b => {
-              const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
-              markNotesReviewed(k, settings?.revisionConfig);
-            });
-            if (onUpdateUser && markedBuckets.length > 0) {
-              const notesPts = markedBuckets.length * 5;
-              const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
-              onUpdateUser(updated);
-              const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
-              const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
-              const earned = tryEarnScore(user.id, notesPts, tier, isPrem, 0, 'REVISION_NOTES_READ', undefined, undefined, `${markedBuckets.length} Revision Note(s) Read`);
-              showClaimOverlay(earned);
-              setTimeout(() => {
-                toast.success("Reading Task Completed!", {
-                  description: `${markedBuckets.length} topics marked as read.`
-                });
-              }, 500);
+            try {
+              markedBuckets.forEach(b => {
+                const k = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
+                markNotesReviewed(k, settings?.revisionConfig);
+              });
+              if (onUpdateUser && markedBuckets.length > 0) {
+                const notesPts = markedBuckets.length * 5;
+                const updated = { ...user, totalScore: (user.totalScore || 0) + notesPts };
+                onUpdateUser(updated);
+                const tier = user.subscriptionLevel || user.subscriptionTier || 'FREE';
+                const isPrem = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
+                const earned = tryEarnScore(user.id, notesPts, tier, isPrem, 0, 'REVISION_NOTES_READ', undefined, undefined, `${markedBuckets.length} Revision Note(s) Read`);
+                showClaimOverlay(earned);
+                setTimeout(() => {
+                  toast.success("Reading Task Completed!", {
+                    description: `${markedBuckets.length} topics marked as read.`
+                  });
+                }, 500);
+              }
+            } catch (err) {
+              console.error("Error marking topics as read:", err);
+            } finally {
+              setShowAllNotesModal(false);
+              reloadRevision();
             }
-            setShowAllNotesModal(false);
-            reloadRevision();
           }}
         />
       )}
