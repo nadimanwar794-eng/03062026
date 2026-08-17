@@ -21579,6 +21579,8 @@ RULES:
                 },
               });
               return;
+              } else {
+              setInitialRevisionLessonTitle(null);
             }
             setShowDailyEventPage(false);
             setShowRevisionHubScreen(true);
@@ -21917,6 +21919,8 @@ RULES:
                 },
               });
               return;
+              } else {
+              setInitialRevisionLessonTitle(null);
             }
             setShowMyRoutine(false);
             setShowRevisionHubScreen(true);
@@ -21948,6 +21952,8 @@ RULES:
                 },
               });
               return;
+              } else {
+              setInitialRevisionLessonTitle(null);
             }
             setShowMyRoutine(false);
             setShowRevisionHubScreen(true);

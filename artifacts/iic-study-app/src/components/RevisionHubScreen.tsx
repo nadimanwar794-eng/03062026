@@ -202,7 +202,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
   const revCfg = (settings as any)?.revisionConfig;
 
   const MCQ_START_COST = 40;
-  const LESSON_OPEN_COST = 50;
+  const LESSON_OPEN_COST = 100;
 
   function doStartSession() {
     // ── Session tracking: App.tsx ko batao session shuru hua ─────────────
@@ -510,7 +510,7 @@ export const RevisionHubScreen: React.FC<Props> = ({
           const correct    = sessionAnswers.filter((a, i) => a !== null && a !== undefined && a === sessionMcqs[i]?.correctAnswer).length;
           const wrong      = answered - correct;
           const isAnswered = sessionAnswers[sessionQIndex] !== null && sessionAnswers[sessionQIndex] !== undefined;
-          const minRequired = Math.min(30, sessionMcqs.length);
+          const minRequired = Math.min(100, sessionMcqs.length);
           const ready      = answered >= minRequired;
 
           return (
