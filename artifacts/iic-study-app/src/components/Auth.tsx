@@ -157,10 +157,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   };
 
   const generateUserId = () => {
-      // Generate an 8 to 12 digit numerical ID (using 10 digits as a solid standard)
-      const timestampPart = Date.now().toString().slice(-4); // Last 4 digits of timestamp
-      const randomPart = Math.floor(100000 + Math.random() * 900000); // 6 random digits
-      return `${timestampPart}${randomPart}`; // e.g. 8432104598
+      const timestampPart = Date.now().toString().slice(-4);
+      const randomPart = Math.floor(100000 + Math.random() * 900000);
+      return `${timestampPart}${randomPart}`;
   };
 
   const handleCopyId = () => {
@@ -184,36 +183,23 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           const result = await signInWithPopup(auth, provider);
           const firebaseUser = result.user;
 
-          // STRICT FIREBASE ONLY FETCH (Prevent localStorage overriding/breaking flow)
-          // Try fetching by ID first
           let appUser: any = await getUserData(firebaseUser.uid);
 
-          // Fallback: Try by Email
           if (!appUser && firebaseUser.email) {
               appUser = await getUserByEmail(firebaseUser.email);
           }
 
-          // Fallback: Try by Linked Google UID (for accounts linked from profile page)
           if (!appUser) {
               appUser = await getUserByLinkedGoogleUid(firebaseUser.uid);
           }
 
           if (appUser) {
-              // User account exists, log them in directly
-
-              // SECURITY & DATA LOSS FIX:
-              // If the user's Google UID doesn't match their existing (manual) account UID,
-              // Firestore Security Rules will block all future writes to their account.
-              // We must migrate their old data to their new Google UID to preserve their history and allow writes.
               if (appUser.id !== firebaseUser.uid) {
                   const oldId = appUser.id;
                   appUser = { ...appUser, id: firebaseUser.uid, provider: 'google' };
-
-                  // Call migration utility
                   await updateUserUID(oldId, firebaseUser.uid, appUser);
               }
 
-              // Keep photoURL fresh from Google (user may have changed their Gmail pic)
               if (firebaseUser.photoURL && appUser.photoURL !== firebaseUser.photoURL) {
                   appUser = { ...appUser, photoURL: firebaseUser.photoURL };
                   await saveUserToLive(appUser);
@@ -229,15 +215,15 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   displayId: newId,
                   name: firebaseUser.displayName || 'Student',
                   email: firebaseUser.email || '',
-                  password: '', // Passwordless for Google Auth, will be set in Onboarding
+                  password: '',
                   mobile: firebaseUser.phoneNumber || '',
                   role: 'STUDENT',
                   createdAt: new Date().toISOString(),
                   credits: settings?.signupBonus || 50,
                   streak: 0,
                   lastLoginDate: new Date().toISOString(),
-                  board: '', // Left empty to trigger onboarding
-                  classLevel: '', // Left empty to trigger onboarding
+                  board: '',
+                  classLevel: '',
                   provider: 'google',
                   photoURL: firebaseUser.photoURL || '',
                   avatarChoice: firebaseUser.photoURL ? 'gmail' : 'app',
@@ -262,9 +248,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Completely remove `nst_users` local dependency.
-    // Fetch directly from Firebase only.
 
     if (view === 'SIGNUP') {
         if (!validateEmail(formData.email)) {
@@ -309,7 +292,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             setGeneratedId(newId);
             setPendingLoginUser(appUser);
             setView('SCHOOL_SELECT');
-        } catch (err) {
+        } catch (err: any) {
             console.error("Signup Error:", err);
             if (err.code === 'auth/email-already-in-use') {
                 setError("Email is already in use. Please log in.");
@@ -320,29 +303,60 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     } else if (view === 'LOGIN') {
         try {
             await setPersistence(auth, browserLocalPersistence);
-            const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+            const userCredential = await signInWithEmailAndPassword(auth, formData.email.trim(), formData.password.trim());
             const firebaseUser = userCredential.user;
 
-            let appUser = await getUserData(firebaseUser.uid);
+            let appUser: any = await getUserData(firebaseUser.uid);
 
             if (!appUser && firebaseUser.email) {
-                appUser = await getUserByEmail(firebaseUser.email);
+                appUser = await getUserByEmail(firebaseUser.email.trim());
             }
 
-            if (appUser) {
-                if (appUser.id !== firebaseUser.uid) {
-                    const oldId = appUser.id;
-                    appUser = { ...appUser, id: firebaseUser.uid, provider: 'email' };
-                    await updateUserUID(oldId, firebaseUser.uid, appUser);
-                }
-                logActivity("LOGIN", "Student Logged In via Email", appUser);
-                triggerWelcome(appUser);
-            } else {
-                setError("User data not found in system.");
+            // Fresh data reconstruction if cache was wiped completely on another mobile
+            if (!appUser) {
+                const newId = generateUserId();
+                appUser = {
+                    id: firebaseUser.uid,
+                    displayId: newId,
+                    name: firebaseUser.displayName || 'Student',
+                    email: firebaseUser.email || formData.email.trim(),
+                    password: formData.password.trim(),
+                    mobile: '',
+                    role: 'STUDENT',
+                    createdAt: new Date().toISOString(),
+                    credits: settings?.signupBonus || 50,
+                    streak: 0,
+                    lastLoginDate: new Date().toISOString(),
+                    board: '',
+                    classLevel: '',
+                    provider: 'email',
+                    profileCompleted: true,
+                    progress: {},
+                    redeemedCodes: [],
+                    subscriptionTier: 'FREE',
+                    isPremium: false
+                };
+                await saveUserToLive(appUser);
             }
-        } catch (err) {
+
+            if (appUser.id !== firebaseUser.uid) {
+                const oldId = appUser.id;
+                appUser = { ...appUser, id: firebaseUser.uid, provider: 'email' };
+                await updateUserUID(oldId, firebaseUser.uid, appUser);
+            }
+
+            logActivity("LOGIN", "Student Logged In via Email", appUser);
+            triggerWelcome(appUser);
+
+        } catch (err: any) {
             console.error("Login Error:", err);
-            setError("Invalid Email or Password.");
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                setError("Galat Email ya Password. Sahi details enter karein.");
+            } else if (err.code === 'auth/too-many-requests') {
+                setError("Bahut zyada koshish ki gayi hai. Kripya thodi der baad try karein.");
+            } else {
+                setError("Login fail ho gaya. Internet check karein.");
+            }
         }
     } else if (view === 'RECOVERY') {
         const input = formData.id.trim();
@@ -351,36 +365,23 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         try {
             await setPersistence(auth, browserLocalPersistence);
 
-            // ── STEP 1: Establish Firebase session (needed for Firestore security rules) ──
-            // On a fresh device there is no session. Without a session, Firestore blocks
-            // all reads (permission-denied). Strategy:
-            //   • Email input  → try signInWithEmailAndPassword (establishes real session)
-            //   • Mobile/ID    → signInAnonymously first so Firestore reads are allowed,
-            //                    then verify password against our DB record.
             if (!auth.currentUser && input.includes('@')) {
                 try {
                     await signInWithEmailAndPassword(auth, input, pass);
                 } catch (e: any) {
-                    // Wrong password — no need to query DB, exit immediately.
                     if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
                         setError("Galat password. Dobara try karo.");
                         return;
                     }
-                    // Google-only / not registered via email → session not established.
-                    // We'll still query DB in case mobile/email is stored there.
                 }
             } else if (!auth.currentUser) {
-                // Mobile/ID input on a fresh device — get a temporary anonymous session
-                // so Firestore security rules allow us to query the users collection.
-                try { await signInAnonymously(auth); } catch { /* ignore — query may still work */ }
+                try { await signInAnonymously(auth); } catch {}
             }
 
-            // ── STEP 2: Query our DB ──
             let appUser: any = recoveryMode === 'profile'
                 ? await getUserByNameAndClass(formData.name.trim(), formData.classLevel.trim())
                 : await getUserByMobileOrId(input);
 
-            // ── STEP 3: Verify & log in ──
             if (appUser) {
                 if (appUser.isArchived) { setError('Account Deleted.'); return; }
 
@@ -392,7 +393,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                     if (freshUser) appUser = { ...appUser, ...freshUser };
                     logActivity("LOGIN", "Student Logged In (Custom DB Auth)", appUser);
                     triggerWelcome(appUser);
-                    // Background Firebase sync — best-effort only
                     if (appUser.email) {
                         signInWithEmailAndPassword(auth, appUser.email, pass).catch(() => {});
                     }
@@ -400,8 +400,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 }
 
                 if (isGoogleUser) {
-                    // Google-auth users have no stored password.
-                    // Direct them to use Google Sign-In.
                     setError("Yeh account Google se bana hai. Neeche 'Continue with Google' button se login karo.");
                     return;
                 }
@@ -410,10 +408,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 return;
             }
 
-            // ── STEP 4: User not found in DB ──
-
-            // If Firebase email auth succeeded in Step 1, user exists in Firebase
-            // but not in our DB — create/restore their profile.
             if (auth.currentUser && input.includes('@')) {
                 const firebaseUser = auth.currentUser;
                 let existingProfile: any = null;
@@ -450,7 +444,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 return;
             }
 
-            // No session + no user found.
             if (!auth.currentUser) {
                 setError("Account nahi mila. Mobile number, Email ya Account ID dobara check karo — ya 'Continue with Google' se try karo.");
                 return;
@@ -523,7 +516,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         animation: welcomeFading ? 'welcome-fade-out 0.5s ease forwards' : 'welcome-fade-in 0.5s ease forwards'
       }}>
-        {/* Floating particles */}
         {particles.map((p, i) => (
           <div key={i} style={{
             position: 'absolute', bottom: '12%', left: p.left,
@@ -533,19 +525,16 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           }} />
         ))}
 
-        {/* Outer ring glow */}
         <div style={{
           position: 'absolute', width: 340, height: 340, borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 70%)',
           pointerEvents: 'none'
         }} />
 
-        {/* Main card */}
         <div style={{
           position: 'relative', textAlign: 'center', padding: '0 32px',
           animation: 'welcome-badge-pop 0.6s cubic-bezier(.34,1.56,.64,1) 0.1s both'
         }}>
-          {/* Crown / star badge */}
           <div style={{
             width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px',
             background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)',
@@ -554,7 +543,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             fontSize: 34
           }}>✦</div>
 
-          {/* Welcome text with gold shimmer */}
           <h1 style={{
             fontSize: 52, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1,
             background: 'linear-gradient(90deg, #fbbf24, #f9fafb, #fbbf24, #fde68a, #fbbf24)',
@@ -563,25 +551,21 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             animation: 'welcome-shimmer-gold 2s linear infinite'
           }}>Welcome</h1>
 
-          {/* Student name */}
           <p style={{
             marginTop: 10, fontSize: 22, fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.02em'
           }}>{name}</p>
 
-          {/* Tagline */}
           <p style={{
             marginTop: 8, fontSize: 11, fontWeight: 600, color: '#6366f1',
             letterSpacing: '0.18em', textTransform: 'uppercase'
           }}>Your Learning Journey Begins</p>
 
-          {/* Thin gold divider */}
           <div style={{
             margin: '20px auto 0', width: 60, height: 2, borderRadius: 2,
             background: 'linear-gradient(90deg, transparent, #fbbf24, transparent)'
           }} />
         </div>
 
-        {/* Progress bar */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
           background: 'rgba(255,255,255,0.08)'
@@ -610,7 +594,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             <h2 className="text-xl font-black text-slate-800 mb-1 text-center">Apna School Select Karo</h2>
             <p className="text-slate-500 text-sm mb-5 text-center">Apne school ka content dekho. Baad mein bhi change kar sakte ho.</p>
 
-            {/* Search */}
             <div className="relative mb-4">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -622,7 +605,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               />
             </div>
 
-            {/* Lock code modal */}
             {selectedSchoolForJoin && (
               <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
                 <div className="flex items-center gap-2 mb-2">
@@ -652,7 +634,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               </div>
             )}
 
-            {/* School list */}
             {loadingSchools ? (
               <div className="text-center py-8 text-slate-400 text-sm">Loading schools...</div>
             ) : filteredSchools.length === 0 ? (
@@ -725,17 +706,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   }
 
   const isVideoMode = (appSettings?.loginPageStyle ?? settings?.loginPageStyle) === 'video';
-  const isDark = true; // Force full-black page always
+  const isDark = true;
 
   return (
     <div className={`min-h-screen flex items-center justify-center px-4 font-sans py-10 relative bg-black`}>
-      {/* ── Video background (admin-controlled) ── */}
       {isVideoMode && (() => {
         const rawUrl = appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4';
         const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
         if (driveMatch) {
-          // Google Drive — use iframe embed (direct video URL blocked by CORS/redirect)
-          // NOTE: File must be shared as "Anyone with the link" on Google Drive
           const fileId = driveMatch[1];
           const embedSrc = `https://drive.google.com/file/d/${fileId}/preview`;
           return (
@@ -851,7 +829,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                      Log in
                  </button>
 
-                 {/* Single recovery button */}
                  <button
                    type="button"
                    onClick={() => { setFormData(f => ({ ...f, id: '', password: '' })); setView('RECOVERY'); }}
@@ -865,17 +842,17 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
         {view !== 'HOME' && (
             <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-                            {(view === 'LOGIN' || view === 'SIGNUP') && (
+              {(view === 'LOGIN' || view === 'SIGNUP') && (
                   <>
                      <div className="space-y-1.5">
-                         <label className="text-xs font-bold text-slate-600 uppercase">Email Address</label>
-                         <input name="email" type="email" placeholder="Enter your email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                         <label className="text-xs font-bold text-slate-400 uppercase">Email Address</label>
+                         <input name="email" type="email" placeholder="Enter your email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 border border-slate-700 rounded-xl font-bold bg-slate-900 text-white focus:border-blue-500 outline-none transition-all" required />
                      </div>
                      <div className="space-y-1.5">
-                         <label className="text-xs font-bold text-slate-600 uppercase">Password</label>
+                         <label className="text-xs font-bold text-slate-400 uppercase">Password</label>
                          <div className="relative">
-                             <input name="password" type={showPassword ? "text" : "password"} placeholder={view === 'SIGNUP' ? "Create a password" : "Enter your password"} value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all pr-10" required />
-                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600">
+                             <input name="password" type={showPassword ? "text" : "password"} placeholder={view === 'SIGNUP' ? "Create a password" : "Enter your password"} value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border border-slate-700 rounded-xl font-bold bg-slate-900 text-white focus:border-blue-500 outline-none transition-all pr-10" required />
+                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
                                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                              </button>
                          </div>
@@ -886,7 +863,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
                      <div className="text-center mt-6">
                          <div className="relative">
-                             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+                             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800"></div></div>
                              <div className="relative flex justify-center text-xs uppercase"><span className="bg-[rgba(10,12,28,0.95)] px-2 text-slate-400 font-bold">Or continue with</span></div>
                          </div>
 
@@ -902,7 +879,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
               {view === 'RECOVERY' && (
                   <>
-                    {/* Info banner */}
                     <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-2 flex gap-3 items-start">
                       <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
                         <KeyRound size={15} className="text-orange-600" />
@@ -915,7 +891,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       </div>
                     </div>
 
-                    {/* Identifier input with type pills */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
                         Mobile / Email / Account ID
@@ -944,7 +919,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       </p>
                     </div>
 
-                    {/* Password */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Password</label>
                       <div className="relative">
@@ -969,7 +943,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       </div>
                     </div>
 
-                    {/* Submit */}
                     <button
                       type="submit"
                       className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black py-4 rounded-2xl mt-2 shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -978,7 +951,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       Account Dhundho &amp; Login Karo
                     </button>
 
-                    {/* Divider + Google */}
                     <div className="text-center mt-4">
                       <div className="relative">
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
@@ -1006,7 +978,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
         {(view === 'SIGNUP' || view === 'ADMIN' || view === 'RECOVERY' || view === 'LOGIN') && (
             <div className="mt-8 text-center pb-4">
-                <button onClick={() => setView('HOME')} className="text-slate-600 font-bold text-sm hover:text-slate-800 transition-colors">Go Back</button>
+                <button onClick={() => setView('HOME')} className="text-slate-400 font-bold text-sm hover:text-white transition-colors">Go Back</button>
             </div>
         )}
       </div>
