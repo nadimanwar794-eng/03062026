@@ -24,8 +24,7 @@ import { consumeDeferredStudyCoins } from './utils/studyRewards';
 import { signInAnonymously } from 'firebase/auth';
 import { fetchChapters, fetchLessonContent } from './services/groq';
 import { AppLoadingScreen } from './components/AppLoadingScreen';
-import { Onboarding }
-from './components/Onboarding';
+import { Onboarding } from './components/Onboarding';
 import { BoardSelection } from './components/BoardSelection';
 import { ClassSelection } from './components/ClassSelection';
 import { SubjectSelection } from './components/SubjectSelection';
@@ -51,6 +50,7 @@ import { CustomAlert, CustomConfirm } from './components/CustomDialogs';
 import { UpdatePopup } from './components/UpdatePopup';
 import { FreeSubjectLessonPopup } from './components/FreeSubjectLessonPopup';
 import { McqLimitLockedPopup } from './components/McqLimitLockedPopup';
+import { LogoutOverlay } from './components/LogoutOverlay';
 
 import { StreakLoginPopup } from './components/StreakLoginPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -64,7 +64,7 @@ import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
 import { DailyChallengePopup } from './components/DailyChallengePopup';
 import { recordCreditTx } from './utils/creditHistory';
 import { buildAutoMixQuestions, generateDailyChallengeQuestions } from './utils/challengeGenerator';
-import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react';
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
 
@@ -77,12 +77,10 @@ const App: React.FC = () => {
   const [appMcqCommunityDraft, setAppMcqCommunityDraft] = useState<{question: string; options: [string,string,string,string]; correctAnswer: number; explanation: string} | null>(null);
 
   const [isAppLoading, setIsAppLoading] = useState(() => sessionStorage.getItem('nst_has_loaded') !== 'true');
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => { initPerfMode(); }, []);
 
-  // ── Immortal Storage: 30-din purani history cleanup (app open hone par) ──
-  // Sirf _history subcollection ki expired entries delete hoti hain.
-  // Main lesson documents KABHI delete nahi hote.
   useEffect(() => {
     import('./utils/lessonStorage').then(({ runHistoryCleanup }) => {
       runHistoryCleanup();
@@ -120,7 +118,6 @@ const App: React.FC = () => {
                 view: 'STUDENT_DASHBOARD'
             }));
         } else if (urlParams.get('mock') === 'pdf_view') {
-          // Force view into PDF View mock
           setState(prev => ({
               ...prev,
               user: {
@@ -172,7 +169,6 @@ const App: React.FC = () => {
               view: 'REVISION_HUB'
           }));
       } else if (urlParams.get('mock') === 'marksheet') {
-          // Dummy data to trigger the MarksheetCard
           setLastTestResult({
               id: "mock-result-123",
               userId: "mock-user",
@@ -212,13 +208,12 @@ const App: React.FC = () => {
           }));
       }
   }, []);
+
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('nst_dark_mode');
     if (saved !== null) return saved === 'true';
-    // No user preference saved — follow OS setting
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (prefersDark) {
-      // Default to blue theme when auto-detecting dark mode from OS
       if (!localStorage.getItem('nst_dark_theme_type')) {
         localStorage.setItem('nst_dark_theme_type', 'blue');
       }
@@ -226,19 +221,15 @@ const App: React.FC = () => {
     return prefersDark;
   });
 
-  // ABANDONMENT DISCOUNT STATE
   const [isFlashSaleActive, setIsFlashSaleActive] = useState(false);
 
   useEffect(() => {
-      // Flash sale popup disabled — discount is now delivered via mailbox (inbox) when user visits store
       setIsFlashSaleActive(false);
   }, []);
 
   useEffect(() => {
-      // Clean up any old mode classes before applying the new one.
       document.documentElement.classList.remove('dark-mode', 'dark-mode-blue', 'dark-mode-black');
       if (darkMode) {
-         // Default to Black AMOLED if not set.
          const themeType = localStorage.getItem('nst_dark_theme_type') || 'black';
          document.documentElement.classList.add('dark-mode');
          document.documentElement.classList.add(themeType === 'blue' ? 'dark-mode-blue' : 'dark-mode-black');
@@ -246,12 +237,10 @@ const App: React.FC = () => {
       localStorage.setItem('nst_dark_mode', darkMode.toString());
   }, [darkMode]);
 
-  // Listen for OS-level dark mode changes and sync automatically
   useEffect(() => {
     if (!window.matchMedia) return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => {
-      // Only auto-follow OS if user hasn't explicitly set a preference
       if (localStorage.getItem('nst_dark_mode') === null) {
         if (e.matches && !localStorage.getItem('nst_dark_theme_type')) {
           localStorage.setItem('nst_dark_theme_type', 'blue');
@@ -358,18 +347,15 @@ const App: React.FC = () => {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [tempSelectedChapter, setTempSelectedChapter] = useState<Chapter | null>(null);
   const [generationDataReady, setGenerationDataReady] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false); // NEW
-  const [loadingMessage, setLoadingMessage] = useState<string>(''); // NEW
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [activeWeeklyTest, setActiveWeeklyTest] = useState<WeeklyTest | null>(null);
   const [studentTab, setStudentTab] = useState<StudentTab>('HOME');
 
-  // BANNER STATE
   const [showTopBanner, setShowTopBanner] = useState(true);
   const [showBottomBanner, setShowBottomBanner] = useState(true);
-  // IN-APP BROWSER (banner tap → iframe overlay instead of new tab)
   const [inAppBrowserUrl, setInAppBrowserUrl] = useState<string | null>(null);
 
-  // Global 3D cards — toggle class on <html> when admin setting changes
   useEffect(() => {
       if (state.settings?.globalCards3D) {
           document.documentElement.classList.add('global-cards-3d');
@@ -378,7 +364,6 @@ const App: React.FC = () => {
       }
   }, [state.settings?.globalCards3D]);
 
-  // BANNER AUTO-HIDE LOGIC
   useEffect(() => {
       const top = state.settings.bannerConfig?.top;
       setShowTopBanner(true);
@@ -399,15 +384,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     storage.getItem<StudentTab>('nst_active_student_tab').then(saved => {
-        // Always start from HOME — never restore a deep content view on app open
         if (saved && saved !== 'COURSES' && saved !== 'PDF' && saved !== 'MCQ' && saved !== 'VIDEO' && saved !== 'AUDIO') {
             setStudentTab(saved);
         }
     });
   }, []);
 
-    // Active reward generated by study-timer (pushed to inbox when created)
-    const [activeReward, setActiveReward] = useState<PendingReward | null>(null);
+  const [activeReward, setActiveReward] = useState<PendingReward | null>(null);
 
   useEffect(() => {
     if (studentTab === 'HOME' || studentTab === 'HOMEWORK' || studentTab === 'HISTORY' || studentTab === 'PROFILE' || studentTab === 'COMMUNITY_SUPPORT') {
@@ -416,29 +399,18 @@ const App: React.FC = () => {
     }
   }, [studentTab]);
 
-  // ── Home-page coin sync + session queue consumption ──────────────────────
-  // Jab bhi user HOME pe aata hai:
-  //   1. Earned pts → coins convert (existing logic)
-  //   2. Session queue consume karo — agar sessions hain to grouped/single banner dikhao
-  // localStorage key "nst_credit_sync_score_<uid>" last-synced pts track karta hai.
   useEffect(() => {
     if (studentTab !== 'HOME') return;
     const user = state.user;
     if (!user?.id) return;
 
-    // Study coins are held outside the profile until Home is opened.
-    // Consume the whole pool in one payout so separate study modes are combined.
     const deferredStudyCoins = consumeDeferredStudyCoins(user.id);
     if (deferredStudyCoins > 0) {
       const updatedUser = { ...user, credits: (user.credits || 0) + deferredStudyCoins };
       setState(prev => ({ ...prev, user: updatedUser }));
       saveUserToLive(updatedUser);
-      // Notification HomeToastNotification me combined dikhayi jaayegi — alag EARN toast nahi
     }
 
-    // ── Step 1: Keep the legacy score-sync marker current ───────────────────
-    // Study coins are now held in the deferred study-reward pool below and
-    // paid together on Home. Do not convert score deltas here.
     const syncKey = `nst_credit_sync_score_${user.id}`;
     const raw = localStorage.getItem(syncKey);
     const currentScore = user.totalScore || 0;
@@ -455,7 +427,6 @@ const App: React.FC = () => {
       }
     }
 
-    // ── Step 2: Session queue consume karo ─────────────────────────────────
     let queue = consumeSessionQueue();
     if (queue.length === 0) {
       if (deferredStudyCoins <= 0) return;
@@ -469,8 +440,6 @@ const App: React.FC = () => {
         sessionScore: xpDeltaFromSync > 0 ? xpDeltaFromSync : undefined,
       }];
     } else if (deferredStudyCoins > 0) {
-      // Flashcard and older study payloads may not carry coin metadata even
-      // though the shared pending pool contains the earned total.
       const reportedCoins = queue.reduce((sum, session) => sum + (session.coinsEarned || 0), 0);
       const missingCoins = Math.max(0, deferredStudyCoins - reportedCoins);
       if (missingCoins > 0) {
@@ -482,7 +451,6 @@ const App: React.FC = () => {
       }
     }
 
-    // Har session ka credit history record karo + bonusPts augment karo
     const discount = getLevelInfo(user.totalScore || 0).discount;
     const augmentedQueue = queue.map(sess => {
       const bonusPts = sess.sessionScore != null && sess.sessionScore > 0
@@ -507,7 +475,6 @@ const App: React.FC = () => {
       return { ...sess, bonusPts };
     });
 
-    // ── Save to Activity History ────────────────────────────────────────────
     const totalPtsEarned   = augmentedQueue.reduce((a, s) => a + (s.sessionScore  ?? 0), 0);
     const totalBonusEarned = augmentedQueue.reduce((a, s) => a + (s.bonusPts      ?? 0), 0);
     const totalCredEarned  = deferredStudyCoins > 0
@@ -531,18 +498,13 @@ const App: React.FC = () => {
         timeSecs: augmentedQueue.reduce((a, s) => a + (s.timeSecs ?? 0), 0),
       });
 
-      // Show small top-bar toast instead of big popup
       setHomeToastData({
         xpBefore, xpEarned: totalPtsEarned + totalBonusEarned, xpAfter,
         creditsBefore, creditsEarned: totalCredEarned, creditsAfter,
       });
     }
 
-    // Sessions still tracked internally (for any remaining listeners), but no big banner shown
     applySessionQueue(augmentedQueue);
-
-    // XP HomeToastNotification me already dikh raha hai — alag POINTS toast nahi
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab, state.user?.id]);
 
   useEffect(() => {
@@ -551,27 +513,18 @@ const App: React.FC = () => {
   const [streakLoginPopup, setStreakLoginPopup] = useState<{newStreak: number; prevStreak: number; isNewRecord: boolean} | null>(null);
   const [levelUpNotif, setLevelUpNotif] = useState<{level: number; label: string; emoji: string; color: string} | null>(null);
 
-  // Toast state — must be declared BEFORE any useEffect that references it (TDZ guard)
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ── MCQ session queue helpers ─────────────────────────────────────────────
-  // homeTabActiveRef: track karo ki user HOME pe hai (MCQ race-condition fix)
   const homeTabActiveRef = useRef(false);
   useEffect(() => { homeTabActiveRef.current = studentTab === 'HOME'; }, [studentTab]);
 
-  // Toast auto-dismiss
   useEffect(() => {
     if (!toastMessage) return;
     const t = setTimeout(() => setToastMessage(null), 2800);
     return () => clearTimeout(t);
   }, [toastMessage]);
 
-  // MCQ session ko queue karo + agar HOME pe already hain to turant banner dikhao
   const enqueueMcqAndShow = (earned: number, earnedC: number, secs: number) => {
-    // ── Credit calculation ─────────────────────────────────────────────────────
-    // MCQ sessions ke liye earnedC = 0 hota hai (MCQ answering pe credits earn nahi
-    // hote). Reading sessions mein earnedC > 0 ho sakta hai (timer se). Dono cases
-    // mein ensure karo ki earned pts ka ⅙ (routine on) ya ⅛ (off) credit mile.
     let finalCoins = earnedC;
     const _sessUser = state.user;
     if (earned > 0 && _sessUser?.id) {
@@ -579,8 +532,6 @@ const App: React.FC = () => {
       const ratio = routineOn ? (1 / 6) : 0.125;
       const expectedCoins = Math.floor(earned * ratio);
       finalCoins = Math.max(earnedC, expectedCoins);
-      // The study screen has already placed these coins in the shared pending
-      // pool. This function only creates the Home session summary.
       localStorage.setItem(`nst_credit_sync_score_${_sessUser.id}`, String(_sessUser.totalScore || 0));
     }
     queueSession({
@@ -592,11 +543,9 @@ const App: React.FC = () => {
       sessionScore: earned,
       activityType: mcqActivityTypeRef.current,
     });
-    // Agar user already HOME pe hai to abhi hi consume karo + merge
     if (homeTabActiveRef.current) {
       const queue = consumeSessionQueue();
       applySessionQueue(queue);
-      // XP + CR toast bhi turant dikhao (studentTab useEffect tab fire nahi hota jab tab same ho)
       const _u = state.user;
       if (_u) {
         const _discount = getLevelInfo(_u.totalScore || 0).discount;
@@ -614,25 +563,19 @@ const App: React.FC = () => {
         }
       }
     }
-    // Agar HOME pe nahi — queue mein rahega, HOME tab pe aane pe dikhega
   };
 
-  // ── MCQ refs — useEffect ke pehle declare karna zaroori hai (production TDZ fix) ──
   const mcqSessionSecondsRef = useRef(0);
   const scoreAtSessionStartRef = useRef(0);
   const creditsAtSessionStartRef = useRef(0);
-  const sessionStartTimeRef = useRef(0); // session shuru hone ka timestamp
+  const sessionStartTimeRef = useRef(0);
   const userTotalScoreRef = useRef(0);
   const userCreditsRef = useRef(0);
-  // awaitingPostMcqDataRef: true jab MCQ khatam hua lekin score abhi state mein aana baaki hai
   const awaitingPostMcqDataRef = useRef(false);
-  // sessionEndProcessedRef: double-fire guard (sessionStartTimeRef pe depend mat karo)
   const sessionEndProcessedRef = useRef(false);
-  // RevisionHub open hone pe HomeStatsToast defer karo — close hone pe dikhao
   const revisionHubOpenRef = useRef(false);
   const pendingHomeStatsRef = useRef(false);
 
-  // ── Fallback timer (1.5s) agar Firebase se score update late aaye ─────────
   const [mcqJustEnded, setMcqJustEnded] = useState(false);
   const mcqFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -643,7 +586,7 @@ const App: React.FC = () => {
     const snapStartC = creditsAtSessionStartRef.current;
     const snapSecs = mcqSessionSecondsRef.current;
     mcqFallbackTimerRef.current = setTimeout(() => {
-      if (!awaitingPostMcqDataRef.current) return; // score-effect ne handle kar liya
+      if (!awaitingPostMcqDataRef.current) return;
       awaitingPostMcqDataRef.current = false;
       const earned = Math.max(0, snapScore - snapStart);
       const earnedC = Math.max(0, snapCredits - snapStartC);
@@ -653,17 +596,14 @@ const App: React.FC = () => {
       enqueueMcqAndShow(earned, earnedC, snapSecs);
     }, 1500);
     return () => { if (mcqFallbackTimerRef.current) clearTimeout(mcqFallbackTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mcqJustEnded]);
 
-  // ── MCQ session active flag + full session tracking ──────────────────────────
   const [inMcqSession, setInMcqSession] = useState(false);
   const [mcqSessionScore, setMcqSessionScore] = useState(0);
   const [mcqSessionCredits, setMcqSessionCredits] = useState(0);
-  const [mcqSessionSeconds, setMcqSessionSeconds] = useState(0); // is session ki duration
+  const [mcqSessionSeconds, setMcqSessionSeconds] = useState(0);
   const [mcqChapterName, setMcqChapterName] = useState('');
   const [mcqActivityType, setMcqActivityType] = useState('MCQ');
-  // Refs — enqueueMcqAndShow mein stale closures avoid karne ke liye
   const mcqChapterNameRef = useRef('');
   const mcqActivityTypeRef = useRef('MCQ');
   useEffect(() => { mcqChapterNameRef.current = mcqChapterName; }, [mcqChapterName]);
@@ -672,31 +612,25 @@ const App: React.FC = () => {
   useEffect(() => { userTotalScoreRef.current = state.user?.totalScore || 0; }, [state.user?.totalScore]);
   useEffect(() => { userCreditsRef.current = state.user?.credits || 0; }, [state.user?.credits]);
 
-  // MCQ ke BAAD state.user update hone par earned score/credits capture karo aur toast dikhao
   useEffect(() => {
     if (!awaitingPostMcqDataRef.current) return;
     awaitingPostMcqDataRef.current = false;
-    // Fallback timer cancel karo — hum yahan se dikhayenge
     if (mcqFallbackTimerRef.current) { clearTimeout(mcqFallbackTimerRef.current); mcqFallbackTimerRef.current = null; }
     const earned = Math.max(0, (state.user?.totalScore || 0) - scoreAtSessionStartRef.current);
     const earnedC = Math.max(0, (state.user?.credits || 0) - creditsAtSessionStartRef.current);
     setMcqSessionScore(earned);
     setMcqSessionCredits(earnedC);
     setMcqJustEnded(false);
-    // RevisionHub open hai to home pe jane pe dikhao
-    // Notification queue mein daal do — HOME tab pe aane pe dikhega
     enqueueMcqAndShow(earned, earnedC, mcqSessionSecondsRef.current);
     if (revisionHubOpenRef.current) { pendingHomeStatsRef.current = true; }
   }, [state.user?.totalScore, state.user?.credits]);
 
-  // RevisionHub open/close track karo — toast defer karo jab tak hub band na ho
   useEffect(() => {
     const openHandler = () => { revisionHubOpenRef.current = true; };
     const closeHandler = () => {
       revisionHubOpenRef.current = false;
       if (pendingHomeStatsRef.current) {
         pendingHomeStatsRef.current = false;
-        // Session already queued — agar HOME tab pe hain to abhi consume + merge karo
         if (homeTabActiveRef.current) {
           setTimeout(() => {
             const queue = consumeSessionQueue();
@@ -713,7 +647,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // ── Pending lesson coins — deferred from session, applied 4s after HOME ─────
   const pendingLessonCreditsRef = useRef(0);
   const pendingLessonTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -724,12 +657,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (studentTab !== 'HOME') return;
-    // LessonView now writes directly to the same deferred study pool.
     return undefined;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentTab]);
 
-  // HOME tab pe EARN notifications suppress karo (HomeStatsToast mein dikhega)
   useEffect(() => { setHomeTabActive(studentTab === 'HOME'); }, [studentTab]);
   useEffect(() => {
     const handler = (e: Event) => {
@@ -737,7 +667,6 @@ const App: React.FC = () => {
       const { active, chapterName, subjectName, activityType } = detail;
       setInMcqSession(active);
       if (active) {
-        // Session shuru — scores + time snapshot lo, end-guard reset karo
         scoreAtSessionStartRef.current = userTotalScoreRef.current;
         creditsAtSessionStartRef.current = userCreditsRef.current;
         sessionStartTimeRef.current = Date.now();
@@ -745,9 +674,7 @@ const App: React.FC = () => {
         if (chapterName) setMcqChapterName([chapterName, subjectName].filter(Boolean).join(' · '));
         if (activityType) setMcqActivityType(activityType);
       } else {
-        // Guard 1: koi active session shuru nahi hua (mount-time false fire block)
         if (sessionStartTimeRef.current === 0) return;
-        // Guard 2: is session ka end already process ho chuka (double-fire block)
         if (sessionEndProcessedRef.current) return;
         sessionEndProcessedRef.current = true;
         const elapsedSec = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
@@ -761,19 +688,14 @@ const App: React.FC = () => {
     return () => window.removeEventListener('iic-mcq-session', handler);
   }, []);
   const [lastTestResult, setLastTestResult] = useState<MCQResult | null>(null);
-  const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null); // NEW: For granular analysis
+  const [lastTestQuestions, setLastTestQuestions] = useState<MCQItem[] | null>(null);
   const [showDailyRankCard, setShowDailyRankCard] = useState(false);
   const [pendingSessionSummary, setPendingSessionSummary] = useState<SessionCompletePayload | null>(null);
-  // Grouped sessions — kept for queue merging logic
   const [groupedSessions, setGroupedSessions] = useState<SessionCompletePayload[]>([]);
-  // New: small top-bar toast data
   const [homeToastData, setHomeToastData] = useState<HomeToastData | null>(null);
 
-  // Track currently displaying sessions so new ones can be MERGED (not replaced)
   const displayedSessionsRef = useRef<SessionCompletePayload[]>([]);
 
-  // Safely show sessions — merges with any already-displaying banner
-  // Always uses HomeToastNotification (replaces old GroupedSessionBanner)
   const applySessionQueue = useCallback((newQueue: SessionCompletePayload[]) => {
     if (newQueue.length === 0) return;
     const merged = [...displayedSessionsRef.current, ...newQueue];
@@ -782,16 +704,12 @@ const App: React.FC = () => {
     setGroupedSessions(merged);
   }, []);
 
-  // Listen for lesson-complete events (Reading / Writing) — queue karo, HOME pe dikhao
   useEffect(() => {
     const unsub = onSessionComplete((payload) => {
-      // Queue mein daalo
       queueSession(payload);
-      // Agar HOME tab pe already hain to turant consume karo
       if (homeTabActiveRef.current) {
         const queue = consumeSessionQueue();
         applySessionQueue(queue);
-        // XP + CR toast bhi turant dikhao (studentTab useEffect tab fire nahi hota jab tab same ho)
         const _score = payload.sessionScore ?? 0;
         const _creds = (payload.coinsEarned ?? 0) + (payload.creditsEarned ?? 0);
         const _totalScore = userTotalScoreRef.current;
@@ -812,14 +730,11 @@ const App: React.FC = () => {
       }
     });
     return unsub;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applySessionQueue]);
   
-  // CUSTOM DIALOG STATE (GLOBAL)
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
 
-  // CREDIT CONFIRMATION STATE
   const [creditModal, setCreditModal] = useState<{
       isOpen: boolean;
       cost: number;
@@ -827,29 +742,23 @@ const App: React.FC = () => {
       onConfirm: (autoEnabled: boolean) => void;
   } | null>(null);
 
-  // GLOBAL STUDY TIMER
   const [dailyStudySeconds, setDailyStudySeconds] = useState(0);
   
-  // FULL SCREEN MODE (Hides Header/Footer/Dock)
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isLessonImmersive, setIsLessonImmersive] = useState(false);
   const [popupQueue, setPopupQueue] = useState<('TRACKER' | 'CHALLENGE' | 'WELCOME')[]>([]);
-  const [showUpdatePopup, setShowUpdatePopup] = useState(false); // NEW
-  const [loadingContentType, setLoadingContentType] = useState<ContentType | undefined>(undefined); // NEW
-  const [showFreeSubjectPopup, setShowFreeSubjectPopup] = useState(false); // FREE LESSON POPUP
-  const [mcqLimitPopup, setMcqLimitPopup] = useState<{ used: number; limit: number; creditCost: number } | null>(null); // MCQ LIMIT POPUP
+  const [showUpdatePopup, setShowUpdatePopup] = useState(false);
+  const [loadingContentType, setLoadingContentType] = useState<ContentType | undefined>(undefined);
+  const [showFreeSubjectPopup, setShowFreeSubjectPopup] = useState(false);
+  const [mcqLimitPopup, setMcqLimitPopup] = useState<{ used: number; limit: number; creditCost: number } | null>(null);
 
-  // --- VERSION CONTROL INIT ---
   useEffect(() => {
       const storedVersion = localStorage.getItem('nst_app_version');
-      // If no version stored, OR if the Code Version (APP_VERSION) is newer/different than stored,
-      // update the storage. This handles the case where user installs a new update.
       if (!storedVersion || storedVersion !== APP_VERSION) {
           localStorage.setItem('nst_app_version', APP_VERSION);
       }
   }, []);
 
-  // --- AUTO CLEANUP GROQ KEYS ---
   useEffect(() => {
       const deletedKeys = state.settings.deletedGroqKeys || [];
       if (deletedKeys.length > 0) {
@@ -865,7 +774,6 @@ const App: React.FC = () => {
       }
   }, [state.settings.deletedGroqKeys]);
 
-  // --- REWARD CHECKER (Login & Pending) ---
   const recordActivity = (type: UsageHistoryEntry['type'], itemTitle: string, amount?: number, extra?: any) => {
     if (!state.user) return;
     const entry: UsageHistoryEntry = {
@@ -890,7 +798,6 @@ const App: React.FC = () => {
     (window as any).recordActivity = recordActivity;
   }, [state.user?.id]);
 
-  // Level-up detection: fire notification when user crosses a level threshold
   const prevLevelRef = React.useRef<number>(0);
   useEffect(() => {
     if (!state.user) return;
@@ -914,33 +821,27 @@ const App: React.FC = () => {
       let hasUpdates = false;
       let newReward: PendingReward | null = null;
 
-      // STREAK LOGIC (Strict Date Comparison)
       const lastLoginRaw = state.user.lastLoginDate ? new Date(state.user.lastLoginDate) : null;
       const lastLoginDateString = lastLoginRaw ? lastLoginRaw.toDateString() : '';
 
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
 
-      // Update Login Date if not today
       if (lastLoginDateString !== today) {
           updatedUser.lastLoginDate = new Date().toISOString();
           hasUpdates = true;
 
           if (lastLoginDateString === yesterday.toDateString()) {
-              // Consecutive Login: Increment
               const prev = updatedUser.streak || 0;
               updatedUser.streak = prev + 1;
-              // SCORE INCREMENT: +10 per consecutive day (+ score boost event %)
               const _sbeBoost = (state.settings?.scoreBoostEvent?.enabled)
                   ? ((state.settings.scoreBoostEvent as any).boostPercent / 100) : 0;
               updatedUser.totalScore = (updatedUser.totalScore || 0) + Math.round(10 * (1 + _sbeBoost));
               updatedUser.lastScoreDate = new Date().toISOString();
-              // Track longest streak & award 100 credits for new record
               const prevLongest = updatedUser.longestStreak || 0;
               if (updatedUser.streak > prevLongest) {
                   updatedUser.longestStreak = updatedUser.streak;
                   if (prevLongest > 0) {
-                      // New record bonus: 100 credits
                       updatedUser.credits = (updatedUser.credits || 0) + 100;
                   }
               }
@@ -950,16 +851,13 @@ const App: React.FC = () => {
               }
               
           } else {
-              // Streak Broken or First Login: Reset
               const prev = updatedUser.streak || 0;
               updatedUser.streak = 1;
-              // Update longestStreak if first time
               if (!updatedUser.longestStreak) updatedUser.longestStreak = 1;
               if (localStorage.getItem('nst_streak_popup_date') !== today) {
                   localStorage.setItem('nst_streak_popup_date', today);
                   setStreakLoginPopup({ newStreak: 1, prevStreak: prev > 1 ? prev : 0, isNewRecord: false });
               }
-              // SCORE PENALTY: Streak break → drop 1 level (import-free inline logic)
               if (prev > 1) {
                   const thresholds = [0, 100, 300, 700, 2000, 5000, 10000, 20000];
                   const cs = updatedUser.totalScore || 0;
@@ -969,11 +867,10 @@ const App: React.FC = () => {
               }
           }
 
-          // === WEEKLY LEVEL BONUS (L9–L15) — koi bhi Sunday login pe, ek baar per week ===
-          if (now.getDay() === 0) { // Sunday
+          if (now.getDay() === 0) {
               const _wlvl = getLevelInfo(updatedUser.totalScore || 0).level;
               if (_wlvl >= 9) {
-                  const _wKey  = now.toISOString().split('T')[0]; // Sunday YYYY-MM-DD
+                  const _wKey  = now.toISOString().split('T')[0];
                   const _wLS   = `nst_weekly_lvl_bonus_${state.user.id}_${_wKey}`;
                   const _wId   = `wlvlbonus-${state.user.id}-${_wKey}`;
                   const _wDupe = (updatedUser.inbox || []).some((m: any) => m.id === _wId);
@@ -983,7 +880,7 @@ const App: React.FC = () => {
                           9: 100, 10: 150, 11: 200, 12: 300, 13: 500, 14: 700, 15: 1000,
                       };
                       const _wAmt  = _wBonusMap[Math.min(_wlvl, 15)] ?? 100;
-                      const _wExp  = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12 ghante
+                      const _wExp  = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
                       const _wMsg: any = {
                           id: _wId,
                           text: `🎁 Level ${_wlvl} Weekly Sunday Bonus!\n\nYour special reward for this week is here!\n\n💰 ${_wAmt} Bonus Credits — expires in 12 hours\n\nThese credits can be used in Store, MCQ unlock, Theme Studio and more!\n\nTap "Claim" below.`,
@@ -1001,37 +898,30 @@ const App: React.FC = () => {
           }
       }
 
-      // 1. Weekly Sunday Login Bonus — sirf Sunday ke first login pe, aur sirf jab streak toot gayi ho
       const lastRewardDate = state.user.lastLoginRewardDate ? new Date(state.user.lastLoginRewardDate).toDateString() : '';
-      const _isSunday = now.getDay() === 0; // 0 = Sunday
-      // Streak toot gayi check — last login na aaj hai, na kal tha
+      const _isSunday = now.getDay() === 0;
       const _streakBrokenForBonus = !!(state.user.lastLoginDate &&
           lastLoginDateString !== yesterday.toDateString() &&
           lastLoginDateString !== today);
 
-      // Layer-2 guard: localStorage per-device per-user key (survives tab close/reopen, shared across tabs)
       const _bonusLSKey = `nst_wkbonus_${state.user.id}_${today}`;
-      // Layer-3 guard: inbox already has this reward? (catches cross-device race window)
       const _bonusInboxId = `login-bonus-${today}`;
       const _alreadyInInbox = (updatedUser.inbox || []).some((m: any) => m.id === _bonusInboxId);
 
       if (_isSunday && _streakBrokenForBonus
-          && lastRewardDate !== today          // Layer-1: Firebase lastLoginRewardDate
-          && !localStorage.getItem(_bonusLSKey) // Layer-2: localStorage same-device all-tabs
-          && !_alreadyInInbox                  // Layer-3: inbox dedup
+          && lastRewardDate !== today
+          && !localStorage.getItem(_bonusLSKey)
+          && !_alreadyInInbox
       ) {
-          // Claim locks — set ALL guards immediately before any async work
           localStorage.setItem(_bonusLSKey, '1');
-          updatedUser.lastLoginRewardDate = new Date().toISOString(); // written to Firebase immediately
+          updatedUser.lastLoginRewardDate = new Date().toISOString();
           hasUpdates = true;
 
-          // Grant Bonus based on Tier — push straight to inbox
           let bonusAmount = state.settings.loginBonusConfig?.freeBonus ?? 2;
           if (state.user.subscriptionTier !== 'FREE') {
               if (state.user.subscriptionLevel === 'BASIC') bonusAmount = state.settings.loginBonusConfig?.basicBonus ?? 5;
               if (state.user.subscriptionLevel === 'ULTRA') bonusAmount = state.settings.loginBonusConfig?.ultraBonus ?? 10;
           }
-          // Add level-based bonus credits (L6: +2, L7: +3, L8: +5)
           const _loginUserLevel = getLevelInfo(state.user.totalScore || 0).level;
           const _loginLvlBonus  = getLevelLimitBonus(_loginUserLevel);
           bonusAmount += _loginLvlBonus.bonusLoginCredits;
@@ -1046,7 +936,6 @@ const App: React.FC = () => {
           };
       }
 
-      // 2. Check Pending Unlocks (Prizes) → push to inbox
       if (!newReward && updatedUser.pendingRewards && updatedUser.pendingRewards.length > 0) {
           const unlockIndex = updatedUser.pendingRewards.findIndex(r => !r.unlockDate || new Date(r.unlockDate) <= now);
           if (unlockIndex !== -1) {
@@ -1059,7 +948,6 @@ const App: React.FC = () => {
           }
       }
 
-      // Push ALL rewards to inbox (no popup) and show a toast
       const pushRewardToInbox = (reward: PendingReward) => {
           const existingInbox = updatedUser.inbox || [];
           const alreadyInInbox = existingInbox.some(m => m.id === reward.id);
@@ -1093,7 +981,6 @@ const App: React.FC = () => {
       if (hasUpdates || newReward) {
           if (newReward) {
               pushRewardToInbox(newReward);
-              // ── Random Gift alongside login bonus (dice roll) ──
               const rgCfg = state.settings.loginBonusConfig;
               if (rgCfg?.randomGiftEnabled && (rgCfg.randomGiftOptions || []).length > 0) {
                   const chance = rgCfg.randomGiftChance ?? 20;
@@ -1126,7 +1013,6 @@ const App: React.FC = () => {
                   }
               }
           }
-          // ── Streak Milestone Rewards (3, 7, 14, 30 days) ──
           const currentStreak = updatedUser.streak || 0;
           const STREAK_MILESTONES: Record<number, number> = { 3: 25, 7: 50, 14: 120, 30: 300 };
           if (STREAK_MILESTONES[currentStreak] !== undefined) {
@@ -1146,7 +1032,6 @@ const App: React.FC = () => {
           }
 
           if (hasUpdates) {
-              // SAFE IMPERSONATION: Only save if NOT impersonating
               if (!state.originalAdmin) {
                   localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
                   saveUserToLive(updatedUser);
@@ -1156,12 +1041,10 @@ const App: React.FC = () => {
       }
   }, [state.user?.id, state.user?.lastLoginRewardDate, state.originalAdmin]);
 
-  // --- SMART CRASH PROTECTION: Subscribe to maintenance state ---
   useEffect(() => {
     return subscribeToMaintenance(setMaintenanceState);
   }, []);
 
-  // --- GLOBAL ERROR HANDLERS (app crash prevention) ---
   useEffect(() => {
     const handleWindowError = (event: ErrorEvent) => {
       logErrorToFirebase(event.error || new Error(event.message || 'Unknown runtime error'), {
@@ -1180,7 +1063,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Sync current user into errorLogger so logs include who crashed
   useEffect(() => {
     if (state.user) {
       setErrorLoggerUser(state.user.id, state.user.name ?? null, state.user.role ?? null);
@@ -1189,7 +1071,6 @@ const App: React.FC = () => {
     }
   }, [state.user?.id, state.user?.name, state.user?.role]);
 
-  // --- ONLINE/OFFLINE DETECTOR & SYNC ---
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -1197,7 +1078,6 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initial Sync Check
     if (navigator.onLine) handleOnline();
 
     return () => {
@@ -1206,7 +1086,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Background Sync Logic
   useEffect(() => {
       if (isOnline) {
           const pendingStr = localStorage.getItem('nst_pending_sync_results');
@@ -1229,10 +1108,6 @@ const App: React.FC = () => {
       }
   }, [isOnline]);
 
-  // --- LIVE SETTINGS & USER SYNC (REALTIME) ---
-  // Revision Hub has a local-first UI, but Firebase is the source of truth
-  // across cache clears and devices. Hydrate once whenever the active account
-  // changes; the mounted hub listens for the completion event and reloads.
   useEffect(() => {
       const userId = state.user?.id;
       if (!userId || state.originalAdmin) {
@@ -1244,8 +1119,6 @@ const App: React.FC = () => {
       });
   }, [state.user?.id, state.originalAdmin]);
 
-  // Routine config/coins/claims Firebase restore — runs once per login.
-  // MyRoutine listens for 'iic-routine-hydrated' and reloads state.
   useEffect(() => {
       const userId = state.user?.id;
       if (!userId || state.originalAdmin) return;
@@ -1259,7 +1132,6 @@ const App: React.FC = () => {
 
       if (state.user && !state.originalAdmin) {
           unsubscribeUser = subscribeToUser(state.user.id, (cloudUser) => {
-              // Account deleted by admin — force logout immediately
               if (!cloudUser) {
                   localStorage.removeItem('nst_current_user');
                   localStorage.removeItem('nst_users');
@@ -1272,8 +1144,6 @@ const App: React.FC = () => {
 
                       const mergedUser = { ...prev.user, ...cloudUser };
 
-                      // CRITICAL FIX: The Firestore 'users/{uid}' document DOES NOT contain bulky data.
-                      // We must preserve the bulky data from the current state so it doesn't get wiped by the core sync.
                       if (!cloudUser.hasOwnProperty('mcqHistory')) mergedUser.mcqHistory = prev.user.mcqHistory;
                       if (!cloudUser.hasOwnProperty('testResults')) mergedUser.testResults = prev.user.testResults;
                       if (!cloudUser.hasOwnProperty('progress')) mergedUser.progress = prev.user.progress;
@@ -1287,25 +1157,21 @@ const App: React.FC = () => {
                       if (!cloudUser.hasOwnProperty('unlockedContent')) mergedUser.unlockedContent = prev.user.unlockedContent;
                       if (!cloudUser.hasOwnProperty('dailyRoutine')) mergedUser.dailyRoutine = prev.user.dailyRoutine;
 
-                      // PRESERVE ADMIN OVERRIDES (Fix for White Screen demotion)
                       if (prev.user.role === 'ADMIN' && cloudUser.role !== 'ADMIN') {
                           mergedUser.role = 'ADMIN';
                       }
                       if (prev.user.role === 'SUB_ADMIN' && cloudUser.role !== 'SUB_ADMIN' && cloudUser.role !== 'ADMIN') {
                           mergedUser.role = 'SUB_ADMIN';
                       }
-                      // PRESERVE TEACHER ROLE (if code was applied during signup but slow sync)
                       if (prev.user.role === 'TEACHER' && cloudUser.role !== 'TEACHER') {
                           mergedUser.role = 'TEACHER';
                       }
 
-                      // Naya mail/message aaya to slim top-bar notification dikhao (same style as coin earn)
                       const prevInbox = prev.user.inbox || [];
                       const nextInbox = mergedUser.inbox || [];
                       if (nextInbox.length > prevInbox.length) {
                           const prevIds = new Set(prevInbox.map((m: any) => m.id));
                           const newMsgs = nextInbox.filter((m: any) => !prevIds.has(m.id));
-                          // REWARD messages already fire their own toast via pushRewardToInbox / activeReward flow
                           const newMailMsgs = newMsgs.filter((m: any) => m.type !== 'REWARD');
                           if (newMailMsgs.length > 0) {
                               const first = newMailMsgs[0];
@@ -1327,7 +1193,6 @@ const App: React.FC = () => {
           });
       }
 
-      // Subscribe to Firebase Settings Updates
       const unsubscribeSettings = subscribeToSettings((newSettings) => {
           if (newSettings) {
               setState(prev => {
@@ -1339,20 +1204,11 @@ const App: React.FC = () => {
                   return prev;
               });
 
-              // FORCE REFRESH LOGIC
-              // NOTE: localStorage.setItem always coerces to string, so we MUST
-              // compare as strings — otherwise number vs string mismatch causes
-              // an infinite reload loop on every settings snapshot.
-              // Also rate-limit: never reload more than once every 60 seconds
-              // (this is a hard safety net against any reload-loop bug).
               if (newSettings.forceRefreshTimestamp) {
                   const lastRefresh = localStorage.getItem('nst_last_refresh_ts');
                   const incoming = String(newSettings.forceRefreshTimestamp);
                   if (lastRefresh !== incoming) {
                       localStorage.setItem('nst_last_refresh_ts', incoming);
-                      // Only actually reload if we had a previous value (i.e. admin
-                      // pushed a new refresh). On very first load there's no prior
-                      // value — just record it and skip the reload to avoid a loop.
                       if (lastRefresh !== null) {
                           const lastReloadAt = Number(localStorage.getItem('nst_last_reload_at') || '0');
                           const nowMs = Date.now();
@@ -1364,14 +1220,12 @@ const App: React.FC = () => {
                   }
               }
 
-              // VERSION CHECK LOGIC
               const currentVersion = localStorage.getItem('nst_app_version') || APP_VERSION;
               if (newSettings.latestVersion && newSettings.latestVersion !== currentVersion) {
                   if (newSettings.latestVersion > currentVersion) {
                       const now = Date.now();
                       let isUpdateAvailable = true;
 
-                      // 1. Check Launch Date
                       if (newSettings.launchDate) {
                           const launchTime = new Date(newSettings.launchDate).getTime();
                           if (now < launchTime) isUpdateAvailable = false;
@@ -1379,15 +1233,10 @@ const App: React.FC = () => {
 
                       if (isUpdateAvailable) {
                           let shouldShow = false;
-
-                          // A. Calculate Deadline for FORCE UPDATE
                           let deadline = 0;
-
-                          // Use Launch Date if available, else First Seen
                           let referenceTime = newSettings.launchDate ? new Date(newSettings.launchDate).getTime() : 0;
 
                           if (!referenceTime) {
-                              // If no launch date, use first seen logic
                               const key = `nst_update_first_seen_${newSettings.latestVersion}`;
                               const firstSeen = localStorage.getItem(key);
                               if (!firstSeen) {
@@ -1398,7 +1247,6 @@ const App: React.FC = () => {
                               }
                           }
 
-                          // Calculate Grace Duration
                           let graceDuration = 0;
                           if (newSettings.updateGracePeriod) {
                               graceDuration = (newSettings.updateGracePeriod.days * 24 * 60 * 60 * 1000) +
@@ -1411,14 +1259,12 @@ const App: React.FC = () => {
 
                           deadline = referenceTime + graceDuration;
 
-                          // If Expired => FORCE SHOW (Always)
                           if (now >= deadline) {
                               shouldShow = true;
                           } else {
-                              // If NOT Expired => Check Frequency (Recurrence)
                               const lastDismissedStr = localStorage.getItem(`nst_update_dismissed_${newSettings.latestVersion}`);
                               if (!lastDismissedStr) {
-                                  shouldShow = true; // First time seeing it (since dismissal reset)
+                                  shouldShow = true;
                               } else {
                                   const lastDismissed = parseInt(lastDismissedStr);
                                   let freqDuration = 0;
@@ -1435,7 +1281,6 @@ const App: React.FC = () => {
                                       };
                                       freqDuration = value * (multipliers[unit] || multipliers.hours);
                                   } else {
-                                      // Default to every 6 hours if not configured
                                       freqDuration = 6 * 60 * 60 * 1000;
                                   }
 
@@ -1457,13 +1302,10 @@ const App: React.FC = () => {
       };
   }, [state.user?.id, state.originalAdmin]);
 
-  // --- SYNC USER PROFILE ON LOAD (ENSURE PREMIUM UPDATE VISIBLE) ---
   useEffect(() => {
       if (state.user && !state.originalAdmin) {
-          // Sync Saved Notes History First
           getUserSavedNotes(state.user.id).then(async savedNotes => {
               if (savedNotes && savedNotes.length > 0) {
-                  // Sort them chronologically and ensure they are populated
                   savedNotes.sort((a: any, b: any) => new Date(a.dateCreated || a.date || 0).getTime() - new Date(b.dateCreated || b.date || 0).getTime());
                   await storage.setItem('nst_user_history', savedNotes);
               }
@@ -1471,22 +1313,18 @@ const App: React.FC = () => {
 
           getUserData(state.user.id).then(fetchedCloudUser => {
              if (fetchedCloudUser) {
-                 // Check if cloud has more mcqHistory than local
                  const localHistoryLen = state.user?.mcqHistory?.length || 0;
                  const cloudHistoryLen = fetchedCloudUser.mcqHistory?.length || 0;
 
-                 // If cloud has more data, store it for potential recovery but don't auto-merge
                  if (cloudHistoryLen > localHistoryLen) {
                      setCloudUser(fetchedCloudUser);
                      setShowCloudRecoveryModal(true);
                  } else {
-                     // If safe to merge (just profile updates, no history loss)
                      const currentStr = JSON.stringify(state.user);
                      const cloudStr = JSON.stringify(fetchedCloudUser);
                      if (currentStr !== cloudStr) {
                          let mergedUser = { ...state.user, ...fetchedCloudUser };
 
-                         // PRESERVE ADMIN OVERRIDES (Fix for White Screen demotion)
                          if (state.user?.role === 'ADMIN' && fetchedCloudUser.role !== 'ADMIN') {
                              mergedUser.role = 'ADMIN';
                          }
@@ -1494,8 +1332,6 @@ const App: React.FC = () => {
                              mergedUser.role = 'SUB_ADMIN';
                          }
 
-                         // SUBSCRIPTION EXPIRY FIX: Recalculate after cloud merge so stale
-                         // cloud premium data never overrides a locally-expired subscription.
                          if (mergedUser.role !== 'ADMIN' && mergedUser.role !== 'SUB_ADMIN') {
                              mergedUser = recalculateSubscriptionStatus(mergedUser, state.settings);
                          }
@@ -1509,13 +1345,11 @@ const App: React.FC = () => {
       }
   }, [state.user?.id, state.originalAdmin]);
 
-  // --- REAL-TIME SUBSCRIPTION CHECK & NOTIFICATIONS ---
   useEffect(() => {
-      if (!state.user?.isPremium && !state.user?.subscriptionEndDate) return; // Only check if supposedly premium or has date
-      if (state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN' || state.originalAdmin) return; // PROTECT ADMIN
+      if (!state.user?.isPremium && !state.user?.subscriptionEndDate) return;
+      if (state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN' || state.originalAdmin) return;
 
       const checkExpiry = () => {
-          // 1. Recalculate Status (Handles expirations and best tier logic)
           const updatedUser = recalculateSubscriptionStatus(state.user!, state.settings);
           const expiredNow = Boolean(
             state.user?.isPremium &&
@@ -1523,15 +1357,12 @@ const App: React.FC = () => {
             new Date(state.user.subscriptionEndDate).getTime() <= Date.now()
           );
 
-          // Detect Change (Downgrade or Expiry)
           const wasPremium = state.user!.isPremium;
           const isNowPremium = updatedUser.isPremium;
 
           if (expiredNow || JSON.stringify(updatedUser) !== JSON.stringify(state.user)) {
-               // bonusCredits are permanent — do NOT clear on expiry
                localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
                saveUserToLive(updatedUser);
-               // Handle Expiry Event (Access Lock)
                if (wasPremium && !isNowPremium) {
                    const freeModes = state.settings.appMode?.allowedModesForFree || ['SCHOOL'];
                    let nextView = state.view;
@@ -1551,17 +1382,13 @@ const App: React.FC = () => {
                    const expiredTier = state.user?.subscriptionLevel === 'ULTRA' ? 'MAX (Ultra)' : 'PRO (Basic)';
                    setAlertConfig({isOpen: true, message: `⏳ Aapka ${expiredTier} plan khatam ho gaya. Ab aap Free tier pe hain — sari premium features lock ho gayi hain.`});
               } else {
-                   // Just update state silently
                    setState(prev => ({...prev, user: updatedUser}));
                }
           }
-
-          // Note: Expiry warning logic has been migrated and expanded in StudentDashboard.tsx
-          // based on settings.popupConfigs. Removing it from App.tsx to prevent duplicate/competing popups.
       };
 
-      checkExpiry(); // Run immediately on mount/user-change
-      const interval = setInterval(checkExpiry, 60000); // Check every minute
+      checkExpiry();
+      const interval = setInterval(checkExpiry, 60000);
       return () => clearInterval(interval);
   }, [state.user, state.originalAdmin]);
 
@@ -1573,7 +1400,6 @@ const App: React.FC = () => {
               const parsed = JSON.parse(storedSettings);
               loadedSettings = { ...state.settings, ...parsed };
 
-              // BACKFILL BANNER CONFIG IF MISSING
               if (!loadedSettings.bannerConfig) {
                   loadedSettings.bannerConfig = {
                       top: { text: loadedSettings.liveMessage1 || 'Experience the power of AI-driven education.', enabled: !!loadedSettings.liveMessage1, autoHideSeconds: 0, bgColor: '#dc2626', textColor: '#ffffff' },
@@ -1586,17 +1412,9 @@ const App: React.FC = () => {
                   settings: loadedSettings 
               }));
 
-              // --- CACHE CLEANUP (DISABLED) ---
-              // Auto cache-clear was causing blank content pages: it wiped localforage
-              // so getChapterData had to fall back to RTDB/Firestore, but if the
-              // Firebase Auth session was stale those reads failed silently.
-              // Cache clearing is now a manual admin action only (Admin Dashboard → Reset Cache).
-              // DO NOT re-enable automatic cache clearing here.
-
           } catch(e) {}
       }
       
-      // POPUP QUEUE INITIALIZATION
       const queue: ('TRACKER' | 'CHALLENGE' | 'WELCOME' | 'THREE_TIER')[] = [];
       const loggedInUserStr = localStorage.getItem('nst_current_user');
 
@@ -1606,35 +1424,20 @@ const App: React.FC = () => {
       try {
         let user: User = JSON.parse(loggedInUserStr);
 
-        // STRICT VALIDATION: Ensure critical fields exist
         if (!user || !user.id || !user.role) {
             console.error("Invalid user object found in storage. Clearing session.");
             localStorage.removeItem('nst_current_user');
             return;
         }
 
-        // RE-ESTABLISH FIREBASE AUTH SESSION on startup.
-        // The custom session (nst_current_user) persists across reloads, but the
-        // Firebase Auth SDK session may have expired or been cleared. Without an
-        // active Firebase Auth user, ALL Firestore/RTDB reads fail with
-        // permission-denied — causing blank content pages.
-        // We call signInAnonymously here so Firebase Auth is always active when
-        // the user is already "logged in" via our custom session.
-        // NOTE: We never force-logout on failure — nst_current_user is the source of
-        // truth for our custom session. Firebase Auth will restore itself via
-        // onAuthStateChanged (browserLocalPersistence). Logging out here on every
-        // HMR reload or anonymous-auth-disabled project caused spurious logouts.
         if (auth.currentUser === null) {
             signInAnonymously(auth).catch(e => {
                 console.warn('[IIC] Background Firebase Auth restore skipped:', e.code || e.message);
-                // Do NOT clear session or reload — the custom session is still valid.
             });
         }
 
-        // MIGRATION & RECALCULATION ON LOAD
         if (user.role !== 'ADMIN') {
              user = recalculateSubscriptionStatus(user, loadedSettings);
-             // Save back any migration changes immediately
              if (JSON.stringify(user) !== loggedInUserStr) {
                  localStorage.setItem('nst_current_user', JSON.stringify(user));
                  saveUserToLive(user);
@@ -1654,12 +1457,11 @@ const App: React.FC = () => {
              initialView = 'ONBOARDING';
         }
 
-        // RESET CLASS IF LOCKED (e.g. Competition Mode)
         let safeClass = user.classLevel || null;
         const freeModes = loadedSettings.appMode?.allowedModesForFree || ['SCHOOL'];
         if (!user.isPremium && safeClass === 'COMPETITION' && !freeModes.includes('COMPETITION')) {
-            safeClass = null; // Kick out of Competition
-            initialView = 'STUDENT_DASHBOARD'; // Default view
+            safeClass = null;
+            initialView = 'STUDENT_DASHBOARD';
         }
 
         setState(prev => ({ 
@@ -1675,15 +1477,12 @@ const App: React.FC = () => {
         console.error("Error parsing user from localStorage:", e);
         localStorage.removeItem('nst_current_user');
       }
-    } else {
     }
   }, []);
 
-  // --- TIMER LOGIC (UPDATED) ---
   useEffect(() => {
     if (!state.user) return;
 
-    // Load initial seconds from storage
     const today = new Date().toDateString();
     const storedDate = localStorage.getItem('nst_timer_date');
     const storedSeconds = parseInt(localStorage.getItem('nst_daily_study_seconds') || '0');
@@ -1696,7 +1495,6 @@ const App: React.FC = () => {
         setDailyStudySeconds(storedSeconds);
     }
 
-    // TIMER STARTS AUTOMATICALLY ON LOGIN (GLOBAL)
     let interval: any;
     if (state.user) {
         interval = setInterval(() => {
@@ -1704,7 +1502,6 @@ const App: React.FC = () => {
                 const next = prev + 1;
                 localStorage.setItem('nst_daily_study_seconds', next.toString());
                 
-                // NEW: CHECK FOR DAILY REWARDS (DYNAMIC)
                 if (state.user && state.settings.engagementRewards) {
                     const engExpiryHours = state.settings.rewardExpiryHours ?? 12;
                     state.settings.engagementRewards.forEach(reward => {
@@ -1718,7 +1515,6 @@ const App: React.FC = () => {
                                 durationHours: reward.durationHours,
                                 label: reward.label,
                                 expiresAt: new Date(Date.now() + engExpiryHours * 60 * 60 * 1000).toISOString(),
-                                // Carry redeem code config if set
                                 generateRedeemCode: reward.generateRedeemCode,
                                 redeemCodeType: reward.redeemCodeType,
                                 redeemCodeAmount: reward.redeemCodeAmount,
@@ -1744,7 +1540,6 @@ const App: React.FC = () => {
     };
   }, [state.user?.id, state.view]); 
 
-    // When an `activeReward` is set (by the study timer), push it to the user's inbox
     useEffect(() => {
         if (!activeReward || !state.user) return;
 
@@ -1778,7 +1573,6 @@ const App: React.FC = () => {
 
             updatedUser.inbox = [inboxMsg, ...existingInbox];
 
-            // Auto-generate Redeem Code if configured
             const ar = activeReward as any;
             if (ar.generateRedeemCode && ar.redeemCodeType && state.user.email) {
                 try {
@@ -1810,7 +1604,6 @@ const App: React.FC = () => {
                     if (db) {
                         fsSetDoc(fsDoc(db, 'redeem_codes', genCode), codeData).catch(() => {});
                     }
-                    // Add code to inbox as special message
                     const codeMsg: any = {
                         id: `code-${activeReward.id}`,
                         text: `🎁 Engagement Reward Code: You received a special redeem code! Code: ${genCode} | Valid ${codeExpiryHours} hours | ${ar.redeemCodeType === 'CREDITS' ? `+${ar.redeemCodeAmount} Credits` : ar.redeemCodeType === 'SUBSCRIPTION' ? `${ar.redeemCodeSubTier} ${ar.redeemCodeSubLevel} Plan` : ar.redeemCodeType === 'DISCOUNT' ? `${ar.redeemCodeDiscountPercent}% Discount` : 'Special Unlock'} | Go to the Store to redeem!`,
@@ -1825,7 +1618,6 @@ const App: React.FC = () => {
                 } catch (_) {}
             }
 
-            // Persist
             if (!state.originalAdmin) {
                 localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
                 saveUserToLive(updatedUser);
@@ -1834,27 +1626,23 @@ const App: React.FC = () => {
             fireCreditNotify({ type: 'REWARD', message: `${activeReward.label} received! Mail → Rewards se claim karo.` });
         }
 
-        // Clear activeReward after processing
         setActiveReward(null);
     }, [activeReward]);
 
   useEffect(() => {
       document.title = `${state.settings.appName}`;
 
-      // Dynamic Theme Logic
       let activeThemeColor = state.settings.themeColor || '#3b82f6';
 
       if (state.user) {
-          // 1. Subscription Check
           if (state.user.isPremium) {
               if (state.user.subscriptionLevel === 'ULTRA') {
-                  activeThemeColor = '#a855f7'; // Purple
+                  activeThemeColor = '#a855f7';
               } else if (state.user.subscriptionLevel === 'BASIC') {
-                  activeThemeColor = '#3b82f6'; // Blue (Standard Premium)
+                  activeThemeColor = '#3b82f6';
               }
           }
 
-          // 2. Top 3 Logic (Overrides Subscription)
           try {
               const lbData = localStorage.getItem('nst_leaderboard');
               if (lbData) {
@@ -1865,7 +1653,7 @@ const App: React.FC = () => {
                       .map(e => e.userId);
 
                   if (top3.includes(state.user.id)) {
-                      activeThemeColor = '#eab308'; // Gold
+                      activeThemeColor = '#eab308';
                   }
               }
           } catch(e) {}
@@ -1878,7 +1666,6 @@ const App: React.FC = () => {
           styleTag.id = styleId;
           document.head.appendChild(styleTag);
       }
-      // Parse brand color RGB components for alpha-channel token variants
       const hex = activeThemeColor.replace('#', '');
       const r = parseInt(hex.substring(0, 2), 16) || 59;
       const g = parseInt(hex.substring(2, 4), 16) || 130;
@@ -1886,7 +1673,6 @@ const App: React.FC = () => {
       styleTag.innerHTML = `:root { --primary: ${activeThemeColor}; --nst-color-brand: ${activeThemeColor}; --nst-color-brand-5: rgba(${r},${g},${b},0.05); --nst-color-brand-10: rgba(${r},${g},${b},0.10); } .text-primary { color: var(--primary); } .bg-primary { background-color: var(--primary); } .border-primary { border-color: var(--primary); } ${state.settings.customCSS || ''}`;
   }, [state.settings, state.user]);
 
-  // --- LOGGING SYSTEM ---
   const logActivity = (action: string, details: string, overrideUser?: User) => {
       const u = overrideUser || state.user;
       if (!u && !overrideUser) return;
@@ -1904,7 +1690,6 @@ const App: React.FC = () => {
       const storedLogs = localStorage.getItem('nst_activity_log');
       let logs: ActivityLogEntry[] = [];
       try { logs = storedLogs ? JSON.parse(storedLogs) : []; } catch { logs = []; }
-      // Keep last 500 logs
       const updatedLogs = [...logs, newLog].slice(-500); 
       localStorage.setItem('nst_activity_log', JSON.stringify(updatedLogs));
   };
@@ -1914,7 +1699,6 @@ const App: React.FC = () => {
       localStorage.setItem('nst_system_settings', JSON.stringify(newSettings));
   };
 
-  // Provide a global toggle handler for TTS
   const handleToggleAutoTts = (enabled: boolean) => {
       const newSettings = { ...state.settings, isAutoTtsEnabled: enabled };
       updateSettings(newSettings);
@@ -1924,14 +1708,11 @@ const App: React.FC = () => {
     if (state.user && state.view === 'STUDENT_DASHBOARD') {
         const queue: PopupType[] = [];
 
-        // 1. Daily Tracker (Always check)
         const lastTracker = localStorage.getItem('nst_last_daily_tracker_date');
         if (lastTracker !== new Date().toDateString()) {
             queue.push('TRACKER');
         }
 
-        // 2. Daily Challenge — auto-trigger every day (sirf tab jab admin ne enable kiya ho)
-        // Default: enabled (agar admin ne kabhi set nahi kiya to bhi chalta hai)
         const autoChallengeOn = state.settings.dailyChallengeConfig?.autoChallengeEnabled !== false;
         const lastChallengeDate = localStorage.getItem('nst_last_daily_challenge_date');
         if (autoChallengeOn && lastChallengeDate !== new Date().toDateString()) {
@@ -1940,7 +1721,6 @@ const App: React.FC = () => {
 
         if (queue.length > 0) setPopupQueue(queue);
 
-        // 3. Yesterday's Daily Challenge Rank Card
         const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
         const lastCompleted = localStorage.getItem('nst_last_daily_challenge_completed');
         const rankShownKey = `nst_rank_shown_${yesterday}`;
@@ -1949,7 +1729,6 @@ const App: React.FC = () => {
             setTimeout(() => setShowDailyRankCard(true), 800);
         }
 
-        // 4. Sunday Weekly Auto-Trigger — 100 questions from completed lessons
         const isSunday = new Date().getDay() === 0;
         const lastWeeklyAuto = localStorage.getItem('nst_last_weekly_auto_date');
         if (isSunday && lastWeeklyAuto !== new Date().toDateString()) {
@@ -1980,41 +1759,34 @@ const App: React.FC = () => {
     }
   }, [state.user?.id, state.view, state.settings]);
 
-    // --- SCHOOL ECOSYSTEM: super-admin email list (configure here) ---
   const SCHOOL_SUPER_ADMIN_EMAILS: string[] = [
     'superadmin@iic.app',
     'nsta.superadmin@gmail.com',
   ];
 
   const handleLogin = async (user: User) => {
-    // ── Account switch detection — naye account ka data purane se mix na ho ──
     const lastUserId = localStorage.getItem('nst_last_user_id');
     if (lastUserId && lastUserId !== user.id) {
-      // Different account — clear all previous user's local cache first
       clearUserCache();
     }
     localStorage.setItem('nst_last_user_id', user.id);
 
-    // ── Login pe session tracking reset — spurious home toast na aaye ────
     awaitingPostMcqDataRef.current = false;
     sessionStartTimeRef.current = 0;
     sessionEndProcessedRef.current = false;
     setMcqJustEnded(false);
-    // homeStatsVisible removed — queue-based system use hota hai ab
     if (!state.originalAdmin) {
         localStorage.setItem('nst_current_user', JSON.stringify(user));
     }
     saveUserToLive(user);
     localStorage.setItem('nst_has_seen_welcome', 'true');
 
-    // Check if this user is a School Ecosystem user
     const isSuperAdmin = SCHOOL_SUPER_ADMIN_EMAILS.includes((user.email || '').toLowerCase());
     if (isSuperAdmin) {
       setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
       return;
     }
 
-    // School + Coaching profile checks parallel mein chalao — slow network pe time bachta hai
     const [schoolProfile, coachingProfile] = await Promise.all([
       getSchoolUserProfile(user.id).catch(() => null),
       getCoachingUserProfile(user.id).catch(() => null),
@@ -2030,7 +1802,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Check if onboarding is needed
     if ((user.role === 'STUDENT' || user.role === 'TEACHER') && !user.profileCompleted) {
         setState(prev => ({
           ...prev,
@@ -2040,7 +1811,6 @@ const App: React.FC = () => {
         return;
     }
 
-    // Admin / Sub-Admin → seedha Admin Dashboard pe bhejo
     if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
       setState(prev => ({ ...prev, user, view: 'ADMIN_DASHBOARD' }));
       return;
@@ -2057,13 +1827,9 @@ const App: React.FC = () => {
     }));
   };
 
-  const [logoutPending, setLogoutPending] = useState(false);
-  const [logoutTimeLeft, setLogoutTimeLeft] = useState(10);
   const [cloudUser, setCloudUser] = useState<User | null>(null);
   const [showCloudRecoveryModal, setShowCloudRecoveryModal] = useState(false);
 
-  // ── User-specific local cache keys — cleared on logout / account switch ─────
-  // Device-level settings (dark mode, voice, zoom, haptic, etc.) are kept.
   const USER_CACHE_KEYS = [
     'nst_current_user', 'nst_user_history', 'nst_users',
     'nst_activity_log', 'nst_board_notes', 'nst_claimed_notifs_v1',
@@ -2078,13 +1844,9 @@ const App: React.FC = () => {
   ];
   const clearUserCache = () => {
     USER_CACHE_KEYS.forEach(k => localStorage.removeItem(k));
-    // Also clear any per-user prefixed keys left from this session
     const allKeys = Object.keys(localStorage);
     allKeys.forEach(k => {
       if (
-        // nst_credit_sync_score_<uid> is intentionally kept — it's already per-user
-        // (UID is in the key), so no cross-account bleed. Clearing it resets XP
-        // delta tracking and causes "0 XP" notifications after re-login.
         k.startsWith('nst_deferred_study_coins_') ||
         k.startsWith('nst_routine_') ||
         k.startsWith('nst_score_log_') ||
@@ -2093,7 +1855,6 @@ const App: React.FC = () => {
         k.startsWith('nst_board_choice_')
       ) localStorage.removeItem(k);
     });
-    // localforage (async — best-effort)
     storage.removeItem('nst_active_student_tab').catch(() => {});
     storage.removeItem('nst_user_history').catch(() => {});
   };
@@ -2101,48 +1862,25 @@ const App: React.FC = () => {
   const performLogout = () => {
     logActivity("LOGOUT", "User Logged Out");
     clearUserCache();
-    localStorage.removeItem('nst_last_user_id'); // reset account tracker
+    localStorage.removeItem('nst_last_user_id');
     setState(prev => ({ ...prev, user: null, originalAdmin: null, view: 'BOARDS', selectedBoard: null, selectedClass: null, selectedStream: null, selectedSubject: null, lessonContent: null, language: 'English' }));
     setDailyStudySeconds(0);
   };
-
-  useEffect(() => {
-     let timer: NodeJS.Timeout;
-     if (logoutPending && logoutTimeLeft > 0) {
-        timer = setTimeout(() => {
-            setLogoutTimeLeft(prev => prev - 1);
-        }, 1000);
-     } else if (logoutPending && logoutTimeLeft <= 0) {
-        // Sync and logout
-        if (state.user) {
-            saveUserToLive(state.user).catch(err => console.error("Error syncing on logout", err));
-        }
-        performLogout();
-        setLogoutPending(false);
-     }
-     return () => clearTimeout(timer);
-  }, [logoutPending, logoutTimeLeft]);
 
   const handleLogout = () => {
     if (!state.user) {
        performLogout();
        return;
     }
-    const isPremiumActive = state.user.isPremium && state.user.subscriptionEndDate && new Date(state.user.subscriptionEndDate) > new Date();
-    const subLevel = state.user.subscriptionLevel;
-    const logoutSecs = isPremiumActive ? (subLevel === 'ULTRA' ? 1 : 3) : 5;
-    setLogoutPending(true);
-    setLogoutTimeLeft(logoutSecs);
+    setIsLoggingOut(true);
   };
 
   const handleMCQComplete = (score: number, answers: Record<number, number>, displayData: MCQItem[], timeTaken: number) => {
     if (!state.user || !state.selectedChapter) return;
 
-    // Build Wrong Questions List (Strictly Incorrect Attempts)
     const wrongQuestions = displayData
       .map((q, idx) => {
           const selected = answers[idx] !== undefined ? answers[idx] : -1;
-          // Filter: Must be attempted (not -1) AND wrong
           if (selected !== -1 && selected !== q.correctAnswer) {
               return {
                   question: q.question,
@@ -2153,7 +1891,6 @@ const App: React.FC = () => {
       })
       .filter((item): item is { question: string; qIndex: number } => item !== null);
 
-    // NEW: Calculate Granular Topic Analysis
     const topicAnalysis: Record<string, { correct: number, total: number, percentage: number }> = {};
     displayData.forEach((q, idx) => {
         const topic = q.topic || 'General';
@@ -2161,7 +1898,6 @@ const App: React.FC = () => {
         topicAnalysis[topic].total++;
         if (answers[idx] === q.correctAnswer) topicAnalysis[topic].correct++;
     });
-    // Calculate Percentages
     Object.keys(topicAnalysis).forEach(topic => {
         const t = topicAnalysis[topic];
         t.percentage = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
@@ -2172,10 +1908,10 @@ const App: React.FC = () => {
         userId: state.user.id,
         date: new Date().toISOString(),
         score,
-        totalQuestions: displayData.length, // Ensure required MCQResult field is populated
-        correctCount: score,              // Ensure correctCount is set
-        wrongCount: displayData.length - score, // Calculate and set wrongCount
-        totalTimeSeconds: timeTaken,        // Ensure time is set
+        totalQuestions: displayData.length,
+        correctCount: score,
+        wrongCount: displayData.length - score,
+        totalTimeSeconds: timeTaken,
         timeTaken,
         chapterId: state.selectedChapter.id,
         chapterTitle: state.selectedChapter.title,
@@ -2184,13 +1920,12 @@ const App: React.FC = () => {
         classLevel: state.selectedClass || '',
         userAnswers: answers,
         wrongQuestions: wrongQuestions,
-        topicAnalysis: topicAnalysis // Save for history comparison
+        topicAnalysis: topicAnalysis
     };
 
     setLastTestResult(result);
-    setLastTestQuestions(displayData); // Pass for Marksheet Granular View
+    setLastTestQuestions(displayData);
 
-    // Set pending session summary — coins will be filled when user returns HOME
     setPendingSessionSummary({
       type: 'MCQ',
       subject: state.selectedSubject?.title || '',
@@ -2201,14 +1936,12 @@ const App: React.FC = () => {
       coinsEarned: undefined,
     });
     
-    // UPDATE USER HISTORY & PROGRESS
     let updatedUser = { ...state.user };
     if (!updatedUser.testResults) updatedUser.testResults = [];
     updatedUser.testResults.unshift(result);
     if (!updatedUser.mcqHistory) updatedUser.mcqHistory = [];
     updatedUser.mcqHistory.unshift(result);
 
-    // AUTO-NOTIFICATION LOGIC (Low Score)
     const percentage = displayData.length > 0 ? (score / displayData.length) * 100 : 0;
     if (percentage < 40) {
         const failureMsg = {
@@ -2222,7 +1955,6 @@ const App: React.FC = () => {
         setAlertConfig({isOpen: true, message: "⚠️ Low Score Alert: Check your inbox for study recommendations."});
     }
     
-    // Save to Firestore
     saveUserHistory(state.user.id, result);
     saveTestResult(state.user.id, result);
     
@@ -2236,7 +1968,6 @@ const App: React.FC = () => {
   const handleImpersonate = (targetUser: User) => {
       if (state.user?.role !== 'ADMIN') return;
       logActivity("IMPERSONATE", `Admin accessed as ${targetUser.name}`);
-      // NOTE: We do NOT update localStorage 'nst_current_user' here, so refresh restores Admin
       setState(prev => ({ ...prev, originalAdmin: prev.user, user: targetUser, view: 'STUDENT_DASHBOARD', selectedBoard: targetUser.board || null, selectedClass: targetUser.classLevel || null, selectedStream: targetUser.stream || null, language: targetUser.board === 'BSEB' ? 'Hindi' : 'English' }));
   };
 
@@ -2249,10 +1980,8 @@ const App: React.FC = () => {
       if (!state.user) return;
       const updatedUser = { ...state.user, ...updates };
 
-      // Update State
       setState(prev => ({ ...prev, user: updatedUser }));
 
-      // Persist (Only if not impersonating)
       if (!state.originalAdmin) {
           localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
           saveUserToLive(updatedUser);
@@ -2265,8 +1994,6 @@ const App: React.FC = () => {
   };
 
   const handleClassSelect = (level: ClassLevel) => {
-      // STRICT CLASS LOCKING (1 Account = 1 Class)
-      // Allow change only if: Admin, Impersonating, or No Class Set yet.
       if (state.user?.classLevel && state.user.classLevel !== level) {
           if (state.user.role !== 'ADMIN' && state.user.role !== 'SUB_ADMIN' && !state.originalAdmin) {
               setAlertConfig({ isOpen: true, message: "🔒 Class is locked! You cannot change your class once selected.\n\nContact Admin for help." });
@@ -2274,11 +2001,8 @@ const App: React.FC = () => {
           }
       }
 
-      // 1. Update Profile FIRST (Persist to Cloud/Local)
       updateUserProfile({ classLevel: level });
 
-      // 2. Update Local State (Immediate UI Feedback without reload)
-      // We must update 'user' in state to match the persistence, otherwise child components might get stale props
       setState(prev => {
           const updatedUser = prev.user ? { ...prev.user, classLevel: level } : null;
 
@@ -2286,11 +2010,10 @@ const App: React.FC = () => {
               return { ...prev, user: updatedUser, selectedClass: level, view: 'STREAMS' };
           }
 
-          // For non-stream classes, we also clear stream
-          const finalUser = updatedUser ? { ...updatedUser, stream: undefined } : null; // Use undefined instead of null to match type if optional
+          const finalUser = updatedUser ? { ...updatedUser, stream: undefined } : null;
 
           if (level === 'COMPETITION') {
-               updateUserProfile({ stream: null }); // Ensure DB is cleared too
+               updateUserProfile({ stream: null });
                return { ...prev, user: finalUser as any, selectedClass: level, selectedStream: null, view: 'SUBJECTS' };
           } else {
                updateUserProfile({ stream: null });
@@ -2311,7 +2034,6 @@ const App: React.FC = () => {
         const chapters = await fetchChapters(state.selectedBoard, state.selectedClass, state.selectedStream, subject, state.language);
         setState(prev => ({ ...prev, chapters, view: 'CHAPTERS', loading: false }));
 
-        // FREE SUBJECT LESSON POPUP — show once per user per subject
         if (state.user) {
           const popupKey = `nst_subject_intro_${state.user.id}_${subject.id}`;
           if (!localStorage.getItem(popupKey)) {
@@ -2351,13 +2073,11 @@ const App: React.FC = () => {
     setLoadingContentType(type);
     if (!tempSelectedChapter || !state.user) return;
 
-    // --- MCQ DAILY LIMIT GATE — block session launch if limit exceeded ---
     if ((type === 'MCQ_SIMPLE' || type === 'MCQ_PRACTICE' || type === 'MCQ_TEST') &&
         state.user.role !== 'ADMIN' && !state.originalAdmin && !forcePay) {
         const _today = new Date().toISOString().split('T')[0];
         const _mcqKey = `nst_mcq_daily_total_${_today}_${state.user.id}`;
         const _mcqUsed = parseInt(localStorage.getItem(_mcqKey) || '0', 10);
-        // Determine tier
         const _mcqSubValid = state.user.isPremium && state.user.subscriptionEndDate && new Date(state.user.subscriptionEndDate) > new Date();
         const _mcqTier: 'FREE' | 'BASIC' | 'ULTRA' =
             _mcqSubValid && state.user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
@@ -2371,14 +2091,12 @@ const App: React.FC = () => {
         }
     }
 
-    // --- FREE SUBJECT LESSON — computed once, applied in all paths below ---
     const _fsSubjectId = state.selectedSubject?.id || '';
     const _fsFreeMap = state.user.subjectFreeLesson || {};
     const _fsIsFreeLessonChapter = _fsSubjectId && _fsFreeMap[_fsSubjectId] === tempSelectedChapter.id;
     const _fsIsFirstLesson = _fsSubjectId && !_fsFreeMap[_fsSubjectId] && state.user.role !== 'ADMIN' && !state.originalAdmin;
     const _fsGrantFree = _fsIsFreeLessonChapter || _fsIsFirstLesson;
 
-    // If this is the first lesson in the subject, record it now (before any path branches)
     if (_fsIsFirstLesson) {
         const _fsUpdatedMap = { ..._fsFreeMap, [_fsSubjectId]: tempSelectedChapter.id };
         const _fsUpdatedUser = { ...state.user, subjectFreeLesson: _fsUpdatedMap };
@@ -2387,19 +2105,14 @@ const App: React.FC = () => {
         saveUserToLive(_fsUpdatedUser);
     }
 
-    // --- SPECIFIC CONTENT LAUNCH (FROM NEW DASHBOARD) ---
     if (specificContent) {
-        // 1. Determine Cost (Dynamic Check from Feature Config)
         let cost = 0;
         if (specificContent.isPremium) {
-             // Fallback Defaults
              cost = 5;
              if (type === 'VIDEO_LECTURE') cost = state.settings.defaultVideoCost || 5;
              if (type === 'NOTES_PREMIUM' || type === 'NOTES_HTML_PREMIUM') cost = state.settings.defaultPdfCost || 5;
 
-             // Override with Granular Feature Cost if exists
              if (state.settings.featureCosts) {
-                 // Map ContentType to Feature ID (approximate mapping)
                  let featId = '';
                  if (type === 'VIDEO_LECTURE') featId = 'video_view';
                  else if (type.startsWith('NOTES') || type.startsWith('PDF')) featId = 'pdf_view';
@@ -2414,12 +2127,8 @@ const App: React.FC = () => {
              }
         }
 
-
-        // OVERRIDE FOR CREDIT FREE EVENT
         if (state.settings.isCreditFreeEvent || state.settings.isGlobalFreeMode) cost = 0;
 
-        // CHECK IF UNLOCKED VIA REDEEM CODE
-        // We check against Chapter ID or specific Content ID (permanent or time-limited)
         const _timedUnlocks1 = (state.user as any).timedUnlocks || [];
         const _isTimedValid1 = (id: string | undefined) => id ? _timedUnlocks1.some((u: any) => u.contentId === id && new Date(u.expiresAt) > new Date()) : false;
         if (state.user.unlockedContent && (state.user.unlockedContent.includes(tempSelectedChapter.id) || state.user.unlockedContent.includes(specificContent?.id))) {
@@ -2428,10 +2137,8 @@ const App: React.FC = () => {
             cost = 0;
         }
 
-        // FREE SUBJECT LESSON — first lesson in subject is fully free (all content types)
         if (_fsGrantFree) cost = 0;
 
-        // 2. Check & Deduct
         if (cost > 0 && state.user.role !== 'ADMIN' && !state.originalAdmin) {
              if (getTotalCredits(state.user) < cost) {
                  setAlertConfig({isOpen: true, message: `Insufficient Credits! You need ${cost} Credits.`});
@@ -2456,16 +2163,14 @@ const App: React.FC = () => {
              setState(prev => ({...prev, user: updatedUser}));
         }
 
-        // 3. Launch
         const lessonContent: LessonContent = {
             id: specificContent.id || Date.now().toString(),
             title: specificContent.title || tempSelectedChapter.title,
             subtitle: specificContent.topic || 'Premium Content',
-            content: specificContent.content || specificContent.url, // Handle both Note (content) and Video (url)
+            content: specificContent.content || specificContent.url,
             type: type,
             dateCreated: new Date().toISOString(),
             subjectName: state.selectedSubject?.name || '',
-            // Pass through other fields if video
             videoPlaylist: specificContent.videoPlaylist
         };
 
@@ -2474,7 +2179,6 @@ const App: React.FC = () => {
         return;
     }
     
-    // --- HTML NOTES & AI IMAGE HANDLING ---
     if (type === 'NOTES_HTML_FREE' || type === 'NOTES_HTML_PREMIUM' || type === 'NOTES_IMAGE_AI') {
         const streamKey = (state.selectedClass === '11' || state.selectedClass === '12') ? `-${state.selectedStream}` : '';
         const mainKey = `nst_content_${state.selectedBoard}_${state.selectedClass}${streamKey}_${state.selectedSubject?.name}_${tempSelectedChapter.id}`;
@@ -2504,7 +2208,6 @@ const App: React.FC = () => {
         }
 
         if (!actualContent) {
-            // Replaced Alert with Coming Soon View
             setState(prev => ({
                 ...prev,
                 selectedChapter: tempSelectedChapter,
@@ -2530,7 +2233,6 @@ const App: React.FC = () => {
                  return;
              }
 
-             // CONFIRMATION CHECK
              { const _td = new Date().toISOString().split('T')[0]; const _sk = `nst_credit_skip_${state.user!.id}_${_td}`; if (!localStorage.getItem(_sk) && !forcePay) {
                  setCreditModal({
                      isOpen: true,
@@ -2553,13 +2255,11 @@ const App: React.FC = () => {
              setState(prev => ({...prev, user: updatedUser}));
         }
 
-        // --- SPECIFIC AI DELAY FOR IMAGE NOTES ---
         if (type === 'NOTES_IMAGE_AI') {
             setState(prev => ({ ...prev, loading: true }));
             setLoadingMessage("AI is analyzing and generating visual notes...");
             setGenerationDataReady(false);
 
-            // Wait 5-8 seconds to simulate AI work
             setTimeout(() => {
                 setGenerationDataReady(true);
                 setLoadingMessage("Notes Ready!");
@@ -2568,25 +2268,23 @@ const App: React.FC = () => {
                     id: Date.now().toString(),
                     title: tempSelectedChapter.title,
                     subtitle: subtitle,
-                    content: actualContent, // Image URL
-                    aiHtmlContent: contentData?.aiHtmlContent, // Pass HTML Content if exists
+                    content: actualContent,
+                    aiHtmlContent: contentData?.aiHtmlContent,
                     type: type,
                     dateCreated: new Date().toISOString(),
                     subjectName: state.selectedSubject?.name || ''
                 };
 
-                // Allow a small delay for "Ready" message to be seen
                 setTimeout(() => {
                     setState(prev => ({ ...prev, selectedChapter: tempSelectedChapter, lessonContent, view: 'LESSON', loading: false }));
                     setIsFullScreen(true);
                     setLoadingMessage('');
                 }, 1000);
 
-            }, 6000); // 6 Seconds Delay
+            }, 6000);
             return;
         }
 
-        // For HTML Notes (Immediate)
         const lessonContent: LessonContent = {
             id: Date.now().toString(),
             title: tempSelectedChapter.title,
@@ -2598,53 +2296,45 @@ const App: React.FC = () => {
         };
 
         setState(prev => ({ ...prev, selectedChapter: tempSelectedChapter, lessonContent, view: 'LESSON' }));
-        setIsFullScreen(true); // AI Lesson is Full Screen
+        setIsFullScreen(true);
         return;
     }
 
-    // Check Cost Logic
     let cost = 0;
     const streamKey = (state.selectedClass === '11' || state.selectedClass === '12') ? `-${state.selectedStream}` : '';
     
-    // 1. Construct Keys
     const mainKey = `nst_content_${state.selectedBoard}_${state.selectedClass}${streamKey}_${state.selectedSubject?.name}_${tempSelectedChapter.id}`;
     const typeKey = `${mainKey}_${type}`;
 
-    // 2. Try Fetching Admin Data (Main Key) - Consolidates all links
     let onlineContent: any = await getChapterData(mainKey);
     let foundAdminContent = false;
 
-    // Filter Admin Data for the requested Type
     if (onlineContent) {
         if (type === 'PDF_FREE' && (onlineContent.freeLink || onlineContent.freeNotesHtml || onlineContent.schoolFreeNotesList?.length > 0 || onlineContent.competitionFreeNotesList?.length > 0)) {
             onlineContent = { ...onlineContent, content: onlineContent.freeLink || '', type, price: 0 };
             foundAdminContent = true;
         } else if (type === 'PDF_PREMIUM' && (onlineContent.premiumLink || onlineContent.premiumNotesHtml || onlineContent.schoolPremiumNotesList?.length > 0 || onlineContent.competitionPremiumNotesList?.length > 0)) {
-            onlineContent = { ...onlineContent, content: onlineContent.premiumLink || '', type }; // Uses default price from object
+            onlineContent = { ...onlineContent, content: onlineContent.premiumLink || '', type };
             foundAdminContent = true;
         } else if (type === 'PDF_ULTRA' && onlineContent.ultraPdfLink) {
-            onlineContent = { ...onlineContent, content: onlineContent.ultraPdfLink, type, price: 10 }; // Ultra defaults to 10
+            onlineContent = { ...onlineContent, content: onlineContent.ultraPdfLink, type, price: 10 };
             foundAdminContent = true;
         } else if (type === 'VIDEO_LECTURE' && (onlineContent.videoPlaylist?.length > 0 || onlineContent.schoolVideoPlaylist?.length > 0 || onlineContent.competitionVideoPlaylist?.length > 0 || onlineContent.freeVideoLink || onlineContent.premiumVideoLink)) {
-            // Prioritize Playlist -> Premium Link -> Free Link
             const videoUrl = onlineContent.premiumVideoLink || onlineContent.freeVideoLink || '';
             const vidPrice = onlineContent.videoCreditsCost !== undefined ? onlineContent.videoCreditsCost : 5;
-            // Ensure playlists are passed through
             onlineContent = {
                 ...onlineContent,
                 content: videoUrl,
-                videoPlaylist: onlineContent.videoPlaylist || onlineContent.schoolVideoPlaylist || onlineContent.competitionVideoPlaylist, // Fallback logic
+                videoPlaylist: onlineContent.videoPlaylist || onlineContent.schoolVideoPlaylist || onlineContent.competitionVideoPlaylist,
                 type,
                 price: vidPrice
             };
             foundAdminContent = true;
         } else {
-            // Not found in Admin Data for this specific type (might be AI content)
             onlineContent = null;
         }
     }
 
-    // 3. If not in Admin Data, check Type-Specific Key (Legacy/AI Generated)
     if (!onlineContent) {
         onlineContent = await getChapterData(typeKey);
     }
@@ -2653,8 +2343,6 @@ const App: React.FC = () => {
          if(onlineContent.price !== undefined) cost = onlineContent.price;
     }
 
-    // --- EMPTY CONTENT GUARD ---
-    // If online content is found but the URL/Content is empty string, force coming soon.
     if (onlineContent && !onlineContent.content && !onlineContent.videoPlaylist?.length && !onlineContent.aiHtmlContent) {
         setState(prev => ({
             ...prev,
@@ -2675,11 +2363,8 @@ const App: React.FC = () => {
         return;
     }
 
-
-    // OVERRIDE FOR CREDIT FREE EVENT
     if (state.settings.isCreditFreeEvent || state.settings.isGlobalFreeMode) cost = 0;
 
-    // CHECK IF UNLOCKED VIA REDEEM CODE (permanent or time-limited)
     const _timedUnlocks2 = (state.user as any).timedUnlocks || [];
     const _isTimedValid2 = (id: string) => _timedUnlocks2.some((u: any) => u.contentId === id && new Date(u.expiresAt) > new Date());
     if (state.user.unlockedContent && state.user.unlockedContent.includes(tempSelectedChapter.id)) {
@@ -2688,30 +2373,19 @@ const App: React.FC = () => {
         cost = 0;
     }
 
-    // FREE SUBJECT LESSON — apply to main path (already recorded at top of function)
     if (_fsGrantFree) cost = 0;
 
-    // --- ACCESS CONTROL LOGIC (Unified) ---
     let hasAccess = false;
 
-    // 1. Admin / System
     if (state.user.role === 'ADMIN' || state.originalAdmin) {
         hasAccess = true;
-    }
-    // 2. Global Free Mode
-    else if (state.settings.isGlobalFreeMode) {
+    } else if (state.settings.isGlobalFreeMode) {
         hasAccess = true;
-    }
-    // 3. Cost is 0 (Free Content)
-    else if (cost === 0) {
+    } else if (cost === 0) {
         hasAccess = true;
-    }
-    // 3. Tier/Subscription Permission Check
-    else {
-        // DOUBLE CHECK: Even if isPremium is true, validate date
+    } else {
         const isSubValid = state.user.isPremium && state.user.subscriptionEndDate && !isNaN(new Date(state.user.subscriptionEndDate).getTime()) && new Date(state.user.subscriptionEndDate) > new Date();
 
-        // Auto-Downgrade in memory if invalid but flagged premium (Self-Healing)
         if (state.user.isPremium && !isSubValid) {
              console.warn("Detected Expired Premium during Access Check. Treating as FREE.");
         }
@@ -2723,7 +2397,6 @@ const App: React.FC = () => {
              if (perms.includes('ALL') || perms.includes(type)) {
                  hasAccess = true;
              }
-             // MAP GROUP PERMISSIONS (From Admin Power Manager)
              if (type.startsWith('PDF') && perms.includes('NOTES_ACCESS')) hasAccess = true;
              if (type.startsWith('NOTES') && perms.includes('NOTES_ACCESS')) hasAccess = true;
              if (type === 'VIDEO_LECTURE' && perms.includes('VIDEO_ACCESS')) hasAccess = true;
@@ -2732,7 +2405,6 @@ const App: React.FC = () => {
              if (type === 'MCQ_TEST' && perms.includes('MCQ_TEST')) hasAccess = true;
              if (type === 'AI_CHAT' && perms.includes('AI_CHAT')) hasAccess = true;
         } else if (isSubValid) {
-            // Fallback Legacy Logic
             const legacyLevel = state.user.subscriptionLevel || 'BASIC';
             if (legacyLevel === 'ULTRA') {
                 hasAccess = true;
@@ -2744,11 +2416,8 @@ const App: React.FC = () => {
         }
     }
 
-    // 4. Credit Deduction (Fallback)
     if (!hasAccess) {
         if (getTotalCredits(state.user) >= cost) {
-
-            // NEW: CONFIRMATION CHECK
             { const _td = new Date().toISOString().split('T')[0]; const _sk = `nst_credit_skip_${state.user!.id}_${_td}`; if (!localStorage.getItem(_sk) && !forcePay) {
                  setCreditModal({
                      isOpen: true,
@@ -2763,13 +2432,11 @@ const App: React.FC = () => {
                  return;
             }}
 
-            // Deduct Credits
             const updatedUser = applyDeduction(state.user, cost) ?? state.user;
 
             if (!state.originalAdmin) {
                 localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
 
-                // Sync to LocalStorage list
                 const storedUsers = localStorage.getItem('nst_users');
                 if (storedUsers) {
                     let allUsers: User[] = [];
@@ -2780,12 +2447,11 @@ const App: React.FC = () => {
                         localStorage.setItem('nst_users', JSON.stringify(allUsers));
                     }
                 }
-                // Sync to Live
                 saveUserToLive(updatedUser);
             }
 
             setState(prev => ({...prev, user: updatedUser}));
-            hasAccess = true; // Access Granted via Credits
+            hasAccess = true;
         } else {
             setAlertConfig({isOpen: true, message: `Insufficient Credits! This content costs ${cost} credits.\n\nTip: Upgrade to Subscription to access unlimited content.`});
             return;
@@ -2797,7 +2463,6 @@ const App: React.FC = () => {
 
     logActivity("CONTENT_GEN", `Opened ${type} for ${tempSelectedChapter.title}`);
 
-    // LIVE ACTIVITY TRACKING
     if (state.user && !state.originalAdmin) {
         const activity = `Viewing ${type}: ${tempSelectedChapter.title}`;
         const updatedUser = { ...state.user, currentActivity: activity, lastActiveTime: new Date().toISOString() };
@@ -2805,22 +2470,17 @@ const App: React.FC = () => {
     }
 
     try {
-        // RESTORE PROGRESS LOGIC
         let restoredAnswers = undefined;
         if ((type === 'MCQ_ANALYSIS' || type === 'MCQ_SIMPLE') && state.user.testResults) {
-            // Find most recent result for this chapter
             const pastResult = state.user.testResults.find(r => r.chapterId === tempSelectedChapter.id);
             if (pastResult) {
                 restoredAnswers = pastResult.userAnswers;
             }
         }
 
-        // Try to use online content if available
         if (onlineContent) {
             const restoredContent = { ...onlineContent, userAnswers: restoredAnswers };
-            // Double check for content existence before setting state
             if (!restoredContent.content && !restoredContent.videoPlaylist?.length && !restoredContent.aiHtmlContent && type !== 'MCQ_ANALYSIS' && type !== 'MCQ_SIMPLE') {
-                 // Fallback to Coming Soon if somehow slipped through
                  restoredContent.isComingSoon = true;
             }
             setState(prev => ({ ...prev, lessonContent: restoredContent }));
@@ -2828,8 +2488,6 @@ const App: React.FC = () => {
             return;
         }
 
-        // If no online content found and it's a generated type (e.g. NOTES_SIMPLE), we might generate it.
-        // But if it's a strict type like PDF or VIDEO and not found in Admin, it's Coming Soon.
         if (['PDF_FREE', 'PDF_PREMIUM', 'PDF_ULTRA', 'VIDEO_LECTURE'].includes(type)) {
              setState(prev => ({
                 ...prev,
@@ -2881,13 +2539,12 @@ const App: React.FC = () => {
 
         setIsStreaming(false);
 
-        // Save generated content to Firebase
         await saveChapterData(mainKey, content);
 
         const restoredContent = { ...content, userAnswers: restoredAnswers };
         setState(prev => ({ ...prev, lessonContent: restoredContent }));
-        setGenerationDataReady(true); // Immediate ready for link mode
-        setIsFullScreen(true); // Auto Full Screen for Lesson
+        setGenerationDataReady(true);
+        setIsFullScreen(true);
     } catch (err) {
       setIsStreaming(false);
       setState(prev => ({ ...prev, loading: false }));
@@ -2899,10 +2556,8 @@ const App: React.FC = () => {
       setIsFullScreen(true);
   };
 
-
   const handleStartWeeklyTest = (test: WeeklyTest) => {
     setActiveWeeklyTest(test);
-    // LIVE ACTIVITY TRACKING
     if (state.user && !state.originalAdmin) {
         const activity = `Taking Test: ${test.name}`;
         const updatedUser = { ...state.user, currentActivity: activity, lastActiveTime: new Date().toISOString() };
@@ -2913,7 +2568,6 @@ const App: React.FC = () => {
   const handleWeeklyTestComplete = async (score: number, total: number, answers: Record<number, number>) => {
     if (!activeWeeklyTest || !state.user) return;
 
-    // Save Attempt
     const attempt = {
         testId: activeWeeklyTest.id,
         testName: activeWeeklyTest.name,
@@ -2926,17 +2580,14 @@ const App: React.FC = () => {
         answers: answers
     };
 
-    // 1. Local Backup
     const key = `nst_test_attempts_${state.user.id}`;
     let attempts: Record<string, unknown> = {};
     try { attempts = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
     attempts[activeWeeklyTest.id] = attempt;
     localStorage.setItem(key, JSON.stringify(attempts));
 
-    // 2. Firestore Sync (So Admin can see)
     await saveTestResult(state.user.id, attempt);
 
-    // 3. Daily Challenge Leaderboard — save score so rank can be shown tomorrow
     const isDailyChallengeAttempt = activeWeeklyTest.id.startsWith('daily-challenge-') || activeWeeklyTest.id.startsWith('weekly-auto-');
     if (isDailyChallengeAttempt && !state.originalAdmin) {
         const today = new Date().toISOString().split('T')[0];
@@ -2953,26 +2604,22 @@ const App: React.FC = () => {
             submittedAt: new Date().toISOString(),
             date: today,
         });
-        // Mark that user has taken today's challenge (for rank card tomorrow)
         localStorage.setItem('nst_last_daily_challenge_completed', today);
     }
 
     logActivity("TEST_SUBMIT", `Completed ${activeWeeklyTest.name} with score ${score}/${total}`);
 
-    // REWARD LOGIC
     let updatedUser = { ...state.user };
     let rewardMsg = "";
 
-    // NEW RULE BASED LOGIC
     const percentage = (score / total) * 100;
     const isDailyForReward = activeWeeklyTest.id.startsWith('daily-challenge-');
     const category = isDailyForReward ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST';
 
-    // Fetch rules for this category
     const eligibleRules = (state.settings.prizeRules || [])
         .filter(r => r.enabled && r.category === category)
         .filter(r => percentage >= r.minPercentage)
-        .sort((a, b) => b.minPercentage - a.minPercentage); // Highest difficulty first
+        .sort((a, b) => b.minPercentage - a.minPercentage);
 
     const bestRule = eligibleRules[0];
 
@@ -3012,18 +2659,15 @@ const App: React.FC = () => {
     setState(prev => ({...prev, user: updatedUser}));
     if (rewardMsg) setAlertConfig({isOpen: true, message: rewardMsg});
 
-    // Create Result Object for Marksheet
     const startTimeStr = localStorage.getItem(`weekly_test_start_${activeWeeklyTest.id}`);
     const timeTaken = startTimeStr ? (Date.now() - parseInt(startTimeStr)) / 1000 : 0;
 
-    // We should not pass the answers from the state object in the form of `Record<number, number>` since WeeklyTest is passing answers to us! Wait... we are looping over questions
     const omrData = activeWeeklyTest.questions.map((q, idx) => ({
         qIndex: idx,
         selected: answers[idx] !== undefined ? answers[idx] : -1,
         correct: q.correctAnswer
     }));
 
-    // Create wrongQuestions array
     const wrongQuestions: any[] = [];
     activeWeeklyTest.questions.forEach((q, idx) => {
         if (answers[idx] !== q.correctAnswer) {
@@ -3051,8 +2695,6 @@ const App: React.FC = () => {
         wrongQuestions: wrongQuestions
     };
 
-
-    // Calculate Granular Topic Analysis for Weekly Test
     const topicAnalysis: Record<string, { correct: number, total: number, percentage: number }> = {};
     activeWeeklyTest.questions.forEach((q, idx) => {
         const topic = q.topic || 'General';
@@ -3060,18 +2702,14 @@ const App: React.FC = () => {
         topicAnalysis[topic].total++;
         if (answers[idx] === q.correctAnswer) topicAnalysis[topic].correct++;
     });
-    // Calculate Percentages
     Object.keys(topicAnalysis).forEach(topic => {
         const t = topicAnalysis[topic];
         t.percentage = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
     });
     result.topicAnalysis = topicAnalysis;
 
-    // UPDATE USER HISTORY FOR ANALYTICS
-
     updatedUser.mcqHistory = [result, ...(updatedUser.mcqHistory || [])];
 
-    // AUTO-NOTIFICATION LOGIC (Low Score for Weekly Test)
     if (percentage < 40) {
         const failureMsg = {
             id: `fail-alert-wt-${Date.now()}`,
@@ -3083,7 +2721,6 @@ const App: React.FC = () => {
         updatedUser.inbox = [failureMsg, ...(updatedUser.inbox || [])];
     }
 
-    // Save updated history
     if (!state.originalAdmin) {
         localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
         saveUserToLive(updatedUser);
@@ -3091,16 +2728,13 @@ const App: React.FC = () => {
     setState(prev => ({...prev, user: updatedUser}));
 
     setLastTestResult(result);
-    setLastTestQuestions(activeWeeklyTest.questions); // Pass full questions for analysis
-    // setAlertConfig({isOpen: true, message: `Test Submitted! You scored ${score}/${total}.\n\n🎁 REWARD UNLOCKED: 24 Hours Free Subscription granted for participating!`});
+    setLastTestQuestions(activeWeeklyTest.questions);
 
-    // Cleanup Local Timer
     localStorage.removeItem(`weekly_test_start_${activeWeeklyTest.id}`);
 
     setActiveWeeklyTest(null);
   };
 
-  // --- SAFE NAVIGATION LOGIC ---
   const goHome = () => {
      setState(prev => ({...prev, view: 'STUDENT_DASHBOARD'}));
   };
@@ -3114,8 +2748,6 @@ const App: React.FC = () => {
   };
 
   const handleStartDailyChallenge = async () => {
-      // Generate Questions — pulls from full syllabus (all chapters) + globalChallengeMcq pool
-      // Same seed (date+board+class) ensures ALL users get IDENTICAL questions → fair leaderboard
       if (!state.user) return;
 
       const config = state.settings.dailyChallengeConfig || { rewardPercentage: 90, mode: 'AUTO', selectedChapterIds: [] };
@@ -3135,7 +2767,6 @@ const App: React.FC = () => {
           return;
       }
 
-      // Create Test Object — reuse consistent challenge ID (date+board+class) for leaderboard grouping
       const test: WeeklyTest = {
           id: result.id,
           name: result.name,
@@ -3155,7 +2786,6 @@ const App: React.FC = () => {
       setPopupQueue(prev => prev.slice(1));
   };
 
-  /** Sunday Weekly Auto-Trigger — 100 questions from full syllabus (all chapters) */
   const handleStartWeeklyAutoChallenge = async () => {
       if (!state.user) return;
       const result = await generateDailyChallengeQuestions(
@@ -3192,23 +2822,12 @@ const App: React.FC = () => {
         document.exitFullscreen().catch(err => console.log(err));
     }
 
-    // Exit Full Screen if active
     if (isFullScreen) {
         setIsFullScreen(false);
-        // If viewing lesson, go back to chapters
         if (state.view === 'LESSON') {
              setState(prev => ({ ...prev, view: 'CHAPTERS', lessonContent: null }));
              return;
         }
-        // If inside StudentDashboard (e.g. Video Player), we let StudentDashboard handle the back logic
-        // But here we are in App level.
-        // StudentDashboard calls goBack prop?
-        // No, StudentDashboard has its own onBack for players.
-        // Wait, FloatingDock calls goBack which calls this goBack.
-        // If FloatingDock is hidden, user uses the Back button inside the Player (VideoPlaylistView).
-        // That Back button in Player calls `onBack` prop of Player, which calls `setContentViewStep('CHAPTERS')` in StudentDashboard.
-        // It does NOT call this global `goBack`.
-        // So we just need to ensure `isFullScreen` is reset when StudentDashboard exits player.
     }
 
     if (activeWeeklyTest) {
@@ -3225,17 +2844,13 @@ const App: React.FC = () => {
     }
 
     setState(prev => {
-      // 1. Content -> Chapters
       if (prev.view === 'LESSON') return { ...prev, view: 'CHAPTERS', lessonContent: null };
 
-      // 2. Chapters -> Subjects (one level back for everyone)
       if (prev.view === 'CHAPTERS') {
           return { ...prev, view: 'SUBJECTS', selectedChapter: null };
       }
 
-      // 3. Subjects -> Dashboard (for Students) OR Classes (Admin)
       if (prev.view === 'SUBJECTS') {
-          // If Student, go DIRECTLY to Dashboard
           if (prev.user?.role === 'STUDENT' || prev.originalAdmin) {
               return { ...prev, view: 'STUDENT_DASHBOARD', selectedSubject: null };
           }
@@ -3245,7 +2860,6 @@ const App: React.FC = () => {
       if (prev.view === 'STREAMS') return { ...prev, view: 'CLASSES', selectedStream: null };
       if (prev.view === 'CLASSES') return { ...prev, view: 'BOARDS', selectedClass: null };
 
-      // 4. Boards -> Dashboard
       if (prev.view === 'BOARDS') {
           return { ...prev, view: 'STUDENT_DASHBOARD' as any, selectedBoard: null };
       }
@@ -3254,53 +2868,24 @@ const App: React.FC = () => {
     });
   };
 
-  // --- HARDWARE / BROWSER BACK BUTTON (App-level views) ---
-  // StudentDashboard manages its own popstate trap internally (with its own
-  // pushState + re-trap pattern). This handler mirrors that pattern for every
-  // view OUTSIDE StudentDashboard (BOARDS, CLASSES, STREAMS, SUBJECTS, CHAPTERS,
-  // LESSON) so the device/browser back button calls goBack() instead of exiting.
-  //
-  // KEY DESIGN:
-  //  - Registered ONCE on mount ([] deps). Uses refs so the handler always reads
-  //    current state without stale closures. This avoids Chrome's race condition
-  //    where an async-effect-based trap (useEffect[view]) hasn't pushed yet before
-  //    the user's second back press arrives.
-  //  - Re-traps IMMEDIATELY inside the handler (same tick), guaranteeing a slot
-  //    exists for the next press before React paints the next frame.
-  //  - When view IS 'STUDENT_DASHBOARD', the handler bails out — StudentDashboard's
-  //    own listener (registered on SD mount) takes full control. Both listeners
-  //    co-exist safely: App handler returns early, SD handler acts normally.
-
   const _goBackRef = React.useRef(goBack);
-  _goBackRef.current = goBack; // refresh every render — no stale closure
+  _goBackRef.current = goBack;
 
   const _viewRef = React.useRef(state.view);
-  _viewRef.current = state.view; // always-fresh view without triggering effects
+  _viewRef.current = state.view;
 
   useEffect(() => {
-    // Push the initial trap so the very first back press is captured.
     try { window.history.pushState({ __appNavTrap: true }, ''); } catch {}
 
     const onPopState = () => {
-      // STUDENT_DASHBOARD: SD's own handler takes over — don't interfere.
       if (_viewRef.current === 'STUDENT_DASHBOARD') return;
-
-      // Re-trap FIRST — before any navigation logic — so Chrome Android registers
-      // a new history entry immediately and never sees canGoBack() = false.
       try { window.history.pushState({ __appNavTrap: true }, ''); } catch {}
-
       _goBackRef.current();
     };
 
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, []); // mount-once — refs keep everything fresh
-
-  // --- OFFLINE INDICATOR (non-blocking) ---
-  // Earlier the entire app was locked behind a full-screen "Internet Not Connected"
-  // screen, which made cached content unusable. We now keep the app running on
-  // cached Firebase data and show only a thin top banner so the user knows.
-  // The banner is rendered alongside the rest of the app (see top-of-tree below).
+  }, []);
 
   const getUserPlan = (): 'FREE' | 'BASIC' | 'ULTRA' => {
       if (!state.user?.isPremium) return 'FREE';
@@ -3315,10 +2900,8 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
     <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})` }}>
-      {/* SKIP TO CONTENT — keyboard/screen-reader accessibility */}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
-      {/* OFFLINE INDICATOR — scrolling marquee ticker, flows above the top bar without covering it */}
       {!isOnline && (
         <div
           role="status"
@@ -3337,7 +2920,7 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      {/* ── SMART CRASH PROTECTION: Admin Crash Popup ── */}
+
       {showAdminCrashPopup && state.user && (state.user.role === 'ADMIN' || state.user.role === 'SUB_ADMIN') && (
         <AdminCrashPopup
           errorMessage={maintenanceState?.crashes?.adminDashboard?.errorMessage || 'Admin dashboard crash hua'}
@@ -3352,34 +2935,17 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* LOGOUT OVERLAY */}
-      {logoutPending && (
-          <div className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-              <div className="bg-slate-800 p-8 rounded-3xl border border-slate-700 flex flex-col items-center w-full mx-4 shadow-2xl animate-in zoom-in duration-200">
-                 <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mb-6">
-                     <Cloud size={32} className="animate-pulse" />
-                 </div>
-                 <h2 className="text-xl font-black mb-2 text-center">Saving Your Progress</h2>
-                 <p className="text-slate-400 text-sm text-center mb-6">Please don't close the app. We are securely syncing your data to the cloud.</p>
-
-                 <div className="text-5xl font-black font-mono mb-8 text-blue-400">
-                     {logoutTimeLeft}s
-                 </div>
-
-                 <button
-                     onClick={() => {
-                         setLogoutPending(false);
-                         setLogoutTimeLeft(0);
-                     }}
-                     className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
-                 >
-                     Cancel Logout
-                 </button>
-              </div>
-          </div>
+      {/* ANIMATED LOGOUT OVERLAY */}
+      {isLoggingOut && (
+        <LogoutOverlay
+          userName={state.user?.name || 'Student'}
+          onLogoutComplete={() => {
+            setIsLoggingOut(false);
+            performLogout();
+          }}
+        />
       )}
 
-      {/* CLOUD RECOVERY MODAL */}
       {showCloudRecoveryModal && cloudUser && (
           <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                <div className="bg-white rounded-3xl w-full shadow-2xl overflow-hidden animate-in zoom-in duration-200">
@@ -3415,10 +2981,9 @@ const App: React.FC = () => {
                            </button>
                            <button
                                onClick={() => {
-                                   // They want to start fresh, zero out cloud history to match local
                                    if (state.user) {
                                       const wipedUser = { ...state.user, mcqHistory: [], testResults: [] };
-                                      saveUserToLive(wipedUser); // overwrite cloud with empty local
+                                      saveUserToLive(wipedUser);
                                    }
                                    setCloudUser(null);
                                    setShowCloudRecoveryModal(false);
@@ -3433,14 +2998,8 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* BOTTOM SAFE AREA BACKGROUND — matches the bottom nav bar's own
-          background (--nst-nav-bg) so the OS 3-button navigation strip blends
-          into the app's bottom bar instead of showing as a separate band. */}
       <div className="fixed bottom-0 left-0 right-0 h-[env(safe-area-inset-bottom,32px)] z-[100]" style={{ background: 'var(--nst-nav-bg, #ffffff)' }}></div>
 
-      {/* GLOBAL WATERMARK LAYER (FIXED: Single Logo, Configurable Position, Z-Index Low) */}
-      {/* User Requirement: "app ka logo full screen pe dikhega nahi chhota sa... background me hi logo hoga" */}
-      {/* Admin Toggle: state.settings.isWatermarkEnabled */}
       {state.settings.isWatermarkEnabled !== false && (
       <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden select-none">
           {state.settings.appLogo && (
@@ -3460,7 +3019,6 @@ const App: React.FC = () => {
               />
           )}
 
-          {/* OPTION 2: FLOATING USER NAME (If Enabled) */}
           {(state.user && state.settings.showUserWatermark !== false) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div
@@ -3474,7 +3032,6 @@ const App: React.FC = () => {
       </div>
       )}
       
-      {/* PLAN-SPECIFIC BANNER */}
       {(() => {
           const plan = getUserPlan();
           const pb = state.settings.planBanners;
@@ -3499,7 +3056,6 @@ const App: React.FC = () => {
           );
       })()}
 
-      {/* GLOBAL LIVE DASHBOARD 1 (TOP) */}
       {state.settings.bannerConfig?.top?.enabled && showTopBanner && (
           <div
             className={`banner-premium-shimmer text-[11px] font-black tracking-widest uppercase py-1.5 overflow-hidden relative whitespace-nowrap z-50 transition-all duration-500 ease-in-out ${state.settings.bannerConfig.top.clickUrl ? 'cursor-pointer active:opacity-70' : ''}`}
@@ -3530,7 +3086,6 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* IMPERSONATION RETURN BUTTON */}
       {state.originalAdmin && (
           <div className="fixed bottom-24 right-6 z-[90] animate-bounce">
               <button onClick={handleReturnToAdmin} className="bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-2xl flex items-center gap-2 border-4 border-white">
@@ -3563,7 +3118,6 @@ const App: React.FC = () => {
            </div>
            {state.user && (
                <div className="flex items-center gap-4">
-                   {/* STREAK BADGE */}
                    {state.user.role !== 'ADMIN' && (
                        <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full cursor-help group relative">
                            <span className="text-lg">🔥</span>
@@ -3636,7 +3190,6 @@ const App: React.FC = () => {
                   </ErrorBoundary>
                 )}
                 
-                {/* ACTIVE WEEKLY TEST OVERRIDE */}
                 {activeWeeklyTest ? (
                     <ErrorBoundary fallbackLabel="Weekly Test" resetKey={activeWeeklyTest.id}>
                       <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-screen" aria-label="Loading test" aria-busy="true"><div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>}>
@@ -3660,12 +3213,11 @@ const App: React.FC = () => {
                 ) : (
                     state.view === 'STUDENT_DASHBOARD' as any && (
                         <>
-                        {/* ── SMART CRASH PROTECTION: Maintenance Banner (student home) ── */}
                         {maintenanceState?.config?.active && state.user?.role !== 'ADMIN' && state.user?.role !== 'SUB_ADMIN' && (
                           <MaintenanceBanner
                             title={maintenanceState.config.title || 'System Maintenance'}
                             message={maintenanceState.config.message || 'We are updating our system.'}
-                            onClick={() => {/* scroll into view handled by MaintenanceScreen */}}
+                            onClick={() => {}}
                           />
                         )}
                         <ErrorBoundary
@@ -3708,7 +3260,6 @@ const App: React.FC = () => {
                     )
                 )}
 
-                {/* Daily Challenge Rank Card — shown next day after completing daily challenge */}
                 {showDailyRankCard && state.user && (
                     <DailyChallengeRankCard
                         userId={state.user.id}
@@ -3748,26 +3299,8 @@ const App: React.FC = () => {
                       {(() => {
                         const _lcVal = state.lessonContent?.content || state.lessonContent?.pdfUrl || state.lessonContent?.videoUrl || '';
                         const _lcIsUrl = _lcVal && (_lcVal.startsWith('http://') || _lcVal.startsWith('https://'));
-                        const _isPdfContent = state.lessonContent && (
-                          ['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type) ||
-                          (_lcIsUrl && !['VIDEO_LECTURE','MCQ_ANALYSIS','MCQ_SIMPLE','WEEKLY_TEST'].includes(state.lessonContent.type))
-                        );
-                        const _isVideoContent = state.lessonContent && (
-                          state.lessonContent.type === 'VIDEO_LECTURE' ||
-                          (_lcIsUrl && (
-                            _lcVal.includes('youtube') || _lcVal.includes('youtu.be') ||
-                            _lcVal.includes('drive.google.com') || _lcVal.includes('notebooklm')
-                          ))
-                        );
                         const _curIdx = state.chapters.findIndex(c => c.id === state.selectedChapter?.id);
                         const _nextChapter = _curIdx >= 0 && _curIdx < state.chapters.length - 1 ? state.chapters[_curIdx + 1] : null;
-                        const _pdfContentType = (['PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent?.type || ''))
-                          ? state.lessonContent!.type as any
-                          : 'PDF_FREE';
-                        const _isNotesContent = state.lessonContent && (
-                          ['NOTES_HTML_FREE','NOTES_HTML_PREMIUM','NOTES_IMAGE_AI','NOTES_SIMPLE','NOTES_PREMIUM'].includes(state.lessonContent.type) ||
-                          (!_lcIsUrl && !['VIDEO_LECTURE','MCQ_ANALYSIS','MCQ_SIMPLE','WEEKLY_TEST','PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type))
-                        );
                         const _isFirstChapter = state.selectedClass !== 'COMPETITION' && _curIdx === 0;
                         return (
                           <LessonView
@@ -3789,7 +3322,7 @@ const App: React.FC = () => {
                               onAdminBoard={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => setState(prev => ({...prev, view: 'ADMIN'})) : undefined}
                               onSendToMcqCommunity={(draft) => setAppMcqCommunityDraft(draft)}
                               onSessionCreditsEarned={handleSessionCreditsEarned}
-               onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
+                              onAdminEdit={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => {
                                 try {
                                   const ch = state.selectedChapter;
                                   const sub = state.selectedSubject;
@@ -3810,7 +3343,6 @@ const App: React.FC = () => {
             </ErrorBoundary>
         )}
       
-      {/* MCQ Community popup — triggered from LessonView */}
       {appMcqCommunityDraft && state.user && (
         <div className="fixed inset-0 z-[400]" onClick={() => setAppMcqCommunityDraft(null)}>
           <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
@@ -3828,7 +3360,6 @@ const App: React.FC = () => {
       )}
 </main>
       
-      {/* PERSISTENT FOOTER - Hide in Student Dashboard as it has its own Bottom Nav */}
       {!isFullScreen && state.view !== 'STUDENT_DASHBOARD' && state.settings.showFooter !== false && !isLessonImmersive && (
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-1 text-center z-[40]">
           <p
@@ -3840,7 +3371,6 @@ const App: React.FC = () => {
       </footer>
       )}
 
-      {/* GLOBAL LIVE DASHBOARD 2 (BOTTOM) */}
       {state.settings.bannerConfig?.bottom?.enabled && showBottomBanner && (
           <div
             className={`banner-premium-shimmer fixed bottom-6 left-0 right-0 text-[11px] font-black tracking-widest uppercase py-1.5 overflow-hidden relative whitespace-nowrap z-[39] transition-all duration-500 ease-in-out ${state.settings.bannerConfig.bottom.clickUrl ? 'cursor-pointer active:opacity-70' : ''}`}
@@ -3871,7 +3401,6 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* MCQ LIMIT LOCKED POPUP */}
       {mcqLimitPopup && state.user && (
         <McqLimitLockedPopup
           isOpen={true}
@@ -3880,13 +3409,11 @@ const App: React.FC = () => {
           creditCost={mcqLimitPopup.creditCost}
           userCredits={getTotalCredits(state.user)}
           onPayCredits={() => {
-            // Deduct credits and allow MCQ session
             const _updated = applyDeduction(state.user!, mcqLimitPopup.creditCost) ?? state.user!;
             localStorage.setItem('nst_current_user', JSON.stringify(_updated));
             saveUserToLive(_updated);
             setState(prev => ({ ...prev, user: _updated }));
             setMcqLimitPopup(null);
-            // Re-launch with forcePay=true to skip the gate
             handleContentGeneration(
               tempSelectedChapter ? ('MCQ_SIMPLE' as any) : 'MCQ_SIMPLE',
               undefined,
@@ -3895,14 +3422,12 @@ const App: React.FC = () => {
           }}
           onGoHome={() => {
             setMcqLimitPopup(null);
-            // Navigate to student dashboard home tab
             setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD', lessonContent: null }));
             setIsFullScreen(false);
           }}
         />
       )}
 
-      {/* FREE SUBJECT LESSON POPUP */}
       <FreeSubjectLessonPopup
         isOpen={showFreeSubjectPopup}
         subjectName={state.selectedSubject?.title || state.selectedSubject?.name || 'This Subject'}
@@ -3927,8 +3452,6 @@ const App: React.FC = () => {
           />
       )}
       
-
-      {/* LOGIN STREAK POPUP — MCQ session mein nahi dikhega */}
       {streakLoginPopup && state.user && !inMcqSession && (
         <StreakLoginPopup
           newStreak={streakLoginPopup.newStreak}
@@ -3939,7 +3462,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* LEVEL-UP NOTIFICATION — MCQ session mein nahi dikhega */}
       {levelUpNotif && !inMcqSession && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
           <div
@@ -3961,7 +3483,6 @@ const App: React.FC = () => {
         </div>
       )}
       
-      {/* POPUP QUEUE MANAGER */}
       {popupQueue.length > 0 && !showPremiumModal && !activeWeeklyTest && (
           <>
             {popupQueue[0] === 'CHALLENGE' && (
@@ -3980,7 +3501,7 @@ const App: React.FC = () => {
               result={lastTestResult}
               user={state.user}
               settings={state.settings}
-              questions={lastTestQuestions || undefined} // Pass full questions for analysis
+              questions={lastTestQuestions || undefined}
               onClose={() => {
                   setLastTestResult(null);
                   setLastTestQuestions(null);
@@ -4020,7 +3541,6 @@ const App: React.FC = () => {
           />
       )}
 
-      {/* SIMPLE TOAST */}
       {toastMessage && (
           <div
               className="fixed bottom-24 left-1/2 z-[9999] -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl pointer-events-none"
@@ -4030,7 +3550,6 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* GLOBAL DIALOGS */}
       <CustomAlert
           isOpen={alertConfig.isOpen}
           message={alertConfig.message}
@@ -4061,23 +3580,17 @@ const App: React.FC = () => {
           />
       )}
 
-      {/* ============================================================ */}
-      {/* IN-APP BROWSER OVERLAY — banner tap se khulta hai            */}
-      {/* ============================================================ */}
       {inAppBrowserUrl && (
           <div className="fixed inset-0 z-[9999] flex flex-col bg-white" style={{paddingTop: 'env(safe-area-inset-top)'}}>
-              {/* Top bar */}
               <div className="relative flex items-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{
                 minHeight: '52px',
                 background: 'linear-gradient(135deg,#0d0d20 0%,#1a0a35 60%,#0a1020 100%)',
               }}>
-                {/* Subtle shimmer */}
                 <div className="absolute inset-0 pointer-events-none" style={{
                   background: 'linear-gradient(105deg,transparent 30%,rgba(139,92,246,0.08) 50%,transparent 70%)',
                   backgroundSize: '200% 100%',
                   animation: 'shimmer-sweep 3s linear infinite',
                 }} />
-                {/* Back button — glow */}
                 <button
                     onClick={() => setInAppBrowserUrl(null)}
                     className="relative p-2 rounded-full transition-all active:scale-90 shrink-0"
@@ -4092,14 +3605,12 @@ const App: React.FC = () => {
                     <ArrowLeft size={18} />
                 </button>
 
-                {/* EXCLUSIVE MCQ badge — center */}
                 <div className="flex-1 flex items-center justify-center">
                   <div className="relative flex items-center gap-2 px-4 py-1.5 rounded-full overflow-hidden" style={{
                     background: 'linear-gradient(90deg,rgba(139,92,246,0.2),rgba(99,102,241,0.15),rgba(139,92,246,0.2))',
                     border: '1px solid rgba(139,92,246,0.45)',
                     boxShadow: '0 0 14px rgba(139,92,246,0.3)',
                   }}>
-                    {/* Inner shimmer */}
                     <div className="absolute inset-0 pointer-events-none" style={{
                       background: 'linear-gradient(105deg,transparent 20%,rgba(196,181,253,0.15) 50%,transparent 80%)',
                       backgroundSize: '200% 100%',
@@ -4117,7 +3628,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Close button — glow */}
                 <button
                     onClick={() => setInAppBrowserUrl(null)}
                     className="relative p-2 rounded-full transition-all active:scale-90 shrink-0"
@@ -4133,7 +3643,6 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* iframe */}
               <iframe
                   src={inAppBrowserUrl}
                   className="flex-1 w-full border-none"
@@ -4144,10 +3653,7 @@ const App: React.FC = () => {
           </div>
       )}
     </div>
-    {/* ── Session Notification — small top-bar toast (3s auto-hide) ─────────
-        Home pe aane pe XP + Credits dono ek chote banner mein dikhta hai.
-        Bada popup ab nahi aata — Activity History mein save hota hai.
-    ────────────────────────────────────────────────────────────────────── */}
+
     {homeToastData && (
       <HomeToastNotification
         data={homeToastData}
@@ -4158,3 +3664,4 @@ const App: React.FC = () => {
   );
 };
 export default App;
+
