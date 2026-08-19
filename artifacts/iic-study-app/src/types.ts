@@ -726,6 +726,7 @@ export interface SystemSettings {
   footerColor?: string; // NEW: Customized footer color
   aiName?: string;
   appBackground?: string;
+  appBackgroundImage?: string;
   profileBackground?: string;
   themeColor?: string;
   // ── Home Page Section Card Colors (Advanced Theme) ──
