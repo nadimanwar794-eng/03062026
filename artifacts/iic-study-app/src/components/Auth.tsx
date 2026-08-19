@@ -443,7 +443,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#e8e8e8] text-[#4a4a4a] px-4 py-6 select-none font-sans overflow-y-auto">
       
       {/* ── SPACIOUS WIDE 3D CARD WRAPPER ── */}
-      <div className="relative w-[92vw] max-w-[440px] min-h-[600px] [perspective:1400px] my-auto flex items-center justify-center">
+      <div className="relative w-[92vw] max-w-[440px] min-h-[620px] [perspective:1400px] my-auto flex items-center justify-center">
         
         <div 
           className="w-full h-full relative [transform-style:preserve-3d] transition-transform duration-700 ease-in-out"
@@ -451,14 +451,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         >
           
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 1: LOGIN (RECTANGLE - FRONT)
+              SIDE 1: LOGIN
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="w-full min-h-[600px] rounded-[2.75rem] bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-8 sm:p-10 shadow-[20px_20px_50px_#c3c3c3,-20px_-20px_50px_#ffffff] border border-white/80">
+          <div className="w-full min-h-[620px] rounded-[2.75rem] bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-8 sm:p-10 shadow-[20px_20px_50px_#c3c3c3,-20px_-20px_50px_#ffffff] border border-white/80">
             
             <div className="w-full flex flex-col items-center my-auto">
               
               <h2 className="text-3xl sm:text-4xl font-black text-[#333333] tracking-tight mb-1.5">Login</h2>
-              <p className="text-xs sm:text-sm font-medium text-[#929191] mb-8">Sign in to your account</p>
+              <p className="text-xs sm:text-sm font-medium text-[#929191] mb-7">Sign in to your account</p>
 
               {error && activeSide === 'LOGIN' && (
                 <div className="w-full mb-4 px-4 py-2.5 rounded-2xl bg-rose-100 text-rose-600 text-xs font-semibold flex items-center gap-2 shadow-inner">
@@ -467,7 +467,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="w-full space-y-4">
+              <form onSubmit={handleLogin} className="w-full space-y-3.5">
                 <div className="relative flex items-center">
                   <UserIcon size={18} className="absolute left-4.5 text-[#929191]" />
                   <input
@@ -493,7 +493,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-xs sm:text-sm text-[#929191] pt-1.5 px-1.5">
+                <div className="flex items-center justify-between text-xs sm:text-sm text-[#929191] pt-1 px-1.5">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <div 
                       onClick={() => setRememberMe(!rememberMe)}
@@ -518,18 +518,29 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   </button>
                 </div>
 
-                <div className="pt-3">
+                {/* ── PROMINENT CLICKABLE SIGN IN BUTTON ── */}
+                <div className="pt-2">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-4 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_16px_#c5c5c5,-6px_-6px_16px_#ffffff] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase active:scale-[0.99]"
+                    className="w-full py-4 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#444] bg-[#e8e8e8] border border-white/80 shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] hover:bg-[#881337] hover:text-white hover:border-transparent active:scale-[0.98] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : <span>SIGN IN</span>}
                   </button>
                 </div>
               </form>
 
-              <p className="text-xs sm:text-sm text-[#929191] mt-6">
+              {/* ── PROMINENT CLICKABLE GOOGLE SIGN-IN BUTTON ── */}
+              <button 
+                type="button" 
+                onClick={handleGoogleAuth} 
+                className="w-full mt-3.5 py-3 rounded-2xl bg-[#e8e8e8] border border-white/80 shadow-[5px_5px_12px_#c5c5c5,-5px_-5px_12px_#ffffff] hover:bg-[#f1f5f9] text-xs sm:text-sm font-bold text-slate-700 flex items-center justify-center gap-2.5 active:scale-[0.98] active:shadow-[inset_3px_3px_6px_#c5c5c5] transition-all"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
+                <span>Google Sign-in</span>
+              </button>
+
+              <p className="text-xs sm:text-sm text-[#929191] mt-5">
                 Don't have an account?{' '}
                 <button
                   type="button"
@@ -540,30 +551,21 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 </button>
               </p>
 
-              <button 
-                type="button" 
-                onClick={handleGoogleAuth} 
-                className="mt-4 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-800 flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-slate-200/50 transition-colors"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
-                <span>Google Sign-in</span>
-              </button>
-
             </div>
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 2: SIGN UP / RECOVERY (RECTANGLE - BACK 180 DEGREE)
+              SIDE 2: SIGN UP / RECOVERY
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="absolute inset-0 w-full min-h-[600px] rounded-[2.75rem] bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-8 sm:p-10 shadow-[20px_20px_50px_#c3c3c3,-20px_-20px_50px_#ffffff] border border-white/80 overflow-y-auto">
+          <div className="absolute inset-0 w-full min-h-[620px] rounded-[2.75rem] bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-8 sm:p-10 shadow-[20px_20px_50px_#c3c3c3,-20px_-20px_50px_#ffffff] border border-white/80 overflow-y-auto">
             
             <div className="w-full flex flex-col items-center my-auto">
               
               {/* SIGN UP */}
               {activeSide === 'SIGNUP' && (
                 <>
-                  <h2 className="text-2xl sm:text-3xl font-black text-[#333333] tracking-tight mb-1.5">Sign Up</h2>
-                  <p className="text-xs sm:text-sm font-medium text-[#929191] mb-5">Create your smart account</p>
+                  <h2 className="text-2xl sm:text-3xl font-black text-[#333333] tracking-tight mb-1">Sign Up</h2>
+                  <p className="text-xs sm:text-sm font-medium text-[#929191] mb-4">Create your smart account</p>
 
                   {error && (
                     <div className="w-full mb-3 px-4 py-2 rounded-2xl bg-rose-100 text-rose-600 text-xs font-semibold flex items-center gap-2 shadow-inner">
@@ -572,7 +574,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                     </div>
                   )}
 
-                  <form onSubmit={handleSignUp} className="w-full space-y-3">
+                  <form onSubmit={handleSignUp} className="w-full space-y-2.5">
                     <div className="relative flex items-center">
                       <UserIcon size={16} className="absolute left-4 text-[#929191]" />
                       <input
@@ -581,7 +583,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Full name"
                         value={signupName}
                         onChange={(e) => { setSignupName(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-2.5 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
@@ -592,7 +594,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Mobile Number"
                         value={signupMobile}
                         onChange={(e) => { setSignupMobile(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-2.5 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
@@ -604,7 +606,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Email address"
                         value={signupEmail}
                         onChange={(e) => { setSignupEmail(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-2.5 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
@@ -616,15 +618,15 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Password (Min 6 chars)"
                         value={signupPassword}
                         onChange={(e) => { setSignupPassword(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-2.5 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
-                    <div className="space-y-1.5 pt-0.5">
+                    <div className="space-y-1 pt-0.5">
                       <select
                         value={selectedQuestion}
                         onChange={(e) => setSelectedQuestion(e.target.value)}
-                        className="w-full bg-[#e8e8e8] rounded-2xl px-3.5 py-2.5 text-xs text-[#444] font-medium outline-none shadow-[inset_2px_2px_4px_rgba(184,190,204,0.45),inset_-2px_-2px_4px_rgba(255,255,255,0.9)] truncate"
+                        className="w-full bg-[#e8e8e8] rounded-2xl px-3.5 py-2 text-xs text-[#444] font-medium outline-none shadow-[inset_2px_2px_4px_rgba(184,190,204,0.45),inset_-2px_-2px_4px_rgba(255,255,255,0.9)] truncate"
                       >
                         {DEFAULT_QUESTIONS.map((q, idx) => (
                           <option key={idx} value={q}>{q}</option>
@@ -639,23 +641,34 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                           placeholder="Security Answer (Profile par dikhega)"
                           value={securityAnswer}
                           onChange={(e) => { setSecurityAnswer(e.target.value); setError(null); }}
-                          className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                          className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-2 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                         />
                       </div>
                     </div>
 
-                    <div className="pt-2">
+                    {/* ── PROMINENT CLICKABLE CREATE ACCOUNT BUTTON ── */}
+                    <div className="pt-1.5">
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase active:scale-[0.99]"
+                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#444] bg-[#e8e8e8] border border-white/80 shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] hover:bg-[#881337] hover:text-white hover:border-transparent active:scale-[0.98] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
                       >
                         {loading ? <Loader2 size={16} className="animate-spin" /> : <span>CREATE ACCOUNT</span>}
                       </button>
                     </div>
                   </form>
 
-                  <p className="text-xs sm:text-sm text-[#929191] mt-4">
+                  {/* ── GOOGLE SIGN-UP BUTTON (SIGNUP SCREEN) ── */}
+                  <button 
+                    type="button" 
+                    onClick={handleGoogleAuth} 
+                    className="w-full mt-2.5 py-2.5 rounded-2xl bg-[#e8e8e8] border border-white/80 shadow-[4px_4px_10px_#c5c5c5,-4px_-4px_10px_#ffffff] hover:bg-[#f1f5f9] text-xs font-bold text-slate-700 flex items-center justify-center gap-2 active:scale-[0.98] active:shadow-[inset_3px_3px_6px_#c5c5c5] transition-all"
+                  >
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
+                    <span>Sign up with Google</span>
+                  </button>
+
+                  <p className="text-xs sm:text-sm text-[#929191] mt-3">
                     Already have an account?{' '}
                     <button
                       type="button"
@@ -704,7 +717,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase mt-2 active:scale-[0.99]"
+                        className="w-full py-4 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#444] bg-[#e8e8e8] border border-white/80 shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] hover:bg-[#881337] hover:text-white hover:border-transparent active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase mt-2"
                       >
                         {loading ? <Loader2 size={16} className="animate-spin" /> : <span>FIND ACCOUNT</span>}
                         <ArrowRight size={16} />
@@ -738,7 +751,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         <button
                           type="submit"
                           disabled={loading || recoveryProgress}
-                          className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-white bg-[#991b1b] hover:bg-[#7f1d1d] shadow-[5px_5px_10px_#c5c5c5] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase active:scale-[0.99]"
+                          className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-white bg-[#991b1b] hover:bg-[#7f1d1d] shadow-[5px_5px_12px_#c5c5c5] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
                         >
                           <CheckCircle2 size={16} />
                           <span>VERIFY &amp; LOGIN</span>
@@ -789,3 +802,4 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
+
