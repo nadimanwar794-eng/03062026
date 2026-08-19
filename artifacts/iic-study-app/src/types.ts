@@ -175,6 +175,8 @@ export interface User {
   classLevel?: string;
   stream?: string; // Only for 11/12
   provider?: 'google' | 'manual';
+  securityQuestion?: string;
+  securityAnswer?: string;
   photoURL?: string;
   avatarChoice?: 'gmail' | 'app';
   linkedGoogleUid?: string;
