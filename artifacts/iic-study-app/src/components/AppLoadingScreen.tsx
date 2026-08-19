@@ -52,8 +52,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
     let isCancelled = false;
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    // Exactly calibrated for 10.0 Seconds total runtime
-    const runTenSecondSort = async () => {
+    // 10.0 Seconds Precise Loop
+    const runFastTenSecondSort = async () => {
       let state = [
         { id: 0, val: 3 },
         { id: 1, val: 8 },
@@ -103,7 +103,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
             [itemB.id]: { isComparing: true, isLifted: false },
           });
 
-          await sleep(150);
+          await sleep(75);
           if (isCancelled) return;
 
           // ── 2. Swap sequence with visible lift & carry ──
@@ -113,12 +113,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
 
             // Cable descends over Block A
             setWireHeight(68);
-            await sleep(120);
+            await sleep(60);
             if (isCancelled) return;
 
             // Claws grip Block A
             setIsClawClosed(true);
-            await sleep(90);
+            await sleep(45);
             if (isCancelled) return;
 
             // Lift Block A up into the air
@@ -127,7 +127,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
               [itemA.id]: { isLifted: true, isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(190);
+            await sleep(95);
             if (isCancelled) return;
 
             // Crane carries Block A to next slot / Block B slides left
@@ -141,12 +141,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
               [itemA.id]: { isLifted: true, isComparing: false },
               [itemB.id]: { isComparing: false, isLifted: false },
             });
-            await sleep(220);
+            await sleep(110);
             if (isCancelled) return;
 
             // Cable lowers Block A down
             setWireHeight(68);
-            await sleep(120);
+            await sleep(60);
             if (isCancelled) return;
 
             // Release claw
@@ -155,7 +155,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
               [itemA.id]: { isLifted: false, isComparing: false },
               [itemB.id]: { isComparing: false, isLifted: false },
             });
-            await sleep(80);
+            await sleep(40);
             if (isCancelled) return;
 
             setWireHeight(14);
@@ -166,7 +166,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
               [itemA.id]: { isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(60);
+            await sleep(30);
           }
 
           stepsCompleted++;
@@ -190,12 +190,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
       setWireHeight(14);
       setProgress(100);
 
-      // Final celebration pause before entering dashboard
-      await sleep(600);
+      // Brief finish pause before transition
+      await sleep(300);
       if (!isCancelled) onCompleteRef.current();
     };
 
-    runTenSecondSort();
+    runFastTenSecondSort();
     return () => { isCancelled = true; };
   }, []);
 
@@ -267,23 +267,23 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
           {/* Top Crane Track */}
           <div className="absolute top-4 left-3 right-3 h-2.5 bg-slate-800 rounded-full border border-cyan-500/40 shadow-inner flex items-center">
             
-            {/* LARGE CRANE TROLLEY & INDUSTRIAL CLAW */}
+            {/* LARGE CRANE TROLLEY & CLAW */}
             <div 
-              className="absolute -top-2 w-11 h-6 rounded-md bg-gradient-to-b from-cyan-400 to-cyan-700 border border-white shadow-[0_0_18px_#06b6d4] transition-all duration-200 ease-out flex flex-col items-center z-40 -ml-1.5"
+              className="absolute -top-2 w-11 h-6 rounded-md bg-gradient-to-b from-cyan-400 to-cyan-700 border border-white shadow-[0_0_18px_#06b6d4] transition-all duration-150 ease-out flex flex-col items-center z-40 -ml-1.5"
               style={{ 
                 transform: `translateX(${RIG_LEFT_PAD + craneSlot * SLOT_WIDTH}px)` 
               }}
             >
               {/* Dual Heavy Cables */}
               <div 
-                className="w-4 flex justify-between transition-all duration-150 ease-out"
+                className="w-4 flex justify-between transition-all duration-100 ease-out"
                 style={{ height: `${wireHeight}px` }}
               >
                 <div className="w-0.5 bg-cyan-200 shadow-[0_0_8px_#22d3ee] h-full" />
                 <div className="w-0.5 bg-cyan-200 shadow-[0_0_8px_#22d3ee] h-full" />
               </div>
 
-              {/* HEAVY-DUTY CLAW HEAD (TIGHT COVER GRIP) */}
+              {/* HEAVY-DUTY CLAW HEAD */}
               <div className="relative -mt-1 flex items-center justify-center">
                 <div className={`w-9 h-3 rounded-t-md border-2 ${isClawClosed ? 'bg-amber-400 border-amber-100 scale-95' : 'bg-cyan-500 border-cyan-200'} transition-all flex justify-between px-0.5 shadow-md`}>
                   {/* Left Grip Arm */}
@@ -299,7 +299,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
           {/* 3D Platform Floor Shadow */}
           <div className="absolute bottom-3.5 left-3 right-3 h-3.5 rounded-full bg-slate-900 border-t border-cyan-950/70 blur-[1px]" />
 
-          {/* ── 3D NUMBERED BLOCKS (VISIBLE LIFT & GROUND SHADOWS) ── */}
+          {/* ── 3D NUMBERED BLOCKS ── */}
           <div className="relative w-full h-full pt-16 px-1">
             {blocks.map((block) => {
               const barHeight = block.val * 11 + 22;
@@ -316,17 +316,17 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
 
               return (
                 <React.Fragment key={block.id}>
-                  {/* Ground Shadow while lifted in air */}
+                  {/* Ground Shadow while lifted */}
                   {block.isLifted && (
                     <div 
-                      className="absolute bottom-4.5 w-7 h-2 rounded-full bg-cyan-950/80 border border-cyan-500/40 blur-[1px] transition-all duration-200"
+                      className="absolute bottom-4.5 w-7 h-2 rounded-full bg-cyan-950/80 border border-cyan-500/40 blur-[1px] transition-all duration-150"
                       style={{ left: `${posX}px` }}
                     />
                   )}
 
                   {/* 3D Block */}
                   <div
-                    className={`absolute bottom-4.5 w-7 rounded-t-lg border flex flex-col items-center justify-start pt-1 font-mono text-xs font-bold transition-all duration-200 ease-out ${colorClass}`}
+                    className={`absolute bottom-4.5 w-7 rounded-t-lg border flex flex-col items-center justify-start pt-1 font-mono text-xs font-bold transition-all duration-150 ease-out ${colorClass}`}
                     style={{
                       left: `${posX}px`,
                       height: `${barHeight}px`,
@@ -367,7 +367,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
             return (
               <div 
                 key={line.num} 
-                className={`flex items-center gap-3 px-2 py-0.5 rounded transition-all duration-100 ${
+                className={`flex items-center gap-3 px-2 py-0.5 rounded transition-all duration-75 ${
                   isActive 
                     ? 'bg-cyan-950/90 border border-cyan-500/60 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)]' 
                     : 'text-slate-500'
@@ -388,7 +388,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
       <div className="relative z-10 w-full max-w-sm mb-1">
         <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-cyan-950/50 mb-2">
           <div 
-            className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 rounded-full transition-all duration-100 shadow-[0_0_10px_#22d3ee]"
+            className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 rounded-full transition-all duration-75 shadow-[0_0_10px_#22d3ee]"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -404,3 +404,4 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
 };
 
 export default AppLoadingScreen;
+
