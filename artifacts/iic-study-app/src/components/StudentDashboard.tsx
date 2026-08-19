@@ -542,13 +542,49 @@ const stripHtmlForPreview = (html: string): string =>
     .trim();
 
 
-// ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
-const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string }) => {
-  const dockPathRef = React.useRef<SVGPathElement>(null);
-  const beadRef = React.useRef<HTMLDivElement>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const animState = React.useRef({ currentX: 0, targetX: 0, velocity: 0, w: 360, h: 64, isAwake: false });
+// ----- MENISCUS NAV INDICATOR -----
+// ----- MENISCUS NAV INDICATOR -----
+const MeniscusNavIndicator = ({
+  activeIndex,
+  totalTabs,
+  navBg,
+  navBorderColor,
+  activeColor,
+  ActiveIcon,
+}: {
+  activeIndex: number;
+  totalTabs: number;
+  navBg: string;
+  navBorderColor: string;
+  activeColor: string;
+  ActiveIcon?: React.ElementType;
+}) => {
+  const dockPathRef = React.useRef<SVGPathElement | null>(null);
+  const beadRef = React.useRef<HTMLDivElement | null>(null);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const animState = React.useRef({
+    currentX: 0,
+    targetX: 0,
+    velocity: 0,
+    w: 360,
+    h: 64,
+    isAwake: false,
+  });
+
   const rafRef = React.useRef<number>(0);
+
+  const generatePath = (cx: number, W: number, H: number) => {
+    const sw = 36;
+    const depth = 26;
+    const p1 = Math.max(0, cx - sw);
+    const p2 = cx - 18;
+    const p3 = cx;
+    const p4 = cx + 18;
+    const p5 = Math.min(W, cx + sw);
+
+    return `M 0,0 L ${p1},0 C ${p1 + 12},0 ${p2},${depth} ${p3},${depth} C ${p4},${depth} ${p5 - 12},0 ${p5},0 L ${W},0 L ${W},${H} L 0,${H} Z`;
+  };
 
   const wakeUp = React.useCallback(() => {
     if (animState.current.isAwake) return;
@@ -558,36 +594,29 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
       const spring = 0.16;
       const damping = 0.68;
       const state = animState.current;
+
       const force = (state.targetX - state.currentX) * spring;
       state.velocity = (state.velocity + force) * damping;
       state.currentX += state.velocity;
 
-      if (dockPathRef.current && containerRef.current) {
-        const W = state.w;
-        const H = state.h;
-        const cx = state.currentX;
-        const sw = 36;
-        const depth = 28;
-        const left = Math.max(0, cx - sw);
-        const right = Math.min(W, cx + sw);
-
-        // Meniscus path
-        const path = `M 0,0 L ${left},0 C ${left + 12},0 ${cx - 20},${depth} ${cx},${depth} C ${cx + 20},${depth} ${right - 12},0 ${right},0 L ${W},0 L ${W},${H} L 0,${H} Z`;
-        dockPathRef.current.setAttribute('d', path);
-        dockPathRef.current.parentElement!.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      if (dockPathRef.current) {
+        dockPathRef.current.setAttribute("d", generatePath(state.currentX, state.w, state.h));
       }
+
       if (beadRef.current) {
-         beadRef.current.style.transform = `translateX(${state.currentX - 24}px)`;
+        beadRef.current.style.transform = `translateX(${state.currentX - 24}px)`;
       }
 
       if (Math.abs(state.velocity) < 0.05 && Math.abs(state.targetX - state.currentX) < 0.05) {
-         state.currentX = state.targetX;
-         state.velocity = 0;
-         state.isAwake = false;
-         return; // sleep
+        state.currentX = state.targetX;
+        state.velocity = 0;
+        state.isAwake = false;
+        return;
       }
+
       rafRef.current = requestAnimationFrame(loop);
     };
+
     rafRef.current = requestAnimationFrame(loop);
   }, []);
 
@@ -596,41 +625,48 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
   }, []);
 
   React.useEffect(() => {
-     const updateTarget = () => {
-        if (containerRef.current) {
-           const rect = containerRef.current.getBoundingClientRect();
-           animState.current.w = rect.width;
-           animState.current.h = rect.height;
-           const tabWidth = rect.width / totalTabs;
-           animState.current.targetX = (activeIndex * tabWidth) + (tabWidth / 2);
+    const updateTarget = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        animState.current.w = rect.width;
+        animState.current.h = rect.height;
+        const tabWidth = rect.width / totalTabs;
+        animState.current.targetX = (activeIndex + 0.5) * tabWidth;
 
-           if (animState.current.currentX === 0) {
-              animState.current.currentX = animState.current.targetX;
-           }
-           wakeUp();
+        if (animState.current.currentX === 0) {
+          animState.current.currentX = animState.current.targetX;
+          if (dockPathRef.current) {
+            dockPathRef.current.setAttribute("d", generatePath(animState.current.currentX, rect.width, rect.height));
+          }
+          if (beadRef.current) {
+            beadRef.current.style.transform = `translateX(${animState.current.currentX - 24}px)`;
+          }
         }
-     };
-     updateTarget();
-     // slight delay to ensure layout is done
-     setTimeout(updateTarget, 50);
-     window.addEventListener('resize', updateTarget);
-     return () => window.removeEventListener('resize', updateTarget);
+        wakeUp();
+      }
+    };
+
+    updateTarget();
+    window.addEventListener("resize", updateTarget);
+    return () => window.removeEventListener("resize", updateTarget);
   }, [activeIndex, totalTabs, wakeUp]);
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible z-0">
-       <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-          <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
-       </svg>
-       <div
-          ref={beadRef}
-          className="absolute top-[-10px] left-0 w-[48px] h-[48px] rounded-full z-0 flex items-center justify-center"
-          style={{
-             background: activeColor,
-             boxShadow: `0 0 20px ${activeColor}80`,
-             willChange: 'transform'
-          }}
-       />
+      <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+        <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
+      </svg>
+      <div
+        ref={beadRef}
+        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none"
+        style={{
+          background: activeColor,
+          boxShadow: `0 0 25px ${activeColor}90`,
+          willChange: "transform",
+        }}
+      >
+        {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
+      </div>
     </div>
   );
 };
@@ -18306,12 +18342,14 @@ export const StudentDashboard: React.FC<Props> = ({
             return (
               <>
                 <MeniscusNavIndicator
-                  activeIndex={activeIndex}
-                  totalTabs={totalVisible}
-                  navBg={tierTheme.navBg}
-                  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
-                  activeColor={_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary}
-                />
+  activeIndex={activeIndex}
+  totalTabs={totalVisible}
+  navBg={tierTheme.navBg}
+  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
+  activeColor={_isNavDark ? ((tierTheme as any).navActive || "#7dd3fc") : tierTheme.primary}
+  ActiveIcon={visibleTabs[activeIndex]?.icon}
+/>
+
                 {visibleTabs.map((tab) => {
                   const access = tab.featureId
                     ? getFeatureAccess(tab.featureId)
