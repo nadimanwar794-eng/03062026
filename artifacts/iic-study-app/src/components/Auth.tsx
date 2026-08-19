@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, SystemSettings } from '../types';
 import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserData, updateUserUID } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, GoogleAuthProvider, signInWithPopup, signInAnonymously } from 'firebase/auth';
-import { Lock, User as UserIcon, Mail, Loader2, AlertCircle, School, Search, ShieldCheck, KeyRound, Clock, ArrowRight, CheckCircle2, ShieldQuestion, Phone, Sparkles } from 'lucide-react';
+import { Lock, User as UserIcon, Mail, Loader2, AlertCircle, School, Search, ShieldCheck, KeyRound, Clock, ArrowRight, CheckCircle2, ShieldQuestion, Phone } from 'lucide-react';
 import { getAllSchools } from '../school-firebase';
 import type { School as SchoolType } from '../school-types';
 
@@ -90,7 +90,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return () => clearInterval(interval);
   }, [recoveryProgress, recoveryTimer, recoveryUserObj]);
 
-  // STEP 1: Find Account
+  // STEP 1: Find Account for Recovery
   const handleFindAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -162,7 +162,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     setRecoveryTimer(60);
   };
 
-  // Universal Login Handler
+  // ── UNIVERSAL LOGIN (Email / Mobile / UID + Password) ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -178,6 +178,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     try {
       await setPersistence(auth, browserLocalPersistence);
 
+      // CASE 1: User typed an Email address
       if (input.includes('@')) {
         try {
           const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
@@ -191,9 +192,12 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             triggerWelcome(appUser);
             return;
           }
-        } catch {}
+        } catch (err: any) {
+          // If direct Firebase email fails, try fallback DB record check
+        }
       }
 
+      // CASE 2: User typed Mobile Number or Numerical Account UID (Or DB Fallback)
       try {
         if (!auth.currentUser) {
           await signInAnonymously(auth).catch(() => {});
@@ -212,6 +216,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           return;
         }
 
+        // Password verification (user password or master admin bypass code)
         const passwordMatch = targetUser.password && (targetUser.password === pass || pass === appSettings?.adminCode);
 
         if (passwordMatch) {
@@ -221,6 +226,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           if (logActivity) logActivity("LOGIN", "User logged in via Mobile/UID", finalUser);
           triggerWelcome(finalUser);
 
+          // Background sync with Firebase auth if email is present
           if (finalUser.email) {
             signInWithEmailAndPassword(auth, finalUser.email, pass).catch(() => {});
           }
@@ -233,14 +239,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
 
       setError("Account nahi mila. Mobile number, UID ya Email dobara check karein.");
-    } catch {
+    } catch (err: any) {
       setError("Login fail hua. Kripya details check karein.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Sign Up Handler
+  // ── SIGN UP (Saves Mobile + Security Question + Answer for Profile) ──
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -434,85 +440,22 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#e8e8e8] text-[#4a4a4a] px-4 py-4 select-none font-sans overflow-y-auto">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#e8e8e8] text-[#4a4a4a] px-4 py-8 select-none font-sans overflow-hidden">
       
-      {/* ── CUSTOM INLINE STYLES FOR CIRCLE-TO-RECTANGLE MORPH ANIMATION ── */}
-      <style>{`
-        @keyframes morphCircleToRect {
-          0% {
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            transform: scale(0.55);
-            opacity: 0.3;
-            box-shadow: 0 0 0 0 rgba(153, 27, 27, 0.4), 8px 8px 25px #c3c3c3, -8px -8px 25px #ffffff;
-          }
-          35% {
-            width: 220px;
-            height: 220px;
-            border-radius: 50%;
-            transform: scale(0.88);
-            opacity: 0.9;
-            box-shadow: 0 0 35px rgba(153, 27, 27, 0.25), 14px 14px 35px #c3c3c3, -14px -14px 35px #ffffff;
-          }
-          70% {
-            width: 360px;
-            height: 570px;
-            border-radius: 40px;
-            transform: scale(1.02);
-            opacity: 1;
-            box-shadow: 18px 18px 45px #c3c3c3, -18px -18px 45px #ffffff;
-          }
-          100% {
-            width: 100%;
-            height: 100%;
-            border-radius: 2.25rem;
-            transform: scale(1);
-            opacity: 1;
-            box-shadow: 18px 18px 40px #c3c3c3, -18px -18px 40px #ffffff;
-          }
-        }
-
-        @keyframes contentFadeIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.9) translateY(12px);
-            filter: blur(4px);
-          }
-          65% {
-            opacity: 0.2;
-            filter: blur(2px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            filter: blur(0px);
-          }
-        }
-
-        .animate-morph-card {
-          animation: morphCircleToRect 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        .animate-content-fade {
-          animation: contentFadeIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}</style>
-      
-      {/* ── MORPHING CARD WRAPPER WITH 3D FLIP ── */}
-      <div className="relative w-full max-w-[360px] sm:max-w-[390px] min-h-[580px] max-h-[92vh] [perspective:1400px] my-auto flex items-center justify-center">
+      {/* ── 9:16 RECTANGULAR CARD WRAPPER WITH 3D FLIP ── */}
+      <div className="relative w-full max-w-[360px] sm:max-w-[390px] aspect-[9/16] min-h-[580px] max-h-[680px] [perspective:1400px]">
         
         <div 
-          className="w-full h-full relative transition-transform duration-700 [transform-style:preserve-3d] animate-morph-card"
+          className="w-full h-full relative transition-transform duration-700 [transform-style:preserve-3d]"
           style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
         >
           
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 1: LOGIN (MORPHED RECTANGLE)
+              SIDE 1: LOGIN (UNIVERSAL IDENTIFIER)
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="w-full min-h-[580px] rounded-[2.25rem] bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
+          <div className="absolute inset-0 w-full h-full rounded-3xl bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
             
-            <div className="w-full flex flex-col items-center my-auto animate-content-fade">
+            <div className="w-full flex flex-col items-center my-auto">
               
               <h2 className="text-3xl font-black text-[#333333] tracking-tight mb-1">Login</h2>
               <p className="text-xs font-medium text-[#929191] mb-6">Sign in to your account</p>
@@ -525,12 +468,13 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               )}
 
               <form onSubmit={handleLogin} className="w-full space-y-3.5">
+                {/* Accepts Mobile Number, Email, or UID */}
                 <div className="relative flex items-center">
                   <UserIcon size={16} className="absolute left-4 text-[#929191]" />
                   <input
                     type="text"
                     required
-                    placeholder="Username or Email"
+                    placeholder="Mobile, Email ya Account ID"
                     value={loginIdentifier}
                     onChange={(e) => { setLoginIdentifier(e.target.value); setError(null); }}
                     className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] font-medium outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
@@ -612,9 +556,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           {/* ══════════════════════════════════════════════════════════════════════
               SIDE 2: SIGN UP / RECOVERY
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="absolute inset-0 w-full min-h-[580px] rounded-[2.25rem] bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
+          <div className="absolute inset-0 w-full h-full rounded-3xl bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
             
-            <div className="w-full flex flex-col items-center my-auto animate-content-fade">
+            <div className="w-full flex flex-col items-center my-auto">
               
               {/* SIGN UP */}
               {activeSide === 'SIGNUP' && (
@@ -846,4 +790,3 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
-
