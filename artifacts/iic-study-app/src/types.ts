@@ -110,7 +110,9 @@ export interface RoutineTask {
 }
 
 export interface User {
-  id: string; // Login ID (Firebase UID)
+  id: string;
+  securityQuestion?: string;
+  securityAnswer?: string; // Login ID (Firebase UID)
   displayId?: string; // Visible ID (IIC-XXX)
   password: string;
   name: string;

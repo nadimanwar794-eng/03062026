@@ -541,6 +541,13 @@ const stripHtmlForPreview = (html: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const DEFAULT_QUESTIONS = [
+  "Aapka favorite subject kaunsa hai?",
+  "Aapke primary school ka naam kya tha?",
+  "Aapka favorite teacher kaun hai?",
+  "Aapka birth city / gaon kaunsa hai?"
+];
+
 export const StudentDashboard: React.FC<Props> = ({
   user,
   dailyStudySeconds,
@@ -1994,6 +2001,8 @@ export const StudentDashboard: React.FC<Props> = ({
     mobile: (user as any).mobile || "",
     password: (user as any).password || "",
     email: user.email || "",
+    securityQuestion: (user as any).securityQuestion || DEFAULT_QUESTIONS[0],
+    securityAnswer: (user as any).securityAnswer || "",
   });
   const [profileData, setProfileData] = useState({
     classLevel: activeSessionClass || user.classLevel || "10",
@@ -11452,6 +11461,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       mobile: (user as any).mobile || '',
                       password: (user as any).password || '',
                       email: user.email || '',
+                      securityQuestion: (user as any).securityQuestion || DEFAULT_QUESTIONS[0],
+                      securityAnswer: (user as any).securityAnswer || '',
                     });
                     setShowRecoveryModal(true);
                   }}
@@ -11496,6 +11507,29 @@ export const StudentDashboard: React.FC<Props> = ({
                   color: user.email ? '#16a34a' : '#94a3b8',
                   border: `1px solid ${user.email ? 'rgba(34,197,94,0.28)' : 'rgba(148,163,184,0.2)'}`,
                 }}>{user.email ? '✓ Active' : 'Inactive'}</span>
+              </div>
+              {/* Security Question row */}
+              <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: `1px solid ${tierTheme.primary}10` }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(234,88,12,0.12)', border: '1px solid rgba(234,88,12,0.2)' }}>
+                  <span style={{ fontSize: 16 }}>❓</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold uppercase tracking-wider" style={{ fontSize: 9, color: _pTxtSubColor, marginBottom: 2 }}>Security Question</p>
+                  <p className="font-bold truncate" style={{ fontSize: 13, color: _pTxtColor }}>
+                    {(user as any).securityQuestion ? (user as any).securityQuestion : <span style={{ color: _pTxtMutedColor, fontWeight: 500 }}>Set nahi hai</span>}
+                  </p>
+                  {(user as any).securityAnswer && (
+                    <p className="font-bold truncate mt-1" style={{ fontSize: 11, color: _pTxtMutedColor }}>
+                      Answer: {(user as any).securityAnswer}
+                    </p>
+                  )}
+                </div>
+                <span className="font-black px-2.5 py-1 rounded-lg" style={{
+                  fontSize: 9,
+                  background: (user as any).securityQuestion && (user as any).securityAnswer ? 'rgba(34,197,94,0.14)' : 'rgba(148,163,184,0.10)',
+                  color: (user as any).securityQuestion && (user as any).securityAnswer ? '#16a34a' : '#94a3b8',
+                  border: `1px solid ${(user as any).securityQuestion && (user as any).securityAnswer ? 'rgba(34,197,94,0.28)' : 'rgba(148,163,184,0.2)'}`,
+                }}>{(user as any).securityQuestion && (user as any).securityAnswer ? '✓ Active' : 'Inactive'}</span>
               </div>
               {/* UID row */}
               <div className="flex items-center gap-3 px-4 py-3.5">
@@ -14999,6 +15033,42 @@ export const StudentDashboard: React.FC<Props> = ({
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
+                  Security Question
+                </label>
+                <select
+                  value={recoveryData.securityQuestion}
+                  onChange={(e) =>
+                    setRecoveryData({
+                      ...recoveryData,
+                      securityQuestion: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 font-bold"
+                >
+                  {DEFAULT_QUESTIONS.map((q) => (
+                    <option key={q} value={q}>{q}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
+                  Security Answer
+                </label>
+                <input
+                  type="text"
+                  value={recoveryData.securityAnswer}
+                  onChange={(e) =>
+                    setRecoveryData({
+                      ...recoveryData,
+                      securityAnswer: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 font-bold"
+                  placeholder="Aapka answer"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
                   Recovery Password
                 </label>
                 <input
@@ -15044,6 +15114,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     mobile: recoveryData.mobile,
                     password: recoveryData.password,
                     email: recoveryData.email || user.email,
+                    securityQuestion: recoveryData.securityQuestion,
+                    securityAnswer: recoveryData.securityAnswer.trim().toLowerCase(),
                   });
                   setShowRecoveryModal(false);
                   showAlert("Recovery details saved successfully!", "SUCCESS");
