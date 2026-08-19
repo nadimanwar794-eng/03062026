@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meniscus Navigation Bar</title>
+<style>
+* {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+user-select: none;
+-webkit-tap-highlight-color: transparent;
+}
+
+body {
+background-color: #0b0c0e;
+color: #ffffff;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+align-items: center;
+padding: 60px 16px 40px;
+}
+
+.title-container {
+text-align: center;
+margin-top: 30px;
+}
+
+.title-container h1 {
+font-size: 3.2rem;
+font-weight: 700;
+letter-spacing: -0.04em;
+}
+
+.title-container p {
+color: #64676f;
+margin-top: 8px;
+font-size: 1rem;
+}
+
+/* Fixed Dock Bar */
+.dock-container {
+position: relative;
+width: 360px;
+height: 72px;
+}
+
+.dock-svg {
+position: absolute;
+top: 0;
+left: 0;
+width: 360px;
+height: 72px;
+filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.8));
+}
+
+.dock-path {
+fill: #16171b;
+stroke: rgba(255, 255, 255, 0.08);
+stroke-width: 1;
+}
+
+/* Floating Ball / Bead */
+.bead {
+position: absolute;
+top: -10px; /* Perfectly seated in the socket */
+left: 0;
+width: 48px;
+height: 48px;
+border-radius: 50%;
+background: var(--accent-color, #c8f53c);
+box-shadow: 0 0 25px var(--accent-glow, rgba(200, 245, 60, 0.6));
+pointer-events: none;
+z-index: 5;
+display: flex;
+align-items: center;
+justify-content: center;
+will-change: transform;
+}
+
+.bead svg {
+width: 22px;
+height: 22px;
+stroke: #0e0f11;
+fill: none;
+stroke-width: 2.2;
+stroke-linecap: round;
+stroke-linejoin: round;
+}
+
+/* Navigation Tabs */
+.tabs {
+position: absolute;
+inset: 0;
+display: flex;
+z-index: 2;
+}
+
+.tab-btn {
+flex: 1;
+background: transparent;
+border: none;
+outline: none;
+cursor: pointer;
+color: #555964;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+position: relative;
+height: 100%;
+}
+
+.tab-icon-wrapper {
+display: flex;
+align-items: center;
+justify-content: center;
+height: 24px;
+}
+
+.tab-icon-wrapper svg {
+width: 22px;
+height: 22px;
+stroke: currentColor;
+fill: none;
+stroke-width: 2;
+stroke-linecap: round;
+stroke-linejoin: round;
+transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Active Tab state */
+.tab-btn.active .tab-icon-wrapper svg {
+opacity: 0;
+transform: scale(0.3);
+}
+
+.tab-label {
+position: absolute;
+bottom: 8px;
+font-size: 11px;
+font-weight: 600;
+color: #8c9099;
+opacity: 0;
+transform: translateY(4px);
+transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.tab-btn.active .tab-label {
+opacity: 1;
+transform: translateY(0);
+}
+</style>
+</head>
+<body>
+
+<div class="title-container">
+<h1 id="page-title">Home</h1>
+<p id="page-subtitle">Everything, on one surface.</p>
+</div>
+
+<div class="dock-container" id="dock">
+<svg class="dock-svg" viewBox="0 0 360 72">
+<path id="dock-path" class="dock-path" d="" />
+</svg>
+
+<div class="bead" id="bead">
+<div id="bead-icon"></div>
+</div>
+
+<div class="tabs">
+<button class="tab-btn active" data-name="Home" data-desc="Everything, on one surface." data-color="#c8f53c" data-glow="rgba(200, 245, 60, 0.6)">
+<div class="tab-icon-wrapper">
+<svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+</div>
+<span class="tab-label">Home</span>
+</button>
+
+<button class="tab-btn" data-name="Messages" data-desc="Three unread. All of them kind." data-color="#f5a623" data-glow="rgba(245, 166, 35, 0.6)">
+<div class="tab-icon-wrapper">
+<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</div>
+<span class="tab-label">Messages</span>
+</button>
+
+<button class="tab-btn" data-name="Profile" data-desc="Public avatar and bio." data-color="#38bdf8" data-glow="rgba(56, 189, 248, 0.6)">
+<div class="tab-icon-wrapper">
+<svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+</div>
+<span class="tab-label">Profile</span>
+</button>
+
+<button class="tab-btn" data-name="Search" data-desc="Find people and content." data-color="#a855f7" data-glow="rgba(168, 85, 247, 0.6)">
+<div class="tab-icon-wrapper">
+<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+</div>
+<span class="tab-label">Search</span>
+</button>
+
+<button class="tab-btn" data-name="Settings" data-desc="Fewer switches. Better defaults." data-color="#ec4899" data-glow="rgba(236, 72, 153, 0.6)">
+<div class="tab-icon-wrapper">
+<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</div>
+<span class="tab-label">Settings</span>
+</button>
+</div>
+</div>
+
+<script>
+const dock = document.getElementById("dock");
+const dockPath = document.getElementById("dock-path");
+const bead = document.getElementById("bead");
+const beadIcon = document.getElementById("bead-icon");
+const tabs = document.querySelectorAll(".tab-btn");
+const pageTitle = document.getElementById("page-title");
+const pageSubtitle = document.getElementById("page-subtitle");
+
+const W = 360;
+const H = 72;
+const R = 20;
+
+let currentX = 36;
+let targetX = 36;
+let velocity = 0;
+
+// Mathematical Meniscus Curve (Exact symmetrical socket)
+function generatePath(cx) {
+const sw = 36; // Socket half-width
+const depth = 28; // Socket depth
+
+const left = Math.max(R, cx - sw);
+const right = Math.min(W - R, cx + sw);
+
+return `M ${R},0
+L ${left},0 C ${left + 12},0 ${cx - 20},${depth} ${cx},${depth}
+C ${cx + 20},${depth} ${right - 12},0 ${right},0
+L ${W - R},0 A ${R},${R} 0 0 1 ${W},${R} L ${W},${H - R} A ${R},${R} 0 0 1 ${W - R},${H} L ${R},${H} A ${R},${R} 0 0 1 0,${H - R}
+L 0,${R} A ${R},${R} 0 0 1 ${R},0
+Z
+`;
+}
+
+// Spring Loop
+function updatePhysics() {
+const spring = 0.16;
+const damping = 0.68;
+
+const force = (targetX - currentX) * spring;
+velocity = (velocity + force) * damping;
+currentX += velocity;
+
+// Update Path & Bead Position in 1:1 Sync
+dockPath.setAttribute("d", generatePath(currentX));
+bead.style.transform = `translateX(${currentX - 24}px)`; // 24px is exact half of bead (48/2)
+
+requestAnimationFrame(updatePhysics);
+}
+
+function setTab(btn) {
+tabs.forEach(t => t.classList.remove("active"));
+btn.classList.add("active");
+
+// Calculate absolute center of the clicked button inside dock
+const btnRect = btn.getBoundingClientRect();
+const dockRect = dock.getBoundingClientRect();
+const scale = W / dockRect.width;
+
+targetX = ((btnRect.left + btnRect.width / 2) - dockRect.left) * scale;
+
+const iconSvg = btn.querySelector(".tab-icon-wrapper svg").cloneNode(true);
+beadIcon.innerHTML = "";
+beadIcon.appendChild(iconSvg);
+
+const color = btn.dataset.color;
+const glow = btn.dataset.glow;
+
+document.documentElement.style.setProperty("--accent-color", color);
+document.documentElement.style.setProperty("--accent-glow", glow);
+
+pageTitle.innerText = btn.dataset.name;
+pageSubtitle.innerText = btn.dataset.desc;
+}
+
+tabs.forEach(tab => {
+tab.addEventListener("click", () => setTab(tab));
+});
+
+// Start with Tab 1
+window.addEventListener("load", () => {
+setTab(tabs[0]);
+currentX = targetX;
+dockPath.setAttribute("d", generatePath(currentX));
+bead.style.transform = `translateX(${currentX - 24}px)`;
+updatePhysics();
+});
+</script>
+</body>
+</html>
