@@ -543,7 +543,7 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
-const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string }) => {
+const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, ActiveIcon?: React.ElementType }) => {
   const dockPathRef = React.useRef<SVGPathElement>(null);
   const beadRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -624,13 +624,14 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
        </svg>
        <div
           ref={beadRef}
-          className="absolute top-[-10px] left-0 w-[48px] h-[48px] rounded-full z-0 flex items-center justify-center"
+          className="absolute top-[-14px] left-0 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-20 pointer-events-none"
           style={{
-             background: activeColor,
-             boxShadow: `0 0 20px ${activeColor}80`,
+             backgroundColor: activeColor,
              willChange: 'transform'
           }}
-       />
+       >
+         {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
+       </div>
     </div>
   );
 };
@@ -18311,6 +18312,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   navBg={tierTheme.navBg}
                   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
                   activeColor={_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary}
+                  ActiveIcon={visibleTabs[activeIndex]?.Icon}
                 />
                 {visibleTabs.map((tab) => {
                   const access = tab.featureId
@@ -18382,7 +18384,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         <Icon
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
-                            className="transition-colors duration-300"
+                            className={tab.isActive ? 'opacity-0 scale-50 transition-all duration-300' : 'opacity-100 scale-100 transition-all duration-300'}
                             style={{ color: tab.isActive ? (_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
