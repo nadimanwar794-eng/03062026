@@ -557,7 +557,7 @@ const MeniscusNavIndicator = ({
   navBg: string;
   navBorderColor: string;
   activeColor: string;
-  ActiveIcon?: React.ElementType;
+  ActiveIcon?: any;
 }) => {
   const dockPathRef = React.useRef<SVGPathElement | null>(null);
   const beadRef = React.useRef<HTMLDivElement | null>(null);
@@ -658,18 +658,28 @@ const MeniscusNavIndicator = ({
       </svg>
       <div
         ref={beadRef}
-        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none"
+        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white"
         style={{
-          background: activeColor,
-          boxShadow: `0 0 25px ${activeColor}90`,
+          background: activeColor || "#22c55e",
+          boxShadow: `0 0 25px ${activeColor || "#22c55e"}99`,
           willChange: "transform",
         }}
       >
-        {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
+        {ActiveIcon && (
+          typeof ActiveIcon === "function" ? (
+            <ActiveIcon className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />
+          ) : (
+            <span className="w-6 h-6 text-white [&>svg]:w-6 [&>svg]:h-6 [&>svg]:stroke-white [&>svg]:stroke-[2.4] [&>svg]:fill-none flex items-center justify-center">
+              {ActiveIcon}
+            </span>
+          )
+        )}
       </div>
     </div>
   );
 };
+
+
 // ────────────────────────────────────────────────────────────────────────
 
 export const StudentDashboard: React.FC<Props> = ({
@@ -18346,7 +18356,7 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor={_isNavDark ? ((tierTheme as any).navActive || "#7dd3fc") : tierTheme.primary}
+  activeColor="#22c55e"
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
