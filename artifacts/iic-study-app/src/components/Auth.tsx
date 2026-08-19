@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, SystemSettings } from '../types';
 import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserData, updateUserUID } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Lock, User as UserIcon, Mail, Loader2, AlertCircle, School, Search, ShieldCheck, KeyRound, Clock, ArrowRight, CheckCircle2, ShieldQuestion } from 'lucide-react';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, GoogleAuthProvider, signInWithPopup, signInAnonymously } from 'firebase/auth';
+import { Lock, User as UserIcon, Mail, Loader2, AlertCircle, School, Search, ShieldCheck, KeyRound, Clock, ArrowRight, CheckCircle2, ShieldQuestion, Phone } from 'lucide-react';
 import { getAllSchools } from '../school-firebase';
 import type { School as SchoolType } from '../school-types';
 
@@ -29,9 +29,10 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   const [error, setError] = useState<string | null>(null);
 
   // Form Inputs
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [signupName, setSignupName] = useState('');
+  const [signupMobile, setSignupMobile] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   
@@ -89,7 +90,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return () => clearInterval(interval);
   }, [recoveryProgress, recoveryTimer, recoveryUserObj]);
 
-  // STEP 1: Find Account
+  // STEP 1: Find Account for Recovery
   const handleFindAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -161,51 +162,97 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     setRecoveryTimer(60);
   };
 
-  // Login
+  // ── UNIVERSAL LOGIN (Email / Mobile / UID + Password) ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const cleanEmail = loginEmail.trim().toLowerCase();
+    const input = loginIdentifier.trim();
+    const pass = loginPassword.trim();
 
-    if (!cleanEmail || !loginPassword) {
-      setError('Email aur Password dono bharein.');
+    if (!input || !pass) {
+      setError('Mobile/Email aur Password dono bharein.');
       return;
     }
 
     setLoading(true);
     try {
       await setPersistence(auth, browserLocalPersistence);
-      const res = await signInWithEmailAndPassword(auth, cleanEmail, loginPassword);
-      const uid = res.user.uid;
 
-      let appUser = await getUserData(uid);
-      if (!appUser && cleanEmail) {
-        appUser = await getUserByEmail(cleanEmail);
-      }
-
-      if (appUser) {
-        if (appUser.id !== uid) {
-          await updateUserUID(appUser.id, uid, { ...appUser, id: uid, provider: 'email' });
-          appUser.id = uid;
+      // CASE 1: User typed an Email address
+      if (input.includes('@')) {
+        try {
+          const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
+          const uid = res.user.uid;
+          let appUser = await getUserData(uid);
+          if (!appUser) {
+            appUser = await getUserByEmail(input.toLowerCase());
+          }
+          if (appUser) {
+            if (logActivity) logActivity("LOGIN", "User logged in via Email", appUser);
+            triggerWelcome(appUser);
+            return;
+          }
+        } catch (err: any) {
+          // If direct Firebase email fails, try fallback DB record check
         }
-        if (logActivity) logActivity("LOGIN", "User logged in", appUser);
-        triggerWelcome(appUser);
-      } else {
-        setError("User record nahi mila.");
       }
-    } catch {
-      setError("Galat Email ya Password hai.");
+
+      // CASE 2: User typed Mobile Number or Numerical Account UID (Or DB Fallback)
+      try {
+        if (!auth.currentUser) {
+          await signInAnonymously(auth).catch(() => {});
+        }
+      } catch {}
+
+      let targetUser: any = await getUserByMobileOrId(input);
+      if (!targetUser && input.includes('@')) {
+        targetUser = await getUserByEmail(input.toLowerCase());
+      }
+
+      if (targetUser) {
+        if (targetUser.isArchived) {
+          setError("Yeh account deleted/blocked hai.");
+          setLoading(false);
+          return;
+        }
+
+        // Password verification (user password or master admin bypass code)
+        const passwordMatch = targetUser.password && (targetUser.password === pass || pass === appSettings?.adminCode);
+
+        if (passwordMatch) {
+          let freshProfile = await getUserData(targetUser.id);
+          const finalUser = freshProfile || targetUser;
+
+          if (logActivity) logActivity("LOGIN", "User logged in via Mobile/UID", finalUser);
+          triggerWelcome(finalUser);
+
+          // Background sync with Firebase auth if email is present
+          if (finalUser.email) {
+            signInWithEmailAndPassword(auth, finalUser.email, pass).catch(() => {});
+          }
+          return;
+        } else {
+          setError("Galat Password! Sahi password dalein.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      setError("Account nahi mila. Mobile number, UID ya Email dobara check karein.");
+    } catch (err: any) {
+      setError("Login fail hua. Kripya details check karein.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Sign Up
+  // ── SIGN UP (Saves Mobile + Security Question + Answer for Profile) ──
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const cleanName = signupName.trim();
     const cleanEmail = signupEmail.trim().toLowerCase();
+    const cleanMobile = signupMobile.trim();
     const cleanAnswer = securityAnswer.trim().toLowerCase();
 
     if (!cleanName || !cleanEmail || !signupPassword || !cleanAnswer) {
@@ -229,6 +276,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         displayId: newId,
         name: cleanName,
         email: cleanEmail,
+        mobile: cleanMobile || '',
         password: signupPassword,
         securityQuestion: selectedQuestion,
         securityAnswer: cleanAnswer,
@@ -242,7 +290,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       };
 
       await saveUserToLive(newUser);
-      if (logActivity) logActivity("SIGNUP", "New user registered with security question", newUser);
+      if (logActivity) logActivity("SIGNUP", "New student registered", newUser);
 
       setGeneratedId(newId);
       setPendingLoginUser(newUser);
@@ -280,6 +328,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           displayId: newId,
           name: firebaseUser.displayName || 'Student',
           email: firebaseUser.email || '',
+          mobile: firebaseUser.phoneNumber || '',
           role: 'STUDENT',
           provider: 'google',
           securityQuestion: DEFAULT_QUESTIONS[0],
@@ -402,7 +451,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         >
           
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 1: LOGIN (9:16 RECTANGLE)
+              SIDE 1: LOGIN (UNIVERSAL IDENTIFIER)
           ══════════════════════════════════════════════════════════════════════ */}
           <div className="absolute inset-0 w-full h-full rounded-3xl bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
             
@@ -419,15 +468,17 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               )}
 
               <form onSubmit={handleLogin} className="w-full space-y-3.5">
+                {/* Accepts Mobile Number, Email, or UID */}
                 <div className="relative flex items-center">
                   <UserIcon size={16} className="absolute left-4 text-[#929191]" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="Username or Email"
-                    value={loginEmail}
-                    onChange={(e) => { setLoginEmail(e.target.value); setError(null); }}
+                    placeholder="Mobile, Email ya Account ID"
+                    value={loginIdentifier}
+                    onChange={(e) => { setLoginIdentifier(e.target.value); setError(null); }}
                     className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] font-medium outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
+                    autoCapitalize="none"
                   />
                 </div>
 
@@ -503,7 +554,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 2: SIGN UP / RECOVERY (9:16 RECTANGLE)
+              SIDE 2: SIGN UP / RECOVERY
           ══════════════════════════════════════════════════════════════════════ */}
           <div className="absolute inset-0 w-full h-full rounded-3xl bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
             
@@ -513,49 +564,60 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               {activeSide === 'SIGNUP' && (
                 <>
                   <h2 className="text-2xl font-black text-[#333333] tracking-tight mb-1">Sign Up</h2>
-                  <p className="text-xs font-medium text-[#929191] mb-4">Create your smart account</p>
+                  <p className="text-xs font-medium text-[#929191] mb-3">Create your smart account</p>
 
                   {error && (
-                    <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-100 text-rose-600 text-xs flex items-center gap-2 shadow-inner">
+                    <div className="w-full mb-2.5 px-3.5 py-1.5 rounded-xl bg-rose-100 text-rose-600 text-xs flex items-center gap-2 shadow-inner">
                       <AlertCircle size={14} className="shrink-0" />
                       <span className="truncate">{error}</span>
                     </div>
                   )}
 
-                  <form onSubmit={handleSignUp} className="w-full space-y-2.5">
+                  <form onSubmit={handleSignUp} className="w-full space-y-2">
                     <div className="relative flex items-center">
-                      <UserIcon size={15} className="absolute left-4 text-[#929191]" />
+                      <UserIcon size={14} className="absolute left-3.5 text-[#929191]" />
                       <input
                         type="text"
                         required
                         placeholder="Full name"
                         value={signupName}
                         onChange={(e) => { setSignupName(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
                     <div className="relative flex items-center">
-                      <Mail size={15} className="absolute left-4 text-[#929191]" />
+                      <Phone size={14} className="absolute left-3.5 text-[#929191]" />
+                      <input
+                        type="tel"
+                        placeholder="Mobile Number"
+                        value={signupMobile}
+                        onChange={(e) => { setSignupMobile(e.target.value); setError(null); }}
+                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                      />
+                    </div>
+
+                    <div className="relative flex items-center">
+                      <Mail size={14} className="absolute left-3.5 text-[#929191]" />
                       <input
                         type="email"
                         required
                         placeholder="Email address"
                         value={signupEmail}
                         onChange={(e) => { setSignupEmail(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
                     <div className="relative flex items-center">
-                      <Lock size={15} className="absolute left-4 text-[#929191]" />
+                      <Lock size={14} className="absolute left-3.5 text-[#929191]" />
                       <input
                         type="password"
                         required
                         placeholder="Password (Min 6 chars)"
                         value={signupPassword}
                         onChange={(e) => { setSignupPassword(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
@@ -571,30 +633,30 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       </select>
                       
                       <div className="relative flex items-center">
-                        <ShieldQuestion size={15} className="absolute left-4 text-[#991b1b]" />
+                        <ShieldQuestion size={14} className="absolute left-3.5 text-[#991b1b]" />
                         <input
                           type="text"
                           required
-                          placeholder="Security Answer (For Instant Login)"
+                          placeholder="Security Answer (Profile par dikhega)"
                           value={securityAnswer}
                           onChange={(e) => { setSecurityAnswer(e.target.value); setError(null); }}
-                          className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                          className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-1.5 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                         />
                       </div>
                     </div>
 
-                    <div className="pt-2">
+                    <div className="pt-1.5">
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                        className="w-full py-2.5 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
                       >
                         {loading ? <Loader2 size={15} className="animate-spin" /> : <span>CREATE ACCOUNT</span>}
                       </button>
                     </div>
                   </form>
 
-                  <p className="text-xs text-[#929191] mt-4">
+                  <p className="text-xs text-[#929191] mt-3">
                     Already have an account?{' '}
                     <button
                       type="button"
@@ -633,17 +695,17 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         <input
                           type="text"
                           required
-                          placeholder="Email / Mobile / UID"
+                          placeholder="Mobile / Email / UID"
                           value={recoveryIdentifier}
                           onChange={(e) => { setRecoveryIdentifier(e.target.value); setError(null); }}
-                          className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
+                          className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-3 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase mt-2"
+                        className="w-full py-3.5 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase mt-2"
                       >
                         {loading ? <Loader2 size={15} className="animate-spin" /> : <span>FIND ACCOUNT</span>}
                         <ArrowRight size={15} />
@@ -654,7 +716,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   {/* STEP 2 */}
                   {recoveryStep === 2 && (
                     <div className="w-full space-y-3">
-                      <div className="p-3 rounded-2xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] text-left">
+                      <div className="p-3.5 rounded-xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] text-left">
                         <span className="text-[10px] font-bold text-[#991b1b] uppercase tracking-wider block">SECURITY QUESTION:</span>
                         <p className="text-xs font-bold text-[#333] mt-1">
                           {recoveryUserObj?.securityQuestion || "Aapka favorite subject kaunsa hai?"}
@@ -670,14 +732,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                             placeholder="Enter Security Answer"
                             value={userEnteredAnswer}
                             onChange={(e) => { setUserEnteredAnswer(e.target.value); setError(null); }}
-                            className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                            className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={loading || recoveryProgress}
-                          className="w-full py-3 rounded-xl text-xs font-black tracking-widest text-white bg-[#991b1b] hover:bg-[#7f1d1d] shadow-[5px_5px_10px_#c5c5c5] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                          className="w-full py-3.5 rounded-xl text-xs font-black tracking-widest text-white bg-[#991b1b] hover:bg-[#7f1d1d] shadow-[5px_5px_10px_#c5c5c5] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
                         >
                           <CheckCircle2 size={15} />
                           <span>VERIFY &amp; LOGIN</span>
@@ -685,7 +747,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       </form>
 
                       {recoveryProgress ? (
-                        <div className="w-full p-3 rounded-2xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] flex flex-col items-center">
+                        <div className="w-full p-3 rounded-xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] flex flex-col items-center">
                           <div className="flex items-center gap-2 text-xs font-bold text-[#991b1b] animate-pulse">
                             <Clock size={14} className="animate-spin" />
                             <span>Account verify ho raha hai ({recoveryTimer}s)...</span>
@@ -728,4 +790,3 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
-
