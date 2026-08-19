@@ -23,7 +23,13 @@ const DEFAULT_QUESTIONS = [
 export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => {
   const [activeSide, setActiveSide] = useState<'LOGIN' | 'SIGNUP' | 'RECOVERY'>('LOGIN');
   const isFlipped = activeSide !== 'LOGIN';
-  
+
+  const switchSide = (target: 'LOGIN' | 'SIGNUP' | 'RECOVERY') => {
+    if (target === activeSide) return;
+    setError(null);
+    setActiveSide(target);
+  };
+
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +96,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return () => clearInterval(interval);
   }, [recoveryProgress, recoveryTimer, recoveryUserObj]);
 
-  // STEP 1: Find Account for Recovery
+  // STEP 1: Find Account
   const handleFindAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -162,7 +168,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     setRecoveryTimer(60);
   };
 
-  // ── UNIVERSAL LOGIN (Email / Mobile / UID + Password) ──
+  // Login Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -178,7 +184,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     try {
       await setPersistence(auth, browserLocalPersistence);
 
-      // CASE 1: User typed an Email address
       if (input.includes('@')) {
         try {
           const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
@@ -192,12 +197,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             triggerWelcome(appUser);
             return;
           }
-        } catch (err: any) {
-          // If direct Firebase email fails, try fallback DB record check
-        }
+        } catch {}
       }
 
-      // CASE 2: User typed Mobile Number or Numerical Account UID (Or DB Fallback)
       try {
         if (!auth.currentUser) {
           await signInAnonymously(auth).catch(() => {});
@@ -216,7 +218,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           return;
         }
 
-        // Password verification (user password or master admin bypass code)
         const passwordMatch = targetUser.password && (targetUser.password === pass || pass === appSettings?.adminCode);
 
         if (passwordMatch) {
@@ -226,7 +227,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           if (logActivity) logActivity("LOGIN", "User logged in via Mobile/UID", finalUser);
           triggerWelcome(finalUser);
 
-          // Background sync with Firebase auth if email is present
           if (finalUser.email) {
             signInWithEmailAndPassword(auth, finalUser.email, pass).catch(() => {});
           }
@@ -239,14 +239,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
 
       setError("Account nahi mila. Mobile number, UID ya Email dobara check karein.");
-    } catch (err: any) {
+    } catch {
       setError("Login fail hua. Kripya details check karein.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ── SIGN UP (Saves Mobile + Security Question + Answer for Profile) ──
+  // Sign Up Handler
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -358,14 +358,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            width: 76, height: 76, borderRadius: '50%', margin: '0 auto 16px',
+            width: 80, height: 80, borderRadius: '50%', margin: '0 auto 18px',
             background: 'linear-gradient(135deg, #fbbf24, #d97706)',
             boxShadow: '0 0 35px rgba(251,191,36,0.6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 34, color: '#fff'
+            fontSize: 36, color: '#fff'
           }}>✦</div>
           <h1 style={{ fontSize: 44, fontWeight: 900, color: '#fbbf24' }}>Welcome</h1>
-          <p style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: '#f1f5f9' }}>{name}</p>
+          <p style={{ marginTop: 8, fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{name}</p>
         </div>
       </div>
     );
@@ -375,20 +375,20 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   if (view === 'SCHOOL_SELECT') {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#e8e8e8] px-4 font-sans select-none">
-        <div className="w-full max-w-sm p-6 sm:p-8 rounded-3xl bg-[#e8e8e8] shadow-[20px_20px_45px_#c3c3c3,-20px_-20px_45px_#ffffff] text-center border border-white/60">
-          <School size={40} className="text-[#991b1b] mx-auto mb-2" />
-          <h2 className="text-xl font-black text-[#333]">Apna School Select Karein</h2>
-          <div className="my-4 relative">
-            <Search size={16} className="absolute left-3.5 top-3 text-slate-400" />
+        <div className="w-full max-w-md p-8 rounded-[2.5rem] bg-[#e8e8e8] shadow-[24px_24px_50px_#c3c3c3,-24px_-24px_50px_#ffffff] text-center border border-white/80">
+          <School size={44} className="text-[#991b1b] mx-auto mb-2" />
+          <h2 className="text-2xl font-black text-[#333]">Apna School Select Karein</h2>
+          <div className="my-5 relative">
+            <Search size={18} className="absolute left-4 top-3.5 text-slate-400" />
             <input
               type="text"
               placeholder="Search school..."
               value={schoolSearch}
               onChange={e => setSchoolSearch(e.target.value)}
-              className="w-full pl-10 pr-3 py-2.5 rounded-xl text-xs bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] outline-none text-[#333]"
+              className="w-full pl-12 pr-4 py-3 rounded-2xl text-sm bg-[#e8e8e8] shadow-[inset_4px_4px_8px_#c3c3c3,inset_-4px_-4px_8px_#ffffff] outline-none text-[#333]"
             />
           </div>
-          <div className="space-y-2 max-h-52 overflow-y-auto mb-4">
+          <div className="space-y-2.5 max-h-60 overflow-y-auto mb-5 pr-1">
             {schools.filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase())).map(sc => (
               <button
                 key={sc.id}
@@ -400,7 +400,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   }
                   setView('SUCCESS_ID');
                 }}
-                className="w-full p-3 rounded-xl bg-[#e8e8e8] shadow-[4px_4px_8px_#c5c5c5,-4px_-4px_8px_#ffffff] text-xs font-bold text-[#444] text-left truncate hover:text-[#991b1b]"
+                className="w-full p-3.5 rounded-2xl bg-[#e8e8e8] shadow-[5px_5px_10px_#c5c5c5,-5px_-5px_10px_#ffffff] text-sm font-bold text-[#444] text-left truncate hover:text-[#991b1b] active:scale-[0.99] transition-all"
               >
                 {sc.name}
               </button>
@@ -418,11 +418,11 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   if (view === 'SUCCESS_ID') {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#e8e8e8] px-4 select-none">
-        <div className="w-full max-w-sm p-8 rounded-3xl bg-[#e8e8e8] shadow-[20px_20px_45px_#c3c3c3,-20px_-20px_45px_#ffffff] text-center border border-white/60">
-          <ShieldCheck size={46} className="text-emerald-600 mx-auto mb-2" />
+        <div className="w-full max-w-md p-9 rounded-[2.5rem] bg-[#e8e8e8] shadow-[24px_24px_50px_#c3c3c3,-24px_-24px_50px_#ffffff] text-center border border-white/80">
+          <ShieldCheck size={52} className="text-emerald-600 mx-auto mb-3" />
           <h2 className="text-2xl font-black text-[#333] mb-1">Account Created!</h2>
-          <p className="text-xs text-slate-500 mb-4">Aapka unique login ID:</p>
-          <div className="p-3.5 rounded-xl bg-[#e8e8e8] shadow-[inset_4px_4px_8px_#c3c3c3,inset_-4px_-4px_8px_#ffffff] text-xl font-mono font-bold text-[#991b1b] mb-5">
+          <p className="text-xs text-slate-500 mb-5">Aapka unique login ID:</p>
+          <div className="p-4 rounded-2xl bg-[#e8e8e8] shadow-[inset_4px_4px_8px_#c3c3c3,inset_-4px_-4px_8px_#ffffff] text-2xl font-mono font-bold text-[#991b1b] mb-6 tracking-wider">
             {generatedId}
           </div>
           <button
@@ -430,7 +430,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               if (pendingLoginUser) triggerWelcome(pendingLoginUser);
               else setView('AUTH');
             }}
-            className="w-full py-3.5 rounded-xl bg-[#e8e8e8] shadow-[6px_6px_12px_#c3c3c3,-6px_-6px_12px_#ffffff] hover:bg-[#991b1b] hover:text-white font-bold text-xs uppercase transition-all tracking-wider text-[#333]"
+            className="w-full py-4 rounded-2xl bg-[#e8e8e8] shadow-[6px_6px_14px_#c3c3c3,-6px_-6px_14px_#ffffff] hover:bg-[#991b1b] hover:text-white font-bold text-sm uppercase transition-all tracking-wider text-[#333] active:scale-[0.99]"
           >
             Start Learning
           </button>
@@ -440,70 +440,69 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#e8e8e8] text-[#4a4a4a] px-4 py-8 select-none font-sans overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#e8e8e8] text-[#4a4a4a] px-4 py-6 select-none font-sans overflow-y-auto">
       
-      {/* ── 9:16 RECTANGULAR CARD WRAPPER WITH 3D FLIP ── */}
-      <div className="relative w-full max-w-[360px] sm:max-w-[390px] aspect-[9/16] min-h-[580px] max-h-[680px] [perspective:1400px]">
+      {/* ── SPACIOUS WIDE 3D CARD WRAPPER ── */}
+      <div className="relative w-[92vw] max-w-[440px] min-h-[600px] [perspective:1400px] my-auto flex items-center justify-center">
         
         <div 
-          className="w-full h-full relative transition-transform duration-700 [transform-style:preserve-3d]"
+          className="w-full h-full relative [transform-style:preserve-3d] transition-transform duration-700 ease-in-out"
           style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
         >
           
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 1: LOGIN (UNIVERSAL IDENTIFIER)
+              SIDE 1: LOGIN (RECTANGLE - FRONT)
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
+          <div className="w-full min-h-[600px] rounded-[2.75rem] bg-[#e8e8e8] [backface-visibility:hidden] flex flex-col items-center justify-between p-8 sm:p-10 shadow-[20px_20px_50px_#c3c3c3,-20px_-20px_50px_#ffffff] border border-white/80">
             
             <div className="w-full flex flex-col items-center my-auto">
               
-              <h2 className="text-3xl font-black text-[#333333] tracking-tight mb-1">Login</h2>
-              <p className="text-xs font-medium text-[#929191] mb-6">Sign in to your account</p>
+              <h2 className="text-3xl sm:text-4xl font-black text-[#333333] tracking-tight mb-1.5">Login</h2>
+              <p className="text-xs sm:text-sm font-medium text-[#929191] mb-8">Sign in to your account</p>
 
               {error && activeSide === 'LOGIN' && (
-                <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-100 text-rose-600 text-xs flex items-center gap-2 shadow-inner">
-                  <AlertCircle size={14} className="shrink-0" />
+                <div className="w-full mb-4 px-4 py-2.5 rounded-2xl bg-rose-100 text-rose-600 text-xs font-semibold flex items-center gap-2 shadow-inner">
+                  <AlertCircle size={16} className="shrink-0" />
                   <span className="truncate">{error}</span>
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="w-full space-y-3.5">
-                {/* Accepts Mobile Number, Email, or UID */}
+              <form onSubmit={handleLogin} className="w-full space-y-4">
                 <div className="relative flex items-center">
-                  <UserIcon size={16} className="absolute left-4 text-[#929191]" />
+                  <UserIcon size={18} className="absolute left-4.5 text-[#929191]" />
                   <input
                     type="text"
                     required
                     placeholder="Mobile, Email ya Account ID"
                     value={loginIdentifier}
                     onChange={(e) => { setLoginIdentifier(e.target.value); setError(null); }}
-                    className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] font-medium outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
+                    className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-3.5 text-sm text-[#333] placeholder-[#9fa4af] font-medium outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.95)]"
                     autoCapitalize="none"
                   />
                 </div>
 
                 <div className="relative flex items-center">
-                  <Lock size={16} className="absolute left-4 text-[#929191]" />
+                  <Lock size={18} className="absolute left-4.5 text-[#929191]" />
                   <input
                     type="password"
                     required
                     placeholder="Password"
                     value={loginPassword}
                     onChange={(e) => { setLoginPassword(e.target.value); setError(null); }}
-                    className="w-full bg-[#e8e8e8] rounded-xl pl-11 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] font-medium outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
+                    className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-3.5 text-sm text-[#333] placeholder-[#9fa4af] font-medium outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.95)]"
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-[#929191] pt-1 px-1">
+                <div className="flex items-center justify-between text-xs sm:text-sm text-[#929191] pt-1.5 px-1.5">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <div 
                       onClick={() => setRememberMe(!rememberMe)}
-                      className={`w-8 h-4.5 rounded-full transition-colors flex items-center p-0.5 shadow-[inset_2px_2px_4px_rgba(184,190,204,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.9)] ${
+                      className={`w-9 h-5 rounded-full transition-colors flex items-center p-0.5 shadow-[inset_2px_2px_4px_rgba(184,190,204,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.9)] ${
                         rememberMe ? 'bg-[#991b1b]' : 'bg-[#e8e8e8]'
                       }`}
                     >
-                      <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transition-transform ${
-                        rememberMe ? 'translate-x-3.5' : 'translate-x-0'
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform ${
+                        rememberMe ? 'translate-x-4' : 'translate-x-0'
                       }`} />
                     </div>
                     <span>Remember me</span>
@@ -511,30 +510,30 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
                   <button 
                     type="button" 
-                    onClick={() => { setActiveSide('RECOVERY'); setRecoveryStep(1); setError(null); }}
+                    onClick={() => { switchSide('RECOVERY'); setRecoveryStep(1); }}
                     className="text-[#991b1b] font-bold hover:underline transition-colors flex items-center gap-1"
                   >
-                    <KeyRound size={13} />
+                    <KeyRound size={14} />
                     <span>Instant Recovery</span>
                   </button>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                    className="w-full py-4 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_16px_#c5c5c5,-6px_-6px_16px_#ffffff] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase active:scale-[0.99]"
                   >
-                    {loading ? <Loader2 size={15} className="animate-spin" /> : <span>SIGN IN</span>}
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <span>SIGN IN</span>}
                   </button>
                 </div>
               </form>
 
-              <p className="text-xs text-[#929191] mt-5">
+              <p className="text-xs sm:text-sm text-[#929191] mt-6">
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => { setActiveSide('SIGNUP'); setError(null); }}
+                  onClick={() => switchSide('SIGNUP')}
                   className="font-bold text-[#b91c1c] hover:underline ml-0.5"
                 >
                   Sign up
@@ -544,7 +543,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               <button 
                 type="button" 
                 onClick={handleGoogleAuth} 
-                className="mt-3 text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-2"
+                className="mt-4 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-800 flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-slate-200/50 transition-colors"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
                 <span>Google Sign-in</span>
@@ -554,78 +553,78 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════════
-              SIDE 2: SIGN UP / RECOVERY
+              SIDE 2: SIGN UP / RECOVERY (RECTANGLE - BACK 180 DEGREE)
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-6 sm:p-8 shadow-[18px_18px_40px_#c3c3c3,-18px_-18px_40px_#ffffff] border border-white/80 overflow-y-auto">
+          <div className="absolute inset-0 w-full min-h-[600px] rounded-[2.75rem] bg-[#e8e8e8] [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-8 sm:p-10 shadow-[20px_20px_50px_#c3c3c3,-20px_-20px_50px_#ffffff] border border-white/80 overflow-y-auto">
             
             <div className="w-full flex flex-col items-center my-auto">
               
               {/* SIGN UP */}
               {activeSide === 'SIGNUP' && (
                 <>
-                  <h2 className="text-2xl font-black text-[#333333] tracking-tight mb-1">Sign Up</h2>
-                  <p className="text-xs font-medium text-[#929191] mb-3">Create your smart account</p>
+                  <h2 className="text-2xl sm:text-3xl font-black text-[#333333] tracking-tight mb-1.5">Sign Up</h2>
+                  <p className="text-xs sm:text-sm font-medium text-[#929191] mb-5">Create your smart account</p>
 
                   {error && (
-                    <div className="w-full mb-2.5 px-3.5 py-1.5 rounded-xl bg-rose-100 text-rose-600 text-xs flex items-center gap-2 shadow-inner">
-                      <AlertCircle size={14} className="shrink-0" />
+                    <div className="w-full mb-3 px-4 py-2 rounded-2xl bg-rose-100 text-rose-600 text-xs font-semibold flex items-center gap-2 shadow-inner">
+                      <AlertCircle size={16} className="shrink-0" />
                       <span className="truncate">{error}</span>
                     </div>
                   )}
 
-                  <form onSubmit={handleSignUp} className="w-full space-y-2">
+                  <form onSubmit={handleSignUp} className="w-full space-y-3">
                     <div className="relative flex items-center">
-                      <UserIcon size={14} className="absolute left-3.5 text-[#929191]" />
+                      <UserIcon size={16} className="absolute left-4 text-[#929191]" />
                       <input
                         type="text"
                         required
                         placeholder="Full name"
                         value={signupName}
                         onChange={(e) => { setSignupName(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
                     <div className="relative flex items-center">
-                      <Phone size={14} className="absolute left-3.5 text-[#929191]" />
+                      <Phone size={16} className="absolute left-4 text-[#929191]" />
                       <input
                         type="tel"
                         placeholder="Mobile Number"
                         value={signupMobile}
                         onChange={(e) => { setSignupMobile(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
                     <div className="relative flex items-center">
-                      <Mail size={14} className="absolute left-3.5 text-[#929191]" />
+                      <Mail size={16} className="absolute left-4 text-[#929191]" />
                       <input
                         type="email"
                         required
                         placeholder="Email address"
                         value={signupEmail}
                         onChange={(e) => { setSignupEmail(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
                     <div className="relative flex items-center">
-                      <Lock size={14} className="absolute left-3.5 text-[#929191]" />
+                      <Lock size={16} className="absolute left-4 text-[#929191]" />
                       <input
                         type="password"
                         required
                         placeholder="Password (Min 6 chars)"
                         value={signupPassword}
                         onChange={(e) => { setSignupPassword(e.target.value); setError(null); }}
-                        className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-2 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                        className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                       />
                     </div>
 
-                    <div className="space-y-1 pt-0.5">
+                    <div className="space-y-1.5 pt-0.5">
                       <select
                         value={selectedQuestion}
                         onChange={(e) => setSelectedQuestion(e.target.value)}
-                        className="w-full bg-[#e8e8e8] rounded-xl px-3 py-1.5 text-[10px] text-[#444] font-medium outline-none shadow-[inset_2px_2px_4px_rgba(184,190,204,0.45),inset_-2px_-2px_4px_rgba(255,255,255,0.9)] truncate"
+                        className="w-full bg-[#e8e8e8] rounded-2xl px-3.5 py-2.5 text-xs text-[#444] font-medium outline-none shadow-[inset_2px_2px_4px_rgba(184,190,204,0.45),inset_-2px_-2px_4px_rgba(255,255,255,0.9)] truncate"
                       >
                         {DEFAULT_QUESTIONS.map((q, idx) => (
                           <option key={idx} value={q}>{q}</option>
@@ -633,34 +632,34 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       </select>
                       
                       <div className="relative flex items-center">
-                        <ShieldQuestion size={14} className="absolute left-3.5 text-[#991b1b]" />
+                        <ShieldQuestion size={16} className="absolute left-4 text-[#991b1b]" />
                         <input
                           type="text"
                           required
                           placeholder="Security Answer (Profile par dikhega)"
                           value={securityAnswer}
                           onChange={(e) => { setSecurityAnswer(e.target.value); setError(null); }}
-                          className="w-full bg-[#e8e8e8] rounded-xl pl-10 pr-3 py-1.5 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                          className="w-full bg-[#e8e8e8] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                         />
                       </div>
                     </div>
 
-                    <div className="pt-1.5">
+                    <div className="pt-2">
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-2.5 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase active:scale-[0.99]"
                       >
-                        {loading ? <Loader2 size={15} className="animate-spin" /> : <span>CREATE ACCOUNT</span>}
+                        {loading ? <Loader2 size={16} className="animate-spin" /> : <span>CREATE ACCOUNT</span>}
                       </button>
                     </div>
                   </form>
 
-                  <p className="text-xs text-[#929191] mt-3">
+                  <p className="text-xs sm:text-sm text-[#929191] mt-4">
                     Already have an account?{' '}
                     <button
                       type="button"
-                      onClick={() => { setActiveSide('LOGIN'); setError(null); }}
+                      onClick={() => switchSide('LOGIN')}
                       className="font-bold text-[#b91c1c] hover:underline ml-0.5"
                     >
                       Login
@@ -672,17 +671,17 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               {/* INSTANT QUESTION RECOVERY */}
               {activeSide === 'RECOVERY' && (
                 <>
-                  <h2 className="text-2xl font-black text-[#333333] tracking-tight mb-1 flex items-center gap-2 justify-center">
-                    <KeyRound size={20} className="text-[#991b1b]" />
+                  <h2 className="text-2xl sm:text-3xl font-black text-[#333333] tracking-tight mb-1.5 flex items-center gap-2 justify-center">
+                    <KeyRound size={22} className="text-[#991b1b]" />
                     <span>Instant Recovery</span>
                   </h2>
-                  <p className="text-xs font-medium text-[#929191] mb-4 text-center">
+                  <p className="text-xs sm:text-sm font-medium text-[#929191] mb-5 text-center">
                     {recoveryStep === 1 ? 'Apna account search karein' : 'Sahi Answer par instant login'}
                   </p>
 
                   {error && (
-                    <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-100 text-rose-600 text-xs flex items-center gap-2 shadow-inner">
-                      <AlertCircle size={14} className="shrink-0" />
+                    <div className="w-full mb-3 px-4 py-2 rounded-2xl bg-rose-100 text-rose-600 text-xs font-semibold flex items-center gap-2 shadow-inner">
+                      <AlertCircle size={16} className="shrink-0" />
                       <span className="truncate">{error}</span>
                     </div>
                   )}
@@ -691,65 +690,65 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   {recoveryStep === 1 && (
                     <form onSubmit={handleFindAccount} className="w-full space-y-4">
                       <div className="relative flex items-center">
-                        <UserIcon size={16} className="absolute left-4 text-[#929191]" />
+                        <UserIcon size={18} className="absolute left-4.5 text-[#929191]" />
                         <input
                           type="text"
                           required
                           placeholder="Mobile / Email / UID"
                           value={recoveryIdentifier}
                           onChange={(e) => { setRecoveryIdentifier(e.target.value); setError(null); }}
-                          className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-3 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
+                          className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-3.5 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_4px_4px_8px_rgba(184,190,204,0.45),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3.5 rounded-xl text-xs font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase mt-2"
+                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-[#555] bg-[#e8e8e8] hover:bg-[#881337] hover:text-white shadow-[6px_6px_14px_#c5c5c5,-6px_-6px_14px_#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase mt-2 active:scale-[0.99]"
                       >
-                        {loading ? <Loader2 size={15} className="animate-spin" /> : <span>FIND ACCOUNT</span>}
-                        <ArrowRight size={15} />
+                        {loading ? <Loader2 size={16} className="animate-spin" /> : <span>FIND ACCOUNT</span>}
+                        <ArrowRight size={16} />
                       </button>
                     </form>
                   )}
 
                   {/* STEP 2 */}
                   {recoveryStep === 2 && (
-                    <div className="w-full space-y-3">
-                      <div className="p-3.5 rounded-xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] text-left">
+                    <div className="w-full space-y-3.5">
+                      <div className="p-4 rounded-2xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] text-left">
                         <span className="text-[10px] font-bold text-[#991b1b] uppercase tracking-wider block">SECURITY QUESTION:</span>
-                        <p className="text-xs font-bold text-[#333] mt-1">
+                        <p className="text-xs sm:text-sm font-bold text-[#333] mt-1">
                           {recoveryUserObj?.securityQuestion || "Aapka favorite subject kaunsa hai?"}
                         </p>
                       </div>
 
                       <form onSubmit={handleInstantAnswerVerify} className="space-y-3">
                         <div className="relative flex items-center">
-                          <ShieldQuestion size={16} className="absolute left-4 text-[#991b1b]" />
+                          <ShieldQuestion size={18} className="absolute left-4.5 text-[#991b1b]" />
                           <input
                             type="text"
                             required
                             placeholder="Enter Security Answer"
                             value={userEnteredAnswer}
                             onChange={(e) => { setUserEnteredAnswer(e.target.value); setError(null); }}
-                            className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-2.5 text-xs text-[#333] placeholder-[#a9a9a9] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
+                            className="w-full bg-[#e8e8e8] rounded-2xl pl-12 pr-4 py-3 text-xs sm:text-sm text-[#333] placeholder-[#9fa4af] outline-none shadow-[inset_3px_3px_6px_rgba(184,190,204,0.45),inset_-3px_-3px_6px_rgba(255,255,255,0.9)]"
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={loading || recoveryProgress}
-                          className="w-full py-3.5 rounded-xl text-xs font-black tracking-widest text-white bg-[#991b1b] hover:bg-[#7f1d1d] shadow-[5px_5px_10px_#c5c5c5] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                          className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-widest text-white bg-[#991b1b] hover:bg-[#7f1d1d] shadow-[5px_5px_10px_#c5c5c5] transition-all flex items-center justify-center gap-2 cursor-pointer uppercase active:scale-[0.99]"
                         >
-                          <CheckCircle2 size={15} />
+                          <CheckCircle2 size={16} />
                           <span>VERIFY &amp; LOGIN</span>
                         </button>
                       </form>
 
                       {recoveryProgress ? (
-                        <div className="w-full p-3 rounded-xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] flex flex-col items-center">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#991b1b] animate-pulse">
-                            <Clock size={14} className="animate-spin" />
+                        <div className="w-full p-3.5 rounded-2xl bg-[#e8e8e8] shadow-[inset_3px_3px_6px_#c3c3c3,inset_-3px_-3px_6px_#ffffff] flex flex-col items-center">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#991b1b] animate-pulse">
+                            <Clock size={16} className="animate-spin" />
                             <span>Account verify ho raha hai ({recoveryTimer}s)...</span>
                           </div>
                           <span className="text-[10px] text-[#777] mt-0.5">Please wait, verification in progress</span>
@@ -758,7 +757,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         <button
                           type="button"
                           onClick={handleStartTimerFallback}
-                          className="text-[11px] text-slate-500 hover:text-[#991b1b] underline font-medium block mx-auto pt-1"
+                          className="text-xs text-slate-500 hover:text-[#991b1b] underline font-medium block mx-auto pt-1"
                         >
                           Answer yaad nahi hai? System se Auto-Verify karein (1-Min)
                         </button>
@@ -766,11 +765,11 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                     </div>
                   )}
 
-                  <p className="text-xs text-[#929191] mt-5">
+                  <p className="text-xs sm:text-sm text-[#929191] mt-6">
                     Wapas jaane ke liye{' '}
                     <button
                       type="button"
-                      onClick={() => { setActiveSide('LOGIN'); setRecoveryStep(1); setError(null); setRecoveryProgress(false); }}
+                      onClick={() => { switchSide('LOGIN'); setRecoveryStep(1); setRecoveryProgress(false); }}
                       className="font-bold text-[#b91c1c] hover:underline ml-0.5"
                     >
                       Login karein
