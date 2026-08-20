@@ -213,7 +213,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
   ];
 
   return (
-    <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#040813] text-white select-none px-4 py-4 font-sans overflow-hidden">
+    <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-between bg-[#040813] text-white select-none px-4 py-5 font-sans overflow-hidden">
       
       {/* ── ISOMETRIC GRID BACKGROUND ── */}
       <div 
@@ -227,29 +227,32 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
         }}
       />
 
-      {/* ── COMPACT MAIN CARD CONTAINER ── */}
-      <div className="relative z-10 w-full max-w-[360px] flex flex-col items-center gap-3">
-        
-        {/* ── APP NAME LOGO & BADGES ── */}
-        <div className="flex flex-col items-center">
-          {/* IIC 3D Gradient Text Logo */}
-          <h1 className="text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.6)]">
-            IIC
-          </h1>
+      {/* ── TOP HEADER & BADGES ── */}
+      <div className="relative z-10 w-full max-w-sm flex flex-col items-center text-center mt-1">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-wider text-white uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+          BUBBLE SORT
+        </h1>
+        <p className="text-[11px] sm:text-xs text-slate-400 font-medium max-w-[320px] mt-1 leading-relaxed">
+          Repeatedly swaps adjacent out-of-order pairs, letting larger values bubble toward the end.
+        </p>
 
-          {/* Badges */}
-          <div className="flex items-center gap-2 mt-1.5">
-            <div className="px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] font-mono font-bold text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.25)]">
-              ⚙ BUBBLE SORT
-            </div>
-            <div className="px-2.5 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-[10px] font-mono font-bold text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.25)]">
-              O(n²)
-            </div>
+        {/* TIME & SPACE Badges */}
+        <div className="flex items-center gap-2.5 mt-2.5">
+          <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/50 text-[10px] font-mono font-bold text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            <span className="text-cyan-500 font-black">TIME:</span>
+            <span>O(n²)</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-[10px] font-mono font-bold text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+            <span className="text-emerald-500 font-black">SPACE:</span>
+            <span>O(1)</span>
           </div>
         </div>
+      </div>
 
-        {/* ── MECHANICAL 3D GANTRY CRANE STAGE ── */}
-        <div className="relative w-full h-[225px] rounded-2xl bg-[#060c1d]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(2,132,199,0.25)] p-2.5 overflow-hidden">
+      {/* ── MECHANICAL 3D GANTRY CRANE STAGE ── */}
+      <div className="relative z-10 w-full max-w-[360px] flex flex-col items-center my-auto">
+        
+        <div className="relative w-full h-[265px] rounded-2xl bg-[#060c1d]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(2,132,199,0.25)] p-3 overflow-hidden">
           
           {/* Tech Corner Accents */}
           <div className="absolute top-1.5 left-1.5 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
@@ -258,11 +261,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
           <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b-2 border-r-2 border-cyan-400" />
 
           {/* Steel Pillars */}
-          <div className="absolute top-3 left-2.5 bottom-5 w-1.5 bg-slate-700 rounded-full border border-slate-600 shadow-md" />
-          <div className="absolute top-3 right-2.5 bottom-5 w-1.5 bg-slate-700 rounded-full border border-slate-600 shadow-md" />
+          <div className="absolute top-3 left-2.5 bottom-6 w-1.5 bg-slate-700 rounded-full border border-slate-600 shadow-md" />
+          <div className="absolute top-3 right-2.5 bottom-6 w-1.5 bg-slate-700 rounded-full border border-slate-600 shadow-md" />
 
           {/* Top Crane Track */}
-          <div className="absolute top-3.5 left-3 right-3 h-2 bg-slate-800 rounded-full border border-cyan-500/40 shadow-inner flex items-center">
+          <div className="absolute top-4 left-3 right-3 h-2.5 bg-slate-800 rounded-full border border-cyan-500/40 shadow-inner flex items-center">
             
             {/* LARGE CRANE TROLLEY & CLAW */}
             <div 
@@ -294,12 +297,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
           </div>
 
           {/* 3D Platform Floor Shadow */}
-          <div className="absolute bottom-2.5 left-3 right-3 h-3 rounded-full bg-slate-900 border-t border-cyan-950/70 blur-[1px]" />
+          <div className="absolute bottom-3.5 left-3 right-3 h-3.5 rounded-full bg-slate-900 border-t border-cyan-950/70 blur-[1px]" />
 
           {/* ── 3D NUMBERED BLOCKS ── */}
-          <div className="relative w-full h-full pt-12 px-1">
+          <div className="relative w-full h-full pt-16 px-1">
             {blocks.map((block) => {
-              const barHeight = block.val * 10 + 20;
+              const barHeight = block.val * 11 + 22;
               const posX = RIG_LEFT_PAD + block.slot * SLOT_WIDTH;
 
               let colorClass = 'bg-slate-700/90 border-slate-600 text-slate-300 shadow-md';
@@ -316,18 +319,18 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
                   {/* Ground Shadow while lifted */}
                   {block.isLifted && (
                     <div 
-                      className="absolute bottom-3.5 w-7 h-2 rounded-full bg-cyan-950/80 border border-cyan-500/40 blur-[1px] transition-all duration-150"
+                      className="absolute bottom-4.5 w-7 h-2 rounded-full bg-cyan-950/80 border border-cyan-500/40 blur-[1px] transition-all duration-150"
                       style={{ left: `${posX}px` }}
                     />
                   )}
 
                   {/* 3D Block */}
                   <div
-                    className={`absolute bottom-3.5 w-7 rounded-t-lg border flex flex-col items-center justify-start pt-1 font-mono text-xs font-bold transition-all duration-150 ease-out ${colorClass}`}
+                    className={`absolute bottom-4.5 w-7 rounded-t-lg border flex flex-col items-center justify-start pt-1 font-mono text-xs font-bold transition-all duration-150 ease-out ${colorClass}`}
                     style={{
                       left: `${posX}px`,
                       height: `${barHeight}px`,
-                      transform: block.isLifted ? 'translateY(-72px)' : 'translateY(0px)',
+                      transform: block.isLifted ? 'translateY(-78px)' : 'translateY(0px)',
                       zIndex: block.isLifted ? 50 : 10,
                     }}
                   >
@@ -340,11 +343,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
 
         </div>
 
-        {/* Dynamic Action Prompt (No Extra Vertical Gap) */}
-        <div className="flex items-center justify-center h-5">
+        {/* Dynamic Action Prompt */}
+        <div className="mt-2.5 flex items-center justify-center gap-1.5 h-6">
           {actionPrompt === 'sorted!' ? (
-            <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold text-xs tracking-wider animate-pulse">
-              <Check size={14} className="text-emerald-400" />
+            <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold text-sm tracking-wider animate-pulse">
+              <Check size={16} className="text-emerald-400" />
               <span>sorted!</span>
             </div>
           ) : (
@@ -354,46 +357,46 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
           )}
         </div>
 
-        {/* ── PYTHON CODE SNIPPET BOX ── */}
-        <div className="w-full rounded-xl bg-[#02050f]/95 border border-cyan-950/80 p-2.5 shadow-inner">
-          <div className="font-mono text-[10.5px] leading-snug space-y-0.5">
-            {codeRows.map((line) => {
-              const isActive = activeCodeLine === line.num;
-              return (
-                <div 
-                  key={line.num} 
-                  className={`flex items-center gap-3 px-2 py-0.5 rounded transition-all duration-75 ${
-                    isActive 
-                      ? 'bg-cyan-950/90 border border-cyan-500/60 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)]' 
-                      : 'text-slate-500'
-                  }`}
-                >
-                  <span className="w-4 text-right text-slate-600 select-none text-[9.5px]">{line.num}</span>
-                  <span className={isActive ? 'text-cyan-200' : 'text-slate-400'}>
-                    <span className="text-pink-400">{line.kw}</span>
-                    <span>{line.rest}</span>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      </div>
 
-        {/* ── FOOTER PROGRESS BAR & METADATA ── */}
-        <div className="w-full mt-1">
-          <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-cyan-950/50 mb-1.5">
-            <div 
-              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 rounded-full transition-all duration-75 shadow-[0_0_10px_#22d3ee]"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-[10.5px] font-mono text-slate-400 px-1">
-            <span className="text-cyan-400 font-bold">{progress}%</span>
-            <span className="text-slate-500">Dev: {developerName}</span>
-            <span className="text-slate-500">{appVersion}</span>
-          </div>
+      {/* ── PYTHON CODE SNIPPET BOX ── */}
+      <div className="relative z-10 w-full max-w-sm rounded-xl bg-[#02050f]/95 border border-cyan-950/80 p-2.5 shadow-inner">
+        <div className="font-mono text-[11px] leading-snug space-y-0.5">
+          {codeRows.map((line) => {
+            const isActive = activeCodeLine === line.num;
+            return (
+              <div 
+                key={line.num} 
+                className={`flex items-center gap-3 px-2 py-0.5 rounded transition-all duration-75 ${
+                  isActive 
+                    ? 'bg-cyan-950/90 border border-cyan-500/60 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)]' 
+                    : 'text-slate-500'
+                }`}
+              >
+                <span className="w-4 text-right text-slate-600 select-none text-[10px]">{line.num}</span>
+                <span className={isActive ? 'text-cyan-200' : 'text-slate-400'}>
+                  <span className="text-pink-400">{line.kw}</span>
+                  <span>{line.rest}</span>
+                </span>
+              </div>
+            );
+          })}
         </div>
+      </div>
 
+      {/* ── FOOTER PROGRESS BAR & METADATA ── */}
+      <div className="relative z-10 w-full max-w-sm mb-1">
+        <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-cyan-950/50 mb-2">
+          <div 
+            className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 rounded-full transition-all duration-75 shadow-[0_0_10px_#22d3ee]"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
+          <span className="text-cyan-400 font-bold">{progress}%</span>
+          <span className="text-slate-500">Dev: {developerName}</span>
+          <span className="text-slate-500">{appVersion}</span>
+        </div>
       </div>
 
     </div>
