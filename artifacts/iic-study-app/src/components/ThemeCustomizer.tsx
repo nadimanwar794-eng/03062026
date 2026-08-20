@@ -43,10 +43,45 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+
+    appBgColor?: string;
+    pageBgColor?: string;
+
+    navHomeActive?: string;
+    navHomeGlow?: string;
+    wallpaperHome?: string;
+
+    navRevisionActive?: string;
+    navRevisionGlow?: string;
+    wallpaperRevision?: string;
+
+    navRoutineActive?: string;
+    navRoutineGlow?: string;
+    wallpaperRoutine?: string;
+
+    navCommunityActive?: string;
+    navCommunityGlow?: string;
+    wallpaperCommunity?: string;
+
+    navProfileActive?: string;
+    navProfileGlow?: string;
+    wallpaperProfile?: string;
 }
 
 const DEFAULT_THEME: ThemeState = {
     bgColor: '#ffffff',
+    appBgColor: '#ffffff',
+    pageBgColor: '#ffffff',
+    navHomeActive: '#22c55e', // Emerald / Lime
+    navHomeGlow: '#22c55e',
+    navRevisionActive: '#06b6d4', // Cyber Cyan
+    navRevisionGlow: '#06b6d4',
+    navRoutineActive: '#f59e0b', // Warm Amber
+    navRoutineGlow: '#f59e0b',
+    navCommunityActive: '#ec4899', // Neon Rose
+    navCommunityGlow: '#ec4899',
+    navProfileActive: '#8b5cf6', // Royal Purple
+    navProfileGlow: '#8b5cf6',
     topBarStart: '#1e3a5f',
     topBarEnd: '#0f1e3c',
     navBg: '#ffffff',
@@ -498,10 +533,12 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TAB_COLORS' | 'WALLPAPERS' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
-    { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
+    { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App & Page ki background color' },
+    { id: 'TAB_COLORS', label: 'Tab Colors', icon: <Navigation size={13} />,  desc: 'Per-tab active icon and glow' },
+    { id: 'WALLPAPERS', label: 'Wallpapers', icon: <Layers size={13} />,      desc: 'App & Per-tab Wallpapers' },
     { id: 'TOPBAR',     label: 'Top Bar',    icon: <ChevronRight size={13} />, desc: 'Header gradient — dono colors alag' },
     { id: 'NAVIGATION', label: 'Navigation', icon: <Navigation size={13} />,   desc: 'Bottom nav — 3 colors alag' },
     { id: 'CARDS',      label: 'Cards',      icon: <Square size={13} />,       desc: 'Card background aur border alag' },
@@ -629,6 +666,23 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         animSpeed:     t.animSpeed,
         themeName:     t.themeName,
         themeEmoji:    t.themeEmoji,
+        appBgColor:    t.appBgColor,
+        pageBgColor:   t.pageBgColor,
+        navHomeActive: t.navHomeActive || DEFAULT_THEME.navHomeActive,
+        navHomeGlow:   t.navHomeGlow || DEFAULT_THEME.navHomeGlow,
+        wallpaperHome: t.wallpaperHome,
+        navRevisionActive: t.navRevisionActive || DEFAULT_THEME.navRevisionActive,
+        navRevisionGlow: t.navRevisionGlow || DEFAULT_THEME.navRevisionGlow,
+        wallpaperRevision: t.wallpaperRevision,
+        navRoutineActive: t.navRoutineActive || DEFAULT_THEME.navRoutineActive,
+        navRoutineGlow: t.navRoutineGlow || DEFAULT_THEME.navRoutineGlow,
+        wallpaperRoutine: t.wallpaperRoutine,
+        navCommunityActive: t.navCommunityActive || DEFAULT_THEME.navCommunityActive,
+        navCommunityGlow: t.navCommunityGlow || DEFAULT_THEME.navCommunityGlow,
+        wallpaperCommunity: t.wallpaperCommunity,
+        navProfileActive: t.navProfileActive || DEFAULT_THEME.navProfileActive,
+        navProfileGlow: t.navProfileGlow || DEFAULT_THEME.navProfileGlow,
+        wallpaperProfile: t.wallpaperProfile,
     };
 };
 
@@ -773,6 +827,23 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             animSpeed:     theme.animSpeed,
             themeName:     theme.themeName,
             themeEmoji:    theme.themeEmoji,
+            appBgColor:    theme.appBgColor,
+            pageBgColor:   theme.pageBgColor,
+            navHomeActive: theme.navHomeActive,
+            navHomeGlow:   theme.navHomeGlow,
+            wallpaperHome: theme.wallpaperHome,
+            navRevisionActive: theme.navRevisionActive,
+            navRevisionGlow: theme.navRevisionGlow,
+            wallpaperRevision: theme.wallpaperRevision,
+            navRoutineActive: theme.navRoutineActive,
+            navRoutineGlow: theme.navRoutineGlow,
+            wallpaperRoutine: theme.wallpaperRoutine,
+            navCommunityActive: theme.navCommunityActive,
+            navCommunityGlow: theme.navCommunityGlow,
+            wallpaperCommunity: theme.wallpaperCommunity,
+            navProfileActive: theme.navProfileActive,
+            navProfileGlow: theme.navProfileGlow,
+            wallpaperProfile: theme.wallpaperProfile,
             createdAt:     new Date().toISOString(),
             likes:         0,
         };
@@ -864,6 +935,23 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         animSpeed:     theme.animSpeed,
         themeName:     theme.themeName,
         themeEmoji:    theme.themeEmoji,
+        appBgColor:    theme.appBgColor,
+        pageBgColor:   theme.pageBgColor,
+        navHomeActive: theme.navHomeActive,
+        navHomeGlow:   theme.navHomeGlow,
+        wallpaperHome: theme.wallpaperHome,
+        navRevisionActive: theme.navRevisionActive,
+        navRevisionGlow: theme.navRevisionGlow,
+        wallpaperRevision: theme.wallpaperRevision,
+        navRoutineActive: theme.navRoutineActive,
+        navRoutineGlow: theme.navRoutineGlow,
+        wallpaperRoutine: theme.wallpaperRoutine,
+        navCommunityActive: theme.navCommunityActive,
+        navCommunityGlow: theme.navCommunityGlow,
+        wallpaperCommunity: theme.wallpaperCommunity,
+        navProfileActive: theme.navProfileActive,
+        navProfileGlow: theme.navProfileGlow,
+        wallpaperProfile: theme.wallpaperProfile,
         createdAt:     new Date().toISOString(),
         likes:         0,
     });
@@ -1187,15 +1275,87 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
     };
 
     const sectionColors: Record<ColorSection, React.ReactNode> = {
-        BACKGROUND: isAdmin ? (
-            <ColorRow label="App Background" sub="Puri app ki main background (Admin only)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />
-        ) : (
-            <div className="py-4 px-2 text-center">
-                <div className="text-2xl mb-2">🔒</div>
-                <p className="text-white/70 text-xs font-semibold">Background Locked</p>
-                <p className="text-white/40 text-[10px] mt-1">White mode mein background hamesha white rahta hai. Sirf admin is setting ko change kar sakta hai.</p>
+
+
+        WALLPAPERS: (
+            <div className="flex flex-col gap-4">
+                {[
+                    { key: 'wallpaperHome', label: 'Home (Default) Wallpaper' },
+                    { key: 'wallpaperRevision', label: 'Revision Hub Wallpaper' },
+                    { key: 'wallpaperRoutine', label: 'My Routine Wallpaper' },
+                    { key: 'wallpaperCommunity', label: 'Community Wallpaper' },
+                    { key: 'wallpaperProfile', label: 'Profile Wallpaper' },
+                ].map((item) => (
+                    <div key={item.key} className="bg-white/5 p-3 rounded-2xl border border-white/10">
+                        <label className="text-xs font-bold text-white mb-2 block">{item.label}</label>
+                        <input
+                            type="text"
+                            placeholder="Direct URL (https://...)"
+                            className="w-full bg-black/40 text-white text-xs p-2 rounded-xl border border-white/20 mb-2 focus:outline-none focus:border-white/50 transition-colors"
+                            value={theme[item.key as keyof ThemeState] as string || ''}
+                            onChange={(e) => setColor(item.key as keyof ThemeState)(e.target.value)}
+                        />
+                        <div className="relative overflow-hidden bg-white/10 p-2 rounded-xl text-center text-xs text-white/70 font-semibold cursor-pointer hover:bg-white/20 transition-colors">
+                            <span>Or Upload File (~700KB max)</span>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        if (file.size > 800 * 1024) {
+                                            alert('File is too large! Please select an image under 700KB to ensure it saves correctly.');
+                                            return;
+                                        }
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                            const base64 = ev.target?.result;
+                                            if (typeof base64 === 'string') {
+                                                setColor(item.key as keyof ThemeState)(base64);
+                                            }
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                            />
+                        </div>
+                        {theme[item.key as keyof ThemeState] && (
+                            <div className="mt-2 text-right">
+                                <button
+                                    onClick={() => setColor(item.key as keyof ThemeState)('')}
+                                    className="text-red-400 text-[10px] font-bold"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ))}
             </div>
         ),
+        TAB_COLORS: (
+            <>
+                <ColorRow label="Home Active" sub="Emerald / Lime" value={theme.navHomeActive} onChange={setColor('navHomeActive')} accent={theme.btnStart} />
+                <ColorRow label="Home Glow" sub="Emerald / Lime glow" value={theme.navHomeGlow} onChange={setColor('navHomeGlow')} accent={theme.btnStart} />
+                <ColorRow label="Revision Hub Active" sub="Cyber Cyan" value={theme.navRevisionActive} onChange={setColor('navRevisionActive')} accent={theme.btnStart} />
+                <ColorRow label="Revision Hub Glow" sub="Cyber Cyan glow" value={theme.navRevisionGlow} onChange={setColor('navRevisionGlow')} accent={theme.btnStart} />
+                <ColorRow label="My Routine Active" sub="Warm Amber" value={theme.navRoutineActive} onChange={setColor('navRoutineActive')} accent={theme.btnStart} />
+                <ColorRow label="My Routine Glow" sub="Warm Amber glow" value={theme.navRoutineGlow} onChange={setColor('navRoutineGlow')} accent={theme.btnStart} />
+                <ColorRow label="Community Active" sub="Neon Rose" value={theme.navCommunityActive} onChange={setColor('navCommunityActive')} accent={theme.btnStart} />
+                <ColorRow label="Community Glow" sub="Neon Rose glow" value={theme.navCommunityGlow} onChange={setColor('navCommunityGlow')} accent={theme.btnStart} />
+                <ColorRow label="Profile Active" sub="Royal Purple" value={theme.navProfileActive} onChange={setColor('navProfileActive')} accent={theme.btnStart} />
+                <ColorRow label="Profile Glow" sub="Royal Purple glow" value={theme.navProfileGlow} onChange={setColor('navProfileGlow')} accent={theme.btnStart} />
+            </>
+        ),
+        BACKGROUND: (
+            <>
+                {isAdmin && <ColorRow label="Legacy Admin App Bg" sub="Old bgColor format (Admin only)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />}
+                <ColorRow label="App Background" sub="Behind tabs & dashboard" value={theme.appBgColor} onChange={setColor('appBgColor')} accent={theme.btnStart} />
+                <ColorRow label="Page Background" sub="Behind cards & content" value={theme.pageBgColor} onChange={setColor('pageBgColor')} accent={theme.btnStart} />
+            </>
+        ),
+
         TOPBAR: (
             <>
                 <ColorRow label="Gradient — Left Color"  sub="Top bar ka baayi taraf"  value={theme.topBarStart} onChange={setColor('topBarStart')} accent={theme.btnStart} />

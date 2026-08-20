@@ -1644,6 +1644,30 @@ export interface UserCustomTheme {
   animSpeed?: number;
   themeName?: string;
   themeEmoji?: string;
+
+  appBgColor?: string;
+  pageBgColor?: string;
+
+  navHomeActive?: string;
+  navHomeGlow?: string;
+  wallpaperHome?: string;
+
+  navRevisionActive?: string;
+  navRevisionGlow?: string;
+  wallpaperRevision?: string;
+
+  navRoutineActive?: string;
+  navRoutineGlow?: string;
+  wallpaperRoutine?: string;
+
+  navCommunityActive?: string;
+  navCommunityGlow?: string;
+  wallpaperCommunity?: string;
+
+  navProfileActive?: string;
+  navProfileGlow?: string;
+  wallpaperProfile?: string;
+
   createdAt: string;
   appliedUntil?: string;
   publishedAt?: string;
