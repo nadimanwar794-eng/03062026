@@ -141,6 +141,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     if (pendingLoginUser) {
       const updated = { ...pendingLoginUser, schoolId: school.id, schoolName: school.name };
       localStorage.setItem('nst_current_user', JSON.stringify(updated));
+      localStorage.setItem('nst_last_user_id', updated.id);
       await saveUserToLive(updated);
       setPendingLoginUser(updated);
     }
@@ -177,7 +178,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return true;
   };
 
-  // 100% FIXED GOOGLE AUTH: Persists Email, 50 Coins, & Session
+  // COMPLETE GOOGLE AUTH FIX (Registration + Fallback 50 Credits + Persistent Session)
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
@@ -192,6 +193,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       const userEmail = (firebaseUser.email || '').trim().toLowerCase();
       const userDisplayName = firebaseUser.displayName || 'Student';
       const userPhoto = firebaseUser.photoURL || '';
+      const userMobile = firebaseUser.phoneNumber || '';
 
       let appUser: any = await getUserData(firebaseUser.uid);
 
@@ -204,7 +206,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
 
       if (appUser) {
-        // --- EXISTING USER ---
+        // --- EXISTING USER LOGIN ---
         if (appUser.id !== firebaseUser.uid) {
           const oldId = appUser.id;
           appUser = { ...appUser, id: firebaseUser.uid, provider: 'google', email: userEmail || appUser.email };
@@ -217,7 +219,13 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           appUser = { ...appUser, photoURL: userPhoto };
         }
 
+        if (typeof appUser.credits !== 'number' || appUser.credits === 0) {
+          appUser.credits = 50;
+        }
+        appUser.profileCompleted = true;
+
         localStorage.setItem('nst_current_user', JSON.stringify(appUser));
+        localStorage.setItem('nst_last_user_id', appUser.id);
         await saveUserToLive(appUser);
 
         if (logActivity) logActivity("LOGIN", "Student Logged In via Google Auth", appUser);
@@ -233,7 +241,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           name: userDisplayName,
           email: userEmail,
           password: '',
-          mobile: firebaseUser.phoneNumber || '',
+          mobile: userMobile,
           role: 'STUDENT',
           createdAt: new Date().toISOString(),
           credits: signupCoins,
@@ -245,7 +253,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           provider: 'google',
           photoURL: userPhoto,
           avatarChoice: userPhoto ? 'gmail' : 'app',
-          profileCompleted: false,
+          profileCompleted: true,
           securityQuestion: DEFAULT_QUESTIONS[0],
           securityAnswer: 'google',
           progress: {},
@@ -266,6 +274,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         };
 
         localStorage.setItem('nst_current_user', JSON.stringify(newUser));
+        localStorage.setItem('nst_last_user_id', newUser.id);
         await saveUserToLive(newUser);
 
         if (logActivity) logActivity("SIGNUP_GOOGLE", "New Student Registered via Google", newUser);
@@ -273,7 +282,11 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
     } catch (err: any) {
       console.error("Google Auth Error:", err);
-      setError(err.message || "Google Login Failed. Try again.");
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError("Sign-in window band kar di gayi.");
+      } else {
+        setError(err.message || "Google Login fail hua.");
+      }
     } finally {
       setLoading(false);
     }
@@ -305,6 +318,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           }
           if (appUser) {
             localStorage.setItem('nst_current_user', JSON.stringify(appUser));
+            localStorage.setItem('nst_last_user_id', appUser.id);
             if (logActivity) logActivity("LOGIN", "Student Logged In via Email", appUser);
             triggerWelcome(appUser);
             return;
@@ -344,6 +358,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           const finalUser = freshProfile || targetUser;
 
           localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
+          localStorage.setItem('nst_last_user_id', finalUser.id);
           if (logActivity) logActivity("LOGIN", "Student Logged In via Mobile/UID", finalUser);
           triggerWelcome(finalUser);
 
@@ -443,6 +458,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       };
 
       localStorage.setItem('nst_current_user', JSON.stringify(newStudentUser));
+      localStorage.setItem('nst_last_user_id', newStudentUser.id);
       await saveUserToLive(newStudentUser);
       if (logActivity) logActivity("SIGNUP_EMAIL", "New Student Registered", newStudentUser);
 
@@ -522,6 +538,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       const finalUser = freshProfile || recoveryUserObj;
 
       localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
+      localStorage.setItem('nst_last_user_id', finalUser.id);
       if (logActivity) logActivity("INSTANT_SECURITY_LOGIN", "Instant login via Security Answer", finalUser);
       setLoading(false);
       triggerWelcome(finalUser);
@@ -557,6 +574,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             };
           }
           localStorage.setItem('nst_current_user', JSON.stringify(adminUser));
+          localStorage.setItem('nst_last_user_id', adminUser.id);
           await saveUserToLive(adminUser);
           if (logActivity) logActivity("ADMIN_LOGIN", "Admin Access Granted", adminUser);
           onLogin(adminUser);
@@ -1202,4 +1220,3 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
-
