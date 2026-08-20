@@ -543,7 +543,6 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ----- MENISCUS NAV INDICATOR -----
-// ----- MENISCUS NAV INDICATOR -----
 const MeniscusNavIndicator = ({
   activeIndex,
   totalTabs,
@@ -628,9 +627,12 @@ const MeniscusNavIndicator = ({
     const updateTarget = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width === 0) return; // Zero-width render avoid karta hai
+
         animState.current.w = rect.width;
         animState.current.h = rect.height;
-        const tabWidth = rect.width / totalTabs;
+        const count = totalTabs || 5;
+        const tabWidth = rect.width / count;
         animState.current.targetX = (activeIndex + 0.5) * tabWidth;
 
         if (animState.current.currentX === 0) {
@@ -651,35 +653,42 @@ const MeniscusNavIndicator = ({
     return () => window.removeEventListener("resize", updateTarget);
   }, [activeIndex, totalTabs, wakeUp]);
 
+  // Robust Lucide/JSX Icon Renderer
+  const renderActiveIcon = () => {
+    if (!ActiveIcon) return null;
+    
+    // Agar React Element pehle se bana hua hai
+    if (React.isValidElement(ActiveIcon)) {
+      return React.cloneElement(ActiveIcon as React.ReactElement<any>, {
+        className: "w-6 h-6 text-white stroke-white stroke-[2.4] fill-none",
+      });
+    }
+
+    // Agar Component / Function / ForwardRef pass kiya gaya hai
+    const IconComp = ActiveIcon;
+    return <IconComp className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />;
+  };
+
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible z-0">
       <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
         <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
       </svg>
+      
       <div
         ref={beadRef}
-        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white"
+        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white shadow-lg"
         style={{
           background: activeColor || "#22c55e",
           boxShadow: `0 0 25px ${activeColor || "#22c55e"}99`,
           willChange: "transform",
         }}
       >
-        {ActiveIcon && (
-          typeof ActiveIcon === "function" ? (
-            <ActiveIcon className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />
-          ) : (
-            <span className="w-6 h-6 text-white [&>svg]:w-6 [&>svg]:h-6 [&>svg]:stroke-white [&>svg]:stroke-[2.4] [&>svg]:fill-none flex items-center justify-center">
-              {ActiveIcon}
-            </span>
-          )
-        )}
+        {renderActiveIcon()}
       </div>
     </div>
   );
 };
-
-
 // ────────────────────────────────────────────────────────────────────────
 
 export const StudentDashboard: React.FC<Props> = ({
