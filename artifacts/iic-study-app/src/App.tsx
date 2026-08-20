@@ -3312,12 +3312,29 @@ const App: React.FC = () => {
       return <AppLoadingScreen isPremium={state.user?.isPremium || false} subscriptionLevel={getUserPlan()} onComplete={() => setIsAppLoading(false)} />;
   }
 
-  const bgImageStyle = (state.settings?.appBackgroundImage && state.view !== 'LESSON') ? `url(${state.settings.appBackgroundImage})` : undefined;
+  const customTheme = state.user?.personalTheme;
+
+  let bgImageStyle = undefined;
+  let customBgColor = undefined;
+
+  if (state.view !== 'LESSON') {
+    if (customTheme?.pageWallpaperBase64) {
+      bgImageStyle = `url(${customTheme.pageWallpaperBase64})`;
+    } else if (customTheme?.pageWallpaperUrl) {
+      bgImageStyle = `url(${customTheme.pageWallpaperUrl})`;
+    } else if (state.settings?.appBackgroundImage) {
+      bgImageStyle = `url(${state.settings.appBackgroundImage})`;
+    }
+
+    if (customTheme?.pageBgColor) {
+      customBgColor = customTheme.pageBgColor;
+    }
+  }
 
   return (
     <ErrorBoundary>
     <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{
-      background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})`,
+      background: customBgColor ? `var(--app-bar-color, ${customBgColor})` : `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})`,
       backgroundImage: bgImageStyle,
       backgroundSize: bgImageStyle ? 'cover' : undefined,
       backgroundPosition: bgImageStyle ? 'center' : undefined,
