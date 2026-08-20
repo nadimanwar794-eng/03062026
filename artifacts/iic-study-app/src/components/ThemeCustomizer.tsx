@@ -6,7 +6,7 @@ import { getTotalCredits, applyDeduction } from '../utils/creditSystem';
 import {
     ArrowLeft, Sparkles, RotateCcw, Eye, Palette,
     Layers, Navigation, Square, Type, Zap, Star,
-    ChevronRight, Check, X, AlertCircle, Globe, Clock, Users, BarChart2, CheckCircle, Home
+    ChevronRight, Check, X, AlertCircle, Globe, Clock, Users, BarChart2, CheckCircle, Home, Image as ImageIcon
 } from 'lucide-react';
 
 interface Props {
@@ -43,6 +43,16 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+    homeTabColor?: string;
+    revisionTabColor?: string;
+    routineTabColor?: string;
+    communityTabColor?: string;
+    profileTabColor?: string;
+    homeWallpaper?: string;
+    revisionWallpaper?: string;
+    routineWallpaper?: string;
+    communityWallpaper?: string;
+    profileWallpaper?: string;
 }
 
 const DEFAULT_THEME: ThemeState = {
@@ -498,12 +508,14 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'TAB_COLORS' | 'WALLPAPERS' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
+    { id: 'WALLPAPERS', label: 'Wallpapers', icon: <ImageIcon size={13} />,    desc: 'Har page ka alag background wallpaper' },
     { id: 'TOPBAR',     label: 'Top Bar',    icon: <ChevronRight size={13} />, desc: 'Header gradient — dono colors alag' },
     { id: 'NAVIGATION', label: 'Navigation', icon: <Navigation size={13} />,   desc: 'Bottom nav — 3 colors alag' },
+    { id: 'TAB_COLORS', label: 'Tab Colors', icon: <Palette size={13} />,      desc: 'Har tab ka alag glow color' },
     { id: 'CARDS',      label: 'Cards',      icon: <Square size={13} />,       desc: 'Card background aur border alag' },
     { id: 'CHAPTERS',   label: 'Chapters',   icon: <BarChart2 size={13} />,    desc: 'Chapter list ka accent color' },
     { id: 'BUTTONS',    label: 'Buttons',    icon: <Zap size={13} />,          desc: 'Button gradient — dono alag' },
@@ -520,6 +532,65 @@ interface ColorRowProps {
     onChange: (v: string) => void;
     accent: string;
 }
+
+const WallpaperInput = ({ label, value, onChange, desc }: { label: string, value: string, onChange: (v: string) => void, desc: string }) => {
+    return (
+        <div className="flex flex-col gap-2 bg-[#0d0f1a] rounded-2xl p-3 border border-white/5">
+            <div className="flex flex-col">
+                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{label}</span>
+                <span className="text-[9px] text-white/40">{desc}</span>
+            </div>
+            <div className="flex gap-2 items-center mt-1">
+                <input
+                    type="text"
+                    placeholder="Image URL..."
+                    value={value || ''}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="flex-1 bg-[#151722] border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white outline-none focus:border-white/20"
+                />
+                <label className="shrink-0 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-[11px] font-bold text-white cursor-pointer hover:bg-white/15 active:scale-95 transition-all">
+                    Upload
+                    <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            // Limit to 700KB to ensure base64 string safely fits in a 1MB Firestore document
+                            if (file.size > 700 * 1024) {
+                                alert('File size must be < 700KB for cloud saving.');
+                                e.target.value = '';
+                                return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                const res = String(reader.result || '');
+                                if (res.startsWith('data:image/')) {
+                                    onChange(res);
+                                }
+                            };
+                            reader.readAsDataURL(file);
+                            e.target.value = '';
+                        }}
+                    />
+                </label>
+            </div>
+            {value && (
+                <div className="relative mt-2 rounded-xl overflow-hidden border border-white/10 h-24 bg-slate-900">
+                    <img src={value} className="w-full h-full object-cover opacity-60" alt="Wallpaper preview" />
+                    <button
+                        onClick={() => onChange('')}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center backdrop-blur-md active:scale-90"
+                    >
+                        <X size={12} />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const ColorRow: React.FC<ColorRowProps> = ({ label, sub, value, onChange, accent }) => {
     const [hexInput, setHexInput] = React.useState(value.toUpperCase());
     const [hexError, setHexError] = React.useState(false);
@@ -629,6 +700,16 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         animSpeed:     t.animSpeed,
         themeName:     t.themeName,
         themeEmoji:    t.themeEmoji,
+        homeTabColor:  t.homeTabColor,
+        revisionTabColor: t.revisionTabColor,
+        routineTabColor: t.routineTabColor,
+        communityTabColor: t.communityTabColor,
+        profileTabColor: t.profileTabColor,
+        homeWallpaper: t.homeWallpaper,
+        revisionWallpaper: t.revisionWallpaper,
+        routineWallpaper: t.routineWallpaper,
+        communityWallpaper: t.communityWallpaper,
+        profileWallpaper: t.profileWallpaper,
     };
 };
 
@@ -864,6 +945,16 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         animSpeed:     theme.animSpeed,
         themeName:     theme.themeName,
         themeEmoji:    theme.themeEmoji,
+        homeTabColor: theme.homeTabColor,
+        revisionTabColor: theme.revisionTabColor,
+        routineTabColor: theme.routineTabColor,
+        communityTabColor: theme.communityTabColor,
+        profileTabColor: theme.profileTabColor,
+        homeWallpaper: theme.homeWallpaper,
+        revisionWallpaper: theme.revisionWallpaper,
+        routineWallpaper: theme.routineWallpaper,
+        communityWallpaper: theme.communityWallpaper,
+        profileWallpaper: theme.profileWallpaper,
         createdAt:     new Date().toISOString(),
         likes:         0,
     });

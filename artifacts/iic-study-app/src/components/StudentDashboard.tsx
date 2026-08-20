@@ -875,7 +875,47 @@ export const StudentDashboard: React.FC<Props> = ({
                   : getTierTheme(user);
 
   // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
-  const _appBg = (() => {
+
+  const _activeMainTabId = (() => {
+    if (showRevisionHubScreen) return 'REVISION_HUB';
+    if (showMyRoutine) return 'ROUTINE';
+    if (showChat) return 'CHAT';
+    if (currentLogicalTab === 'PROFILE') return 'PROFILE';
+    return 'HOME';
+  })();
+
+  const getTabColor = (tabId: string) => {
+    const tt = tierTheme as any;
+    let defaultForTab = tt.navActive || tt.primary;
+    if (tabId === 'HOME') defaultForTab = '#10b981';
+    if (tabId === 'REVISION_HUB') defaultForTab = '#8b5cf6';
+    if (tabId === 'ROUTINE') defaultForTab = '#f59e0b';
+    if (tabId === 'COMMUNITY' || tabId === 'CHAT') defaultForTab = '#3b82f6';
+    if (tabId === 'PROFILE') defaultForTab = '#ec4899';
+
+    if (tabId === 'HOME') return tt.homeTabColor || defaultForTab;
+    if (tabId === 'REVISION_HUB') return tt.revisionTabColor || defaultForTab;
+    if (tabId === 'ROUTINE') return tt.routineTabColor || defaultForTab;
+    if (tabId === 'COMMUNITY' || tabId === 'CHAT') return tt.communityTabColor || defaultForTab;
+    if (tabId === 'PROFILE') return tt.profileTabColor || defaultForTab;
+    return tt.navActive || tt.primary;
+  };
+
+  const _wallpaperBg = (() => {
+    if (lucentNoteViewer || hwActiveHwId || isFullScreenContent || (activeTab === 'MCQ' || activeTab === 'VIDEO' || activeTab === 'PDF' || activeTab === 'AUDIO')) {
+      return null;
+    }
+    const tt = tierTheme as any;
+    let wp = tt.homeWallpaper || null;
+    if (_activeMainTabId === 'REVISION_HUB' && tt.revisionWallpaper) wp = tt.revisionWallpaper;
+    if (_activeMainTabId === 'ROUTINE' && tt.routineWallpaper) wp = tt.routineWallpaper;
+    if (_activeMainTabId === 'CHAT' && tt.communityWallpaper) wp = tt.communityWallpaper;
+    if (_activeMainTabId === 'PROFILE' && tt.profileWallpaper) wp = tt.profileWallpaper;
+    if (_activeMainTabId === 'HOME' && tt.homeWallpaper) wp = tt.homeWallpaper;
+    return wp;
+  })();
+
+const _appBg = (() => {
     const themeBg = (tierTheme as any).appBgColor as string | null | undefined;
     if (themeBg && themeBg !== '#ffffff' && themeBg !== '#f8fafc' && themeBg !== '#f1f5f9') return themeBg;
     const manual = (settings as any)?.appBackground;
@@ -13033,7 +13073,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   return (
   <ThemeProvider theme={_extendedTheme}>
-    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
+    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0 bg-cover bg-center bg-no-repeat bg-fixed" style={{ background: _appBg, backgroundImage: _wallpaperBg ? `url(${_wallpaperBg})` : undefined }}>
       <NotificationPrompt />
       {/* Admin WhiteBoard floating panel — fixed z-[9999], visible in ALL modes */}
       {_isAdminUser && showAdminBoard && (
@@ -18356,7 +18396,7 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor="#22c55e"
+  activeColor={visibleTabs[activeIndex] ? getTabColor(visibleTabs[activeIndex].id) : "#22c55e"}
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
@@ -18431,7 +18471,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className="transition-colors duration-300"
-                            style={{ color: tab.isActive ? (_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
+                            style={{ color: tab.isActive ? getTabColor(tab.id) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
                                 ? "currentColor"

@@ -1644,6 +1644,16 @@ export interface UserCustomTheme {
   animSpeed?: number;
   themeName?: string;
   themeEmoji?: string;
+  homeTabColor?: string;
+  revisionTabColor?: string;
+  routineTabColor?: string;
+  communityTabColor?: string;
+  profileTabColor?: string;
+  homeWallpaper?: string;
+  revisionWallpaper?: string;
+  routineWallpaper?: string;
+  communityWallpaper?: string;
+  profileWallpaper?: string;
   createdAt: string;
   appliedUntil?: string;
   publishedAt?: string;
