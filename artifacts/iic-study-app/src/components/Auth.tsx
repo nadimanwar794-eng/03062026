@@ -5,7 +5,7 @@ import { ADMIN_EMAIL } from '../constants';
 import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserByNameAndClass, rtdb, getUserData, updateUserUID, getUserByLinkedGoogleUid } from '../firebase';
 import { ref, set } from "firebase/database";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signInAnonymously, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { UserPlus, LogIn, Lock, User as UserIcon, Phone, Mail, ShieldCheck, ArrowRight, School, GraduationCap, Layers, KeyRound, Copy, Check, AlertTriangle, XCircle, MessageCircle, Send, RefreshCcw, ShieldAlert, HelpCircle, Eye, EyeOff, Search } from 'lucide-react';
+import { UserPlus, LogIn, Lock, User as UserIcon, Phone, Mail, ShieldCheck, ArrowRight, School, GraduationCap, Layers, KeyRound, Copy, Check, AlertTriangle, XCircle, MessageCircle, Send, RefreshCcw, ShieldAlert, HelpCircle, Eye, EyeOff, Search, CheckCircle2, ShieldQuestion, Loader2 } from 'lucide-react';
 import { LoginGuide } from './LoginGuide';
 import { CustomAlert } from './CustomDialogs';
 import { SpeakButton } from './SpeakButton';
@@ -18,7 +18,7 @@ interface Props {
   appSettings?: SystemSettings;
 }
 
-type AuthView = 'HOME' | 'LOGIN' | 'SIGNUP' | 'ADMIN' | 'RECOVERY' | 'SUCCESS_ID' | 'SCHOOL_SELECT';
+type AuthView = 'LOGIN' | 'SIGNUP' | 'RECOVERY' | 'ADMIN' | 'SUCCESS_ID' | 'SCHOOL_SELECT';
 
 const BLOCKED_DOMAINS = [
     'tempmail.com', 'throwawaymail.com', 'mailinator.com', 'yopmail.com', 
@@ -26,8 +26,17 @@ const BLOCKED_DOMAINS = [
     'dispostable.com', 'grr.la', 'mailnesia.com', 'temp-mail.org', 'fake-email.com'
 ];
 
+const DEFAULT_QUESTIONS = [
+  "Aapka favorite subject kaunsa hai?",
+  "Aapke primary school ka naam kya tha?",
+  "Aapka favorite teacher kaun hai?",
+  "Aapka birth city / gaon kaunsa hai?"
+];
+
 export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => {
-  const [view, setView] = useState<AuthView>('HOME');
+  const [view, setView] = useState<AuthView>('LOGIN');
+  const isFlipped = view === 'SIGNUP' || view === 'RECOVERY';
+
   const [generatedId, setGeneratedId] = useState<string>('');
   const [formData, setFormData] = useState({
     id: '',
@@ -39,32 +48,35 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     classLevel: '',
     stream: '',
     recoveryCode: '',
-    teacherCode: ''
+    teacherCode: '',
+    securityQuestion: DEFAULT_QUESTIONS[0],
+    securityAnswer: ''
   });
-  const [isTeacherSignup, setIsTeacherSignup] = useState(false);
-  
-  // ADMIN VERIFICATION STATE
+
+  // Admin Verification States
   const [showAdminVerify, setShowAdminVerify] = useState(false);
   const [adminAuthCode, setAdminAuthCode] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [requestSent, setRequestSent] = useState(false);
-  const [statusCheckLoading, setStatusCheckLoading] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
   const [pendingLoginUser, setPendingLoginUser] = useState<User | null>(null);
-  const [recoveryMode, setRecoveryMode] = useState<'id' | 'profile'>('id');
-
-  // LOGIN REQUEST TIMER STATE
-  const [requestTimestamp, setRequestTimestamp] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Instant Recovery States
+  const [recoveryUserObj, setRecoveryUserObj] = useState<any>(null);
+  const [recoveryStep, setRecoveryStep] = useState<1 | 2>(1);
+  const [userEnteredAnswer, setUserEnteredAnswer] = useState('');
+
+  // Welcome Overlay States
   const [welcomeUser, setWelcomeUser] = useState<any>(null);
   const [welcomeFading, setWelcomeFading] = useState(false);
 
-  // School selection state
+  // School Selection States
   const [schools, setSchools] = useState<SchoolType[]>([]);
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState('');
@@ -92,8 +104,8 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
   };
 
   useEffect(() => {
-      const s = localStorage.getItem('nst_system_settings');
-      if (s) { try { setSettings(JSON.parse(s)); } catch {} }
+    const s = localStorage.getItem('nst_system_settings');
+    if (s) { try { setSettings(JSON.parse(s)); } catch {} }
   }, []);
 
   useEffect(() => {
@@ -135,881 +147,1010 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     setView('SUCCESS_ID');
   };
 
-  // Timer Effect
-  useEffect(() => {
-      let interval: any;
-      if (requestTimestamp) {
-          interval = setInterval(() => {
-              const elapsed = Date.now() - requestTimestamp;
-              const remaining = Math.max(0, 10 * 60 * 1000 - elapsed); // 10 minutes in ms
-              setTimeLeft(remaining);
-              if (remaining === 0) {
-                  clearInterval(interval);
-              }
-          }, 1000);
-      }
-      return () => clearInterval(interval);
-  }, [requestTimestamp]);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError(null);
   };
 
   const generateUserId = () => {
-      // Generate an 8 to 12 digit numerical ID (using 10 digits as a solid standard)
-      const timestampPart = Date.now().toString().slice(-4); // Last 4 digits of timestamp
-      const randomPart = Math.floor(100000 + Math.random() * 900000); // 6 random digits
-      return `${timestampPart}${randomPart}`; // e.g. 8432104598
+    const timestampPart = Date.now().toString().slice(-4);
+    const randomPart = Math.floor(100000 + Math.random() * 900000);
+    return `${timestampPart}${randomPart}`;
   };
 
   const handleCopyId = () => {
-      navigator.clipboard.writeText(generatedId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(generatedId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const validateEmail = (email: string): boolean => {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) return false;
-      const domain = email.split('@')[1].toLowerCase();
-      if (BLOCKED_DOMAINS.includes(domain)) return false;
-      return true;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+    const domain = email.split('@')[1].toLowerCase();
+    if (BLOCKED_DOMAINS.includes(domain)) return false;
+    return true;
   };
 
+  // Google Authentication Flow with UID Migration Protection
   const handleGoogleAuth = async () => {
-      try {
-          const provider = new GoogleAuthProvider();
-          await setPersistence(auth, browserLocalPersistence);
-          const result = await signInWithPopup(auth, provider);
-          const firebaseUser = result.user;
+    try {
+      setLoading(true);
+      setError(null);
+      const provider = new GoogleAuthProvider();
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
 
-          // STRICT FIREBASE ONLY FETCH (Prevent localStorage overriding/breaking flow)
-          // Try fetching by ID first
-          let appUser: any = await getUserData(firebaseUser.uid);
+      let appUser: any = await getUserData(firebaseUser.uid);
 
-          // Fallback: Try by Email
-          if (!appUser && firebaseUser.email) {
-              appUser = await getUserByEmail(firebaseUser.email);
-          }
-
-          // Fallback: Try by Linked Google UID (for accounts linked from profile page)
-          if (!appUser) {
-              appUser = await getUserByLinkedGoogleUid(firebaseUser.uid);
-          }
-
-          if (appUser) {
-              // User account exists, log them in directly
-
-              // SECURITY & DATA LOSS FIX:
-              // If the user's Google UID doesn't match their existing (manual) account UID,
-              // Firestore Security Rules will block all future writes to their account.
-              // We must migrate their old data to their new Google UID to preserve their history and allow writes.
-              if (appUser.id !== firebaseUser.uid) {
-                  const oldId = appUser.id;
-                  appUser = { ...appUser, id: firebaseUser.uid, provider: 'google' };
-
-                  // Call migration utility
-                  await updateUserUID(oldId, firebaseUser.uid, appUser);
-              }
-
-              // Keep photoURL fresh from Google (user may have changed their Gmail pic)
-              if (firebaseUser.photoURL && appUser.photoURL !== firebaseUser.photoURL) {
-                  appUser = { ...appUser, photoURL: firebaseUser.photoURL };
-                  await saveUserToLive(appUser);
-              }
-
-              logActivity("LOGIN", "Student Logged In via Google Auth", appUser);
-              triggerWelcome(appUser);
-              return;
-          } else {
-              const newId = generateUserId();
-              appUser = {
-                  id: firebaseUser.uid,
-                  displayId: newId,
-                  name: firebaseUser.displayName || 'Student',
-                  email: firebaseUser.email || '',
-                  password: '', // Passwordless for Google Auth, will be set in Onboarding
-                  mobile: firebaseUser.phoneNumber || '',
-                  role: 'STUDENT',
-                  createdAt: new Date().toISOString(),
-                  credits: settings?.signupBonus || 50,
-                  streak: 0,
-                  lastLoginDate: new Date().toISOString(),
-                  board: '', // Left empty to trigger onboarding
-                  classLevel: '', // Left empty to trigger onboarding
-                  provider: 'google',
-                  photoURL: firebaseUser.photoURL || '',
-                  avatarChoice: firebaseUser.photoURL ? 'gmail' : 'app',
-                  profileCompleted: true,
-                  progress: {},
-                  redeemedCodes: [],
-                  subscriptionTier: 'FREE',
-                  isPremium: false
-              } as User;
-
-              await saveUserToLive(appUser);
-              logActivity("SIGNUP_GOOGLE", "New Student Registered via Google", appUser);
-              triggerWelcome(appUser);
-          }
-
-      } catch (err: any) {
-          console.error("Google Auth Error:", err);
-          setError(err.message || "Google Login Failed. Try again.");
+      if (!appUser && firebaseUser.email) {
+        appUser = await getUserByEmail(firebaseUser.email);
       }
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+      if (!appUser) {
+        appUser = await getUserByLinkedGoogleUid(firebaseUser.uid);
+      }
 
-    // Completely remove `nst_users` local dependency.
-    // Fetch directly from Firebase only.
-
-    if (view === 'SIGNUP') {
-        if (!validateEmail(formData.email)) {
-            setError("Please enter a valid email address.");
-            return;
-        }
-        if (formData.password.length < 6) {
-            setError("Password must be at least 6 characters.");
-            return;
+      if (appUser) {
+        if (appUser.id !== firebaseUser.uid) {
+          const oldId = appUser.id;
+          appUser = { ...appUser, id: firebaseUser.uid, provider: 'google' };
+          await updateUserUID(oldId, firebaseUser.uid, appUser);
         }
 
-        try {
-            await setPersistence(auth, browserLocalPersistence);
-            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-            const firebaseUser = userCredential.user;
-
-            const newId = generateUserId();
-            let appUser = {
-                id: firebaseUser.uid,
-                displayId: newId,
-                name: 'Student',
-                email: formData.email,
-                password: formData.password,
-                mobile: '',
-                role: 'STUDENT',
-                createdAt: new Date().toISOString(),
-                credits: settings?.signupBonus || 50,
-                streak: 0,
-                lastLoginDate: new Date().toISOString(),
-                board: '',
-                classLevel: '',
-                provider: 'email',
-                profileCompleted: true,
-                progress: {},
-                redeemedCodes: [],
-                subscriptionTier: 'FREE',
-                isPremium: false
-            };
-
-            await saveUserToLive(appUser);
-            logActivity("SIGNUP_EMAIL", "New Student Registered via Email", appUser);
-            setGeneratedId(newId);
-            setPendingLoginUser(appUser);
-            setView('SCHOOL_SELECT');
-        } catch (err) {
-            console.error("Signup Error:", err);
-            if (err.code === 'auth/email-already-in-use') {
-                setError("Email is already in use. Please log in.");
-            } else {
-                setError(err.message || "Signup Failed. Try again.");
-            }
-        }
-    } else if (view === 'LOGIN') {
-        try {
-            await setPersistence(auth, browserLocalPersistence);
-            const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-            const firebaseUser = userCredential.user;
-
-            let appUser = await getUserData(firebaseUser.uid);
-
-            if (!appUser && firebaseUser.email) {
-                appUser = await getUserByEmail(firebaseUser.email);
-            }
-
-            if (appUser) {
-                if (appUser.id !== firebaseUser.uid) {
-                    const oldId = appUser.id;
-                    appUser = { ...appUser, id: firebaseUser.uid, provider: 'email' };
-                    await updateUserUID(oldId, firebaseUser.uid, appUser);
-                }
-                logActivity("LOGIN", "Student Logged In via Email", appUser);
-                triggerWelcome(appUser);
-            } else {
-                setError("User data not found in system.");
-            }
-        } catch (err) {
-            console.error("Login Error:", err);
-            setError("Invalid Email or Password.");
-        }
-    } else if (view === 'RECOVERY') {
-        const input = formData.id.trim();
-        const pass = formData.password.trim();
-
-        try {
-            await setPersistence(auth, browserLocalPersistence);
-
-            // ── STEP 1: Establish Firebase session (needed for Firestore security rules) ──
-            // On a fresh device there is no session. Without a session, Firestore blocks
-            // all reads (permission-denied). Strategy:
-            //   • Email input  → try signInWithEmailAndPassword (establishes real session)
-            //   • Mobile/ID    → signInAnonymously first so Firestore reads are allowed,
-            //                    then verify password against our DB record.
-            if (!auth.currentUser && input.includes('@')) {
-                try {
-                    await signInWithEmailAndPassword(auth, input, pass);
-                } catch (e: any) {
-                    // Wrong password — no need to query DB, exit immediately.
-                    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-                        setError("Galat password. Dobara try karo.");
-                        return;
-                    }
-                    // Google-only / not registered via email → session not established.
-                    // We'll still query DB in case mobile/email is stored there.
-                }
-            } else if (!auth.currentUser) {
-                // Mobile/ID input on a fresh device — get a temporary anonymous session
-                // so Firestore security rules allow us to query the users collection.
-                try { await signInAnonymously(auth); } catch { /* ignore — query may still work */ }
-            }
-
-            // ── STEP 2: Query our DB ──
-            let appUser: any = recoveryMode === 'profile'
-                ? await getUserByNameAndClass(formData.name.trim(), formData.classLevel.trim())
-                : await getUserByMobileOrId(input);
-
-            // ── STEP 3: Verify & log in ──
-            if (appUser) {
-                if (appUser.isArchived) { setError('Account Deleted.'); return; }
-
-                const isGoogleUser = appUser.provider === 'google' || (!appUser.password && appUser.email);
-                const passwordMatch = appUser.password && (appUser.password === pass || pass === settings?.adminCode);
-
-                if (passwordMatch) {
-                    let freshUser = await getUserData(appUser.id);
-                    if (freshUser) appUser = { ...appUser, ...freshUser };
-                    logActivity("LOGIN", "Student Logged In (Custom DB Auth)", appUser);
-                    triggerWelcome(appUser);
-                    // Background Firebase sync — best-effort only
-                    if (appUser.email) {
-                        signInWithEmailAndPassword(auth, appUser.email, pass).catch(() => {});
-                    }
-                    return;
-                }
-
-                if (isGoogleUser) {
-                    // Google-auth users have no stored password.
-                    // Direct them to use Google Sign-In.
-                    setError("Yeh account Google se bana hai. Neeche 'Continue with Google' button se login karo.");
-                    return;
-                }
-
-                setError("Galat password. Sahi password enter karo.");
-                return;
-            }
-
-            // ── STEP 4: User not found in DB ──
-
-            // If Firebase email auth succeeded in Step 1, user exists in Firebase
-            // but not in our DB — create/restore their profile.
-            if (auth.currentUser && input.includes('@')) {
-                const firebaseUser = auth.currentUser;
-                let existingProfile: any = null;
-                try { existingProfile = await getUserData(firebaseUser.uid); } catch {}
-                if (!existingProfile && firebaseUser.email) {
-                    try { existingProfile = await getUserByEmail(firebaseUser.email); } catch {}
-                }
-                if (existingProfile) {
-                    appUser = { ...existingProfile, id: firebaseUser.uid, lastLoginDate: new Date().toISOString(), provider: 'email' };
-                } else {
-                    appUser = {
-                        id: firebaseUser.uid,
-                        displayId: generateUserId(),
-                        name: firebaseUser.displayName || 'Student',
-                        email: input,
-                        password: pass,
-                        mobile: '',
-                        role: 'STUDENT',
-                        createdAt: new Date().toISOString(),
-                        credits: 0,
-                        streak: 0,
-                        lastLoginDate: new Date().toISOString(),
-                        board: '',
-                        classLevel: '',
-                        provider: 'manual',
-                        profileCompleted: true,
-                        progress: {},
-                        redeemedCodes: []
-                    } as User;
-                }
-                await saveUserToLive(appUser);
-                logActivity("LOGIN", "Student Logged In (Firebase)", appUser);
-                triggerWelcome(appUser);
-                return;
-            }
-
-            // No session + no user found.
-            if (!auth.currentUser) {
-                setError("Account nahi mila. Mobile number, Email ya Account ID dobara check karo — ya 'Continue with Google' se try karo.");
-                return;
-            }
-
-            setError("User nahi mila. Mobile/ID dobara check karo ya Email se try karo.");
-
-        } catch (err: any) {
-            console.error("Recovery Login Error:", err);
-            if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-                setError("Galat Email/ID ya Password.");
-            } else if (err.code === 'auth/invalid-email') {
-                setError("Galat Email format.");
-            } else {
-                setError(err.message || "Login failed. Dobara try karo.");
-            }
+        if (firebaseUser.photoURL && appUser.photoURL !== firebaseUser.photoURL) {
+          appUser = { ...appUser, photoURL: firebaseUser.photoURL };
+          await saveUserToLive(appUser);
         }
 
-    } else if (view === 'ADMIN') {
-        if (!showAdminVerify) {
-            if (formData.email === settings?.adminEmail) {
-                setShowAdminVerify(true);
-                setError(null);
-            } else {
-                setError("Email not authorized.");
-            }
-        } else {
-            if (adminAuthCode === settings?.adminCode) {
-                try {
-                    await setPersistence(auth, browserLocalPersistence);
-                    const cred = await signInAnonymously(auth);
-                    let adminUser: any = await getUserByEmail(formData.email);
-                    if (adminUser && adminUser.role === 'ADMIN') {
-                        adminUser = { ...adminUser, id: cred.user.uid, lastLoginDate: new Date().toISOString(), isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA' };
-                    } else {
-                        adminUser = {
-                            id: cred.user.uid, displayId: 'IIC-ADMIN', name: 'Administrator', email: formData.email, password: '', mobile: 'ADMIN', role: 'ADMIN',
-                            createdAt: new Date().toISOString(), credits: 99999, streak: 999, lastLoginDate: new Date().toISOString(),
-                            board: 'CBSE', classLevel: '12', progress: {}, redeemedCodes: [], isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA'
-                        };
-                    }
-                    await saveUserToLive(adminUser);
-                    logActivity("ADMIN_LOGIN", "Admin Access Granted", adminUser);
-                    onLogin(adminUser);
-                } catch (e: any) { setError("Login Error: " + e.message); }
-            } else {
-                setError("Invalid Verification Code.");
-            }
-        }
+        if (logActivity) logActivity("LOGIN", "Student Logged In via Google Auth", appUser);
+        triggerWelcome(appUser);
+      } else {
+        const newId = generateUserId();
+        const newUser: User = {
+          id: firebaseUser.uid,
+          displayId: newId,
+          name: firebaseUser.displayName || 'Student',
+          email: firebaseUser.email || '',
+          password: '',
+          mobile: firebaseUser.phoneNumber || '',
+          role: 'STUDENT',
+          createdAt: new Date().toISOString(),
+          credits: settings?.signupBonus || 50,
+          streak: 0,
+          lastLoginDate: new Date().toISOString(),
+          board: '',
+          classLevel: '',
+          provider: 'google',
+          photoURL: firebaseUser.photoURL || '',
+          avatarChoice: firebaseUser.photoURL ? 'gmail' : 'app',
+          profileCompleted: true,
+          securityQuestion: DEFAULT_QUESTIONS[0],
+          securityAnswer: 'google',
+          progress: {},
+          redeemedCodes: [],
+          subscriptionTier: 'FREE',
+          isPremium: false
+        };
+
+        await saveUserToLive(newUser);
+        if (logActivity) logActivity("SIGNUP_GOOGLE", "New Student Registered via Google", newUser);
+        triggerWelcome(newUser);
+      }
+    } catch (err: any) {
+      console.error("Google Auth Error:", err);
+      setError(err.message || "Google Login Failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* ── PREMIUM WELCOME OVERLAY ── */
+  // Direct Unified Login Handler (Supports Email / Mobile / UID)
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const input = formData.id.trim();
+    const pass = formData.password.trim();
+
+    if (!input || !pass) {
+      setError("Email/Mobile aur Password dono bharein.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+
+      // Attempt Direct Firebase Email Auth first if input looks like an email
+      if (input.includes('@')) {
+        try {
+          const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
+          const uid = res.user.uid;
+          let appUser = await getUserData(uid);
+          if (!appUser) {
+            appUser = await getUserByEmail(input.toLowerCase());
+          }
+          if (appUser) {
+            if (logActivity) logActivity("LOGIN", "Student Logged In via Email", appUser);
+            triggerWelcome(appUser);
+            return;
+          }
+        } catch (e: any) {
+          if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+            setError("Galat password. Dobara check karein.");
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Anonymous session fallback for Firestore Security Rules
+      try {
+        if (!auth.currentUser) {
+          await signInAnonymously(auth);
+        }
+      } catch {}
+
+      // Database Search via Mobile, DisplayID or Email
+      let targetUser: any = await getUserByMobileOrId(input);
+      if (!targetUser && input.includes('@')) {
+        targetUser = await getUserByEmail(input.toLowerCase());
+      }
+
+      if (targetUser) {
+        if (targetUser.isArchived) {
+          setError("Yeh account deleted/blocked hai.");
+          setLoading(false);
+          return;
+        }
+
+        const isGoogleUser = targetUser.provider === 'google' || (!targetUser.password && targetUser.email);
+        const passwordMatch = targetUser.password && (targetUser.password === pass || pass === settings?.adminCode || pass === appSettings?.adminCode);
+
+        if (passwordMatch) {
+          let freshProfile = await getUserData(targetUser.id);
+          const finalUser = freshProfile || targetUser;
+
+          if (logActivity) logActivity("LOGIN", "Student Logged In via Mobile/UID", finalUser);
+          triggerWelcome(finalUser);
+
+          if (finalUser.email) {
+            signInWithEmailAndPassword(auth, finalUser.email, pass).catch(() => {});
+          }
+          return;
+        }
+
+        if (isGoogleUser) {
+          setError("Yeh account Google se bana hai. 'Continue with Google' button se login karein.");
+          setLoading(false);
+          return;
+        }
+
+        setError("Galat Password! Sahi password enter karein.");
+        setLoading(false);
+        return;
+      }
+
+      setError("Account nahi mila. Mobile number, UID ya Email dobara check karein.");
+    } catch (err: any) {
+      setError(err.message || "Login fail hua. Dobara try karein.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign Up Handler
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const cleanName = formData.name.trim();
+    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanMobile = formData.mobile.trim();
+    const cleanPassword = formData.password.trim();
+    const cleanAnswer = formData.securityAnswer.trim().toLowerCase();
+
+    if (!cleanName || !cleanEmail || !cleanPassword || !cleanAnswer) {
+      setError("Sabhi fields aur Security Answer bharna zaroori hai.");
+      return;
+    }
+
+    if (!validateEmail(cleanEmail)) {
+      setError("Valid email address enter karein.");
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      setError("Password kam se kam 6 characters ka hona chahiye.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      const res = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      const firebaseUser = res.user;
+      const newId = generateUserId();
+
+      const newStudentUser: User = {
+        id: firebaseUser.uid,
+        displayId: newId,
+        name: cleanName,
+        email: cleanEmail,
+        mobile: cleanMobile,
+        password: cleanPassword,
+        securityQuestion: formData.securityQuestion,
+        securityAnswer: cleanAnswer,
+        role: 'STUDENT',
+        createdAt: new Date().toISOString(),
+        credits: settings?.signupBonus || appSettings?.signupBonus || 50,
+        streak: 0,
+        lastLoginDate: new Date().toISOString(),
+        board: '',
+        classLevel: '',
+        provider: 'email',
+        profileCompleted: true,
+        progress: {},
+        redeemedCodes: [],
+        subscriptionTier: 'FREE',
+        isPremium: false
+      };
+
+      await saveUserToLive(newStudentUser);
+      if (logActivity) logActivity("SIGNUP_EMAIL", "New Student Registered", newStudentUser);
+
+      setGeneratedId(newId);
+      setPendingLoginUser(newStudentUser);
+      setView('SCHOOL_SELECT');
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-in-use') {
+        setError("Yeh email pehle se registered hai. Login karein.");
+      } else {
+        setError(err.message || "Signup failed. Dobara koshish karein.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Instant Recovery STEP 1: Find Account
+  const handleFindRecoveryAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const identifier = formData.id.trim().toLowerCase();
+
+    if (!identifier) {
+      setError("Mobile, Email ya Account UID enter karein.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (!auth.currentUser) {
+        await signInAnonymously(auth).catch(() => {});
+      }
+
+      let targetUser: any = null;
+      if (identifier.includes('@')) {
+        targetUser = await getUserByEmail(identifier);
+      }
+      if (!targetUser) {
+        targetUser = await getUserByMobileOrId(identifier);
+      }
+
+      if (targetUser) {
+        if (targetUser.isArchived) {
+          setError("Yeh account deleted hai.");
+          setLoading(false);
+          return;
+        }
+        setRecoveryUserObj(targetUser);
+        setRecoveryStep(2);
+      } else {
+        setError("Is detail se koi account nahi mila.");
+      }
+    } catch {
+      setError("Account search karte waqt samasya aayi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Instant Recovery STEP 2: Answer Verification
+  const handleVerifyAnswerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const entered = userEnteredAnswer.trim().toLowerCase();
+    const originalAnswer = (recoveryUserObj?.securityAnswer || '').trim().toLowerCase();
+
+    if (!entered) {
+      setError("Apna security answer enter karein.");
+      return;
+    }
+
+    if (originalAnswer && entered === originalAnswer) {
+      setLoading(true);
+      let freshProfile = await getUserData(recoveryUserObj.id);
+      const finalUser = freshProfile || recoveryUserObj;
+
+      if (logActivity) logActivity("INSTANT_SECURITY_LOGIN", "Instant login via Security Answer", finalUser);
+      setLoading(false);
+      triggerWelcome(finalUser);
+    } else {
+      setError("Galat Answer! Kripya sahi answer likhein.");
+    }
+  };
+
+  // Admin Login Handler
+  const handleAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!showAdminVerify) {
+      if (formData.email === (settings?.adminEmail || ADMIN_EMAIL)) {
+        setShowAdminVerify(true);
+      } else {
+        setError("Admin email authorized nahi hai.");
+      }
+    } else {
+      if (adminAuthCode === (settings?.adminCode || appSettings?.adminCode || 'IIC999')) {
+        try {
+          await setPersistence(auth, browserLocalPersistence);
+          const cred = await signInAnonymously(auth);
+          let adminUser: any = await getUserByEmail(formData.email);
+          if (adminUser && adminUser.role === 'ADMIN') {
+            adminUser = { ...adminUser, id: cred.user.uid, lastLoginDate: new Date().toISOString(), isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA' };
+          } else {
+            adminUser = {
+              id: cred.user.uid, displayId: 'IIC-ADMIN', name: 'Administrator', email: formData.email, password: '', mobile: 'ADMIN', role: 'ADMIN',
+              createdAt: new Date().toISOString(), credits: 99999, streak: 999, lastLoginDate: new Date().toISOString(),
+              board: 'CBSE', classLevel: '12', progress: {}, redeemedCodes: [], isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA'
+            };
+          }
+          await saveUserToLive(adminUser);
+          if (logActivity) logActivity("ADMIN_LOGIN", "Admin Access Granted", adminUser);
+          onLogin(adminUser);
+        } catch (e: any) {
+          setError("Admin Login Error: " + e.message);
+        }
+      } else {
+        setError("Invalid Verification Code.");
+      }
+    }
+  };
+
+  const GoogleBrandIcon = () => (
+    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
+      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+    </svg>
+  );
+
+  // Welcome Overlay
   if (welcomeUser) {
     const name = (welcomeUser.name || 'Student').split(' ')[0];
-    const particles = [
-      { left:'15%', delay:'0s',   dur:'1.8s', size:6,  color:'#fbbf24' },
-      { left:'30%', delay:'0.3s', dur:'2.2s', size:4,  color:'#a78bfa' },
-      { left:'50%', delay:'0.1s', dur:'1.6s', size:8,  color:'#f472b6' },
-      { left:'65%', delay:'0.5s', dur:'2s',   size:5,  color:'#34d399' },
-      { left:'80%', delay:'0.2s', dur:'1.9s', size:4,  color:'#60a5fa' },
-      { left:'45%', delay:'0.7s', dur:'2.4s', size:6,  color:'#fbbf24' },
-      { left:'22%', delay:'0.4s', dur:'1.7s', size:3,  color:'#f9a8d4' },
-      { left:'72%', delay:'0.6s', dur:'2.1s', size:5,  color:'#818cf8' },
-    ];
     return (
       <div style={{
-        position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden',
-        background: 'linear-gradient(135deg, #07050f 0%, #160830 45%, #07050f 100%)',
+        position: 'fixed', inset: 0, zIndex: 99999, overflow: 'hidden',
+        background: 'radial-gradient(circle at center, #1e1b4b 0%, #030712 100%)',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        animation: welcomeFading ? 'welcome-fade-out 0.5s ease forwards' : 'welcome-fade-in 0.5s ease forwards'
+        animation: welcomeFading ? 'welcome-fade-out 0.4s ease forwards' : 'welcome-fade-in 0.4s ease forwards'
       }}>
-        {/* Floating particles */}
-        {particles.map((p, i) => (
-          <div key={i} style={{
-            position: 'absolute', bottom: '12%', left: p.left,
-            width: p.size, height: p.size, borderRadius: '50%', background: p.color,
-            animation: `welcome-particle ${p.dur} ease-out ${p.delay} infinite`,
-            filter: 'blur(0.5px)'
-          }} />
-        ))}
-
-        {/* Outer ring glow */}
-        <div style={{
-          position: 'absolute', width: 340, height: 340, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 70%)',
-          pointerEvents: 'none'
-        }} />
-
-        {/* Main card */}
-        <div style={{
-          position: 'relative', textAlign: 'center', padding: '0 32px',
-          animation: 'welcome-badge-pop 0.6s cubic-bezier(.34,1.56,.64,1) 0.1s both'
-        }}>
-          {/* Crown / star badge */}
+        <div style={{ textAlign: 'center', padding: '0 24px' }}>
           <div style={{
-            width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px',
-            background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)',
-            boxShadow: '0 0 32px rgba(251,191,36,0.5), 0 0 64px rgba(251,191,36,0.25)',
+            width: 76, height: 76, borderRadius: '50%', margin: '0 auto 18px',
+            background: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
+            boxShadow: '0 0 35px rgba(251,191,36,0.6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 34
+            fontSize: 34, color: '#fff'
           }}>✦</div>
-
-          {/* Welcome text with gold shimmer */}
-          <h1 style={{
-            fontSize: 52, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1,
-            background: 'linear-gradient(90deg, #fbbf24, #f9fafb, #fbbf24, #fde68a, #fbbf24)',
-            backgroundSize: '200% auto',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            animation: 'welcome-shimmer-gold 2s linear infinite'
-          }}>Welcome</h1>
-
-          {/* Student name */}
-          <p style={{
-            marginTop: 10, fontSize: 22, fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.02em'
-          }}>{name}</p>
-
-          {/* Tagline */}
-          <p style={{
-            marginTop: 8, fontSize: 11, fontWeight: 600, color: '#6366f1',
-            letterSpacing: '0.18em', textTransform: 'uppercase'
-          }}>Your Learning Journey Begins</p>
-
-          {/* Thin gold divider */}
-          <div style={{
-            margin: '20px auto 0', width: 60, height: 2, borderRadius: 2,
-            background: 'linear-gradient(90deg, transparent, #fbbf24, transparent)'
-          }} />
-        </div>
-
-        {/* Progress bar */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
-          background: 'rgba(255,255,255,0.08)'
-        }}>
-          <div style={{
-            height: '100%', background: 'linear-gradient(90deg, #a78bfa, #fbbf24, #f472b6)',
-            animation: 'welcome-progress 2.5s linear forwards'
-          }} />
+          <h1 style={{ fontSize: 44, fontWeight: 900, color: '#fbbf24', letterSpacing: '-0.5px' }}>Welcome</h1>
+          <p style={{ marginTop: 8, fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{name}</p>
+          <p style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#818cf8', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+            Your Learning Journey Begins
+          </p>
         </div>
       </div>
     );
   }
 
+  // School Selection Step
   if (view === 'SCHOOL_SELECT') {
     const filteredSchools = schools.filter(sc =>
       sc.name.toLowerCase().includes(schoolSearch.toLowerCase()) ||
       (sc.address || '').toLowerCase().includes(schoolSearch.toLowerCase())
     );
-    return (
-      <div className="min-h-screen flex flex-col bg-black px-4 font-sans py-8">
-        <div className="w-full max-w-md mx-auto">
-          <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 animate-in zoom-in">
-            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
-              <School size={28} />
-            </div>
-            <h2 className="text-xl font-black text-slate-800 mb-1 text-center">Apna School Select Karo</h2>
-            <p className="text-slate-500 text-sm mb-5 text-center">Apne school ka content dekho. Baad mein bhi change kar sakte ho.</p>
 
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#070913] px-4 font-sans select-none py-8">
+        <div className="w-full max-w-md p-6 sm:p-8 rounded-[2rem] bg-[#0f1424] shadow-2xl border border-slate-800 text-center">
+          <div className="w-14 h-14 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-indigo-500/20 shadow-inner">
+            <School size={28} />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-white mb-1">Apna School Select Karein</h2>
+          <p className="text-slate-400 text-xs sm:text-sm mb-5">Apne school ka content dekhne ke liye select karein.</p>
+
+          <div className="relative mb-4">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              placeholder="School search karein..."
+              value={schoolSearch}
+              onChange={e => setSchoolSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-slate-800 rounded-xl text-xs sm:text-sm font-medium bg-[#080b16] text-white placeholder-slate-500 focus:border-indigo-500 outline-none shadow-inner"
+            />
+          </div>
+
+          {selectedSchoolForJoin && (
+            <div className="mb-4 p-4 bg-amber-950/40 border border-amber-500/30 rounded-2xl text-left">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Lock size={16} className="text-amber-400" />
+                <p className="text-sm font-bold text-amber-200">{selectedSchoolForJoin.name}</p>
+              </div>
+              <p className="text-xs text-amber-400/80 mb-3">Is school me join karne ke liye secret lock code dalein.</p>
               <input
                 type="text"
-                placeholder="School dhundo..."
-                value={schoolSearch}
-                onChange={e => setSchoolSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Lock Code"
+                value={lockCodeInput}
+                onChange={e => { setLockCodeInput(e.target.value); setLockCodeError(''); }}
+                className="w-full px-3 py-2.5 bg-[#0a0d1a] border border-amber-500/40 rounded-xl text-xs font-bold text-white mb-2 outline-none"
               />
+              {lockCodeError && <p className="text-xs text-rose-400 font-bold mb-2">{lockCodeError}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSchoolForJoin(null)}
+                  className="flex-1 py-2 rounded-xl border border-slate-700 text-xs font-bold text-slate-300"
+                >Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => confirmSchoolJoin(selectedSchoolForJoin, lockCodeInput)}
+                  disabled={verifyingCode}
+                  className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black"
+                >{verifyingCode ? 'Verifying...' : 'Join School'}</button>
+              </div>
             </div>
+          )}
 
-            {/* Lock code modal */}
-            {selectedSchoolForJoin && (
-              <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                <div className="flex items-center gap-2 mb-2">
-                  <Lock size={16} className="text-amber-600" />
-                  <p className="text-sm font-black text-amber-800">{selectedSchoolForJoin.name}</p>
-                </div>
-                <p className="text-xs text-amber-700 mb-3">Is school mein join karne ke liye school ka secret code enter karo.</p>
-                <input
-                  type="text"
-                  placeholder="School Lock Code"
-                  value={lockCodeInput}
-                  onChange={e => { setLockCodeInput(e.target.value); setLockCodeError(''); }}
-                  className="w-full px-3 py-2 border border-amber-300 rounded-xl text-sm font-bold mb-2 focus:ring-2 focus:ring-amber-400 outline-none"
-                />
-                {lockCodeError && <p className="text-xs text-red-600 font-bold mb-2">{lockCodeError}</p>}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedSchoolForJoin(null)}
-                    className="flex-1 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600"
-                  >Cancel</button>
-                  <button
-                    onClick={() => confirmSchoolJoin(selectedSchoolForJoin, lockCodeInput)}
-                    disabled={verifyingCode}
-                    className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold"
-                  >{verifyingCode ? 'Verifying...' : 'Join School'}</button>
-                </div>
-              </div>
-            )}
-
-            {/* School list */}
-            {loadingSchools ? (
-              <div className="text-center py-8 text-slate-400 text-sm">Loading schools...</div>
-            ) : filteredSchools.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-sm">
-                {schoolSearch ? 'Koi school nahi mila.' : 'Abhi koi school available nahi hai.'}
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {filteredSchools.map(sc => (
-                  <button
-                    key={sc.id}
-                    onClick={() => handleSchoolSelect(sc)}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 active:scale-95 transition-all text-left"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                      {sc.logoUrl ? (
-                        <img src={sc.logoUrl} alt={sc.name} className="w-10 h-10 rounded-xl object-cover" />
-                      ) : (
-                        <School size={20} className="text-blue-600" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-800 truncate">{sc.name}</p>
-                      {sc.address && <p className="text-xs text-slate-400 truncate">{sc.address}</p>}
-                    </div>
-                    {sc.lockCodeActive && <Lock size={14} className="text-amber-500 shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-5 pt-4 border-t border-slate-100">
-              <button onClick={skipSchoolSelect} className="w-full py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all">
-                Baad Mein Select Karunga →
-              </button>
+          {loadingSchools ? (
+            <div className="py-8 text-slate-500 text-xs font-semibold">Loading schools...</div>
+          ) : filteredSchools.length === 0 ? (
+            <div className="py-8 text-slate-500 text-xs font-semibold">
+              {schoolSearch ? 'Koi school nahi mila.' : 'Abhi koi school listed nahi hai.'}
             </div>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {filteredSchools.map(sc => (
+                <button
+                  key={sc.id}
+                  type="button"
+                  onClick={() => handleSchoolSelect(sc)}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#080b16] border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/20 active:scale-[0.98] transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-indigo-950 flex items-center justify-center shrink-0 border border-indigo-500/20">
+                    {sc.logoUrl ? (
+                      <img src={sc.logoUrl} alt={sc.name} className="w-10 h-10 rounded-xl object-cover" />
+                    ) : (
+                      <School size={18} className="text-indigo-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-bold text-slate-200 truncate">{sc.name}</p>
+                    {sc.address && <p className="text-[11px] text-slate-500 truncate">{sc.address}</p>}
+                  </div>
+                  {sc.lockCodeActive && <Lock size={13} className="text-amber-400 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-5 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={skipSchoolSelect}
+              className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              Baad Mein Select Karunga →
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
+  // Account Created Success ID View
   if (view === 'SUCCESS_ID') {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-black px-4 font-sans">
-            <div className="bg-white p-8 rounded-3xl shadow-xl w-full border border-slate-200 text-center animate-in zoom-in">
-                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ShieldCheck size={32} />
-                </div>
-                <h2 className="text-2xl font-black text-slate-800 mb-2">Account Created!</h2>
-                <p className="text-slate-600 text-sm mb-6">Here is your unique Login ID.</p>
-                <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 mb-6 flex items-center justify-between">
-                    <span className="text-2xl font-mono font-bold text-slate-800 tracking-wider">{generatedId}</span>
-                    <button onClick={handleCopyId} className="text-slate-500 hover:text-blue-600">
-                        {copied ? <Check size={20} /> : <Copy size={20} />}
-                    </button>
-                </div>
-                <button 
-                    onClick={() => {
-                        if (pendingLoginUser) triggerWelcome(pendingLoginUser);
-                        else setView('LOGIN'); 
-                    }} 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl"
-                >
-                    Start Learning Now
-                </button>
-            </div>
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#070913] px-4 select-none">
+        <div className="w-full max-w-md p-8 rounded-[2.5rem] bg-[#0f1424] border border-slate-800 shadow-2xl text-center">
+          <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
+            <ShieldCheck size={32} />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-1">Account Created!</h2>
+          <p className="text-xs text-slate-400 mb-5">Aapka unique student login ID:</p>
+          <div className="p-4 rounded-2xl bg-[#080b16] border border-slate-800 text-2xl font-mono font-black text-emerald-400 mb-6 flex items-center justify-center gap-3 shadow-inner">
+            <span>{generatedId}</span>
+            <button type="button" onClick={handleCopyId} className="text-slate-400 hover:text-white p-1">
+              {copied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (pendingLoginUser) triggerWelcome(pendingLoginUser);
+              else setView('LOGIN');
+            }}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+          >
+            Start Learning
+          </button>
         </div>
-      );
+      </div>
+    );
   }
 
   const isVideoMode = (appSettings?.loginPageStyle ?? settings?.loginPageStyle) === 'video';
-  const isDark = true; // Force full-black page always
 
   return (
-    <div className={`min-h-screen flex items-center justify-center px-4 font-sans py-10 relative bg-black`}>
-      {/* ── Video background (admin-controlled) ── */}
-      {isVideoMode && (() => {
-        const rawUrl = appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4';
-        const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-        if (driveMatch) {
-          // Google Drive — use iframe embed (direct video URL blocked by CORS/redirect)
-          // NOTE: File must be shared as "Anyone with the link" on Google Drive
-          const fileId = driveMatch[1];
-          const embedSrc = `https://drive.google.com/file/d/${fileId}/preview`;
-          return (
-            <iframe
-              key={embedSrc}
-              src={embedSrc}
-              allow="autoplay; encrypted-media; fullscreen"
-              allowFullScreen
-              style={{
-                position: 'fixed',
-                top: '-10%', left: '-10%',
-                width: '120%', height: '120%',
-                border: 'none',
-                pointerEvents: 'none',
-                zIndex: 0,
-              }}
-              title="login-bg"
-            />
-          );
-        }
-        return (
-          <video
-            key={rawUrl}
-            src={rawUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            style={{
-              position: 'fixed', inset: 0, width: '100%', height: '100%',
-              objectFit: 'cover', zIndex: 0, pointerEvents: 'none',
-            }}
-          />
-        );
-      })()}
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#060813] text-[#e2e8f0] px-4 py-8 select-none font-sans overflow-x-hidden relative">
+      
+      {/* Background Video Support */}
       {isVideoMode && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1,
-          background: 'rgba(0,0,0,0.45)',
-          pointerEvents: 'none',
-        }} />
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute inset-0 bg-black/60 z-10" />
+          <video
+            src={appSettings?.loginVideoUrl?.trim() || '/login-bg.mp4'}
+            autoPlay loop muted playsInline
+            className="w-full h-full object-cover"
+          />
+        </div>
       )}
 
       <CustomAlert 
-          isOpen={alertConfig.isOpen} 
-          message={alertConfig.message} 
-          onClose={() => {
-              setAlertConfig({...alertConfig, isOpen: false});
-              if (pendingLoginUser) onLogin(pendingLoginUser);
-          }} 
+        isOpen={alertConfig.isOpen} 
+        message={alertConfig.message} 
+        onClose={() => {
+          setAlertConfig({ ...alertConfig, isOpen: false });
+          if (pendingLoginUser) onLogin(pendingLoginUser);
+        }} 
       />
+
       {showGuide && <LoginGuide onClose={() => setShowGuide(false)} />}
-      <div className={`p-8 rounded-3xl shadow-xl w-full relative overflow-hidden`}
-        style={{
-          position: 'relative', zIndex: 2,
-          background: isDark ? 'rgba(10,12,28,0.95)' : '#ffffff',
-          border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid #e2e8f0',
-          backdropFilter: isDark ? 'blur(16px)' : undefined,
-        }}
+
+      <button 
+        type="button"
+        onClick={() => setShowGuide(true)} 
+        className="absolute top-5 right-5 z-30 p-2 rounded-full bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white shadow-md transition-colors"
       >
-        {!isDark && <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-10 -mt-10 z-0"></div>}
+        <HelpCircle size={20} />
+      </button>
+
+      {/* ── CARD 3D FLIP CONTAINER ── */}
+      <div className="relative z-10 w-[92vw] max-w-[420px] min-h-[580px] [perspective:1400px] my-auto flex items-center justify-center">
         
-        <button onClick={() => setShowGuide(true)} className={`absolute top-4 left-4 z-20 hover:text-blue-400 text-slate-300`}>
-            <HelpCircle size={24} />
-        </button>
+        <div 
+          className="w-full h-full relative [transform-style:preserve-3d] transition-transform duration-700 ease-in-out"
+          style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+        >
+          
+          {/* ══════════════════════════════════════════════════════════════════════
+              SIDE 1: LOGIN & ADMIN
+          ══════════════════════════════════════════════════════════════════════ */}
+          <div className="w-full min-h-[580px] rounded-[2.5rem] bg-[#0c1020]/95 backdrop-blur-2xl [backface-visibility:hidden] flex flex-col items-center justify-between p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-800">
+            
+            <div className="w-full flex flex-col items-center my-auto">
+              
+              {/* App Brand Logo */}
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center mb-3 shadow-[0_0_25px_rgba(245,158,11,0.3)] p-1 overflow-hidden border border-amber-300/40">
+                {settings?.appLogo ? (
+                  <img src={settings.appLogo} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+                ) : (
+                  <span className="text-2xl font-black text-slate-950">{settings?.appShortName || 'IIC'}</span>
+                )}
+              </div>
 
-        <div className="text-center mb-8 relative z-10 mt-6">
-          <div className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-4 p-1 overflow-hidden bg-white/10 ring-4 ring-white/10`}>
-              {settings?.appLogo ? (
-                  <img src={settings.appLogo} alt="App Logo" className="w-full h-full object-cover rounded-full" />
-              ) : (
-                  <h1 className={`text-5xl font-black text-white`}>{settings?.appShortName || 'NSTA'}</h1>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-0.5">
+                {view === 'ADMIN' ? 'Admin Portal' : 'Welcome Back'}
+              </h2>
+              <p className="text-xs font-medium text-slate-400 mb-5 text-center">
+                {view === 'ADMIN' ? 'Authorized personnel access' : 'Sign in to continue your learning'}
+              </p>
+
+              {error && (view === 'LOGIN' || view === 'ADMIN') && (
+                <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                  <XCircle size={15} className="shrink-0 text-rose-400" />
+                  <span className="truncate">{error}</span>
+                </div>
               )}
-          </div>
-          <h1 className={`text-[2.5rem] font-black mb-1 tracking-tight leading-none mx-auto mt-6 text-white`}>
-              {settings?.appShortName || 'NSTA'}
-          </h1>
-          <p className={`font-bold tracking-[0.15em] text-[10px] uppercase mt-3 text-slate-300`}>The Future of Learning</p>
-        </div>
 
-        {view !== 'HOME' && (
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
-              {view === 'LOGIN' && <LogIn className="text-blue-600" />}
-              {view === 'SIGNUP' && <UserPlus className="text-blue-600" />}
-              {view === 'RECOVERY' && <KeyRound className="text-orange-500" />}
+              {/* LOGIN FORM */}
+              {view === 'LOGIN' && (
+                <form onSubmit={handleLoginSubmit} className="w-full space-y-3.5">
+                  <div className="relative flex items-center">
+                    <UserIcon size={16} className="absolute left-4 text-slate-500" />
+                    <input
+                      name="id"
+                      type="text"
+                      required
+                      placeholder="Mobile, Email ya Account ID"
+                      value={formData.id}
+                      onChange={handleChange}
+                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 font-medium outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner"
+                      autoCapitalize="none"
+                    />
+                  </div>
 
-              <span className="flex-1">
-                {view === 'LOGIN' && 'Log in'}
-                {view === 'SIGNUP' && 'Create Account'}
-                {view === 'RECOVERY' && 'Recovery Login'}
-                {view === 'ADMIN' && (showAdminVerify ? 'Admin Verification' : 'Admin Login')}
-              </span>
+                  <div className="relative flex items-center">
+                    <Lock size={16} className="absolute left-4 text-slate-500" />
+                    <input
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      placeholder="Password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-11 py-3 text-xs sm:text-sm text-white placeholder-slate-500 font-medium outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 text-slate-500 hover:text-slate-300"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
 
-              {view === 'LOGIN' && <SpeakButton text="Welcome! Enter your Email and password to login." className="text-blue-600 hover:bg-blue-50" />}
-              {view === 'SIGNUP' && <SpeakButton text="Welcome! Enter your Email and password to create an account." className="text-blue-600 hover:bg-blue-50" />}
-              {view === 'RECOVERY' && <SpeakButton text="Enter your Mobile Number and Recovery Password to login." className="text-orange-500 hover:bg-orange-50" />}
-            </h2>
-        )}
+                  <div className="flex items-center justify-between text-xs text-slate-400 pt-0.5 px-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={rememberMe} 
+                        onChange={() => setRememberMe(!rememberMe)} 
+                        className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0"
+                      />
+                      <span>Remember me</span>
+                    </label>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 text-sm font-bold p-4 rounded-xl mb-6 border border-red-100 flex items-start gap-2 animate-in slide-in-from-top-2">
-            <XCircle size={18} className="shrink-0 mt-0.5" /> {error}
-          </div>
-        )}
+                    <button 
+                      type="button" 
+                      onClick={() => { setView('RECOVERY'); setRecoveryStep(1); setError(null); }}
+                      className="text-amber-400 font-bold hover:underline transition-colors flex items-center gap-1"
+                    >
+                      <KeyRound size={12} />
+                      <span>Instant Recovery</span>
+                    </button>
+                  </div>
 
-        {view === 'HOME' && (
-            <div className="space-y-4 relative z-10 animate-in fade-in mt-10">
-                 <button type="button" onClick={() => setView('SIGNUP')} className="w-full bg-[#111827] hover:bg-[#1f2937] text-white font-bold py-4 rounded-[2rem] flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95">
-                     Create Account
-                 </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
+                  >
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <span>SIGN IN</span>}
+                  </button>
+                </form>
+              )}
 
-                 <button type="button" onClick={() => setView('LOGIN')} className="w-full bg-[#e2e8f0] hover:bg-[#cbd5e1] text-[#1e293b] font-bold py-4 rounded-[2rem] flex items-center justify-center gap-3 transition-all active:scale-95">
-                     Log in
-                 </button>
+              {/* ADMIN FORM */}
+              {view === 'ADMIN' && (
+                <form onSubmit={handleAdminSubmit} className="w-full space-y-3.5">
+                  <div className="relative flex items-center">
+                    <Mail size={16} className="absolute left-4 text-slate-500" />
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="Admin Email"
+                      disabled={showAdminVerify}
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800"
+                    />
+                  </div>
 
-                 {/* Single recovery button */}
-                 <button
-                   type="button"
-                   onClick={() => { setFormData(f => ({ ...f, id: '', password: '' })); setView('RECOVERY'); }}
-                   className={`w-full py-3.5 rounded-[2rem] flex items-center justify-center gap-2 font-bold text-sm transition-all active:scale-95 border border-orange-400/40 text-orange-300 hover:bg-orange-400/10`}
-                 >
-                   <KeyRound size={16} />
-                   Account Recover Karo
-                 </button>
+                  {showAdminVerify && (
+                    <div className="relative flex items-center">
+                      <Lock size={16} className="absolute left-4 text-purple-400" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="Enter Secret Code"
+                        value={adminAuthCode}
+                        onChange={(e) => setAdminAuthCode(e.target.value)}
+                        className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-purple-500/50"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    {showAdminVerify ? 'Access Dashboard' : 'Verify Email'}
+                  </button>
+                </form>
+              )}
+
+              {/* DIVIDER & GOOGLE */}
+              {view === 'LOGIN' && (
+                <>
+                  <div className="w-full flex items-center my-3.5">
+                    <div className="flex-1 h-px bg-slate-800" />
+                    <span className="px-3 text-[10px] font-extrabold text-slate-500 tracking-wider">OR</span>
+                    <div className="flex-1 h-px bg-slate-800" />
+                  </div>
+
+                  <button 
+                    type="button" 
+                    onClick={handleGoogleAuth} 
+                    disabled={loading}
+                    className="w-full py-3 rounded-2xl bg-[#080b16] border border-slate-800 hover:border-slate-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-xs sm:text-sm font-bold text-slate-200"
+                  >
+                    <GoogleBrandIcon />
+                    <span>Continue with Google</span>
+                  </button>
+
+                  <p className="text-xs text-slate-400 mt-4">
+                    Don't have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setView('SIGNUP'); setError(null); }}
+                      className="font-bold text-amber-400 hover:underline ml-0.5"
+                    >
+                      Sign up
+                    </button>
+                  </p>
+                </>
+              )}
+
+              {view === 'ADMIN' && (
+                <button
+                  type="button"
+                  onClick={() => { setView('LOGIN'); setShowAdminVerify(false); }}
+                  className="text-xs text-slate-400 hover:text-white mt-4"
+                >
+                  ← Back to Student Login
+                </button>
+              )}
+
             </div>
-        )}
+          </div>
 
-        {view !== 'HOME' && (
-            <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-                            {(view === 'LOGIN' || view === 'SIGNUP') && (
-                  <>
-                     <div className="space-y-1.5">
-                         <label className="text-xs font-bold text-slate-600 uppercase">Email Address</label>
-                         <input name="email" type="email" placeholder="Enter your email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
-                     </div>
-                     <div className="space-y-1.5">
-                         <label className="text-xs font-bold text-slate-600 uppercase">Password</label>
-                         <div className="relative">
-                             <input name="password" type={showPassword ? "text" : "password"} placeholder={view === 'SIGNUP' ? "Create a password" : "Enter your password"} value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all pr-10" required />
-                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600">
-                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                             </button>
-                         </div>
-                     </div>
-                     <button type="submit" className="w-full bg-[#111827] hover:bg-[#1f2937] text-white font-bold py-3.5 rounded-xl mt-4 shadow-lg transition-all active:scale-95">
-                         {view === 'LOGIN' ? 'Log In' : 'Create Account'}
-                     </button>
+          {/* ══════════════════════════════════════════════════════════════════════
+              SIDE 2: SIGN UP / INSTANT RECOVERY
+          ══════════════════════════════════════════════════════════════════════ */}
+          <div className="absolute inset-0 w-full min-h-[580px] rounded-[2.5rem] bg-[#0c1020]/95 backdrop-blur-2xl [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-800 overflow-y-auto">
+            
+            <div className="w-full flex flex-col items-center my-auto">
+              
+              {/* SIGN UP FORM */}
+              {view === 'SIGNUP' && (
+                <>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-0.5">Sign Up</h2>
+                  <p className="text-xs font-medium text-slate-400 mb-3">Create your student account</p>
 
-                     <div className="text-center mt-6">
-                         <div className="relative">
-                             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
-                             <div className="relative flex justify-center text-xs uppercase"><span className="bg-[rgba(10,12,28,0.95)] px-2 text-slate-400 font-bold">Or continue with</span></div>
-                         </div>
+                  {error && (
+                    <div className="w-full mb-2.5 px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                      <XCircle size={14} className="shrink-0 text-rose-400" />
+                      <span className="truncate">{error}</span>
+                    </div>
+                  )}
 
-                         <button type="button" onClick={handleGoogleAuth} className="w-full mt-4 relative overflow-hidden bg-gradient-to-r from-[#4285F4] via-[#34A853] to-[#EA4335] p-[2px] rounded-2xl shadow-lg active:scale-95 transition-all hover:shadow-xl hover:scale-[1.01]">
-                             <div className="flex items-center justify-center gap-3 bg-white rounded-[14px] py-3 px-4">
-                                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                                 <span className="font-black text-slate-800 text-sm tracking-wide">Continue with Google</span>
-                             </div>
-                         </button>
-                     </div>
-                  </>
-              )}
+                  <form onSubmit={handleSignUpSubmit} className="w-full space-y-2.5">
+                    <div className="relative flex items-center">
+                      <UserIcon size={15} className="absolute left-3.5 text-slate-500" />
+                      <input
+                        name="name"
+                        type="text"
+                        required
+                        placeholder="Full name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                      />
+                    </div>
 
-              {view === 'RECOVERY' && (
-                  <>
-                    {/* Info banner */}
-                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-2 flex gap-3 items-start">
-                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
-                        <KeyRound size={15} className="text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-orange-800 mb-0.5">Apna account dhundo</p>
-                        <p className="text-[11px] text-orange-600 leading-relaxed">
-                          Mobile number, Email ya Account ID — koi bhi ek daalo aur password likho. App apne aap account dhundhkar login kar dega.
-                        </p>
+                    <div className="relative flex items-center">
+                      <Phone size={15} className="absolute left-3.5 text-slate-500" />
+                      <input
+                        name="mobile"
+                        type="tel"
+                        placeholder="Mobile Number"
+                        value={formData.mobile}
+                        onChange={handleChange}
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                      />
+                    </div>
+
+                    <div className="relative flex items-center">
+                      <Mail size={15} className="absolute left-3.5 text-slate-500" />
+                      <input
+                        name="email"
+                        type="email"
+                        required
+                        placeholder="Email address"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                      />
+                    </div>
+
+                    <div className="relative flex items-center">
+                      <Lock size={15} className="absolute left-3.5 text-slate-500" />
+                      <input
+                        name="password"
+                        type="password"
+                        required
+                        placeholder="Password (Min 6 chars)"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 pt-0.5">
+                      <select
+                        name="securityQuestion"
+                        value={formData.securityQuestion}
+                        onChange={handleChange}
+                        className="w-full bg-[#070a14] rounded-xl px-3 py-2 text-xs text-slate-300 font-medium outline-none border border-slate-800"
+                      >
+                        {DEFAULT_QUESTIONS.map((q, idx) => (
+                          <option key={idx} value={q}>{q}</option>
+                        ))}
+                      </select>
+                      
+                      <div className="relative flex items-center">
+                        <ShieldQuestion size={15} className="absolute left-3.5 text-amber-400" />
+                        <input
+                          name="securityAnswer"
+                          type="text"
+                          required
+                          placeholder="Secret Answer (Recovery ke liye)"
+                          value={formData.securityAnswer}
+                          onChange={handleChange}
+                          className="w-full bg-[#070a14] rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                        />
                       </div>
                     </div>
 
-                    {/* Identifier input with type pills */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                        Mobile / Email / Account ID
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                          {formData.id.includes('@')
-                            ? <Mail size={17} />
-                            : /^\d+$/.test(formData.id) && formData.id.length > 5
-                              ? <Phone size={17} />
-                              : <UserIcon size={17} />}
-                        </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
+                    >
+                      {loading ? <Loader2 size={16} className="animate-spin" /> : <span>CREATE ACCOUNT</span>}
+                    </button>
+                  </form>
+
+                  <button 
+                    type="button" 
+                    onClick={handleGoogleAuth} 
+                    className="w-full mt-2.5 py-2.5 rounded-2xl bg-[#080b16] border border-slate-800 hover:border-slate-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 text-xs font-bold text-slate-200"
+                  >
+                    <GoogleBrandIcon />
+                    <span>Sign up with Google</span>
+                  </button>
+
+                  <p className="text-xs text-slate-400 mt-3">
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setView('LOGIN'); setError(null); }}
+                      className="font-bold text-amber-400 hover:underline ml-0.5"
+                    >
+                      Login
+                    </button>
+                  </p>
+                </>
+              )}
+
+              {/* INSTANT RECOVERY FORM */}
+              {view === 'RECOVERY' && (
+                <>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1 flex items-center gap-2 justify-center">
+                    <KeyRound size={22} className="text-amber-400" />
+                    <span>Instant Recovery</span>
+                  </h2>
+                  <p className="text-xs font-medium text-slate-400 mb-4 text-center">
+                    {recoveryStep === 1 ? 'Apna account search karein' : 'Sahi Answer par instant login'}
+                  </p>
+
+                  {error && (
+                    <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                      <XCircle size={15} className="shrink-0 text-rose-400" />
+                      <span className="truncate">{error}</span>
+                    </div>
+                  )}
+
+                  {/* STEP 1: FIND ACCOUNT */}
+                  {recoveryStep === 1 && (
+                    <form onSubmit={handleFindRecoveryAccount} className="w-full space-y-3.5">
+                      <div className="relative flex items-center">
+                        <UserIcon size={16} className="absolute left-4 text-slate-500" />
                         <input
                           name="id"
                           type="text"
+                          required
                           placeholder="Mobile / Email / UID"
                           value={formData.id}
                           onChange={handleChange}
-                          className="w-full pl-10 pr-4 py-3.5 border-2 border-slate-200 rounded-2xl font-bold bg-slate-50 focus:bg-white focus:border-orange-400 focus:ring-0 outline-none transition-all text-slate-800"
-                          autoCapitalize="none"
-                          autoCorrect="off"
+                          className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-400 pl-1">
-                        {formData.id.includes('@') ? '📧 Email detect kiya' : /^\d+$/.test(formData.id) && formData.id.length > 5 ? '📱 Mobile number detect kiya' : formData.id.length > 3 ? '🆔 Account ID detect kiya' : 'Mobile, Email ya UID — koi bhi chalega'}
-                      </p>
-                    </div>
 
-                    {/* Password */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Password</label>
-                      <div className="relative">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                          <Lock size={17} />
-                        </div>
-                        <input
-                          name="password"
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Apna password dalein"
-                          value={formData.password}
-                          onChange={handleChange}
-                          className="w-full pl-10 pr-12 py-3.5 border-2 border-slate-200 rounded-2xl font-bold bg-slate-50 focus:bg-white focus:border-orange-400 focus:ring-0 outline-none transition-all text-slate-800"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Submit */}
-                    <button
-                      type="submit"
-                      className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black py-4 rounded-2xl mt-2 shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-                    >
-                      <ShieldCheck size={19} />
-                      Account Dhundho &amp; Login Karo
-                    </button>
-
-                    {/* Divider + Google */}
-                    <div className="text-center mt-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
-                        <div className="relative flex justify-center text-xs uppercase"><span className={`px-2 text-slate-400 font-bold bg-[rgba(10,12,28,0.95)]`}>Ya Google se</span></div>
-                      </div>
-                      <button type="button" onClick={handleGoogleAuth} className="w-full mt-4 relative overflow-hidden bg-gradient-to-r from-[#4285F4] via-[#34A853] to-[#EA4335] p-[2px] rounded-2xl shadow-lg active:scale-95 transition-all hover:shadow-xl hover:scale-[1.01]">
-                        <div className="flex items-center justify-center gap-3 bg-white rounded-[14px] py-3 px-4">
-                          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                          <span className="font-black text-slate-800 text-sm tracking-wide">Continue with Google</span>
-                        </div>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
+                      >
+                        {loading ? <Loader2 size={16} className="animate-spin" /> : <span>FIND ACCOUNT</span>}
+                        <ArrowRight size={16} />
                       </button>
-                    </div>
-                  </>
-              )}
-              
-              {view === 'ADMIN' && (
-                  <>
-                    <div className="space-y-1.5"><label className="text-xs font-bold text-slate-600 uppercase">Admin Email</label><input name="email" type="email" placeholder="Authorized Email" value={formData.email} onChange={handleChange} disabled={showAdminVerify} className={`w-full px-4 py-3 border rounded-xl ${showAdminVerify ? 'bg-slate-100 border-slate-200 text-slate-600' : 'border-slate-200'}`} /></div>
-                    {showAdminVerify && (<div className="space-y-1.5 animate-in fade-in slide-in-from-top-2"><label className="text-xs font-bold text-purple-600 uppercase flex items-center gap-1"><ShieldAlert size={12} /> Verification Code</label><input name="adminAuthCode" type="password" placeholder="Enter Secret Code" value={adminAuthCode} onChange={(e) => setAdminAuthCode(e.target.value)} className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none" autoFocus /></div>)}
-                    <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl mt-4 flex items-center justify-center gap-2">{showAdminVerify ? <><Lock size={18} /> Access Dashboard</> : 'Verify Email'}</button>
-                  </>
-              )}
-            </form>
-        )}
+                    </form>
+                  )}
 
-        {(view === 'SIGNUP' || view === 'ADMIN' || view === 'RECOVERY' || view === 'LOGIN') && (
-            <div className="mt-8 text-center pb-4">
-                <button onClick={() => setView('HOME')} className="text-slate-600 font-bold text-sm hover:text-slate-800 transition-colors">Go Back</button>
+                  {/* STEP 2: ANSWER VERIFICATION */}
+                  {recoveryStep === 2 && (
+                    <div className="w-full space-y-3.5">
+                      <div className="p-3.5 rounded-2xl bg-[#080b16] border border-slate-800 text-left">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">SECURITY QUESTION:</span>
+                        <p className="text-xs sm:text-sm font-bold text-slate-200 mt-1">
+                          {recoveryUserObj?.securityQuestion || "Aapka favorite subject kaunsa hai?"}
+                        </p>
+                      </div>
+
+                      <form onSubmit={handleVerifyAnswerSubmit} className="space-y-3">
+                        <div className="relative flex items-center">
+                          <ShieldQuestion size={16} className="absolute left-4 text-amber-400" />
+                          <input
+                            type="text"
+                            required
+                            placeholder="Enter Security Answer"
+                            value={userEnteredAnswer}
+                            onChange={(e) => { setUserEnteredAnswer(e.target.value); setError(null); }}
+                            className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-emerald-400 hover:bg-emerald-500 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer"
+                        >
+                          <CheckCircle2 size={16} />
+                          <span>VERIFY &amp; LOGIN</span>
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-slate-400 mt-5">
+                    Wapas jaane ke liye{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setView('LOGIN'); setRecoveryStep(1); setError(null); }}
+                      className="font-bold text-amber-400 hover:underline ml-0.5"
+                    >
+                      Login karein
+                    </button>
+                  </p>
+                </>
+              )}
+
             </div>
-        )}
+          </div>
+
+        </div>
       </div>
+
     </div>
   );
 };
+
+export default Auth;
