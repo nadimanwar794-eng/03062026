@@ -1259,18 +1259,18 @@ const App: React.FC = () => {
 
       if (state.user && !state.originalAdmin) {
           unsubscribeUser = subscribeToUser(state.user.id, (cloudUser) => {
-              // Account deleted by admin — force logout immediately
-              if (!cloudUser) {
-                  localStorage.removeItem('nst_current_user');
-                  localStorage.removeItem('nst_users');
-                  setState(prev => ({ ...prev, user: null, view: 'AUTH' }));
-                  return;
-              }
               if (cloudUser) {
                   setState(prev => {
                       if (!prev.user) return prev;
 
-                      const mergedUser = { ...prev.user, ...cloudUser };
+                      const validId = prev.user.id || cloudUser.id || cloudUser.uid;
+                      const mergedUser = { 
+                          ...prev.user, 
+                          ...cloudUser,
+                          id: validId,
+                          uid: validId,
+                          profileCompleted: true
+                      };
 
                       // CRITICAL FIX: The Firestore 'users/{uid}' document DOES NOT contain bulky data.
                       // We must preserve the bulky data from the current state so it doesn't get wiped by the core sync.
@@ -1607,38 +1607,27 @@ const App: React.FC = () => {
         let user: User = JSON.parse(loggedInUserStr);
 
         // STRICT VALIDATION: Ensure critical fields exist
-        if (!user || !user.id || !user.role) {
+        if (!user || (!user.id && !user.uid)) {
             console.error("Invalid user object found in storage. Clearing session.");
             localStorage.removeItem('nst_current_user');
             return;
         }
 
+        const validId = user.id || user.uid;
+        user.id = validId;
+        user.uid = validId;
+        user.profileCompleted = true;
+
         // RE-ESTABLISH FIREBASE AUTH SESSION on startup.
-        // The custom session (nst_current_user) persists across reloads, but the
-        // Firebase Auth SDK session may have expired or been cleared. Without an
-        // active Firebase Auth user, ALL Firestore/RTDB reads fail with
-        // permission-denied — causing blank content pages.
-        // We call signInAnonymously here so Firebase Auth is always active when
-        // the user is already "logged in" via our custom session.
-        // NOTE: We never force-logout on failure — nst_current_user is the source of
-        // truth for our custom session. Firebase Auth will restore itself via
-        // onAuthStateChanged (browserLocalPersistence). Logging out here on every
-        // HMR reload or anonymous-auth-disabled project caused spurious logouts.
         if (auth.currentUser === null) {
             signInAnonymously(auth).catch(e => {
                 console.warn('[IIC] Background Firebase Auth restore skipped:', e.code || e.message);
-                // Do NOT clear session or reload — the custom session is still valid.
             });
         }
 
         // MIGRATION & RECALCULATION ON LOAD
         if (user.role !== 'ADMIN') {
              user = recalculateSubscriptionStatus(user, loadedSettings);
-             // Save back any migration changes immediately
-             if (JSON.stringify(user) !== loggedInUserStr) {
-                 localStorage.setItem('nst_current_user', JSON.stringify(user));
-                 saveUserToLive(user);
-             }
         }
 
         if (!user.progress) user.progress = {};
@@ -1648,11 +1637,7 @@ const App: React.FC = () => {
             return; 
         }
 
-        let initialView = 'STUDENT_DASHBOARD';
-        
-        if ((user.role === 'STUDENT' || user.role === 'TEACHER') && !user.profileCompleted) {
-             initialView = 'ONBOARDING';
-        }
+        let initialView = (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD';
 
         // RESET CLASS IF LOCKED (e.g. Competition Mode)
         let safeClass = user.classLevel || null;
@@ -1987,73 +1972,71 @@ const App: React.FC = () => {
   ];
 
   const handleLogin = async (user: User) => {
+    const validId = user.id || user.uid;
+    const activeUser: User = { 
+      ...user, 
+      id: validId, 
+      uid: validId, 
+      profileCompleted: true 
+    };
+
     // ── Account switch detection — naye account ka data purane se mix na ho ──
     const lastUserId = localStorage.getItem('nst_last_user_id');
-    if (lastUserId && lastUserId !== user.id) {
+    if (lastUserId && lastUserId !== activeUser.id) {
       // Different account — clear all previous user's local cache first
       clearUserCache();
     }
-    localStorage.setItem('nst_last_user_id', user.id);
+    localStorage.setItem('nst_last_user_id', activeUser.id);
 
     // ── Login pe session tracking reset — spurious home toast na aaye ────
     awaitingPostMcqDataRef.current = false;
     sessionStartTimeRef.current = 0;
     sessionEndProcessedRef.current = false;
     setMcqJustEnded(false);
-    // homeStatsVisible removed — queue-based system use hota hai ab
+    
     if (!state.originalAdmin) {
-        localStorage.setItem('nst_current_user', JSON.stringify(user));
+        localStorage.setItem('nst_current_user', JSON.stringify(activeUser));
     }
-    saveUserToLive(user);
+    saveUserToLive(activeUser);
     localStorage.setItem('nst_has_seen_welcome', 'true');
 
     // Check if this user is a School Ecosystem user
-    const isSuperAdmin = SCHOOL_SUPER_ADMIN_EMAILS.includes((user.email || '').toLowerCase());
+    const isSuperAdmin = SCHOOL_SUPER_ADMIN_EMAILS.includes((activeUser.email || '').toLowerCase());
     if (isSuperAdmin) {
-      setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
+      setState(prev => ({ ...prev, user: activeUser, view: 'SCHOOL_ECOSYSTEM' as any }));
       return;
     }
 
     // School + Coaching profile checks parallel mein chalao — slow network pe time bachta hai
     const [schoolProfile, coachingProfile] = await Promise.all([
-      getSchoolUserProfile(user.id).catch(() => null),
-      getCoachingUserProfile(user.id).catch(() => null),
+      getSchoolUserProfile(activeUser.id).catch(() => null),
+      getCoachingUserProfile(activeUser.id).catch(() => null),
     ]);
 
     if (schoolProfile) {
-      setState(prev => ({ ...prev, user, view: 'SCHOOL_ECOSYSTEM' as any }));
+      setState(prev => ({ ...prev, user: activeUser, view: 'SCHOOL_ECOSYSTEM' as any }));
       return;
     }
 
     if (coachingProfile) {
-      setState(prev => ({ ...prev, user, view: 'COACHING_ECOSYSTEM' as any }));
+      setState(prev => ({ ...prev, user: activeUser, view: 'COACHING_ECOSYSTEM' as any }));
       return;
     }
 
-    // Check if onboarding is needed
-    if ((user.role === 'STUDENT' || user.role === 'TEACHER') && !user.profileCompleted) {
-        setState(prev => ({
-          ...prev,
-          user,
-          view: 'ONBOARDING',
-        }));
-        return;
-    }
-
     // Admin / Sub-Admin → seedha Admin Dashboard pe bhejo
-    if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') {
-      setState(prev => ({ ...prev, user, view: 'ADMIN_DASHBOARD' }));
+    if (activeUser.role === 'ADMIN' || activeUser.role === 'SUB_ADMIN') {
+      setState(prev => ({ ...prev, user: activeUser, view: 'ADMIN_DASHBOARD' }));
       return;
     }
 
     setState(prev => ({
       ...prev,
-      user,
+      user: activeUser,
       view: 'STUDENT_DASHBOARD' as any,
-      selectedBoard: user.board || null,
-      selectedClass: user.classLevel || null,
-      selectedStream: user.stream || null,
-      language: user.board === 'BSEB' ? 'Hindi' : 'English',
+      selectedBoard: activeUser.board || null,
+      selectedClass: activeUser.classLevel || null,
+      selectedStream: activeUser.stream || null,
+      language: activeUser.board === 'BSEB' ? 'Hindi' : 'English',
     }));
   };
 
@@ -3312,9 +3295,18 @@ const App: React.FC = () => {
       return <AppLoadingScreen isPremium={state.user?.isPremium || false} subscriptionLevel={getUserPlan()} onComplete={() => setIsAppLoading(false)} />;
   }
 
+  const bgImageStyle = (state.settings?.appBackgroundImage && state.view !== 'LESSON') ? `url(${state.settings.appBackgroundImage})` : undefined;
+
   return (
     <ErrorBoundary>
-    <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})` }}>
+    <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{
+      background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})`,
+      backgroundImage: bgImageStyle,
+      backgroundSize: bgImageStyle ? 'cover' : undefined,
+      backgroundPosition: bgImageStyle ? 'center' : undefined,
+      backgroundRepeat: bgImageStyle ? 'no-repeat' : undefined,
+      backgroundAttachment: bgImageStyle ? 'fixed' : undefined
+    }}>
       {/* SKIP TO CONTENT — keyboard/screen-reader accessibility */}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
@@ -4158,3 +4150,4 @@ const App: React.FC = () => {
   );
 };
 export default App;
+
