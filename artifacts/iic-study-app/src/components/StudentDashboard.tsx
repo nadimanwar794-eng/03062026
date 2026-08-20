@@ -18363,21 +18363,24 @@ export const StudentDashboard: React.FC<Props> = ({
                 <MeniscusNavIndicator
   activeIndex={activeIndex}
   totalTabs={totalVisible}
-  navBg={tierTheme.navBg}
-  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
+  navBg={tierTheme?.navBg || "#121624"}
+  navBorderColor={(tierTheme as any)?.navBorderColor || (tierTheme?.primary ? tierTheme.primary + "22" : "rgba(255,255,255,0.1)")}
   activeColor={(() => {
     const actId = visibleTabs[activeIndex]?.id;
-    const pt = user.personalTheme;
-    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || "#22c55e";
-    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || "#22c55e";
-    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || "#22c55e";
-    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || "#22c55e";
-    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || "#22c55e";
-    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || "#22c55e";
-    return pt?.navActive || "#22c55e";
+    const pt = user?.personalTheme;
+    const defaultColor = tierTheme?.primary || tierTheme?.navActive || "#22c55e";
+
+    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || defaultColor;
+    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || defaultColor;
+    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || defaultColor;
+    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || defaultColor;
+    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || defaultColor;
+    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || defaultColor;
+    return pt?.navActive || defaultColor;
   })()}
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
+
 
                 {visibleTabs.map((tab) => {
                   const access = tab.featureId
