@@ -543,6 +543,7 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ----- MENISCUS NAV INDICATOR -----
+// ----- MENISCUS NAV INDICATOR -----
 const MeniscusNavIndicator = ({
   activeIndex,
   totalTabs,
@@ -627,12 +628,9 @@ const MeniscusNavIndicator = ({
     const updateTarget = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        if (rect.width === 0) return; // Zero-width render avoid karta hai
-
         animState.current.w = rect.width;
         animState.current.h = rect.height;
-        const count = totalTabs || 5;
-        const tabWidth = rect.width / count;
+        const tabWidth = rect.width / totalTabs;
         animState.current.targetX = (activeIndex + 0.5) * tabWidth;
 
         if (animState.current.currentX === 0) {
@@ -653,42 +651,35 @@ const MeniscusNavIndicator = ({
     return () => window.removeEventListener("resize", updateTarget);
   }, [activeIndex, totalTabs, wakeUp]);
 
-  // Robust Lucide/JSX Icon Renderer
-  const renderActiveIcon = () => {
-    if (!ActiveIcon) return null;
-    
-    // Agar React Element pehle se bana hua hai
-    if (React.isValidElement(ActiveIcon)) {
-      return React.cloneElement(ActiveIcon as React.ReactElement<any>, {
-        className: "w-6 h-6 text-white stroke-white stroke-[2.4] fill-none",
-      });
-    }
-
-    // Agar Component / Function / ForwardRef pass kiya gaya hai
-    const IconComp = ActiveIcon;
-    return <IconComp className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />;
-  };
-
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible z-0">
       <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
         <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
       </svg>
-      
       <div
         ref={beadRef}
-        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white shadow-lg"
+        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white"
         style={{
           background: activeColor || "#22c55e",
           boxShadow: `0 0 25px ${activeColor || "#22c55e"}99`,
           willChange: "transform",
         }}
       >
-        {renderActiveIcon()}
+        {ActiveIcon && (
+          typeof ActiveIcon === "function" ? (
+            <ActiveIcon className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />
+          ) : (
+            <span className="w-6 h-6 text-white [&>svg]:w-6 [&>svg]:h-6 [&>svg]:stroke-white [&>svg]:stroke-[2.4] [&>svg]:fill-none flex items-center justify-center">
+              {ActiveIcon}
+            </span>
+          )
+        )}
       </div>
     </div>
   );
 };
+
+
 // ────────────────────────────────────────────────────────────────────────
 
 export const StudentDashboard: React.FC<Props> = ({
@@ -5222,7 +5213,7 @@ export const StudentDashboard: React.FC<Props> = ({
       source ? { lessonTitle: source.lessonTitle, subject: source.subject, pageNo: source.pageNo as any, pageIndex: source.pageIndex as any } : undefined
     ).catch(() => {});
     try { if (navigator.vibrate) navigator.vibrate(alreadyMarked ? 20 : 60); } catch {}
-    
+
   };
 
   // Helper: for any ChunkedNotesReader — returns whether topic is admin-globally-important.
@@ -18363,24 +18354,21 @@ export const StudentDashboard: React.FC<Props> = ({
                 <MeniscusNavIndicator
   activeIndex={activeIndex}
   totalTabs={totalVisible}
-  navBg={tierTheme?.navBg || "#121624"}
-  navBorderColor={(tierTheme as any)?.navBorderColor || (tierTheme?.primary ? tierTheme.primary + "22" : "rgba(255,255,255,0.1)")}
+  navBg={tierTheme.navBg}
+  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
   activeColor={(() => {
     const actId = visibleTabs[activeIndex]?.id;
-    const pt = user?.personalTheme;
-    const defaultColor = tierTheme?.primary || tierTheme?.navActive || "#22c55e";
-
-    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || defaultColor;
-    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || defaultColor;
-    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || defaultColor;
-    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || defaultColor;
-    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || defaultColor;
-    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || defaultColor;
-    return pt?.navActive || defaultColor;
+    const pt = user.personalTheme;
+    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || "#22c55e";
+    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || "#22c55e";
+    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || "#22c55e";
+    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || "#22c55e";
+    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || "#22c55e";
+    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || "#22c55e";
+    return pt?.navActive || "#22c55e";
   })()}
-  ActiveIcon={visibleTabs[activeIndex]?.Icon}
+  ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
-
 
                 {visibleTabs.map((tab) => {
                   const access = tab.featureId
