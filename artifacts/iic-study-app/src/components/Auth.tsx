@@ -329,7 +329,10 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           name: firebaseUser.displayName || 'Student',
           email: firebaseUser.email || '',
           mobile: firebaseUser.phoneNumber || '',
+          password: 'google-auth-user',
           role: 'STUDENT',
+          isPremium: false,
+          profileCompleted: true,
           provider: 'google',
           securityQuestion: DEFAULT_QUESTIONS[0],
           securityAnswer: 'google',
@@ -339,10 +342,13 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           lastLoginDate: new Date().toISOString()
         };
         await saveUserToLive(newUser);
-        triggerWelcome(newUser);
+        if (logActivity) logActivity("SIGNUP", "New student registered via Google", newUser);
+        setGeneratedId(newId);
+        setPendingLoginUser(newUser);
+        setView('SCHOOL_SELECT');
       }
-    } catch {
-      setError('Google Sign-in fail ho gaya.');
+    } catch (e: any) {
+      setError(e?.message || 'Google Sign-in fail ho gaya.');
     }
   };
 
