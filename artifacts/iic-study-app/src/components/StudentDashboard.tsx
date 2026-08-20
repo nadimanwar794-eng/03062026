@@ -18349,6 +18349,14 @@ export const StudentDashboard: React.FC<Props> = ({
             const activeIndex = Math.max(0, visibleTabs.findIndex((t) => t.isActive));
             const tabWidthPct = 100 / totalVisible;
 
+            const activeTabId = visibleTabs[activeIndex]?.id;
+            let activeColor = (tierTheme as any).navActive || tierTheme.primary;
+            if (activeTabId === 'HOME') activeColor = (tierTheme as any).homeGlowColor || '#22c55e';
+            else if (activeTabId === 'ROUTINE') activeColor = (tierTheme as any).routineGlowColor || '#3b82f6';
+            else if (activeTabId === 'REVISION') activeColor = (tierTheme as any).revisionGlowColor || '#a855f7';
+            else if (activeTabId === 'COMMUNITY') activeColor = (tierTheme as any).communityGlowColor || '#f59e0b';
+            else if (activeTabId === 'PROFILE') activeColor = (tierTheme as any).profileGlowColor || '#ef4444';
+
             return (
               <>
                 <MeniscusNavIndicator
@@ -18356,7 +18364,7 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor="#22c55e"
+  activeColor={activeColor}
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
@@ -18431,7 +18439,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className="transition-colors duration-300"
-                            style={{ color: tab.isActive ? (_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
+                            style={{ color: tab.isActive ? (_isNavDark ? activeColor : activeColor) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
                                 ? "currentColor"
@@ -18457,7 +18465,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             ? "font-bold translate-y-[2px] opacity-100"
                             : "font-medium translate-y-0 opacity-100"
                         }`}
-                        style={tab.isActive ? { color: _isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
+                        style={tab.isActive ? { color: _isNavDark ? activeColor : activeColor } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
                       >
                         {tab.label}
                       </span>

@@ -1640,6 +1640,12 @@ export interface UserCustomTheme {
   chapterAccent?: string;
   mcqTabActive?: string;
   topBarEffect?: string;
+  homeGlowColor?: string;
+  routineGlowColor?: string;
+  revisionGlowColor?: string;
+  communityGlowColor?: string;
+  profileGlowColor?: string;
+  appBackgroundImage?: string;
   animColor?: string;
   animSpeed?: number;
   themeName?: string;
