@@ -829,8 +829,49 @@ export const StudentDashboard: React.FC<Props> = ({
                   // 6. Default tier theme
                   : getTierTheme(user);
 
+  // ── Multi-Source Per-Tab Wallpaper & Background Engine ──
+  const { _activeWallpaper, _activeBgColor } = (() => {
+    const rawTheme = _personalTheme || _adminGlobal?.theme || tierTheme;
+    const isPlayer = contentViewStep === 'PLAYER';
+
+    // If we're in notes reading view, bypass wallpaper to keep it clean.
+    if (isPlayer) {
+       return { _activeWallpaper: undefined, _activeBgColor: undefined };
+    }
+
+    // Determine the relevant property based on current tab
+    const tabMap: Record<string, { wp: string, bg: string }> = {
+      'HOME': { wp: 'homeWallpaper', bg: 'homeBgColor' },
+      'REVISION_HUB': { wp: 'revisionHubWallpaper', bg: 'revisionHubBgColor' },
+      'MY_ROUTINE': { wp: 'routineWallpaper', bg: 'routineBgColor' },
+      'COMMUNITY_SUPPORT': { wp: 'communityWallpaper', bg: 'communityBgColor' },
+      'PROFILE': { wp: 'profileWallpaper', bg: 'profileBgColor' },
+    };
+
+    const mapping = tabMap[currentLogicalTab];
+    let customWp: string | undefined = undefined;
+    let customBg: string | undefined = undefined;
+
+    if (mapping) {
+       customWp = (rawTheme as any)[mapping.wp];
+       customBg = (rawTheme as any)[mapping.bg];
+    }
+
+    // Global fallback to Home if no specific tab wallpaper/bg is set
+    const finalWp = customWp || (rawTheme as any).homeWallpaper;
+    const finalBg = customBg || (rawTheme as any).homeBgColor;
+
+    return { _activeWallpaper: finalWp, _activeBgColor: finalBg };
+  })();
+
   // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
   const _appBg = (() => {
+    if (_activeWallpaper) {
+      // Use CSS format for wallpaper directly (URL or base64)
+      return `url(${_activeWallpaper}) center/cover no-repeat fixed`;
+    }
+    if (_activeBgColor) return _activeBgColor;
+
     const themeBg = (tierTheme as any).appBgColor as string | null | undefined;
     if (themeBg && themeBg !== '#ffffff' && themeBg !== '#f8fafc' && themeBg !== '#f1f5f9') return themeBg;
     const manual = (settings as any)?.appBackground;
@@ -18304,6 +18345,35 @@ export const StudentDashboard: React.FC<Props> = ({
             const activeIndex = Math.max(0, visibleTabs.findIndex((t) => t.isActive));
             const tabWidthPct = 100 / totalVisible;
 
+            const getNavActiveColor = (tabId: string) => {
+              const rawTheme = _personalTheme || _adminGlobal?.theme || tierTheme;
+              const defaultTabColors: Record<string, string> = {
+                'HOME': '#22c55e',
+                'REVISION_HUB': '#06b6d4',
+                'MY_ROUTINE': '#f59e0b',
+                'COMMUNITY_SUPPORT': '#ec4899',
+                'PROFILE': '#8b5cf6',
+              };
+              const propMap: Record<string, string> = {
+                'HOME': 'homeNavActive',
+                'REVISION_HUB': 'revisionHubNavActive',
+                'MY_ROUTINE': 'routineNavActive',
+                'COMMUNITY_SUPPORT': 'communityNavActive',
+                'PROFILE': 'profileNavActive',
+              };
+
+              const propName = propMap[tabId];
+              let color = propName ? (rawTheme as any)[propName] : undefined;
+
+              if (!color) {
+                 color = defaultTabColors[tabId];
+              }
+              if (!color) {
+                 color = _isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary;
+              }
+              return color;
+            };
+
             return (
               <>
                 <MeniscusNavIndicator
@@ -18311,7 +18381,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   totalTabs={totalVisible}
                   navBg={tierTheme.navBg}
                   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
-                  activeColor={_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary}
+                  activeColor={getNavActiveColor(visibleTabs[activeIndex]?.id)}
                   ActiveIcon={visibleTabs[activeIndex]?.Icon}
                 />
                 {visibleTabs.map((tab) => {

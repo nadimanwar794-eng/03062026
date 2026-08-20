@@ -43,6 +43,21 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+    homeWallpaper?: string;
+    revisionHubWallpaper?: string;
+    routineWallpaper?: string;
+    communityWallpaper?: string;
+    profileWallpaper?: string;
+    homeBgColor?: string;
+    revisionHubBgColor?: string;
+    routineBgColor?: string;
+    communityBgColor?: string;
+    profileBgColor?: string;
+    homeNavActive?: string;
+    revisionHubNavActive?: string;
+    routineNavActive?: string;
+    communityNavActive?: string;
+    profileNavActive?: string;
 }
 
 const DEFAULT_THEME: ThemeState = {
@@ -52,6 +67,11 @@ const DEFAULT_THEME: ThemeState = {
     navBg: '#ffffff',
     navActive: '#3b82f6',
     navBorder: '#e2e8f0',
+    homeNavActive: '#22c55e',
+    revisionHubNavActive: '#06b6d4',
+    routineNavActive: '#f59e0b',
+    communityNavActive: '#ec4899',
+    profileNavActive: '#8b5cf6',
     cardBg: '#f8fafc',
     cardBorder: '#e2e8f0',
     btnStart: '#3b82f6',
@@ -629,6 +649,21 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         animSpeed:     t.animSpeed,
         themeName:     t.themeName,
         themeEmoji:    t.themeEmoji,
+        homeWallpaper: t.homeWallpaper,
+        revisionHubWallpaper: t.revisionHubWallpaper,
+        routineWallpaper: t.routineWallpaper,
+        communityWallpaper: t.communityWallpaper,
+        profileWallpaper: t.profileWallpaper,
+        homeBgColor: t.homeBgColor,
+        revisionHubBgColor: t.revisionHubBgColor,
+        routineBgColor: t.routineBgColor,
+        communityBgColor: t.communityBgColor,
+        profileBgColor: t.profileBgColor,
+        homeNavActive: t.homeNavActive || DEFAULT_THEME.homeNavActive,
+        revisionHubNavActive: t.revisionHubNavActive || DEFAULT_THEME.revisionHubNavActive,
+        routineNavActive: t.routineNavActive || DEFAULT_THEME.routineNavActive,
+        communityNavActive: t.communityNavActive || DEFAULT_THEME.communityNavActive,
+        profileNavActive: t.profileNavActive || DEFAULT_THEME.profileNavActive,
     };
 };
 
@@ -773,6 +808,21 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             animSpeed:     theme.animSpeed,
             themeName:     theme.themeName,
             themeEmoji:    theme.themeEmoji,
+            homeWallpaper: theme.homeWallpaper,
+            revisionHubWallpaper: theme.revisionHubWallpaper,
+            routineWallpaper: theme.routineWallpaper,
+            communityWallpaper: theme.communityWallpaper,
+            profileWallpaper: theme.profileWallpaper,
+            homeBgColor: theme.homeBgColor,
+            revisionHubBgColor: theme.revisionHubBgColor,
+            routineBgColor: theme.routineBgColor,
+            communityBgColor: theme.communityBgColor,
+            profileBgColor: theme.profileBgColor,
+            homeNavActive: theme.homeNavActive,
+            revisionHubNavActive: theme.revisionHubNavActive,
+            routineNavActive: theme.routineNavActive,
+            communityNavActive: theme.communityNavActive,
+            profileNavActive: theme.profileNavActive,
             createdAt:     new Date().toISOString(),
             likes:         0,
         };
@@ -864,6 +914,21 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         animSpeed:     theme.animSpeed,
         themeName:     theme.themeName,
         themeEmoji:    theme.themeEmoji,
+        homeWallpaper: theme.homeWallpaper,
+        revisionHubWallpaper: theme.revisionHubWallpaper,
+        routineWallpaper: theme.routineWallpaper,
+        communityWallpaper: theme.communityWallpaper,
+        profileWallpaper: theme.profileWallpaper,
+        homeBgColor: theme.homeBgColor,
+        revisionHubBgColor: theme.revisionHubBgColor,
+        routineBgColor: theme.routineBgColor,
+        communityBgColor: theme.communityBgColor,
+        profileBgColor: theme.profileBgColor,
+        homeNavActive: theme.homeNavActive,
+        revisionHubNavActive: theme.revisionHubNavActive,
+        routineNavActive: theme.routineNavActive,
+        communityNavActive: theme.communityNavActive,
+        profileNavActive: theme.profileNavActive,
         createdAt:     new Date().toISOString(),
         likes:         0,
     });
@@ -1188,7 +1253,73 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
 
     const sectionColors: Record<ColorSection, React.ReactNode> = {
         BACKGROUND: isAdmin ? (
-            <ColorRow label="App Background" sub="Puri app ki main background (Admin only)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />
+            <div className="space-y-4">
+                <ColorRow label="App Background (Global Fallback)" sub="Main background (Home)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />
+
+                <div className="pt-2 border-t border-white/10 mt-2">
+                    <p className="text-xs font-black text-white/50 uppercase mb-2">Per-Tab Background Colors</p>
+                    <ColorRow label="Home Tab BG" value={theme.homeBgColor || theme.bgColor} onChange={setColor('homeBgColor')} accent={theme.btnStart} />
+                    <ColorRow label="Revision Hub Tab BG" value={theme.revisionHubBgColor || theme.bgColor} onChange={setColor('revisionHubBgColor')} accent={theme.btnStart} />
+                    <ColorRow label="Routine Tab BG" value={theme.routineBgColor || theme.bgColor} onChange={setColor('routineBgColor')} accent={theme.btnStart} />
+                    <ColorRow label="Community Tab BG" value={theme.communityBgColor || theme.bgColor} onChange={setColor('communityBgColor')} accent={theme.btnStart} />
+                    <ColorRow label="Profile Tab BG" value={theme.profileBgColor || theme.bgColor} onChange={setColor('profileBgColor')} accent={theme.btnStart} />
+                </div>
+
+                <div className="pt-2 border-t border-white/10 mt-2">
+                    <p className="text-xs font-black text-white/50 uppercase mb-2">Per-Tab Wallpapers</p>
+                    {[
+                        { id: 'homeWallpaper', label: 'Home Wallpaper (Global Fallback)' },
+                        { id: 'revisionHubWallpaper', label: 'Revision Hub Wallpaper' },
+                        { id: 'routineWallpaper', label: 'Routine Wallpaper' },
+                        { id: 'communityWallpaper', label: 'Community Wallpaper' },
+                        { id: 'profileWallpaper', label: 'Profile Wallpaper' },
+                    ].map((wp) => (
+                        <div key={wp.id} className="bg-white/5 p-3 rounded-xl mb-2">
+                            <p className="text-[11px] font-bold text-white mb-2">{wp.label}</p>
+                            <input
+                                type="text"
+                                placeholder="Enter direct image URL..."
+                                value={(theme as any)[wp.id] || ''}
+                                onChange={(e) => setColor(wp.id as any)(e.target.value)}
+                                className="w-full bg-black/20 text-white text-xs p-2 rounded-lg border border-white/10 focus:border-white/30 outline-none mb-2"
+                            />
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        if (file.size > 700 * 1024) {
+                                            alert("File size exceeds 700KB. Please choose a smaller image to ensure it saves correctly.");
+                                            return;
+                                        }
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                            if (ev.target?.result) {
+                                                setColor(wp.id as any)(ev.target.result as string);
+                                            }
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }}
+                                />
+                                <button className="w-full bg-white/10 hover:bg-white/20 text-[10px] text-white/70 py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-colors">
+                                    <Globe size={12} /> Upload Image (Max 700KB)
+                                </button>
+                            </div>
+                            {(theme as any)[wp.id] && (
+                                <button
+                                    onClick={() => setColor(wp.id as any)('')}
+                                    className="w-full mt-2 bg-red-500/20 text-red-300 text-[10px] py-1.5 rounded-lg font-bold"
+                                >
+                                    Clear Wallpaper
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
         ) : (
             <div className="py-4 px-2 text-center">
                 <div className="text-2xl mb-2">🔒</div>
@@ -1207,7 +1338,17 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 {isAdmin && (
                     <ColorRow label="Nav Background" sub="Bottom bar ka background (Admin only)" value={theme.navBg} onChange={setColor('navBg')} accent={theme.btnStart} />
                 )}
-                <ColorRow label="Active Tab Color" sub="Selected tab color + underline" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <ColorRow label="Default Active Tab Color" sub="Global fallback color" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+
+                <div className="pt-2 border-t border-white/10 mt-2">
+                    <p className="text-xs font-black text-white/50 uppercase mb-2">Per-Tab Active Colors</p>
+                    <ColorRow label="Home Active" value={theme.homeNavActive || DEFAULT_THEME.homeNavActive} onChange={setColor('homeNavActive')} accent={theme.btnStart} />
+                    <ColorRow label="Revision Hub Active" value={theme.revisionHubNavActive || DEFAULT_THEME.revisionHubNavActive} onChange={setColor('revisionHubNavActive')} accent={theme.btnStart} />
+                    <ColorRow label="Routine Active" value={theme.routineNavActive || DEFAULT_THEME.routineNavActive} onChange={setColor('routineNavActive')} accent={theme.btnStart} />
+                    <ColorRow label="Community Active" value={theme.communityNavActive || DEFAULT_THEME.communityNavActive} onChange={setColor('communityNavActive')} accent={theme.btnStart} />
+                    <ColorRow label="Profile Active" value={theme.profileNavActive || DEFAULT_THEME.profileNavActive} onChange={setColor('profileNavActive')} accent={theme.btnStart} />
+                </div>
+
                 <ColorRow label="Nav Border"       sub="Top border line ka color"       value={theme.navBorder} onChange={setColor('navBorder')} accent={theme.btnStart} />
             </>
         ),
