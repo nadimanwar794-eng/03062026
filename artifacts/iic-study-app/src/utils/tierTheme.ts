@@ -252,6 +252,23 @@ export const buildGranularTierTheme = (
     progressColor:   t.progressColor|| accent,
     accentGlowColor: t.accentGlow   || accent,
     appBgColor:      t.bgColor      || null,
+
+    navHomeActive:      (t as any).navHomeActive,
+    navHomeGlow:        (t as any).navHomeGlow,
+    navRevisionActive:  (t as any).navRevisionActive,
+    navRevisionGlow:    (t as any).navRevisionGlow,
+    navRoutineActive:   (t as any).navRoutineActive,
+    navRoutineGlow:     (t as any).navRoutineGlow,
+    navCommunityActive: (t as any).navCommunityActive,
+    navCommunityGlow:   (t as any).navCommunityGlow,
+    navProfileActive:   (t as any).navProfileActive,
+    navProfileGlow:     (t as any).navProfileGlow,
+
+    wallpaperHome:      (t as any).wallpaperHome,
+    wallpaperRevision:  (t as any).wallpaperRevision,
+    wallpaperRoutine:   (t as any).wallpaperRoutine,
+    wallpaperCommunity: (t as any).wallpaperCommunity,
+    wallpaperProfile:   (t as any).wallpaperProfile,
   };
 };
 
