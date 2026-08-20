@@ -543,12 +543,13 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ----- MENISCUS NAV INDICATOR -----
+// ── MENISCUS NAV INDICATOR (SAFE RENDERER) ──
 const MeniscusNavIndicator = ({
-  activeIndex,
-  totalTabs,
-  navBg,
-  navBorderColor,
-  activeColor,
+  activeIndex = 0,
+  totalTabs = 5,
+  navBg = "#121624",
+  navBorderColor = "rgba(255,255,255,0.1)",
+  activeColor = "#22c55e",
   ActiveIcon,
 }: {
   activeIndex: number;
@@ -561,6 +562,9 @@ const MeniscusNavIndicator = ({
   const dockPathRef = React.useRef<SVGPathElement | null>(null);
   const beadRef = React.useRef<HTMLDivElement | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const safeIdx = typeof activeIndex === 'number' && activeIndex >= 0 ? activeIndex : 0;
+  const count = totalTabs > 0 ? totalTabs : 5;
 
   const animState = React.useRef({
     currentX: 0,
@@ -590,8 +594,8 @@ const MeniscusNavIndicator = ({
     animState.current.isAwake = true;
 
     const loop = () => {
-      const spring = 0.16;
-      const damping = 0.68;
+      const spring = 0.18;
+      const damping = 0.65;
       const state = animState.current;
 
       const force = (state.targetX - state.currentX) * spring;
@@ -627,18 +631,18 @@ const MeniscusNavIndicator = ({
     const updateTarget = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        if (rect.width === 0) return; // Zero-width render avoid karta hai
+        const width = rect.width || 360;
+        const height = rect.height || 64;
 
-        animState.current.w = rect.width;
-        animState.current.h = rect.height;
-        const count = totalTabs || 5;
-        const tabWidth = rect.width / count;
-        animState.current.targetX = (activeIndex + 0.5) * tabWidth;
+        animState.current.w = width;
+        animState.current.h = height;
+        const tabWidth = width / count;
+        animState.current.targetX = (safeIdx + 0.5) * tabWidth;
 
         if (animState.current.currentX === 0) {
           animState.current.currentX = animState.current.targetX;
           if (dockPathRef.current) {
-            dockPathRef.current.setAttribute("d", generatePath(animState.current.currentX, rect.width, rect.height));
+            dockPathRef.current.setAttribute("d", generatePath(animState.current.currentX, width, height));
           }
           if (beadRef.current) {
             beadRef.current.style.transform = `translateX(${animState.current.currentX - 24}px)`;
@@ -651,44 +655,49 @@ const MeniscusNavIndicator = ({
     updateTarget();
     window.addEventListener("resize", updateTarget);
     return () => window.removeEventListener("resize", updateTarget);
-  }, [activeIndex, totalTabs, wakeUp]);
+  }, [safeIdx, count, wakeUp]);
 
-  // Robust Lucide/JSX Icon Renderer
-  const renderActiveIcon = () => {
+  // Direct render for all icon types
+  const renderIcon = () => {
     if (!ActiveIcon) return null;
-    
-    // Agar React Element pehle se bana hua hai
+
     if (React.isValidElement(ActiveIcon)) {
-      return React.cloneElement(ActiveIcon as React.ReactElement<any>, {
-        className: "w-6 h-6 text-white stroke-white stroke-[2.4] fill-none",
+      return React.cloneElement(ActiveIcon, {
+        size: 22,
+        className: 'w-5 h-5 text-white',
+        color: '#ffffff',
       });
     }
 
-    // Agar Component / Function / ForwardRef pass kiya gaya hai
-    const IconComp = ActiveIcon;
-    return <IconComp className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />;
+    if (typeof ActiveIcon === 'function' || typeof ActiveIcon === 'object') {
+      const IconComponent = ActiveIcon;
+      return <IconComponent size={22} className="w-5 h-5 text-white" color="#ffffff" />;
+    }
+
+    return null;
   };
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible z-0">
-      <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+      <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
         <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
       </svg>
-      
       <div
         ref={beadRef}
-        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white shadow-lg"
+        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-30 flex items-center justify-center pointer-events-none shadow-lg"
         style={{
-          background: activeColor || "#22c55e",
-          boxShadow: `0 0 25px ${activeColor || "#22c55e"}99`,
+          backgroundColor: activeColor || "#22c55e",
+          boxShadow: `0 0 25px ${activeColor || "#22c55e"}aa`,
           willChange: "transform",
         }}
       >
-        {renderActiveIcon()}
+        {renderIcon()}
       </div>
     </div>
   );
 };
+
+        
 // ────────────────────────────────────────────────────────────────────────
 
 export const StudentDashboard: React.FC<Props> = ({
@@ -18361,23 +18370,26 @@ export const StudentDashboard: React.FC<Props> = ({
             return (
               <>
                 <MeniscusNavIndicator
-  activeIndex={activeIndex}
-  totalTabs={totalVisible}
-  navBg={tierTheme.navBg}
-  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
+  activeIndex={Math.max(0, activeIndex)}
+  totalTabs={totalVisible || visibleTabs?.length || 5}
+  navBg={tierTheme?.navBg || "#121624"}
+  navBorderColor={(tierTheme as any)?.navBorderColor || "rgba(255,255,255,0.1)"}
   activeColor={(() => {
-    const actId = visibleTabs[activeIndex]?.id;
-    const pt = user.personalTheme;
-    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || "#22c55e";
-    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || "#22c55e";
-    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || "#22c55e";
-    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || "#22c55e";
-    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || "#22c55e";
-    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || "#22c55e";
-    return pt?.navActive || "#22c55e";
+    const actId = visibleTabs?.[Math.max(0, activeIndex)]?.id;
+    const pt = user?.personalTheme;
+    const def = tierTheme?.primary || tierTheme?.navActive || "#22c55e";
+
+    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || def;
+    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || def;
+    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || def;
+    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || def;
+    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || def;
+    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || def;
+    return pt?.navActive || def;
   })()}
-  ActiveIcon={visibleTabs[activeIndex]?.icon}
+  ActiveIcon={visibleTabs?.[Math.max(0, activeIndex)]?.icon}
 />
+
 
                 {visibleTabs.map((tab) => {
                   const access = tab.featureId
