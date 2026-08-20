@@ -494,6 +494,35 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         setRecoveryUserObj(targetUser);
         setRecoveryStep(2);
       } else {
+
+        const newId = `${Date.now().toString().slice(-4)}${Math.floor(100000 + Math.random() * 900000)}`;
+        const newUser: User = {
+          id: firebaseUser.uid,
+          displayId: newId,
+          name: firebaseUser.displayName || 'Student',
+          email: firebaseUser.email || '',
+          mobile: firebaseUser.phoneNumber || '',
+          password: 'google-auth-user',
+          role: 'STUDENT',
+          isPremium: false,
+          profileCompleted: true,
+          provider: 'google',
+          securityQuestion: DEFAULT_QUESTIONS[0],
+          securityAnswer: 'google',
+          credits: appSettings?.signupBonus || 50,
+          streak: 0,
+          createdAt: new Date().toISOString(),
+          lastLoginDate: new Date().toISOString()
+        };
+        await saveUserToLive(newUser);
+        if (logActivity) logActivity("SIGNUP", "New student registered via Google", newUser);
+        setGeneratedId(newId);
+        setPendingLoginUser(newUser);
+        setView('SCHOOL_SELECT');
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Google Sign-in fail ho gaya.');
+
         setError("Is detail se koi account nahi mila.");
       }
     } catch {
@@ -566,6 +595,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       } else {
         setError("Invalid Verification Code.");
       }
+
     }
   };
 
