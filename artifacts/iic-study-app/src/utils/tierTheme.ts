@@ -201,6 +201,22 @@ export const buildGranularTierTheme = (
     btnStart?: string; btnEnd?: string; accentColor?: string;
     textColor?: string; textSecondary?: string;
     accentGlow?: string; progressColor?: string;
+    navHomeActive?: string;
+    navHomeGlow?: string;
+    navRevisionActive?: string;
+    navRevisionGlow?: string;
+    navRoutineActive?: string;
+    navRoutineGlow?: string;
+    navCommunityActive?: string;
+    navCommunityGlow?: string;
+    navProfileActive?: string;
+    navProfileGlow?: string;
+    wallpaperHome?: string;
+    wallpaperRevision?: string;
+    wallpaperRoutine?: string;
+    wallpaperCommunity?: string;
+    wallpaperProfile?: string;
+
   }
 ): typeof TIER_THEME[UserTier] => {
   const accent = t.btnStart || t.accentColor || base.primary;
@@ -252,6 +268,23 @@ export const buildGranularTierTheme = (
     progressColor:   t.progressColor|| accent,
     accentGlowColor: t.accentGlow   || accent,
     appBgColor:      t.bgColor      || null,
+
+    navHomeActive: t.navHomeActive,
+    navHomeGlow: t.navHomeGlow,
+    navRevisionActive: t.navRevisionActive,
+    navRevisionGlow: t.navRevisionGlow,
+    navRoutineActive: t.navRoutineActive,
+    navRoutineGlow: t.navRoutineGlow,
+    navCommunityActive: t.navCommunityActive,
+    navCommunityGlow: t.navCommunityGlow,
+    navProfileActive: t.navProfileActive,
+    navProfileGlow: t.navProfileGlow,
+    wallpaperHome: t.wallpaperHome,
+    wallpaperRevision: t.wallpaperRevision,
+    wallpaperRoutine: t.wallpaperRoutine,
+    wallpaperCommunity: t.wallpaperCommunity,
+    wallpaperProfile: t.wallpaperProfile,
+
   };
 };
 

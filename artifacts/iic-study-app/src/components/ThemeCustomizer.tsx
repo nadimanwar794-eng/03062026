@@ -43,6 +43,22 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+    navHomeActive?: string;
+    navHomeGlow?: string;
+    navRevisionActive?: string;
+    navRevisionGlow?: string;
+    navRoutineActive?: string;
+    navRoutineGlow?: string;
+    navCommunityActive?: string;
+    navCommunityGlow?: string;
+    navProfileActive?: string;
+    navProfileGlow?: string;
+    wallpaperHome?: string;
+    wallpaperRevision?: string;
+    wallpaperRoutine?: string;
+    wallpaperCommunity?: string;
+    wallpaperProfile?: string;
+
 }
 
 const DEFAULT_THEME: ThemeState = {
@@ -498,7 +514,7 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'WALLPAPERS';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
@@ -511,6 +527,7 @@ const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; 
     { id: 'FLASHCARD',  label: 'Flashcard',  icon: <Sparkles size={13} />,     desc: 'Flashcard screen background gradient' },
     { id: 'TEXT',       label: 'Text',       icon: <Type size={13} />,         desc: 'Primary aur secondary text alag' },
     { id: 'ACCENTS',    label: 'Accents',    icon: <Star size={13} />,         desc: 'Glow aur progress bar alag' },
+    { id: 'WALLPAPERS', label: 'Wallpapers', icon: <Home size={13} />, desc: 'Set wallpapers for each tab' },
 ];
 
 interface ColorRowProps {
@@ -519,8 +536,9 @@ interface ColorRowProps {
     value: string;
     onChange: (v: string) => void;
     accent: string;
+    isImage?: boolean;
 }
-const ColorRow: React.FC<ColorRowProps> = ({ label, sub, value, onChange, accent }) => {
+const ColorRow: React.FC<ColorRowProps> = ({ label, sub, value, onChange, accent, isImage }) => {
     const [hexInput, setHexInput] = React.useState(value.toUpperCase());
     const [hexError, setHexError] = React.useState(false);
 
@@ -550,53 +568,100 @@ const ColorRow: React.FC<ColorRowProps> = ({ label, sub, value, onChange, accent
     return (
         <div className="py-2.5 border-b border-white/5 last:border-0">
             <div className="flex items-center gap-3">
-                <div
-                    className="w-10 h-10 rounded-xl border-2 shrink-0 cursor-pointer relative overflow-hidden shadow-lg"
-                    style={{ background: value, borderColor: `${accent}40` }}
-                >
-                    <input
-                        type="color" value={value}
-                        onChange={e => onChange(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                </div>
+                {isImage ? (
+                    <div
+                        className="w-10 h-10 rounded-xl border-2 shrink-0 cursor-pointer relative overflow-hidden shadow-lg flex items-center justify-center bg-white/5"
+                        style={{ borderColor: `${accent}40`, backgroundImage: value ? `url(${value})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}
+                    >
+                        {!value && <span className="text-xs">📷</span>}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 700 * 1024) {
+                                    alert('File size must be under 700KB');
+                                    return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    onChange(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                            }}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                    </div>
+                ) : (
+                    <div
+                        className="w-10 h-10 rounded-xl border-2 shrink-0 cursor-pointer relative overflow-hidden shadow-lg"
+                        style={{ background: value, borderColor: `${accent}40` }}
+                    >
+                        <input
+                            type="color" value={value || '#000000'}
+                            onChange={e => onChange(e.target.value)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                    </div>
+                )}
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-white/90">{label}</p>
                     {sub && <p className="text-[9px] text-white/35 mt-0.5">{sub}</p>}
                 </div>
-                <div
-                    className="w-6 h-6 rounded-lg border border-white/10 cursor-pointer relative overflow-hidden shrink-0"
-                    style={{ background: value }}
-                >
-                    <input
-                        type="color" value={value}
-                        onChange={e => onChange(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                </div>
+                {!isImage && (
+                    <div
+                        className="w-6 h-6 rounded-lg border border-white/10 cursor-pointer relative overflow-hidden shrink-0"
+                        style={{ background: value }}
+                    >
+                        <input
+                            type="color" value={value || '#000000'}
+                            onChange={e => onChange(e.target.value)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                    </div>
+                )}
             </div>
-            {/* Hex code input */}
+            {/* Hex code or URL input */}
             <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 flex items-center rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: hexError ? '1px solid rgba(239,68,68,0.6)' : '1px solid rgba(255,255,255,0.1)' }}>
-                    <span className="px-2.5 text-[10px] font-black text-white/30 border-r border-white/10 select-none py-2">#</span>
-                    <input
-                        type="text"
-                        value={hexInput.replace('#', '')}
-                        onChange={e => handleHexChange(e.target.value)}
-                        onBlur={handleHexBlur}
-                        placeholder="Code daalo (e.g. FF5733)"
-                        maxLength={6}
-                        className="flex-1 px-2 py-2 text-[10px] font-mono font-bold bg-transparent outline-none placeholder-white/15"
-                        style={{ color: hexError ? '#f87171' : 'rgba(255,255,255,0.75)' }}
-                    />
-                    {!hexError && hexInput.length === 7 && (
-                        <div className="w-4 h-4 rounded-full mx-2 shrink-0 border border-white/20" style={{ background: value }} />
-                    )}
-                    {hexError && (
-                        <span className="text-[9px] text-red-400 px-2 shrink-0">❌</span>
-                    )}
-                </div>
-                <span className="text-[8px] text-white/20 font-bold shrink-0">Hex</span>
+                {isImage ? (
+                    <>
+                        <div className="flex-1 flex items-center rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <span className="px-2.5 text-[10px] font-black text-white/30 border-r border-white/10 select-none py-2">🔗</span>
+                            <input
+                                type="text"
+                                value={value || ''}
+                                onChange={e => onChange(e.target.value)}
+                                placeholder="Paste image URL..."
+                                className="flex-1 px-2 py-2 text-[10px] font-mono font-bold bg-transparent outline-none placeholder-white/15 text-white/75"
+                            />
+                        </div>
+                        <span className="text-[8px] text-white/20 font-bold shrink-0">URL</span>
+                    </>
+                ) : (
+                    <>
+                        <div className="flex-1 flex items-center rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: hexError ? '1px solid rgba(239,68,68,0.6)' : '1px solid rgba(255,255,255,0.1)' }}>
+                            <span className="px-2.5 text-[10px] font-black text-white/30 border-r border-white/10 select-none py-2">#</span>
+                            <input
+                                type="text"
+                                value={hexInput.replace('#', '')}
+                                onChange={e => handleHexChange(e.target.value)}
+                                onBlur={handleHexBlur}
+                                placeholder="Code daalo (e.g. FF5733)"
+                                maxLength={6}
+                                className="flex-1 px-2 py-2 text-[10px] font-mono font-bold bg-transparent outline-none placeholder-white/15"
+                                style={{ color: hexError ? '#f87171' : 'rgba(255,255,255,0.75)' }}
+                            />
+                            {!hexError && hexInput.length === 7 && (
+                                <div className="w-4 h-4 rounded-full mx-2 shrink-0 border border-white/20" style={{ background: value }} />
+                            )}
+                            {hexError && (
+                                <span className="text-[9px] text-red-400 px-2 shrink-0">❌</span>
+                            )}
+                        </div>
+                        <span className="text-[8px] text-white/20 font-bold shrink-0">Hex</span>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -1202,6 +1267,18 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 <ColorRow label="Gradient — Right Color" sub="Top bar ka seedha taraf" value={theme.topBarEnd}   onChange={setColor('topBarEnd')}   accent={theme.btnStart} />
             </>
         ),
+        WALLPAPERS: (
+            <>
+                <div className="text-[10px] text-white/40 mb-4 px-2">Paste image URL or upload image (under 700KB) to set multi-source wallpapers.</div>
+
+                <ColorRow label="Home Wallpaper (Default fallback)" sub="Global fallback background image URL or base64" value={theme.wallpaperHome || ''} onChange={setColor('wallpaperHome')} accent={theme.btnStart} isImage={true} />
+                <ColorRow label="Revision Hub Wallpaper" sub="Background image URL or base64 for Revision Hub" value={theme.wallpaperRevision || ''} onChange={setColor('wallpaperRevision')} accent={theme.btnStart} isImage={true} />
+                <ColorRow label="My Routine Wallpaper" sub="Background image URL or base64 for My Routine" value={theme.wallpaperRoutine || ''} onChange={setColor('wallpaperRoutine')} accent={theme.btnStart} isImage={true} />
+                <ColorRow label="Community Wallpaper" sub="Background image URL or base64 for Community" value={theme.wallpaperCommunity || ''} onChange={setColor('wallpaperCommunity')} accent={theme.btnStart} isImage={true} />
+                <ColorRow label="Profile Wallpaper" sub="Background image URL or base64 for Profile" value={theme.wallpaperProfile || ''} onChange={setColor('wallpaperProfile')} accent={theme.btnStart} isImage={true} />
+            </>
+        ),
+
         NAVIGATION: (
             <>
                 {isAdmin && (
@@ -1209,6 +1286,17 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 )}
                 <ColorRow label="Active Tab Color" sub="Selected tab color + underline" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
                 <ColorRow label="Nav Border"       sub="Top border line ka color"       value={theme.navBorder} onChange={setColor('navBorder')} accent={theme.btnStart} />
+                <ColorRow label="Home Tab Active Color" sub="Icon color when Home is active" value={theme.navHomeActive || '#22c55e'} onChange={setColor('navHomeActive')} accent={theme.btnStart} />
+                <ColorRow label="Home Tab Glow" sub="Indicator glow when Home is active" value={theme.navHomeGlow || '#22c55e'} onChange={setColor('navHomeGlow')} accent={theme.btnStart} />
+                <ColorRow label="Revision Tab Active Color" sub="Icon color when Revision is active" value={theme.navRevisionActive || '#06b6d4'} onChange={setColor('navRevisionActive')} accent={theme.btnStart} />
+                <ColorRow label="Revision Tab Glow" sub="Indicator glow when Revision is active" value={theme.navRevisionGlow || '#06b6d4'} onChange={setColor('navRevisionGlow')} accent={theme.btnStart} />
+                <ColorRow label="Routine Tab Active Color" sub="Icon color when Routine is active" value={theme.navRoutineActive || '#f59e0b'} onChange={setColor('navRoutineActive')} accent={theme.btnStart} />
+                <ColorRow label="Routine Tab Glow" sub="Indicator glow when Routine is active" value={theme.navRoutineGlow || '#f59e0b'} onChange={setColor('navRoutineGlow')} accent={theme.btnStart} />
+                <ColorRow label="Community Tab Active Color" sub="Icon color when Community is active" value={theme.navCommunityActive || '#ec4899'} onChange={setColor('navCommunityActive')} accent={theme.btnStart} />
+                <ColorRow label="Community Tab Glow" sub="Indicator glow when Community is active" value={theme.navCommunityGlow || '#ec4899'} onChange={setColor('navCommunityGlow')} accent={theme.btnStart} />
+                <ColorRow label="Profile Tab Active Color" sub="Icon color when Profile is active" value={theme.navProfileActive || '#8b5cf6'} onChange={setColor('navProfileActive')} accent={theme.btnStart} />
+                <ColorRow label="Profile Tab Glow" sub="Indicator glow when Profile is active" value={theme.navProfileGlow || '#8b5cf6'} onChange={setColor('navProfileGlow')} accent={theme.btnStart} />
+
             </>
         ),
         CARDS: (

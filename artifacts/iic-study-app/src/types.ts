@@ -1649,6 +1649,25 @@ export interface UserCustomTheme {
   publishedAt?: string;
   publishedName?: string;
   likes?: number;
+  // Per-Tab Customization
+  navHomeActive?: string;
+  navHomeGlow?: string;
+  navRevisionActive?: string;
+  navRevisionGlow?: string;
+  navRoutineActive?: string;
+  navRoutineGlow?: string;
+  navCommunityActive?: string;
+  navCommunityGlow?: string;
+  navProfileActive?: string;
+  navProfileGlow?: string;
+
+  // Multi-Source Wallpaper Engine
+  wallpaperHome?: string; // Global default fallback
+  wallpaperRevision?: string;
+  wallpaperRoutine?: string;
+  wallpaperCommunity?: string;
+  wallpaperProfile?: string;
+
 }
 
 export interface AdminSavedTheme {
@@ -1714,6 +1733,25 @@ export interface UserCustomAnimation {
   publishedAt?: string;
   publishedName?: string;
   likes?: number;
+  // Per-Tab Customization
+  navHomeActive?: string;
+  navHomeGlow?: string;
+  navRevisionActive?: string;
+  navRevisionGlow?: string;
+  navRoutineActive?: string;
+  navRoutineGlow?: string;
+  navCommunityActive?: string;
+  navCommunityGlow?: string;
+  navProfileActive?: string;
+  navProfileGlow?: string;
+
+  // Multi-Source Wallpaper Engine
+  wallpaperHome?: string; // Global default fallback
+  wallpaperRevision?: string;
+  wallpaperRoutine?: string;
+  wallpaperCommunity?: string;
+  wallpaperProfile?: string;
+
 }
 
 export type Language = 'English' | 'Hindi';
