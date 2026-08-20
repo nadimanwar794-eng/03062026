@@ -500,8 +500,11 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
 
 type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
 
-const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
+type ColorSectionExt = ColorSection | 'WALLPAPERS';
+
+const SECTIONS: Array<{ id: ColorSectionExt; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
+    { id: 'WALLPAPERS', label: 'Wallpapers', icon: <Layers size={13} />,      desc: 'Wallpapers for different screens' },
     { id: 'TOPBAR',     label: 'Top Bar',    icon: <ChevronRight size={13} />, desc: 'Header gradient — dono colors alag' },
     { id: 'NAVIGATION', label: 'Navigation', icon: <Navigation size={13} />,   desc: 'Bottom nav — 3 colors alag' },
     { id: 'CARDS',      label: 'Cards',      icon: <Square size={13} />,       desc: 'Card background aur border alag' },
@@ -642,7 +645,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
     /* ── STATE ── */
     const [theme, setTheme]               = useState<ThemeState>(() => stateFromTheme(user.personalTheme));
     const [saving, setSaving]             = useState(false);
-    const [activeSection, setActiveSection] = useState<ColorSection>('TOPBAR');
+    const [activeSection, setActiveSection] = useState<ColorSectionExt>('TOPBAR');
 
     /* ── CUSTOM THEME BUILDER ── */
     const [builderMode, setBuilderMode]         = useState<'SIMPLE' | 'ADVANCED'>('SIMPLE');
@@ -847,6 +850,16 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         topBarEnd:     theme.topBarEnd,
         navBg:         theme.navBg,
         navActive:     theme.navActive,
+        navHomeColor:  theme.navHomeColor,
+        navRevisionColor: theme.navRevisionColor,
+        navRoutineColor: theme.navRoutineColor,
+        navCommunityColor: theme.navCommunityColor,
+        navProfileColor: theme.navProfileColor,
+        appWallpaperUrl: theme.appWallpaperUrl,
+        revisionWallpaperUrl: theme.revisionWallpaperUrl,
+        routineWallpaperUrl: theme.routineWallpaperUrl,
+        communityWallpaperUrl: theme.communityWallpaperUrl,
+        profileWallpaperUrl: theme.profileWallpaperUrl,
         navBorder:     theme.navBorder,
         cardBg:        theme.cardBg,
         cardBorder:    theme.cardBorder,
@@ -1208,7 +1221,58 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                     <ColorRow label="Nav Background" sub="Bottom bar ka background (Admin only)" value={theme.navBg} onChange={setColor('navBg')} accent={theme.btnStart} />
                 )}
                 <ColorRow label="Active Tab Color" sub="Selected tab color + underline" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <ColorRow label="Home Tab Color" sub="Color of the Home tab when active" value={theme.navHomeColor || theme.navActive} onChange={setColor('navHomeColor')} accent={theme.btnStart} />
+                <ColorRow label="Revision Tab Color" sub="Color of the Revision tab when active" value={theme.navRevisionColor || theme.navActive} onChange={setColor('navRevisionColor')} accent={theme.btnStart} />
+                <ColorRow label="Routine Tab Color" sub="Color of the Routine tab when active" value={theme.navRoutineColor || theme.navActive} onChange={setColor('navRoutineColor')} accent={theme.btnStart} />
+                <ColorRow label="Community Tab Color" sub="Color of the Community tab when active" value={theme.navCommunityColor || theme.navActive} onChange={setColor('navCommunityColor')} accent={theme.btnStart} />
+                <ColorRow label="Profile Tab Color" sub="Color of the Profile tab when active" value={theme.navProfileColor || theme.navActive} onChange={setColor('navProfileColor')} accent={theme.btnStart} />
                 <ColorRow label="Nav Border"       sub="Top border line ka color"       value={theme.navBorder} onChange={setColor('navBorder')} accent={theme.btnStart} />
+            </>
+        ),
+        WALLPAPERS: (
+            <>
+                {[
+                    { key: 'appWallpaperUrl', label: 'Home Page Wallpaper (Default everywhere else)' },
+                    { key: 'revisionWallpaperUrl', label: 'Revision Page Wallpaper' },
+                    { key: 'routineWallpaperUrl', label: 'Routine Page Wallpaper' },
+                    { key: 'communityWallpaperUrl', label: 'Community Page Wallpaper' },
+                    { key: 'profileWallpaperUrl', label: 'Profile Page Wallpaper' },
+                ].map((item) => (
+                    <div key={item.key} className="flex flex-col gap-1 mb-2">
+                        <label className="text-[10px] text-white/50 font-bold ml-1">{item.label}</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                                value={(theme as any)[item.key] || ''}
+                                onChange={(e) => setColor(item.key as any)(e.target.value)}
+                                placeholder="URL (https://...)"
+                            />
+                            <label className="flex items-center justify-center bg-white/10 rounded-lg px-3 py-2 cursor-pointer border border-white/20 active:scale-95 transition-transform" title="Upload Image">
+                                <span className="text-xs">📂</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => {
+                                                const dataUrl = ev.target?.result as string;
+                                                setColor(item.key as any)(dataUrl);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        {(theme as any)[item.key] && (
+                            <img src={(theme as any)[item.key]} alt="Preview" className="h-16 w-32 object-cover rounded-lg border border-white/20 mt-1" />
+                        )}
+                    </div>
+                ))}
             </>
         ),
         CARDS: (

@@ -197,6 +197,11 @@ export const buildGranularTierTheme = (
   t: {
     bgColor?: string; topBarStart?: string; topBarEnd?: string;
     navBg?: string; navBorder?: string; navActive?: string;
+    navHomeColor?: string; navRevisionColor?: string; navRoutineColor?: string;
+    navCommunityColor?: string; navProfileColor?: string;
+    appWallpaperUrl?: string; revisionWallpaperUrl?: string;
+    routineWallpaperUrl?: string; communityWallpaperUrl?: string;
+    profileWallpaperUrl?: string;
     cardBg?: string; cardColor?: string; cardBorder?: string;
     btnStart?: string; btnEnd?: string; accentColor?: string;
     textColor?: string; textSecondary?: string;
@@ -245,6 +250,16 @@ export const buildGranularTierTheme = (
     cardBg:          '#ffffff',
     // Granular extras — accessible via (tierTheme as any).xxx
     navActive:       t.navActive    || accent,
+    navHomeColor:    t.navHomeColor || t.navActive || accent,
+    navRevisionColor: t.navRevisionColor || t.navActive || accent,
+    navRoutineColor: t.navRoutineColor || t.navActive || accent,
+    navCommunityColor: t.navCommunityColor || t.navActive || accent,
+    navProfileColor: t.navProfileColor || t.navActive || accent,
+    appWallpaperUrl: t.appWallpaperUrl || null,
+    revisionWallpaperUrl: t.revisionWallpaperUrl || null,
+    routineWallpaperUrl: t.routineWallpaperUrl || null,
+    communityWallpaperUrl: t.communityWallpaperUrl || null,
+    profileWallpaperUrl: t.profileWallpaperUrl || null,
     navBorderColor:  t.navBorder    || `rgba(${r},${g},${b},0.22)`,
     cardBorderColor: t.cardBorder   || `rgba(${r},${g},${b},0.28)`,
     textPrimary:     t.textColor    || accent,
