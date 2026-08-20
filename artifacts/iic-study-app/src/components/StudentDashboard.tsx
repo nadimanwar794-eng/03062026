@@ -18356,7 +18356,17 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor="#22c55e"
+  activeColor={(() => {
+    const actId = visibleTabs[activeIndex]?.id;
+    const pt = user.personalTheme;
+    if (actId === 'HOME') return pt?.navHomeActive || pt?.navActive || "#22c55e";
+    if (actId === 'REVISION_HUB') return pt?.navRevisionActive || pt?.navActive || "#22c55e";
+    if (actId === 'MY_ROUTINE') return pt?.navRoutineActive || pt?.navActive || "#22c55e";
+    if (actId === 'COMMUNITY_SUPPORT') return pt?.navCommunityActive || pt?.navActive || "#22c55e";
+    if (actId === 'APP_STORE') return pt?.navAppsActive || pt?.navActive || "#22c55e";
+    if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || "#22c55e";
+    return pt?.navActive || "#22c55e";
+  })()}
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
@@ -18431,7 +18441,19 @@ export const StudentDashboard: React.FC<Props> = ({
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className="transition-colors duration-300"
-                            style={{ color: tab.isActive ? (_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
+                            style={(() => {
+                              const pt = user.personalTheme;
+                              if (tab.isActive && pt) {
+                                if (tab.id === 'HOME' && pt.navHomeActive) return { color: pt.navHomeActive };
+                                if (tab.id === 'REVISION_HUB' && pt.navRevisionActive) return { color: pt.navRevisionActive };
+                                if (tab.id === 'MY_ROUTINE' && pt.navRoutineActive) return { color: pt.navRoutineActive };
+                                if (tab.id === 'COMMUNITY_SUPPORT' && pt.navCommunityActive) return { color: pt.navCommunityActive };
+                                if (tab.id === 'APP_STORE' && pt.navAppsActive) return { color: pt.navAppsActive };
+                                if (tab.id === 'PROFILE' && pt.navProfileActive) return { color: pt.navProfileActive };
+                                if (pt.navActive) return { color: pt.navActive };
+                              }
+                              return { color: tab.isActive ? (_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') };
+                            })()}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
                                 ? "currentColor"

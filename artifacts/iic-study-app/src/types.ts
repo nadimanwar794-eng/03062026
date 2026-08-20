@@ -1627,6 +1627,15 @@ export interface UserCustomTheme {
   topBarEnd?: string;
   navBg?: string;
   navActive?: string;
+  navHomeActive?: string;
+  navRevisionActive?: string;
+  navRoutineActive?: string;
+  navCommunityActive?: string;
+  navProfileActive?: string;
+  navAppsActive?: string;
+  pageWallpaperUrl?: string;
+  pageWallpaperBase64?: string;
+  pageBgColor?: string;
   navBorder?: string;
   cardBg?: string;
   cardBorder?: string;

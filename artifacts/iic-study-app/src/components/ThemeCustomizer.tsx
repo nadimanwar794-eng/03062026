@@ -25,6 +25,15 @@ interface ThemeState {
     topBarEnd: string;
     navBg: string;
     navActive: string;
+    navHomeActive?: string;
+    navRevisionActive?: string;
+    navRoutineActive?: string;
+    navCommunityActive?: string;
+    navProfileActive?: string;
+    navAppsActive?: string;
+    pageWallpaperUrl?: string;
+    pageWallpaperBase64?: string;
+    pageBgColor?: string;
     navBorder: string;
     cardBg: string;
     cardBorder: string;
@@ -51,6 +60,12 @@ const DEFAULT_THEME: ThemeState = {
     topBarEnd: '#0f1e3c',
     navBg: '#ffffff',
     navActive: '#3b82f6',
+    navHomeActive: '#3b82f6',
+    navRevisionActive: '#3b82f6',
+    navRoutineActive: '#3b82f6',
+    navCommunityActive: '#3b82f6',
+    navProfileActive: '#3b82f6',
+    navAppsActive: '#3b82f6',
     navBorder: '#e2e8f0',
     cardBg: '#f8fafc',
     cardBorder: '#e2e8f0',
@@ -498,7 +513,7 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'WALLPAPER';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
@@ -611,6 +626,15 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         topBarEnd:     t.topBarEnd     || DEFAULT_THEME.topBarEnd,
         navBg:         t.navBg         || DEFAULT_THEME.navBg,
         navActive:     t.navActive     || accent || DEFAULT_THEME.navActive,
+        navHomeActive: t.navHomeActive,
+        navRevisionActive: t.navRevisionActive,
+        navRoutineActive: t.navRoutineActive,
+        navCommunityActive: t.navCommunityActive,
+        navProfileActive: t.navProfileActive,
+        navAppsActive: t.navAppsActive,
+        pageWallpaperUrl: t.pageWallpaperUrl,
+        pageWallpaperBase64: t.pageWallpaperBase64,
+        pageBgColor: t.pageBgColor,
         navBorder:     t.navBorder     || DEFAULT_THEME.navBorder,
         cardBg:        t.cardBg        || t.cardColor   || DEFAULT_THEME.cardBg,
         cardBorder:    t.cardBorder    || DEFAULT_THEME.cardBorder,
@@ -723,6 +747,12 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             topBarStart:   color,
             topBarEnd:     color,
             navActive:     color,
+            navHomeActive: color,
+            navRevisionActive: color,
+            navRoutineActive: color,
+            navCommunityActive: color,
+            navProfileActive: color,
+            navAppsActive: color,
             btnStart:      color,
             btnEnd:        color,
             accentGlow:    color,
