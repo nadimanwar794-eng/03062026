@@ -876,6 +876,28 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
   const _appBg = (() => {
+    // Determine which active screen is being shown to apply specific wallpaper
+    let specificWallpaper = null;
+
+    // Notes view should NOT have wallpaper according to requirement ("aur notes me bhi koi change na higa notes me jaisa hai waìsa rahèga")
+    const isNotesView = showCompareView || showDailyEventPage || state.view === 'LESSON' || state.view === 'SUBJECTS' || state.view === 'CHAPTERS';
+
+    if (!isNotesView) {
+      if (showRevisionHubScreen) specificWallpaper = (tierTheme as any).revisionWallpaperUrl;
+      else if (showMyRoutine) specificWallpaper = (tierTheme as any).routineWallpaperUrl;
+      else if (showChat) specificWallpaper = (tierTheme as any).communityWallpaperUrl;
+      else if (currentLogicalTab === 'PROFILE' && !showProgressDashboard) specificWallpaper = (tierTheme as any).profileWallpaperUrl;
+
+      // If a specific wallpaper is not found for the current page, fallback to appWallpaperUrl (Home default)
+      if (!specificWallpaper) {
+        specificWallpaper = (tierTheme as any).appWallpaperUrl;
+      }
+    }
+
+    if (specificWallpaper) {
+        return `url(${specificWallpaper}) center/cover no-repeat fixed`;
+    }
+
     const themeBg = (tierTheme as any).appBgColor as string | null | undefined;
     if (themeBg && themeBg !== '#ffffff' && themeBg !== '#f8fafc' && themeBg !== '#f1f5f9') return themeBg;
     const manual = (settings as any)?.appBackground;
@@ -18356,7 +18378,17 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor="#22c55e"
+  activeColor={
+    (() => {
+      const activeTabId = visibleTabs[activeIndex]?.id;
+      if (activeTabId === 'HOME') return (tierTheme as any).navHomeColor || (tierTheme as any).navActive || tierTheme.primary;
+      if (activeTabId === 'REVISION') return (tierTheme as any).navRevisionColor || (tierTheme as any).navActive || tierTheme.primary;
+      if (activeTabId === 'ROUTINE') return (tierTheme as any).navRoutineColor || (tierTheme as any).navActive || tierTheme.primary;
+      if (activeTabId === 'COMMUNITY_SUPPORT') return (tierTheme as any).navCommunityColor || (tierTheme as any).navActive || tierTheme.primary;
+      if (activeTabId === 'PROFILE') return (tierTheme as any).navProfileColor || (tierTheme as any).navActive || tierTheme.primary;
+      return (tierTheme as any).navActive || tierTheme.primary;
+    })()
+  }
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
