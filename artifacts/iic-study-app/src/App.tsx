@@ -3312,9 +3312,18 @@ const App: React.FC = () => {
       return <AppLoadingScreen isPremium={state.user?.isPremium || false} subscriptionLevel={getUserPlan()} onComplete={() => setIsAppLoading(false)} />;
   }
 
+  const bgImageStyle = (state.settings?.appBackgroundImage && state.view !== 'LESSON') ? `url(${state.settings.appBackgroundImage})` : undefined;
+
   return (
     <ErrorBoundary>
-    <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})` }}>
+    <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{
+      background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})`,
+      backgroundImage: bgImageStyle,
+      backgroundSize: bgImageStyle ? 'cover' : undefined,
+      backgroundPosition: bgImageStyle ? 'center' : undefined,
+      backgroundRepeat: bgImageStyle ? 'no-repeat' : undefined,
+      backgroundAttachment: bgImageStyle ? 'fixed' : undefined
+    }}>
       {/* SKIP TO CONTENT — keyboard/screen-reader accessibility */}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
@@ -3768,10 +3777,6 @@ const App: React.FC = () => {
                           ['NOTES_HTML_FREE','NOTES_HTML_PREMIUM','NOTES_IMAGE_AI','NOTES_SIMPLE','NOTES_PREMIUM'].includes(state.lessonContent.type) ||
                           (!_lcIsUrl && !['VIDEO_LECTURE','MCQ_ANALYSIS','MCQ_SIMPLE','WEEKLY_TEST','PDF_FREE','PDF_PREMIUM','PDF_ULTRA','PDF_VIEWER'].includes(state.lessonContent.type))
                         );
-                        const _handleNextPdf = (_isPdfContent && _nextChapter) ? () => onChapterClick(_nextChapter, _pdfContentType) : undefined;
-                        const _handleNextVideo = (_isVideoContent && _nextChapter) ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
-                        const _handleNextNotes = (_isNotesContent && _nextChapter) ? () => onChapterClick(_nextChapter, state.lessonContent!.type as any) : undefined;
-                        const _handleNext = _handleNextVideo || _handleNextPdf || _handleNextNotes;
                         const _isFirstChapter = state.selectedClass !== 'COMPETITION' && _curIdx === 0;
                         return (
                           <LessonView
@@ -3788,7 +3793,6 @@ const App: React.FC = () => {
                               onLaunchContent={(c: any) => handleContentGeneration(c.isPremium ? 'NOTES_PREMIUM' : 'NOTES_HTML_FREE', undefined, false, c)}
                               onToggleAutoTts={handleToggleAutoTts}
                               onImmersiveChange={setIsLessonImmersive}
-                              onNext={_handleNext}
                               nextTitle={_nextChapter?.title}
                               isFirstChapter={_isFirstChapter}
                               onAdminBoard={(state.user?.role === 'ADMIN' || state.user?.role === 'SUB_ADMIN') ? () => setState(prev => ({...prev, view: 'ADMIN'})) : undefined}

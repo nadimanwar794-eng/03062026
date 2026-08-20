@@ -541,6 +541,147 @@ const stripHtmlForPreview = (html: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
+
+// ----- MENISCUS NAV INDICATOR -----
+// ----- MENISCUS NAV INDICATOR -----
+const MeniscusNavIndicator = ({
+  activeIndex,
+  totalTabs,
+  navBg,
+  navBorderColor,
+  activeColor,
+  ActiveIcon,
+}: {
+  activeIndex: number;
+  totalTabs: number;
+  navBg: string;
+  navBorderColor: string;
+  activeColor: string;
+  ActiveIcon?: any;
+}) => {
+  const dockPathRef = React.useRef<SVGPathElement | null>(null);
+  const beadRef = React.useRef<HTMLDivElement | null>(null);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const animState = React.useRef({
+    currentX: 0,
+    targetX: 0,
+    velocity: 0,
+    w: 360,
+    h: 64,
+    isAwake: false,
+  });
+
+  const rafRef = React.useRef<number>(0);
+
+  const generatePath = (cx: number, W: number, H: number) => {
+    const sw = 36;
+    const depth = 26;
+    const p1 = Math.max(0, cx - sw);
+    const p2 = cx - 18;
+    const p3 = cx;
+    const p4 = cx + 18;
+    const p5 = Math.min(W, cx + sw);
+
+    return `M 0,0 L ${p1},0 C ${p1 + 12},0 ${p2},${depth} ${p3},${depth} C ${p4},${depth} ${p5 - 12},0 ${p5},0 L ${W},0 L ${W},${H} L 0,${H} Z`;
+  };
+
+  const wakeUp = React.useCallback(() => {
+    if (animState.current.isAwake) return;
+    animState.current.isAwake = true;
+
+    const loop = () => {
+      const spring = 0.16;
+      const damping = 0.68;
+      const state = animState.current;
+
+      const force = (state.targetX - state.currentX) * spring;
+      state.velocity = (state.velocity + force) * damping;
+      state.currentX += state.velocity;
+
+      if (dockPathRef.current) {
+        dockPathRef.current.setAttribute("d", generatePath(state.currentX, state.w, state.h));
+      }
+
+      if (beadRef.current) {
+        beadRef.current.style.transform = `translateX(${state.currentX - 24}px)`;
+      }
+
+      if (Math.abs(state.velocity) < 0.05 && Math.abs(state.targetX - state.currentX) < 0.05) {
+        state.currentX = state.targetX;
+        state.velocity = 0;
+        state.isAwake = false;
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
+    rafRef.current = requestAnimationFrame(loop);
+  }, []);
+
+  React.useEffect(() => {
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  React.useEffect(() => {
+    const updateTarget = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        animState.current.w = rect.width;
+        animState.current.h = rect.height;
+        const tabWidth = rect.width / totalTabs;
+        animState.current.targetX = (activeIndex + 0.5) * tabWidth;
+
+        if (animState.current.currentX === 0) {
+          animState.current.currentX = animState.current.targetX;
+          if (dockPathRef.current) {
+            dockPathRef.current.setAttribute("d", generatePath(animState.current.currentX, rect.width, rect.height));
+          }
+          if (beadRef.current) {
+            beadRef.current.style.transform = `translateX(${animState.current.currentX - 24}px)`;
+          }
+        }
+        wakeUp();
+      }
+    };
+
+    updateTarget();
+    window.addEventListener("resize", updateTarget);
+    return () => window.removeEventListener("resize", updateTarget);
+  }, [activeIndex, totalTabs, wakeUp]);
+
+  return (
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible z-0">
+      <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+        <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
+      </svg>
+      <div
+        ref={beadRef}
+        className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white"
+        style={{
+          background: activeColor || "#22c55e",
+          boxShadow: `0 0 25px ${activeColor || "#22c55e"}99`,
+          willChange: "transform",
+        }}
+      >
+        {ActiveIcon && (
+          typeof ActiveIcon === "function" ? (
+            <ActiveIcon className="w-6 h-6 text-white stroke-white stroke-[2.4] fill-none" />
+          ) : (
+            <span className="w-6 h-6 text-white [&>svg]:w-6 [&>svg]:h-6 [&>svg]:stroke-white [&>svg]:stroke-[2.4] [&>svg]:fill-none flex items-center justify-center">
+              {ActiveIcon}
+            </span>
+          )
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+// ────────────────────────────────────────────────────────────────────────
+
 export const StudentDashboard: React.FC<Props> = ({
   user,
   dailyStudySeconds,
@@ -1994,6 +2135,8 @@ export const StudentDashboard: React.FC<Props> = ({
     mobile: (user as any).mobile || "",
     password: (user as any).password || "",
     email: user.email || "",
+    securityQuestion: user.securityQuestion || "Aapka favorite subject kaunsa hai?",
+    securityAnswer: user.securityAnswer || "",
   });
   const [profileData, setProfileData] = useState({
     classLevel: activeSessionClass || user.classLevel || "10",
@@ -3327,6 +3470,7 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [showStarredPage, setShowStarredPage] = useState(false);
   const [showRevisionHubScreen, setShowRevisionHubScreen] = useState(false);
+  const [initialRevisionAutoStartMcq, setInitialRevisionAutoStartMcq] = useState(false);
   const [showMyRoutine, setShowMyRoutine] = useState(false);
   const [showDailyEventPage, setShowDailyEventPage] = useState(false);
   // XP badge useEffect — yahan rakhna zaroori hai (showRevisionHubScreen/showMyRoutine/showChat ke baad)
@@ -3781,18 +3925,43 @@ export const StudentDashboard: React.FC<Props> = ({
     return () => { try { __routineTimeFlushRef.current(); } catch {} };
   }, [hwActiveHwId]);
 
-  // ── My Routine: mark page read only after MIN reading time ──────────────────
-  // Formula: READING_REWARD_BASE(5) × 5 × 60% = 15 seconds
-  // Page tab "read" count hogi jab user ne us page pe kam se kam 15 second padha ho.
-  const ROUTINE_PAGE_READ_MIN_SEC = Math.round(5 * 5 * 0.60); // 15 seconds
+  // ── My Routine: mark page read only after MIN reading time (Dynamic Word Count) ──────────────────
+  const [readingProgressInfo, setReadingProgressInfo] = useState<{pct: number, leftSec: number, reqSec: number} | null>(null);
+
   useEffect(() => {
-    if (!lucentNoteViewer?.id) return;
+    if (!lucentNoteViewer?.id) {
+      setReadingProgressInfo(null);
+      return;
+    }
     const _lid = lucentNoteViewer.id;
     const _pi  = lucentPageIndex;
-    if (isRoutinePageRead(_lid, _pi)) return; // already marked — skip
+
+    // 1. Get current page content and calculate required time
+    const pageObj = lucentNoteViewer.pages?.[_pi];
+    const htmlContent = pageObj?.text || '';
+
+    // Strip HTML to count pure words
+    const tmp = document.createElement('div');
+    tmp.innerHTML = htmlContent;
+    const textOnly = tmp.textContent || tmp.innerText || '';
+    const wordCount = textOnly.trim().split(/\s+/).filter(Boolean).length;
+
+    // Calculate required time: 150 words per minute (WPM) = 2.5 words per second
+    // Min 10 seconds, Max 300 seconds (5 mins)
+    let dynamicReqSec = Math.round(wordCount / 2.5);
+    if (dynamicReqSec < 10) dynamicReqSec = 10;
+    if (dynamicReqSec > 300) dynamicReqSec = 300;
+
+    if (isRoutinePageRead(_lid, _pi)) {
+      setReadingProgressInfo({ pct: 100, leftSec: 0, reqSec: dynamicReqSec });
+      return; // already marked — skip
+    }
 
     const checkAndMark = () => {
-      if (isRoutinePageRead(_lid, _pi)) return true; // already done
+      if (isRoutinePageRead(_lid, _pi)) {
+        setReadingProgressInfo({ pct: 100, leftSec: 0, reqSec: dynamicReqSec });
+        return true; // already done
+      }
       // Stored time from previous visits on this page
       const storedSecs = getPageTime(_lid, _pi);
       // Live time in current session (since page opened)
@@ -3801,8 +3970,15 @@ export const StudentDashboard: React.FC<Props> = ({
         ? Math.round((Date.now() - enterTs) / 1000)
         : 0;
       const totalSecs = storedSecs + liveSecs;
-      if (totalSecs >= ROUTINE_PAGE_READ_MIN_SEC) {
+
+      const pct = Math.min(100, Math.round((totalSecs / dynamicReqSec) * 100));
+      const leftSec = Math.max(0, dynamicReqSec - totalSecs);
+
+      setReadingProgressInfo({ pct, leftSec, reqSec: dynamicReqSec });
+
+      if (totalSecs >= dynamicReqSec) {
         markRoutinePageRead(_lid, _pi);
+        setReadingProgressInfo({ pct: 100, leftSec: 0, reqSec: dynamicReqSec });
         return true;
       }
       return false;
@@ -3818,7 +3994,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lucentPageIndex, lucentNoteViewer?.id]);
+  }, [lucentPageIndex, lucentNoteViewer?.id, lucentNoteViewer?.pages]);
 
   // ── My Routine: midnight reset + lesson-complete reward ───────────────────────
   useEffect(() => {
@@ -3831,6 +4007,65 @@ export const StudentDashboard: React.FC<Props> = ({
 
         // Midnight reset
         if (_rd.lastResetDate !== _today) {
+          // --- Mailbox Integration for Unclaimed Task Rewards ---
+          // Before resetting, check if yesterday's task was completed but the 100 points reward was unclaimed.
+          const _yesterday = new Date();
+          _yesterday.setDate(_yesterday.getDate() - 1);
+          const _yesterdayStr = _yesterday.toISOString().split('T')[0];
+          const _yTask = _rd.dailyTasks[_yesterdayStr];
+
+          if (_yTask) {
+             const TASK_CLAIMED_KEY = `iic_task_pts_claimed_${_fu.id}_${_yesterdayStr}`;
+             let _claimed = false;
+             try {
+                const arr = JSON.parse(localStorage.getItem(TASK_CLAIMED_KEY) || '[]');
+                _claimed = arr.length > 0;
+             } catch { }
+
+             // Check if all lessons in yesterday's task were complete
+             let _allDone = false;
+             const _yLucentNotes = (settings?.lucentNotes || []) as any[];
+
+             // Get lessons for yesterday
+             const yLessons = [];
+             if (_yTask.scienceLessonId) yLessons.push(_yTask.scienceLessonId);
+             if (_yTask.socialScienceLessonId) yLessons.push(_yTask.socialScienceLessonId);
+             (_yTask.otherTasks || []).forEach((t: any) => { if (t.lessonId) yLessons.push(t.lessonId); });
+
+             if (yLessons.length > 0) {
+               _allDone = yLessons.every((lid: string) => {
+                 const _note = _yLucentNotes.find((n: any) => n.id === lid);
+                 const _totalPages = _note?.pages?.length || 0;
+                 return _totalPages > 0 && isLessonAutoComplete(lid, _totalPages);
+               });
+             }
+
+             if (_allDone && !_claimed) {
+                // Task was fully completed but user forgot to claim! Send reward to Mailbox.
+                const inboxMsg = {
+                  id: `auto-task-gift-${_yesterdayStr}-${Date.now()}`,
+                  text: 'You completed all your Routine tasks yesterday but forgot to claim your reward. Here is your bonus!',
+                  type: 'GIFT',
+                  date: new Date().toISOString(),
+                  read: false,
+                  isClaimed: false,
+                  gift: { type: 'CREDITS', value: 100 }
+                };
+
+                // Add to user's inbox immediately
+                handleUserUpdate({
+                  ..._fu,
+                  inbox: [inboxMsg, ...(_fu.inbox || [])]
+                });
+
+                // Mark as claimed so we don't send it again
+                try {
+                  localStorage.setItem(TASK_CLAIMED_KEY, JSON.stringify(['auto-claimed']));
+                } catch {}
+             }
+          }
+          // --------------------------------------------------------
+
           _rd = checkAndResetDaily(_rd);
           // Generate fresh daily task with real lesson IDs
           const _lucentNotes = (settings?.lucentNotes || []) as any[];
@@ -4532,21 +4767,37 @@ export const StudentDashboard: React.FC<Props> = ({
     if (!entry) return;
     entry = _withSortedPages(entry);
     const isAdmin = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-    if (isAdmin || extraOpts?.force) {
-      setLucentNoteViewer(entry);
-      setLucentPageIndex(pageIdx);
+
+    // Always show page list if it is not mcqOnly, force bypasses the admin "always list" mode.
+    if (!extraOpts?.force && !entry.mcqOnly) {
+      setLucentPageListViewer(entry);
       return;
     }
+    if (!extraOpts?.force && entry.mcqOnly) {
+       setLucentNoteViewer(entry);
+       setLucentPageIndex(pageIdx);
+       return;
+    }
+    if (extraOpts?.force) {
+       setLucentNoteViewer(entry);
+       setLucentPageIndex(pageIdx);
+       return;
+    }
+
     // Check content lock — requires valid redeem code
     if (_lucentIsLocked(entry)) {
       showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
       return;
     }
     // Sample lesson — permanently free for everyone, no daily limit
-    if (entry.isSampleLesson) {
-      setLucentNoteViewer(entry);
-      setLucentPageIndex(pageIdx);
+    if (entry.isSampleLesson && !entry.mcqOnly) {
+      setLucentPageListViewer(entry);
       return;
+    }
+    if (entry.isSampleLesson && entry.mcqOnly) {
+       setLucentNoteViewer(entry);
+       setLucentPageIndex(pageIdx);
+       return;
     }
 
     // ── My Routine gate ────────────────────────────────────────────────────────
@@ -4559,7 +4810,7 @@ export const StudentDashboard: React.FC<Props> = ({
       if (_rg.enabled) {
         const _subjectId = (entry.subject || '').toLowerCase().trim();
         const _subConf = (_rg.subjects || []).find((s: any) => s.id === _subjectId);
-        if (_subConf?.routineApplied && !routineIgnoredEntryIds.has(entry.id)) {
+        if ((!_subConf || _subConf.routineApplied !== false) && !routineIgnoredEntryIds.has(entry.id)) {
           const _todayStr = new Date().toISOString().split('T')[0];
           const _todayTask = _rg.dailyTasks?.[_todayStr];
           // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
@@ -6656,24 +6907,22 @@ export const StudentDashboard: React.FC<Props> = ({
                     if (!_rg.enabled) return false; // routine OFF → no lock
                     const _sid = (entry.subject || '').toLowerCase().trim();
                     const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
-                    // Only skip if subject is explicitly disabled (routineApplied === false)
-                    // If subject not found at all, still apply lock (handles Hindi/custom subject names)
+
                     if (_sc && _sc.routineApplied === false) return false;
-                    // Lock if this lesson is NOT today's assigned lesson
-                    const _todayStr = new Date().toISOString().split('T')[0];
+                  const _todayStr = new Date().toISOString().split('T')[0];
                     const _tt = _rg.dailyTasks?.[_todayStr];
                     const _todayIds = new Set([
                       _tt?.scienceLessonId,
                       _tt?.socialScienceLessonId,
                       ...(_tt?.otherTasks || []).map((t: any) => t.lessonId),
                     ].filter(Boolean));
-                    // Also check routineCategories (new system) — today's active lesson per category
-                    const _allNotes = (settings?.lucentNotes || []) as any[];
-                    const _isCatToday = (_rg.routineCategories || []).some((cat: any) => {
+
+                    const _eAllNotes = (settings?.lucentNotes || []) as any[];
+                    const _eIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
                       const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
                       const sub = cat.subjects?.[si];
                       if (!sub) return false;
-                      const subNotes = _allNotes.filter((n: any) =>
+                      const subNotes = _eAllNotes.filter((n: any) =>
                         (n.subject || '').toLowerCase().trim() === sub.subjectId &&
                         (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
                         (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
@@ -6681,7 +6930,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
                       return lesson?.id === entry.id;
                     });
-                    if (_isCatToday) return false;
+
+                    if (_eIsCatToday) return false;
                     return !_todayIds.has(entry.id);
                   } catch { return false; }
                 })();
@@ -6691,21 +6941,22 @@ export const StudentDashboard: React.FC<Props> = ({
                     if (!_rg.enabled) return false;
                     const _sid = (entry.subject || '').toLowerCase().trim();
                     const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
+
                     if (_sc && _sc.routineApplied === false) return false;
-                    const _todayStr = new Date().toISOString().split('T')[0];
+                  const _todayStr = new Date().toISOString().split('T')[0];
                     const _tt = _rg.dailyTasks?.[_todayStr];
                     const _todayIds = new Set([
                       _tt?.scienceLessonId,
                       _tt?.socialScienceLessonId,
                       ...(_tt?.otherTasks || []).map((t: any) => t.lessonId),
                     ].filter(Boolean));
-                    // Also check routineCategories (new system)
-                    const _allNotes = (settings?.lucentNotes || []) as any[];
-                    const _isCatToday = (_rg.routineCategories || []).some((cat: any) => {
+
+                    const _eAllNotes = (settings?.lucentNotes || []) as any[];
+                    const _eIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
                       const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
                       const sub = cat.subjects?.[si];
                       if (!sub) return false;
-                      const subNotes = _allNotes.filter((n: any) =>
+                      const subNotes = _eAllNotes.filter((n: any) =>
                         (n.subject || '').toLowerCase().trim() === sub.subjectId &&
                         (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
                         (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
@@ -6713,7 +6964,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
                       return lesson?.id === entry.id;
                     });
-                    return _todayIds.has(entry.id) || _isCatToday;
+
+                    return _todayIds.has(entry.id) || _eIsCatToday;
                   } catch { return false; }
                 })();
                 const isAdmin = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
@@ -6982,7 +7234,8 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (!_rg.enabled) return false; // routine OFF → no lock
                   const _sid = (entry.subject || '').toLowerCase().trim();
                   const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
-                  if (!(_sc?.routineApplied)) return false;
+
+                  if (_sc && _sc.routineApplied === false) return false;
                   // Only show lock if NOT today's assigned lesson
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
@@ -7012,7 +7265,8 @@ export const StudentDashboard: React.FC<Props> = ({
                   if (!_rg.enabled) return false;
                   const _sid = (entry.subject || '').toLowerCase().trim();
                   const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
-                  if (!(_sc?.routineApplied)) return false;
+
+                  if (_sc && _sc.routineApplied === false) return false;
                   const _todayStr = new Date().toISOString().split('T')[0];
                   const _tt = _rg.dailyTasks?.[_todayStr];
                   // Also check routineCategories (new system)
@@ -9373,45 +9627,117 @@ export const StudentDashboard: React.FC<Props> = ({
               const topicNames = [...new Set((entry.pages || []).map(page => (page.topicName || '').trim()).filter(Boolean))];
               const hasMcqs = (entry.pages || []).some(page => page.mcqs && page.mcqs.length > 0);
               const isLocked = _lucentIsLocked(entry);
+              const _isEntryRoutineGated = (() => {
+                try {
+                  const _rg = loadRoutineData(user.id);
+                  if (!_rg.enabled) return false; // routine OFF → no lock
+                  const _sid = (entry.subject || '').toLowerCase().trim();
+                  const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
+
+                  if (_sc && _sc.routineApplied === false) return false;
+                  // Only show lock if NOT today's assigned lesson
+                  const _todayStr = new Date().toISOString().split('T')[0];
+                  const _tt = _rg.dailyTasks?.[_todayStr];
+                  // Check all buckets: science, socialScience, and otherTasks (custom/OTHER subjects)
+                  const _otherMatch = (_tt?.otherTasks || []).some((t: any) => t.lessonId === entry.id);
+                  // Also check routineCategories (new system)
+                  const _eAllNotes = (settings?.lucentNotes || []) as any[];
+                  const _eIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                    const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                    const sub = cat.subjects?.[si];
+                    if (!sub) return false;
+                    const subNotes = _eAllNotes.filter((n: any) =>
+                      (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                      (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                      (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                    );
+                    const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                    return lesson?.id === entry.id;
+                  });
+                  if (_eIsCatToday) return false;
+                  return !(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id || _otherMatch);
+                } catch { return false; }
+              })();
+              const _isEntryTodayRoutine = (() => {
+                try {
+                  const _rg = loadRoutineData(user.id);
+                  if (!_rg.enabled) return false;
+                  const _sid = (entry.subject || '').toLowerCase().trim();
+                  const _sc = (_rg.subjects || []).find((s: any) => s.id === _sid);
+
+                  if (_sc && _sc.routineApplied === false) return false;
+                  const _todayStr = new Date().toISOString().split('T')[0];
+                  const _tt = _rg.dailyTasks?.[_todayStr];
+                  // Also check routineCategories (new system)
+                  const _etAllNotes = (settings?.lucentNotes || []) as any[];
+                  const _etIsCatToday = (_rg.routineCategories || []).some((cat: any) => {
+                    const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+                    const sub = cat.subjects?.[si];
+                    if (!sub) return false;
+                    const subNotes = _etAllNotes.filter((n: any) =>
+                      (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+                      (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+                      (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+                    );
+                    const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+                    return lesson?.id === entry.id;
+                  });
+                  return !!(_tt?.scienceLessonId === entry.id || _tt?.socialScienceLessonId === entry.id) || _etIsCatToday;
+                } catch { return false; }
+              })();
+              const _isAdminUser = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+              const _showEntryRoutineLock = _isEntryRoutineGated && !_isAdminUser;
 
               return (
-                <button
-                  key={entry.id}
-                  onClick={() => {
-                    if (isLocked) {
-                      showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
-                      return;
-                    }
-                    if (entry.mcqOnly) {
-                      lucentInitialTabRef.current = { tab: 'MCQS' };
-                      tryOpenLucentNote(entry, 0);
-                    } else {
-                      setLucentPageListViewer(_withSortedPages(entry));
-                    }
-                  }}
-                  className={`w-full rounded-2xl p-3 text-left flex items-center gap-3 border-2 transition-all hover:shadow-md active:scale-[0.98] ${isLocked ? 'opacity-75' : ''}`}
-                  style={{
-                    background: settings?.contentListCardBg || (isDarkMode ? '#1e293b' : '#ffffff'),
-                    borderColor: isLocked ? '#ef4444' : (settings?.contentListCardBorder || `${tierTheme.primary}55`),
-                  }}
-                >
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLocked ? 'bg-red-100 text-red-500' : ''}`}
-                    style={isLocked ? undefined : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                <div key={entry.id} className={`nst-lesson-card border-2 rounded-2xl overflow-hidden hover:shadow-md transition-all ${isLocked ? 'opacity-75' : ''}`} style={{
+                  background: _isEntryTodayRoutine ? (isDarkMode ? '#292524' : '#fffbeb') : (settings?.contentListCardBg || (isDarkMode ? '#1e293b' : '#ffffff')),
+                  borderColor: isLocked ? '#ef4444' : _isEntryTodayRoutine ? '#f59e0b' : _showEntryRoutineLock ? '#f59e0b' : (settings?.contentListCardBorder || `${tierTheme.primary}55`)
+                }}>
+                  {_isEntryTodayRoutine && (
+                    <div className="bg-amber-500 px-3 py-1 flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-white uppercase tracking-wider">📅 Aaj Ka Task</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (isLocked) {
+                        showAlert('🔒 This lesson is locked! Get a Redeem Code from your Admin and enter it in Profile → Redeem tab.', 'INFO');
+                        return;
+                      }
+                      if (_showEntryRoutineLock) {
+                        setRoutineGate({ entry, pageIdx: 0 });
+                        return;
+                      }
+                      if (entry.mcqOnly) {
+                        lucentInitialTabRef.current = { tab: 'MCQS' };
+                        tryOpenLucentNote(entry, 0);
+                      } else {
+                        setLucentPageListViewer(_withSortedPages(entry));
+                      }
+                    }}
+                    className="w-full p-3 text-left flex items-center gap-3 active:scale-[0.98]"
                   >
-                    {isLocked ? <span className="text-xl">🔒</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
-                    {isLocked ? (
-                      <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
-                    ) : (
-                      <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {entry.mcqOnly ? <span className="text-emerald-600 font-black">🎯 MCQ Only</span> : <span>{entry.pages.length} page{entry.pages.length !== 1 ? 's' : ''}</span>}
-                        {topicNames.length > 0 && <span>• {topicNames.length} topic{topicNames.length !== 1 ? 's' : ''}</span>}
-                        {hasMcqs && <span className="px-1.5 py-0.5 rounded text-[9px] font-black" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>MCQ</span>}
-                      </p>
-                    )}
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLocked ? 'bg-red-100 text-red-500' : _showEntryRoutineLock ? 'bg-amber-50 text-amber-500' : _isEntryTodayRoutine ? 'bg-amber-100' : ''}`}
+                      style={(isLocked || _showEntryRoutineLock || _isEntryTodayRoutine) ? undefined : { background: `${tierTheme.primary}18`, color: tierTheme.primary }}
+                    >
+                      {isLocked ? <span className="text-xl">🔒</span> : _showEntryRoutineLock ? <span className="text-xl">🔒</span> : _isEntryTodayRoutine ? <span className="text-xl" style={{ color: '#d97706' }}>📅</span> : entry.mcqOnly ? <span className="text-xl">🎯</span> : <BookOpen size={20} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{entry.lessonTitle}</p>
+                      {isLocked ? (
+                        <p className="text-[11px] text-red-500 font-black mt-0.5">🔒 Locked — Unlock with Redeem Code</p>
+                      ) : _showEntryRoutineLock ? (
+                        <p className="text-[11px] text-amber-600 font-black mt-0.5">🔒 Complete Today's Routine to unlock</p>
+                      ) : _isEntryTodayRoutine ? (
+                        <p className="text-[11px] text-amber-700 font-black mt-0.5">✅ Aaj ka lesson — tap to open</p>
+                      ) : (
+                        <p className={`text-[11px] font-bold mt-0.5 flex flex-wrap gap-1.5 items-center ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {entry.mcqOnly ? <span className="text-emerald-600 font-black">🎯 MCQ Only</span> : <span>{entry.pages.length} page{entry.pages.length !== 1 ? 's' : ''}</span>}
+                          {topicNames.length > 0 && <span>• {topicNames.length} topic{topicNames.length !== 1 ? 's' : ''}</span>}
+                          {hasMcqs && <span className="px-1.5 py-0.5 rounded text-[9px] font-black" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>MCQ</span>}
+                        </p>
+                      )}
                     {!entry.mcqOnly && entry.pages.length > 0 && (() => {
                       const _ls = getLessonStats(entry.id, entry.pages.length);
                       if (_ls.pagesRead === 0 && _ls.totalTime === 0) {
@@ -9430,7 +9756,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     })()}
                   </div>
                   <ChevronRight size={18} className="shrink-0 text-slate-400" />
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -11268,6 +11595,8 @@ export const StudentDashboard: React.FC<Props> = ({
                       mobile: (user as any).mobile || '',
                       password: (user as any).password || '',
                       email: user.email || '',
+                      securityQuestion: user.securityQuestion || "Aapka favorite subject kaunsa hai?",
+                      securityAnswer: user.securityAnswer || "",
                     });
                     setShowRecoveryModal(true);
                   }}
@@ -11312,6 +11641,25 @@ export const StudentDashboard: React.FC<Props> = ({
                   color: user.email ? '#16a34a' : '#94a3b8',
                   border: `1px solid ${user.email ? 'rgba(34,197,94,0.28)' : 'rgba(148,163,184,0.2)'}`,
                 }}>{user.email ? '✓ Active' : 'Inactive'}</span>
+              </div>
+              {/* Security Question row */}
+              <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: `1px solid ${tierTheme.primary}10` }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(234,88,12,0.12)', border: '1px solid rgba(234,88,12,0.2)' }}>
+                  <span style={{ fontSize: 16 }}>❓</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold uppercase tracking-wider" style={{ fontSize: 9, color: _pTxtSubColor, marginBottom: 2 }}>Security Question</p>
+                  <p className="font-bold truncate" style={{ fontSize: 13, color: _pTxtColor }}>
+                    {user.securityQuestion ? user.securityQuestion : <span style={{ color: _pTxtMutedColor, fontWeight: 500 }}>Set nahi hai</span>}
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium truncate mt-0.5">Ans: {user.securityAnswer ? '••••••••' : 'Not set'}</p>
+                </div>
+                <span className="font-black px-2.5 py-1 rounded-lg" style={{
+                  fontSize: 9,
+                  background: user.securityAnswer ? 'rgba(34,197,94,0.14)' : 'rgba(148,163,184,0.10)',
+                  color: user.securityAnswer ? '#16a34a' : '#94a3b8',
+                  border: `1px solid ${user.securityAnswer ? 'rgba(34,197,94,0.28)' : 'rgba(148,163,184,0.2)'}`,
+                }}>{user.securityAnswer ? '✓ Active' : 'Inactive'}</span>
               </div>
               {/* UID row */}
               <div className="flex items-center gap-3 px-4 py-3.5">
@@ -14830,6 +15178,37 @@ export const StudentDashboard: React.FC<Props> = ({
                   className="w-full p-3 rounded-xl border border-slate-200 font-bold"
                 />
               </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
+                  Security Question
+                </label>
+                <select
+                  value={recoveryData.securityQuestion}
+                  onChange={(e) =>
+                    setRecoveryData({ ...recoveryData, securityQuestion: e.target.value })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 font-bold bg-white"
+                >
+                  <option value="Aapka favorite subject kaunsa hai?">Aapka favorite subject kaunsa hai?</option>
+                  <option value="Aapke primary school ka naam kya tha?">Aapke primary school ka naam kya tha?</option>
+                  <option value="Aapka favorite teacher kaun hai?">Aapka favorite teacher kaun hai?</option>
+                  <option value="Aapka birth city / gaon kaunsa hai?">Aapka birth city / gaon kaunsa hai?</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">
+                  Security Answer
+                </label>
+                <input
+                  type="text"
+                  placeholder="Your Answer"
+                  value={recoveryData.securityAnswer}
+                  onChange={(e) =>
+                    setRecoveryData({ ...recoveryData, securityAnswer: e.target.value })
+                  }
+                  className="w-full p-3 rounded-xl border border-slate-200 font-bold"
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 mt-8">
@@ -14860,6 +15239,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     mobile: recoveryData.mobile,
                     password: recoveryData.password,
                     email: recoveryData.email || user.email,
+                    securityQuestion: recoveryData.securityQuestion,
+                    securityAnswer: recoveryData.securityAnswer.trim().toLowerCase(),
                   });
                   setShowRecoveryModal(false);
                   showAlert("Recovery details saved successfully!", "SUCCESS");
@@ -17614,8 +17995,8 @@ export const StudentDashboard: React.FC<Props> = ({
         data-iic-bottom-nav=""
         className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
         style={{
-          background: tierTheme.navBg,
-          borderTop: `1px solid ${(tierTheme as any).navBorderColor || tierTheme.primary + '22'}`,
+          background: 'transparent', // Meniscus will draw background
+          borderTop: 'none',
           boxShadow: `0 -4px 20px -8px ${tierTheme.shadowColor}`,
         }}
         aria-label="Primary"
@@ -17970,17 +18351,15 @@ export const StudentDashboard: React.FC<Props> = ({
 
             return (
               <>
-                {/* SLIDING TOP ACCENT — single pill that glides between tabs */}
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute top-0 h-[3px] rounded-b-full"
-                  style={{
-                    background: tierTheme.pillGrad,
-                    left: `calc(${activeIndex * tabWidthPct}% + ${tabWidthPct / 2}% - 18px)`,
-                    width: '36px',
-                    transition: 'left 380ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  }}
-                />
+                <MeniscusNavIndicator
+  activeIndex={activeIndex}
+  totalTabs={totalVisible}
+  navBg={tierTheme.navBg}
+  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
+  activeColor="#22c55e"
+  ActiveIcon={visibleTabs[activeIndex]?.icon}
+/>
+
                 {visibleTabs.map((tab) => {
                   const access = tab.featureId
                     ? getFeatureAccess(tab.featureId)
@@ -18036,7 +18415,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <span
                         key={tab.isActive ? `${tab.id}-on` : `${tab.id}-off`}
                         className={`relative z-10 inline-flex items-center justify-center transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ${
-                          tab.isActive ? "nav-icon-pop scale-110" : "scale-100"
+                          tab.isActive ? "nav-icon-pop scale-110 -translate-y-2" : "scale-100"
                         }`}
                       >
                         {/* Tap ripple — only renders for non-HOME tabs. The key trick re-mounts
@@ -18075,7 +18454,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       <span
                         className={`relative z-10 text-[10.5px] leading-none tracking-wide transition-all duration-300 ${
                           tab.isActive
-                            ? "font-bold translate-y-0 opacity-100"
+                            ? "font-bold translate-y-[2px] opacity-100"
                             : "font-medium translate-y-0 opacity-100"
                         }`}
                         style={tab.isActive ? { color: _isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
@@ -19196,7 +19575,7 @@ export const StudentDashboard: React.FC<Props> = ({
                   >
                     {/* ── Main tap area (students + admin) ── */}
                     <button
-                      onClick={() => { lucentInitialTabRef.current = { tab: 'NOTES', viewMode: 'chunk' }; tryOpenLucentNote(plEntry, idx); }}
+                      onClick={() => { lucentInitialTabRef.current = { tab: "NOTES", viewMode: "chunk" }; tryOpenLucentNote(plEntry, idx, { force: true }); }}
                       className="w-full text-left px-4 py-3 flex items-center gap-3 active:scale-[0.98] transition-all"
                       style={{ background: settings?.contentListCardBg || '#ffffff' }}
                     >
@@ -19337,11 +19716,6 @@ export const StudentDashboard: React.FC<Props> = ({
         const goPrev = () => {
           if (safeIndex > 0) {
             setLucentPageIndex(safeIndex - 1);
-          } else if (prevLesson) {
-            // Hop to last page of previous lesson
-            stopSpeech();
-            setLucentNoteViewer(prevLesson);
-            setLucentPageIndex(Math.max(0, (prevLesson.pages?.length || 1) - 1));
           }
         };
         const goNext = () => {
@@ -19365,16 +19739,10 @@ export const StudentDashboard: React.FC<Props> = ({
                 } : undefined
               );
             }
-          } else if (nextLesson) {
-            if (_isAdm2 || isPgReadUnlocked(nextLesson.id, 0)) {
-              stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0);
-            } else {
-              showCoinGate(20, 'Next Chapter', () => { markPgReadUnlocked(nextLesson.id, 0); stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); });
-            }
           }
         };
-        const canGoPrev = safeIndex > 0 || !!prevLesson;
-        const canGoNext = safeIndex < totalPages - 1 || !!nextLesson;
+        const canGoPrev = safeIndex > 0;
+        const canGoNext = safeIndex < totalPages - 1;
         const autoSyncOn = lucentAutoSync;
 
         // ── Lucent Topic Continuation: merge consecutive pages with same topicName ──
@@ -20179,8 +20547,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           : safeIndex + 1;
                         if (nextIdx < totalPages) {
                           setTimeout(() => setLucentPageIndex(nextIdx), 400);
-                        } else if (nextLesson) {
-                          setTimeout(() => { stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); }, 600);
                         }
                       }
                     }}
@@ -20266,21 +20632,6 @@ export const StudentDashboard: React.FC<Props> = ({
                             </p>
                           </div>
                           <ChevronRight size={17} className="text-slate-500 shrink-0 group-hover:text-indigo-400 transition-colors" />
-                        </button>
-                      ) : nextLesson ? (
-                        /* End of lesson — next lesson */
-                        <button
-                          onClick={() => { stopSpeech(); setLucentNoteViewer(nextLesson); setLucentPageIndex(0); }}
-                          className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-slate-900 border border-slate-700/70 active:scale-[0.98] transition-all group shadow-lg"
-                        >
-                          <div className="w-9 h-9 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0 group-hover:bg-violet-500/30 transition-colors">
-                            <BookOpen size={16} className="text-violet-400" />
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.14em]">Agla Chapter</p>
-                            <p className="text-sm font-semibold text-white truncate mt-0.5">{nextLesson.lessonTitle}</p>
-                          </div>
-                          <ChevronRight size={17} className="text-slate-500 shrink-0 group-hover:text-violet-400 transition-colors" />
                         </button>
                       ) : null}
                     </div>
@@ -21391,12 +21742,18 @@ RULES:
         <DailyEventPage
           user={user}
           settings={settings}
+          onUpdateUser={handleUserUpdate}
           onBack={() => setShowDailyEventPage(false)}
           onOpenRoutine={() => {
             setShowDailyEventPage(false);
             setShowMyRoutine(true);
           }}
-          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
+          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => {
+            if (autoStartMcq) {
+              setInitialRevisionAutoStartMcq(true);
+            } else {
+              setInitialRevisionAutoStartMcq(false);
+            }
             if (lessonTitle) {
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
               if (_isAdm) {
@@ -21417,6 +21774,8 @@ RULES:
                 },
               });
               return;
+              } else {
+              setInitialRevisionLessonTitle(null);
             }
             setShowDailyEventPage(false);
             setShowRevisionHubScreen(true);
@@ -21435,7 +21794,8 @@ RULES:
           user={user}
           settings={settings}
           initialLessonTitle={initialRevisionLessonTitle}
-          onBack={() => { setShowRevisionHubScreen(false); setInitialRevisionLessonTitle(null); }}
+          autoStartMcq={initialRevisionAutoStartMcq}
+          onBack={() => { setShowRevisionHubScreen(false); setInitialRevisionLessonTitle(null); setInitialRevisionAutoStartMcq(false); }}
           onTabChange={onTabChange}
           onNavigateContent={(type, chapterId, topicName, subjectName) => {
             setShowRevisionHubScreen(false);
@@ -21469,10 +21829,28 @@ RULES:
           }
           return null;
         })();
-        const _todayLesson = (_isScience ? (_sciLesson || _socLesson) : (_socLesson || _sciLesson)) ?? _otherTaskLesson ?? null;
+        const _catLesson = (() => {
+          const _eAllNotes = (settings?.lucentNotes || []) as any[];
+          for (const cat of (_rg.routineCategories || [])) {
+            const si = (cat.currentSubjectIndex || 0) % Math.max((cat.subjects || []).length, 1);
+            const sub = cat.subjects?.[si];
+            if (!sub) continue;
+            const subNotes = _eAllNotes.filter((n: any) =>
+              (n.subject || '').toLowerCase().trim() === sub.subjectId &&
+              (!sub.bookName || (n.bookName || '').trim() === sub.bookName) &&
+              (!sub.classLevel || (n.classLevel || '') === sub.classLevel)
+            );
+            const lesson = subNotes[Math.min(sub.currentLessonIndex || 0, subNotes.length - 1)];
+            if (lesson) return lesson;
+          }
+          return null;
+        })();
+        const _todayLesson = (_isScience ? (_sciLesson || _socLesson) : (_socLesson || _sciLesson)) ?? _otherTaskLesson ?? _catLesson ?? null;
         // Whether any lesson ID is set at all (regardless of lucentNotes lookup)
+        // Whether any lesson ID is set at all (regardless of lucentNotes lookup)
+        const _isCatActive = (_rg.routineCategories || []).some((cat: any) => (cat.subjects || []).length > 0);
         const _hasAnyTaskId = !!((_todayTask?.scienceLessonId) || (_todayTask?.socialScienceLessonId) ||
-          (_todayTask?.otherTasks || []).some((t: any) => t.lessonId));
+          (_todayTask?.otherTasks || []).some((t: any) => t.lessonId)) || _isCatActive;
 
         // Yesterday partial completion for discount calculation
         const _yestD = new Date(); _yestD.setDate(_yestD.getDate() - 1);
@@ -21495,12 +21873,28 @@ RULES:
             return;
           }
           const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { tryOpenLucentNote(_todayLesson, 0); return; }
+          if (isAdm) {
+            if (_todayLesson.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_todayLesson, 0);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_todayLesson));
+            }
+            return;
+          }
           // Routine task bhi coins kaatega — discount based on yesterday's completion
           const _entry = _todayLesson;
           const _pi    = 0;
           const _pgKey = `nst_pg_r_${user.id}_${_entry.id}_${_pi}`;
-          if (localStorage.getItem(_pgKey) === '1') { tryOpenLucentNote(_entry, _pi); return; }
+          if (localStorage.getItem(_pgKey) === '1') {
+            if (_entry.mcqOnly) {
+              lucentInitialTabRef.current = { tab: 'MCQS' };
+              tryOpenLucentNote(_entry, _pi);
+            } else {
+              setLucentPageListViewer(_withSortedPages(_entry));
+            }
+            return;
+          }
           const balance = getTotalCredits(user);
           if (balance < _routineCost) {
             showAlert(`⚠️ Coins kam hain! ${_routineCost} CR chahiye, aapke paas sirf ${balance} CR hai.`, 'INFO');
@@ -21513,7 +21907,12 @@ RULES:
             reason: 'Routine Task',
             action: () => {
               try { localStorage.setItem(_pgKey, '1'); } catch {}
-              tryOpenLucentNote(_entry, _pi);
+              if (_entry.mcqOnly) {
+                lucentInitialTabRef.current = { tab: 'MCQS' };
+                tryOpenLucentNote(_entry, _pi);
+              } else {
+                setLucentPageListViewer(_withSortedPages(_entry));
+              }
             },
           });
         };
@@ -21527,8 +21926,6 @@ RULES:
           const _entry = routineGate.entry;
           setRoutineGate(null);
           setRoutineIgnoredEntryIds(prev => new Set(prev).add(_entry.id));
-          const isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-          if (isAdm) { setLucentNoteViewer(_withSortedPages(_entry)); setLucentPageIndex(routineGate.pageIdx); return; }
           if (_entry.mcqOnly) {
             lucentInitialTabRef.current = { tab: 'MCQS' };
             tryOpenLucentNote(_entry, 0);
@@ -21684,7 +22081,19 @@ RULES:
           onBack={() => setShowMyRoutine(false)}
           onUserUpdate={handleUserUpdate}
           settings={settings}
-          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string) => {
+          onOpenLesson={(lessonId: string) => {
+            const lesson = (settings?.lucentNotes || []).find((l: any) => l.id === lessonId);
+            if (lesson) {
+              setLucentPageListViewer(_withSortedPages(lesson));
+              setShowMyRoutine(false);
+            }
+          }}
+          onOpenRevisionHub={(lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => {
+            if (autoStartMcq) {
+              setInitialRevisionAutoStartMcq(true);
+            } else {
+              setInitialRevisionAutoStartMcq(false);
+            }
             if (lessonTitle) {
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
               if (_isAdm) {
@@ -21705,6 +22114,8 @@ RULES:
                 },
               });
               return;
+              } else {
+              setInitialRevisionLessonTitle(null);
             }
             setShowMyRoutine(false);
             setShowRevisionHubScreen(true);
@@ -21736,6 +22147,8 @@ RULES:
                 },
               });
               return;
+              } else {
+              setInitialRevisionLessonTitle(null);
             }
             setShowMyRoutine(false);
             setShowRevisionHubScreen(true);
