@@ -543,7 +543,7 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
-const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, ActiveIcon?: React.ElementType }) => {
+const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, glowColor, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, glowColor?: string, ActiveIcon?: React.ElementType }) => {
   const dockPathRef = React.useRef<SVGPathElement>(null);
   const beadRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -624,9 +624,10 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
        </svg>
        <div
           ref={beadRef}
-          className="absolute top-[-14px] left-0 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-20 pointer-events-none"
+          className="absolute top-[-14px] left-0 w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none"
           style={{
              backgroundColor: activeColor,
+             boxShadow: `0 4px 14px ${glowColor || activeColor}80`,
              willChange: 'transform'
           }}
        >
@@ -829,19 +830,45 @@ export const StudentDashboard: React.FC<Props> = ({
                   // 6. Default tier theme
                   : getTierTheme(user);
 
+  // ── App background & Wallpapers ──
+  const logicalActiveMainTab = (() => {
+    if (showRevisionHubScreen) return 'REVISION_HUB';
+    if (showMyRoutine) return 'MY_ROUTINE';
+    if (showChat) return 'COMMUNITY_SUPPORT';
+    if (currentLogicalTab === 'PROFILE') return 'PROFILE';
+    return 'HOME';
+  })();
+
+  const isReadingView = (contentViewStep === 'PLAYER' || !!hwActiveHwId || !!lucentNoteViewer || !!showHomeworkHistory);
+
+  const _appWallpaper = (() => {
+    if (isReadingView) return null; // No wallpaper in reading view
+    const t = tierTheme as any;
+    if (!t) return null;
+    let customWp = null;
+    if (logicalActiveMainTab === 'REVISION_HUB') customWp = t.wallpaperRevision;
+    else if (logicalActiveMainTab === 'MY_ROUTINE') customWp = t.wallpaperRoutine;
+    else if (logicalActiveMainTab === 'COMMUNITY_SUPPORT') customWp = t.wallpaperCommunity;
+    else if (logicalActiveMainTab === 'PROFILE') customWp = t.wallpaperProfile;
+
+    return customWp || t.wallpaperHome || null;
+  })();
+
   // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
   const _appBg = (() => {
-    const themeBg = (tierTheme as any).appBgColor as string | null | undefined;
+    const t = tierTheme as any;
+    let customBg = null;
+    if (logicalActiveMainTab === 'REVISION_HUB') customBg = t.bgRevision;
+    else if (logicalActiveMainTab === 'MY_ROUTINE') customBg = t.bgRoutine;
+    else if (logicalActiveMainTab === 'COMMUNITY_SUPPORT') customBg = t.bgCommunity;
+    else if (logicalActiveMainTab === 'PROFILE') customBg = t.bgProfile;
+    else if (logicalActiveMainTab === 'HOME') customBg = t.bgHome;
+
+    const themeBg = customBg || t.appBgColor;
     if (themeBg && themeBg !== '#ffffff' && themeBg !== '#f8fafc' && themeBg !== '#f1f5f9') return themeBg;
     const manual = (settings as any)?.appBackground;
     if (manual && manual !== '#ffffff') return manual;
-    if (isDarkMode) {
-      const themeType = localStorage.getItem('nst_dark_theme_type') || 'black';
-      return themeType === 'blue' ? '#050d1f' : '#000000';
-    }
-    // Use tier's own appBg (e.g. Ultra = #f8fafc light grey, others = white)
-    const tierAppBg = (tierTheme as any).appBg as string | undefined;
-    return manual || tierAppBg || '#ffffff';
+    return isDarkMode ? '#050505' : (tierTheme.appBg || '#ffffff');
   })();
 
   // ── Nav background luminance — for dynamic icon/text color ───────────────
@@ -7358,7 +7385,7 @@ export const StudentDashboard: React.FC<Props> = ({
       // EMPTY STATE
       if (filteredHw.length === 0) {
         return (
-          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appBg }}>
+          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
             <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
               <div className="flex items-center gap-3 mb-5">
                 <button onClick={goBack} className={`${theme.bgSoft} p-2 rounded-full ${theme.text}`}>
@@ -8961,7 +8988,7 @@ export const StudentDashboard: React.FC<Props> = ({
           return d.getFullYear() === hwYear && d.getMonth() === hwMonth && getWeekOfMonth(d) === hwWeek;
         });
         return (
-          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appBg }}>
+          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
             <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
               <div className="flex items-center gap-3 mb-5">
                 <button onClick={goBack} className={`${theme.bgSoft} p-2 rounded-full ${theme.text}`}>
@@ -9040,7 +9067,7 @@ export const StudentDashboard: React.FC<Props> = ({
           })
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         return (
-          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appBg }}>
+          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
             <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
               <div className="flex items-center gap-3 mb-5">
                 <button onClick={goBack} className={`${theme.bgSoft} p-2 rounded-full ${theme.text}`}>
@@ -9117,7 +9144,7 @@ export const StudentDashboard: React.FC<Props> = ({
         });
         const months = Array.from(monthsMap.entries()).sort((a,b) => a[0]-b[0]);
         return (
-          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appBg }}>
+          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
             <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
               <div className="flex items-center gap-3 mb-5">
                 <button onClick={goBack} className={`${theme.bgSoft} p-2 rounded-full ${theme.text}`}>
@@ -9170,7 +9197,7 @@ export const StudentDashboard: React.FC<Props> = ({
         });
 
         return (
-          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appBg }}>
+          <div className={`min-h-[100dvh] p-4 pt-2`} style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
             <div className="max-w-3xl mx-auto pb-8 animate-in fade-in">
               <div className="flex items-center gap-3 mb-4">
                 <button onClick={goBack} className={`${theme.bgSoft} p-2 rounded-full ${theme.text}`} aria-label="Back">
@@ -12988,7 +13015,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   return (
   <ThemeProvider theme={_extendedTheme}>
-    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
+    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
       <NotificationPrompt />
       {/* Admin WhiteBoard floating panel — fixed z-[9999], visible in ALL modes */}
       {_isAdminUser && showAdminBoard && (
@@ -18311,7 +18338,27 @@ export const StudentDashboard: React.FC<Props> = ({
                   totalTabs={totalVisible}
                   navBg={tierTheme.navBg}
                   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
-                  activeColor={_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary}
+                  activeColor={(() => {
+                    const t = tierTheme as any;
+                    const defaultActive = _isNavDark ? (t.navActive || '#7dd3fc') : tierTheme.primary;
+                    const activeTabId = visibleTabs[activeIndex]?.id;
+                    if (activeTabId === 'HOME' && t.navActiveHome) return t.navActiveHome;
+                    if (activeTabId === 'REVISION_HUB' && t.navActiveRevision) return t.navActiveRevision;
+                    if (activeTabId === 'MY_ROUTINE' && t.navActiveRoutine) return t.navActiveRoutine;
+                    if (activeTabId === 'COMMUNITY_SUPPORT' && t.navActiveCommunity) return t.navActiveCommunity;
+                    if (activeTabId === 'PROFILE' && t.navActiveProfile) return t.navActiveProfile;
+                    return defaultActive;
+                  })()}
+                  glowColor={(() => {
+                    const t = tierTheme as any;
+                    const activeTabId = visibleTabs[activeIndex]?.id;
+                    if (activeTabId === 'HOME' && t.navGlowHome) return t.navGlowHome;
+                    if (activeTabId === 'REVISION_HUB' && t.navGlowRevision) return t.navGlowRevision;
+                    if (activeTabId === 'MY_ROUTINE' && t.navGlowRoutine) return t.navGlowRoutine;
+                    if (activeTabId === 'COMMUNITY_SUPPORT' && t.navGlowCommunity) return t.navGlowCommunity;
+                    if (activeTabId === 'PROFILE' && t.navGlowProfile) return t.navGlowProfile;
+                    return _isNavDark ? (t.navActive || '#7dd3fc') : tierTheme.primary;
+                  })()}
                   ActiveIcon={visibleTabs[activeIndex]?.Icon}
                 />
                 {visibleTabs.map((tab) => {
@@ -23209,7 +23256,7 @@ RULES:
         // bg-white (solid) — earlier `from-amber-50/40` was 40% transparent,
         // letting the Home page's streak ("6/8") bleed through. Solid bg
         // ensures the user sees only ONE page at a time.
-        <div className="fixed inset-0 z-[200] flex flex-col animate-in slide-in-from-right-full duration-300" style={{ background: _appBg }}>
+        <div className="fixed inset-0 z-[200] flex flex-col animate-in slide-in-from-right-full duration-300" style={{ background: _appWallpaper ? `url(${_appWallpaper}) center/cover no-repeat fixed` : _appBg }}>
           {/* === PREMIUM HEADER (study-app gradient) === */}
           <div className="relative sticky top-0 z-10" style={{ background: tierTheme.topBarGrad }}>
             {/* Decorative pattern overlay */}

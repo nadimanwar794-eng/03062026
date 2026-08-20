@@ -201,6 +201,9 @@ export const buildGranularTierTheme = (
     btnStart?: string; btnEnd?: string; accentColor?: string;
     textColor?: string; textSecondary?: string;
     accentGlow?: string; progressColor?: string;
+    navActiveHome?: string; navActiveRevision?: string; navActiveRoutine?: string; navActiveCommunity?: string; navActiveProfile?: string;
+    navGlowHome?: string; navGlowRevision?: string; navGlowRoutine?: string; navGlowCommunity?: string; navGlowProfile?: string;
+    wallpaperHome?: string; wallpaperRevision?: string; wallpaperRoutine?: string; wallpaperCommunity?: string; wallpaperProfile?: string;
   }
 ): typeof TIER_THEME[UserTier] => {
   const accent = t.btnStart || t.accentColor || base.primary;
@@ -252,7 +255,27 @@ export const buildGranularTierTheme = (
     progressColor:   t.progressColor|| accent,
     accentGlowColor: t.accentGlow   || accent,
     appBgColor:      t.bgColor      || null,
-  };
+    navActiveHome:   t.navActiveHome,
+    navActiveRevision: t.navActiveRevision,
+    navActiveRoutine: t.navActiveRoutine,
+    navActiveCommunity: t.navActiveCommunity,
+    navActiveProfile: t.navActiveProfile,
+    navGlowHome:     t.navGlowHome,
+    navGlowRevision: t.navGlowRevision,
+    navGlowRoutine:  t.navGlowRoutine,
+    navGlowCommunity: t.navGlowCommunity,
+    navGlowProfile:  t.navGlowProfile,
+    wallpaperHome:   t.wallpaperHome,
+    wallpaperRevision: t.wallpaperRevision,
+    wallpaperRoutine: t.wallpaperRoutine,
+    wallpaperCommunity: t.wallpaperCommunity,
+    wallpaperProfile: t.wallpaperProfile,
+    bgHome: t.bgHome,
+    bgRevision: t.bgRevision,
+    bgRoutine: t.bgRoutine,
+    bgCommunity: t.bgCommunity,
+    bgProfile: t.bgProfile,
+  } as any;
 };
 
 // Get the effective theme override color:

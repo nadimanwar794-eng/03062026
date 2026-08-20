@@ -39,6 +39,26 @@ interface ThemeState {
     chapterAccent?: string;
     mcqTabActive?: string;
     topBarEffect?: string;
+    navActiveHome?: string;
+    navActiveRevision?: string;
+    navActiveRoutine?: string;
+    navActiveCommunity?: string;
+    navActiveProfile?: string;
+    navGlowHome?: string;
+    navGlowRevision?: string;
+    navGlowRoutine?: string;
+    navGlowCommunity?: string;
+    navGlowProfile?: string;
+    wallpaperHome?: string;
+    wallpaperRevision?: string;
+    wallpaperRoutine?: string;
+    wallpaperCommunity?: string;
+    wallpaperProfile?: string;
+    bgHome?: string;
+    bgRevision?: string;
+    bgRoutine?: string;
+    bgCommunity?: string;
+    bgProfile?: string;
     animColor?: string;
     animSpeed?: number;
     themeName?: string;
@@ -64,6 +84,16 @@ const DEFAULT_THEME: ThemeState = {
     flashcardBg2: '#1e40af',
     chapterAccent: '#3b82f6',
     mcqTabActive: '#3b82f6',
+    navActiveHome: '#22c55e',
+    navActiveRevision: '#06b6d4',
+    navActiveRoutine: '#f59e0b',
+    navActiveCommunity: '#ec4899',
+    navActiveProfile: '#8b5cf6',
+    navGlowHome: '#22c55e',
+    navGlowRevision: '#06b6d4',
+    navGlowRoutine: '#f59e0b',
+    navGlowCommunity: '#ec4899',
+    navGlowProfile: '#8b5cf6',
 };
 
 const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefault?: boolean }> = [
@@ -498,7 +528,7 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'BOTTOM_NAV_COLORS' | 'WALLPAPERS';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
@@ -625,6 +655,26 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         chapterAccent: t.chapterAccent || accent || DEFAULT_THEME.chapterAccent,
         mcqTabActive:  t.mcqTabActive  || accent || DEFAULT_THEME.mcqTabActive,
         topBarEffect:  t.topBarEffect,
+        navActiveHome: t.navActiveHome || DEFAULT_THEME.navActiveHome,
+        navActiveRevision: t.navActiveRevision || DEFAULT_THEME.navActiveRevision,
+        navActiveRoutine: t.navActiveRoutine || DEFAULT_THEME.navActiveRoutine,
+        navActiveCommunity: t.navActiveCommunity || DEFAULT_THEME.navActiveCommunity,
+        navActiveProfile: t.navActiveProfile || DEFAULT_THEME.navActiveProfile,
+        navGlowHome: t.navGlowHome || DEFAULT_THEME.navGlowHome,
+        navGlowRevision: t.navGlowRevision || DEFAULT_THEME.navGlowRevision,
+        navGlowRoutine: t.navGlowRoutine || DEFAULT_THEME.navGlowRoutine,
+        navGlowCommunity: t.navGlowCommunity || DEFAULT_THEME.navGlowCommunity,
+        navGlowProfile: t.navGlowProfile || DEFAULT_THEME.navGlowProfile,
+        wallpaperHome: t.wallpaperHome,
+        wallpaperRevision: t.wallpaperRevision,
+        wallpaperRoutine: t.wallpaperRoutine,
+        wallpaperCommunity: t.wallpaperCommunity,
+        wallpaperProfile: t.wallpaperProfile,
+        bgHome: t.bgHome,
+        bgRevision: t.bgRevision,
+        bgRoutine: t.bgRoutine,
+        bgCommunity: t.bgCommunity,
+        bgProfile: t.bgProfile,
         animColor:     t.animColor,
         animSpeed:     t.animSpeed,
         themeName:     t.themeName,
@@ -769,6 +819,26 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             chapterAccent: theme.chapterAccent,
             mcqTabActive:  theme.mcqTabActive,
             topBarEffect:  theme.topBarEffect,
+        navActiveHome: theme.navActiveHome,
+        navActiveRevision: theme.navActiveRevision,
+        navActiveRoutine: theme.navActiveRoutine,
+        navActiveCommunity: theme.navActiveCommunity,
+        navActiveProfile: theme.navActiveProfile,
+        navGlowHome: theme.navGlowHome,
+        navGlowRevision: theme.navGlowRevision,
+        navGlowRoutine: theme.navGlowRoutine,
+        navGlowCommunity: theme.navGlowCommunity,
+        navGlowProfile: theme.navGlowProfile,
+        wallpaperHome: theme.wallpaperHome,
+        wallpaperRevision: theme.wallpaperRevision,
+        wallpaperRoutine: theme.wallpaperRoutine,
+        wallpaperCommunity: theme.wallpaperCommunity,
+        wallpaperProfile: theme.wallpaperProfile,
+        bgHome: theme.bgHome,
+        bgRevision: theme.bgRevision,
+        bgRoutine: theme.bgRoutine,
+        bgCommunity: theme.bgCommunity,
+        bgProfile: theme.bgProfile,
             animColor:     theme.animColor,
             animSpeed:     theme.animSpeed,
             themeName:     theme.themeName,
@@ -860,6 +930,26 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         chapterAccent: theme.chapterAccent,
         mcqTabActive:  theme.mcqTabActive,
         topBarEffect:  theme.topBarEffect,
+        navActiveHome: theme.navActiveHome,
+        navActiveRevision: theme.navActiveRevision,
+        navActiveRoutine: theme.navActiveRoutine,
+        navActiveCommunity: theme.navActiveCommunity,
+        navActiveProfile: theme.navActiveProfile,
+        navGlowHome: theme.navGlowHome,
+        navGlowRevision: theme.navGlowRevision,
+        navGlowRoutine: theme.navGlowRoutine,
+        navGlowCommunity: theme.navGlowCommunity,
+        navGlowProfile: theme.navGlowProfile,
+        wallpaperHome: theme.wallpaperHome,
+        wallpaperRevision: theme.wallpaperRevision,
+        wallpaperRoutine: theme.wallpaperRoutine,
+        wallpaperCommunity: theme.wallpaperCommunity,
+        wallpaperProfile: theme.wallpaperProfile,
+        bgHome: theme.bgHome,
+        bgRevision: theme.bgRevision,
+        bgRoutine: theme.bgRoutine,
+        bgCommunity: theme.bgCommunity,
+        bgProfile: theme.bgProfile,
         animColor:     theme.animColor,
         animSpeed:     theme.animSpeed,
         themeName:     theme.themeName,
@@ -1248,6 +1338,67 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 <ColorRow label="Glow / Accent" sub="Avatar glow, level ring, highlights" value={theme.accentGlow}    onChange={setColor('accentGlow')}    accent={theme.btnStart} />
                 <ColorRow label="Progress Bar"  sub="Score bars, loading bars ka color"   value={theme.progressColor} onChange={setColor('progressColor')} accent={theme.btnStart} />
             </>
+        ),
+        BOTTOM_NAV_COLORS: (
+            <div className="space-y-4">
+                <ColorRow label="Home Active Color" value={theme.navActiveHome || ''} onChange={setColor('navActiveHome')} accent={theme.btnStart} />
+                <ColorRow label="Home Glow Color" value={theme.navGlowHome || ''} onChange={setColor('navGlowHome')} accent={theme.btnStart} />
+                <ColorRow label="Revision Active Color" value={theme.navActiveRevision || ''} onChange={setColor('navActiveRevision')} accent={theme.btnStart} />
+                <ColorRow label="Revision Glow Color" value={theme.navGlowRevision || ''} onChange={setColor('navGlowRevision')} accent={theme.btnStart} />
+                <ColorRow label="Routine Active Color" value={theme.navActiveRoutine || ''} onChange={setColor('navActiveRoutine')} accent={theme.btnStart} />
+                <ColorRow label="Routine Glow Color" value={theme.navGlowRoutine || ''} onChange={setColor('navGlowRoutine')} accent={theme.btnStart} />
+                <ColorRow label="Community Active Color" value={theme.navActiveCommunity || ''} onChange={setColor('navActiveCommunity')} accent={theme.btnStart} />
+                <ColorRow label="Community Glow Color" value={theme.navGlowCommunity || ''} onChange={setColor('navGlowCommunity')} accent={theme.btnStart} />
+                <ColorRow label="Profile Active Color" value={theme.navActiveProfile || ''} onChange={setColor('navActiveProfile')} accent={theme.btnStart} />
+                <ColorRow label="Profile Glow Color" value={theme.navGlowProfile || ''} onChange={setColor('navGlowProfile')} accent={theme.btnStart} />
+            </div>
+        ),
+        WALLPAPERS: (
+            <div className="space-y-6">
+                {[
+                    { key: 'wallpaperHome', label: 'Home (Global Fallback)' },
+                    { key: 'wallpaperRevision', label: 'Revision Hub' },
+                    { key: 'wallpaperRoutine', label: 'My Routine' },
+                    { key: 'wallpaperCommunity', label: 'Community' },
+                    { key: 'wallpaperProfile', label: 'Profile' }
+                ].map(tab => (
+                    <div key={tab.key} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <label className="text-xs font-black text-slate-700 mb-2 block uppercase tracking-wider">{tab.label} Wallpaper</label>
+                        <div className="space-y-3">
+                            <input
+                                type="text"
+                                placeholder="Image URL..."
+                                value={theme[tab.key as keyof ThemeState] as string || ''}
+                                onChange={(e) => setColor(tab.key as keyof ThemeState)(e.target.value)}
+                                className="w-full px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm outline-none focus:border-blue-500"
+                            />
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                                <span>OR</span>
+                                <span className="text-[10px]">(Max ~700KB)</span>
+                            </div>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        if (file.size > 700 * 1024) {
+                                            alert("File is too large! Please select an image under 700KB.");
+                                            return;
+                                        }
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                            setColor(tab.key as keyof ThemeState)(reader.result as string);
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                                className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
         ),
     };
 
