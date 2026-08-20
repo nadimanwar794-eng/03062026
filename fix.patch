@@ -1,0 +1,9 @@
+--- ./artifacts/iic-study-app/src/components/StudentDashboard.tsx
++++ ./artifacts/iic-study-app/src/components/StudentDashboard.tsx
+@@ -18365,7 +18365,7 @@
+     if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || "#22c55e";
+     return pt?.navActive || "#22c55e";
+   })()}
+-  ActiveIcon={visibleTabs[activeIndex]?.icon}
++  ActiveIcon={visibleTabs[activeIndex]?.Icon}
+ />

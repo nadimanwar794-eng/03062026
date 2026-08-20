@@ -5213,7 +5213,7 @@ export const StudentDashboard: React.FC<Props> = ({
       source ? { lessonTitle: source.lessonTitle, subject: source.subject, pageNo: source.pageNo as any, pageIndex: source.pageIndex as any } : undefined
     ).catch(() => {});
     try { if (navigator.vibrate) navigator.vibrate(alreadyMarked ? 20 : 60); } catch {}
-    
+
   };
 
   // Helper: for any ChunkedNotesReader — returns whether topic is admin-globally-important.
@@ -18367,7 +18367,7 @@ export const StudentDashboard: React.FC<Props> = ({
     if (actId === 'PROFILE') return pt?.navProfileActive || pt?.navActive || "#22c55e";
     return pt?.navActive || "#22c55e";
   })()}
-  ActiveIcon={visibleTabs[activeIndex]?.Icon}
+  ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
                 {visibleTabs.map((tab) => {
