@@ -178,7 +178,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return true;
   };
 
-  // 100% COMPLETE GOOGLE AUTH WITH SCHEMA MIGRATION & GUARANTEED 50 COINS
+  // COMPLETE GOOGLE AUTH FIX (Registration + Fallback 50 Credits + Persistent Session)
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
@@ -206,7 +206,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
 
       if (appUser) {
-        // --- EXISTING USER SYNC ---
+        // --- EXISTING USER LOGIN ---
         if (appUser.id !== firebaseUser.uid) {
           const oldId = appUser.id;
           appUser = { ...appUser, id: firebaseUser.uid, provider: 'google', email: userEmail || appUser.email };
@@ -1221,4 +1221,3 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
-
