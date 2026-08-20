@@ -889,6 +889,16 @@ export const StudentDashboard: React.FC<Props> = ({
     return manual || tierAppBg || '#ffffff';
   })();
 
+  const tabSpecificWallpaper = (() => {
+    if (showRevisionHubScreen) return (tierTheme as any).revisionBackgroundImage || (tierTheme as any).appBackgroundImage;
+    if (showMyRoutine) return (tierTheme as any).routineBackgroundImage || (tierTheme as any).appBackgroundImage;
+    if (showChat) return (tierTheme as any).communityBackgroundImage || (tierTheme as any).appBackgroundImage;
+    if (currentLogicalTab === 'PROFILE') return (tierTheme as any).profileBackgroundImage || (tierTheme as any).appBackgroundImage;
+    if (currentLogicalTab === 'HOME') return (tierTheme as any).homeBackgroundImage || (tierTheme as any).appBackgroundImage;
+    return (tierTheme as any).appBackgroundImage;
+  })();
+
+
   // ── Nav background luminance — for dynamic icon/text color ───────────────
   const _isNavDark = (() => {
     const nb = tierTheme.navBg || '#ffffff';
@@ -13033,7 +13043,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   return (
   <ThemeProvider theme={_extendedTheme}>
-    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
+    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: tabSpecificWallpaper ? `url(${tabSpecificWallpaper}) center/cover fixed no-repeat` : _appBg }}>
       <NotificationPrompt />
       {/* Admin WhiteBoard floating panel — fixed z-[9999], visible in ALL modes */}
       {_isAdminUser && showAdminBoard && (
@@ -18349,6 +18359,15 @@ export const StudentDashboard: React.FC<Props> = ({
             const activeIndex = Math.max(0, visibleTabs.findIndex((t) => t.isActive));
             const tabWidthPct = 100 / totalVisible;
 
+            const activeTabGlowColor = (() => {
+              if (showRevisionHubScreen) return (tierTheme as any).revisionGlowColor;
+              if (showMyRoutine) return (tierTheme as any).routineGlowColor;
+              if (showChat) return (tierTheme as any).communityGlowColor;
+              if (currentLogicalTab === 'PROFILE') return (tierTheme as any).profileGlowColor;
+              if (currentLogicalTab === 'HOME') return (tierTheme as any).homeGlowColor;
+              return ((tierTheme as any).navActive || tierTheme.primary);
+            })();
+
             return (
               <>
                 <MeniscusNavIndicator
@@ -18356,7 +18375,7 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor="#22c55e"
+  activeColor={activeTabGlowColor || ((tierTheme as any).navActive || tierTheme.primary)}
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 

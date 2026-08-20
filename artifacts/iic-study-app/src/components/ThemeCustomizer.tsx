@@ -43,6 +43,17 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+    appBackgroundImage?: string;
+    homeBackgroundImage?: string;
+    revisionBackgroundImage?: string;
+    routineBackgroundImage?: string;
+    communityBackgroundImage?: string;
+    profileBackgroundImage?: string;
+    homeGlowColor?: string;
+    revisionGlowColor?: string;
+    routineGlowColor?: string;
+    communityGlowColor?: string;
+    profileGlowColor?: string;
 }
 
 const DEFAULT_THEME: ThemeState = {
@@ -498,10 +509,12 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'WALLPAPER' | 'TAB_GLOW';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
+    { id: 'WALLPAPER',  label: 'Wallpaper',  icon: <Square size={13} />,      desc: 'Global aur page-specific wallpaper' },
+    { id: 'TAB_GLOW',   label: 'Tab Glow',   icon: <Zap size={13} />,         desc: 'Har page ka alag tab glow color' },
     { id: 'TOPBAR',     label: 'Top Bar',    icon: <ChevronRight size={13} />, desc: 'Header gradient — dono colors alag' },
     { id: 'NAVIGATION', label: 'Navigation', icon: <Navigation size={13} />,   desc: 'Bottom nav — 3 colors alag' },
     { id: 'CARDS',      label: 'Cards',      icon: <Square size={13} />,       desc: 'Card background aur border alag' },
@@ -629,6 +642,17 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         animSpeed:     t.animSpeed,
         themeName:     t.themeName,
         themeEmoji:    t.themeEmoji,
+        appBackgroundImage: t.appBackgroundImage,
+        homeBackgroundImage: t.homeBackgroundImage,
+        revisionBackgroundImage: t.revisionBackgroundImage,
+        routineBackgroundImage: t.routineBackgroundImage,
+        communityBackgroundImage: t.communityBackgroundImage,
+        profileBackgroundImage: t.profileBackgroundImage,
+        homeGlowColor: t.homeGlowColor,
+        revisionGlowColor: t.revisionGlowColor,
+        routineGlowColor: t.routineGlowColor,
+        communityGlowColor: t.communityGlowColor,
+        profileGlowColor: t.profileGlowColor,
     };
 };
 
@@ -773,6 +797,17 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             animSpeed:     theme.animSpeed,
             themeName:     theme.themeName,
             themeEmoji:    theme.themeEmoji,
+            appBackgroundImage: theme.appBackgroundImage,
+            homeBackgroundImage: theme.homeBackgroundImage,
+            revisionBackgroundImage: theme.revisionBackgroundImage,
+            routineBackgroundImage: theme.routineBackgroundImage,
+            communityBackgroundImage: theme.communityBackgroundImage,
+            profileBackgroundImage: theme.profileBackgroundImage,
+            homeGlowColor: theme.homeGlowColor,
+            revisionGlowColor: theme.revisionGlowColor,
+            routineGlowColor: theme.routineGlowColor,
+            communityGlowColor: theme.communityGlowColor,
+            profileGlowColor: theme.profileGlowColor,
             createdAt:     new Date().toISOString(),
             likes:         0,
         };
@@ -864,6 +899,17 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         animSpeed:     theme.animSpeed,
         themeName:     theme.themeName,
         themeEmoji:    theme.themeEmoji,
+        appBackgroundImage: theme.appBackgroundImage,
+        homeBackgroundImage: theme.homeBackgroundImage,
+        revisionBackgroundImage: theme.revisionBackgroundImage,
+        routineBackgroundImage: theme.routineBackgroundImage,
+        communityBackgroundImage: theme.communityBackgroundImage,
+        profileBackgroundImage: theme.profileBackgroundImage,
+        homeGlowColor: theme.homeGlowColor,
+        revisionGlowColor: theme.revisionGlowColor,
+        routineGlowColor: theme.routineGlowColor,
+        communityGlowColor: theme.communityGlowColor,
+        profileGlowColor: theme.profileGlowColor,
         createdAt:     new Date().toISOString(),
         likes:         0,
     });
@@ -1187,6 +1233,49 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
     };
 
     const sectionColors: Record<ColorSection, React.ReactNode> = {
+        WALLPAPER: (
+            <>
+                <div className="py-2.5 border-b border-white/5">
+                    <p className="text-xs font-bold text-white/90">Global Wallpaper</p>
+                    <p className="text-[9px] text-white/35 mt-0.5">App ke sabhi screens pe default wallpaper (Notes chhod kar)</p>
+                    <input type="text" value={theme.appBackgroundImage || ''} onChange={(e) => setColor('appBackgroundImage')(e.target.value)} placeholder="Image URL dalen" className="mt-2 w-full px-2.5 py-1.5 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white" />
+                </div>
+                <div className="py-2.5 border-b border-white/5">
+                    <p className="text-xs font-bold text-white/90">Home Wallpaper</p>
+                    <p className="text-[9px] text-white/35 mt-0.5">Sirf Home tab ke liye wallpaper</p>
+                    <input type="text" value={theme.homeBackgroundImage || ''} onChange={(e) => setColor('homeBackgroundImage')(e.target.value)} placeholder="Image URL dalen" className="mt-2 w-full px-2.5 py-1.5 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white" />
+                </div>
+                <div className="py-2.5 border-b border-white/5">
+                    <p className="text-xs font-bold text-white/90">Revision Wallpaper</p>
+                    <p className="text-[9px] text-white/35 mt-0.5">Sirf Revision tab ke liye wallpaper</p>
+                    <input type="text" value={theme.revisionBackgroundImage || ''} onChange={(e) => setColor('revisionBackgroundImage')(e.target.value)} placeholder="Image URL dalen" className="mt-2 w-full px-2.5 py-1.5 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white" />
+                </div>
+                <div className="py-2.5 border-b border-white/5">
+                    <p className="text-xs font-bold text-white/90">Routine Wallpaper</p>
+                    <p className="text-[9px] text-white/35 mt-0.5">Sirf Routine tab ke liye wallpaper</p>
+                    <input type="text" value={theme.routineBackgroundImage || ''} onChange={(e) => setColor('routineBackgroundImage')(e.target.value)} placeholder="Image URL dalen" className="mt-2 w-full px-2.5 py-1.5 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white" />
+                </div>
+                <div className="py-2.5 border-b border-white/5">
+                    <p className="text-xs font-bold text-white/90">Community Wallpaper</p>
+                    <p className="text-[9px] text-white/35 mt-0.5">Sirf Community tab ke liye wallpaper</p>
+                    <input type="text" value={theme.communityBackgroundImage || ''} onChange={(e) => setColor('communityBackgroundImage')(e.target.value)} placeholder="Image URL dalen" className="mt-2 w-full px-2.5 py-1.5 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white" />
+                </div>
+                <div className="py-2.5 border-b border-white/5">
+                    <p className="text-xs font-bold text-white/90">Profile Wallpaper</p>
+                    <p className="text-[9px] text-white/35 mt-0.5">Sirf Profile tab ke liye wallpaper</p>
+                    <input type="text" value={theme.profileBackgroundImage || ''} onChange={(e) => setColor('profileBackgroundImage')(e.target.value)} placeholder="Image URL dalen" className="mt-2 w-full px-2.5 py-1.5 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white" />
+                </div>
+            </>
+        ),
+        TAB_GLOW: (
+            <>
+                <ColorRow label="Home Tab Glow" sub="Home tab ka active color" value={theme.homeGlowColor || theme.navActive} onChange={setColor('homeGlowColor')} accent={theme.btnStart} />
+                <ColorRow label="Revision Tab Glow" sub="Revision tab ka active color" value={theme.revisionGlowColor || theme.navActive} onChange={setColor('revisionGlowColor')} accent={theme.btnStart} />
+                <ColorRow label="Routine Tab Glow" sub="Routine tab ka active color" value={theme.routineGlowColor || theme.navActive} onChange={setColor('routineGlowColor')} accent={theme.btnStart} />
+                <ColorRow label="Community Tab Glow" sub="Community tab ka active color" value={theme.communityGlowColor || theme.navActive} onChange={setColor('communityGlowColor')} accent={theme.btnStart} />
+                <ColorRow label="Profile Tab Glow" sub="Profile tab ka active color" value={theme.profileGlowColor || theme.navActive} onChange={setColor('profileGlowColor')} accent={theme.btnStart} />
+            </>
+        ),
         BACKGROUND: isAdmin ? (
             <ColorRow label="App Background" sub="Puri app ki main background (Admin only)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />
         ) : (

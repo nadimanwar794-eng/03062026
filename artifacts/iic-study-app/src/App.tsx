@@ -3312,7 +3312,7 @@ const App: React.FC = () => {
       return <AppLoadingScreen isPremium={state.user?.isPremium || false} subscriptionLevel={getUserPlan()} onComplete={() => setIsAppLoading(false)} />;
   }
 
-  const bgImageStyle = (state.settings?.appBackgroundImage && state.view !== 'LESSON') ? `url(${state.settings.appBackgroundImage})` : undefined;
+  const bgImageStyle = ((state.user?.personalTheme?.appBackgroundImage || state.settings?.appBackgroundImage) && state.view !== 'LESSON') ? `url(${state.user?.personalTheme?.appBackgroundImage || state.settings?.appBackgroundImage})` : undefined;
 
   return (
     <ErrorBoundary>
