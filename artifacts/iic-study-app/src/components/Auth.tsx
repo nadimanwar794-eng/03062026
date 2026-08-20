@@ -5,7 +5,7 @@ import { ADMIN_EMAIL } from '../constants';
 import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserByNameAndClass, rtdb, getUserData, updateUserUID, getUserByLinkedGoogleUid } from '../firebase';
 import { ref, set } from "firebase/database";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signInAnonymously, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { UserPlus, LogIn, Lock, User as UserIcon, Phone, Mail, ShieldCheck, ArrowRight, School, GraduationCap, Layers, KeyRound, Copy, Check, AlertTriangle, XCircle, MessageCircle, Send, RefreshCcw, ShieldAlert, HelpCircle, Eye, EyeOff, Search, CheckCircle2, ShieldQuestion, Loader2 } from 'lucide-react';
+import { UserPlus, LogIn, Lock, User as UserIcon, Phone, Mail, ShieldCheck, ArrowRight, School, GraduationCap, Layers, KeyRound, Copy, Check, AlertTriangle, XCircle, MessageCircle, Send, RefreshCcw, ShieldAlert, HelpCircle, Eye, EyeOff, Search, CheckCircle2, ShieldQuestion, Loader2, Sparkles } from 'lucide-react';
 import { LoginGuide } from './LoginGuide';
 import { CustomAlert } from './CustomDialogs';
 import { SpeakButton } from './SpeakButton';
@@ -178,7 +178,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return true;
   };
 
-  // COMPLETE GOOGLE AUTH FIX (Registration + Fallback 50 Credits + Persistent Session)
+  // 100% COMPLETE GOOGLE AUTH WITH SCHEMA MIGRATION & GUARANTEED 50 COINS
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
@@ -206,7 +206,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
 
       if (appUser) {
-        // --- EXISTING USER LOGIN ---
+        // --- EXISTING USER SYNC ---
         if (appUser.id !== firebaseUser.uid) {
           const oldId = appUser.id;
           appUser = { ...appUser, id: firebaseUser.uid, provider: 'google', email: userEmail || appUser.email };
@@ -220,7 +220,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         }
 
         if (typeof appUser.credits !== 'number' || appUser.credits === 0) {
-          appUser.credits = 50;
+          appUser.credits = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
         }
         appUser.profileCompleted = true;
 
@@ -231,7 +231,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         if (logActivity) logActivity("LOGIN", "Student Logged In via Google Auth", appUser);
         triggerWelcome(appUser);
       } else {
-        // --- NEW USER REGISTRATION ---
+        // --- NEW USER REGISTRATION WITH 50 COINS & COMPLETE SCHEMA ---
         const newId = generateUserId();
         const signupCoins = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
 
@@ -244,7 +244,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           mobile: userMobile,
           role: 'STUDENT',
           createdAt: new Date().toISOString(),
-          credits: signupCoins,
+          credits: signupCoins, // 50 Welcome Coins Guaranteed
           streak: 1,
           totalScore: 0,
           lastLoginDate: new Date().toISOString(),
@@ -273,6 +273,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           ]
         };
 
+        // Permanent Session Lock
         localStorage.setItem('nst_current_user', JSON.stringify(newUser));
         localStorage.setItem('nst_last_user_id', newUser.id);
         await saveUserToLive(newUser);
@@ -283,9 +284,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     } catch (err: any) {
       console.error("Google Auth Error:", err);
       if (err.code === 'auth/popup-closed-by-user') {
-        setError("Sign-in window band kar di gayi.");
+        setError("Sign-in window cancel kar di gayi.");
       } else {
-        setError(err.message || "Google Login fail hua.");
+        setError(err.message || "Google Login fail hua. Details check karein.");
       }
     } finally {
       setLoading(false);
@@ -419,7 +420,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       const res = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       const firebaseUser = res.user;
       const newId = generateUserId();
-      const signupCoins = settings?.signupBonus || appSettings?.signupBonus || 50;
+      const signupCoins = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
 
       const newStudentUser: User = {
         id: firebaseUser.uid,
@@ -790,13 +791,13 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       <button 
         type="button"
         onClick={() => setShowGuide(true)} 
-        className="absolute top-5 right-5 z-30 p-2 rounded-full bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white shadow-md transition-colors"
+        className="absolute top-5 right-5 z-30 p-2.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-white shadow-lg transition-all active:scale-95"
       >
         <HelpCircle size={20} />
       </button>
 
       {/* ── CARD 3D FLIP CONTAINER ── */}
-      <div className="relative z-10 w-[92vw] max-w-[420px] min-h-[580px] [perspective:1400px] my-auto flex items-center justify-center">
+      <div className="relative z-10 w-[92vw] max-w-[420px] min-h-[590px] [perspective:1400px] my-auto flex items-center justify-center">
         
         <div 
           className="w-full h-full relative [transform-style:preserve-3d] transition-transform duration-700 ease-in-out"
@@ -806,12 +807,12 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           {/* ══════════════════════════════════════════════════════════════════════
               SIDE 1: LOGIN & ADMIN
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="w-full min-h-[580px] rounded-[2.5rem] bg-[#0c1020]/95 backdrop-blur-2xl [backface-visibility:hidden] flex flex-col items-center justify-between p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-800">
+          <div className="w-full min-h-[590px] rounded-[2.5rem] bg-[#0c1020]/95 backdrop-blur-2xl [backface-visibility:hidden] flex flex-col items-center justify-between p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.1)] border border-slate-800">
             
             <div className="w-full flex flex-col items-center my-auto">
               
               {/* App Brand Logo */}
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center mb-3 shadow-[0_0_25px_rgba(245,158,11,0.3)] p-1 overflow-hidden border border-amber-300/40">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-600 flex items-center justify-center mb-3 shadow-[0_0_30px_rgba(245,158,11,0.35)] p-1 overflow-hidden border border-amber-300/40 animate-in zoom-in duration-300">
                 {settings?.appLogo ? (
                   <img src={settings.appLogo} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                 ) : (
@@ -823,11 +824,11 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 {view === 'ADMIN' ? 'Admin Portal' : 'Welcome Back'}
               </h2>
               <p className="text-xs font-medium text-slate-400 mb-5 text-center">
-                {view === 'ADMIN' ? 'Authorized personnel access' : 'Sign in to continue your learning'}
+                {view === 'ADMIN' ? 'Authorized personnel access' : 'Sign in to continue your learning journey'}
               </p>
 
               {error && (view === 'LOGIN' || view === 'ADMIN') && (
-                <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
                   <XCircle size={15} className="shrink-0 text-rose-400" />
                   <span className="truncate">{error}</span>
                 </div>
@@ -845,7 +846,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       placeholder="Mobile, Email ya Account ID"
                       value={formData.id}
                       onChange={handleChange}
-                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 font-medium outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner"
+                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 font-medium outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner transition-all"
                       autoCapitalize="none"
                     />
                   </div>
@@ -859,12 +860,12 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       placeholder="Password"
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-11 py-3 text-xs sm:text-sm text-white placeholder-slate-500 font-medium outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner"
+                      className="w-full bg-[#070a14] rounded-2xl pl-11 pr-11 py-3 text-xs sm:text-sm text-white placeholder-slate-500 font-medium outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 text-slate-500 hover:text-slate-300"
+                      className="absolute right-4 text-slate-500 hover:text-slate-300 transition-colors"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -886,7 +887,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                       onClick={() => { setView('RECOVERY'); setRecoveryStep(1); setError(null); }}
                       className="text-amber-400 font-bold hover:underline transition-colors flex items-center gap-1"
                     >
-                      <KeyRound size={12} />
+                      <KeyRound size={13} />
                       <span>Instant Recovery</span>
                     </button>
                   </div>
@@ -894,7 +895,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
+                    className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-[0_0_20px_rgba(245,158,11,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : <span>SIGN IN</span>}
                   </button>
@@ -927,7 +928,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Enter Secret Code"
                         value={adminAuthCode}
                         onChange={(e) => setAdminAuthCode(e.target.value)}
-                        className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-purple-500/50"
+                        className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
                         autoFocus
                       />
                     </div>
@@ -935,7 +936,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-[0_0_20px_rgba(147,51,234,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                   >
                     {showAdminVerify ? 'Access Dashboard' : 'Verify Email'}
                   </button>
@@ -955,7 +956,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                     type="button" 
                     onClick={handleGoogleAuth} 
                     disabled={loading}
-                    className="w-full py-3 rounded-2xl bg-[#080b16] border border-slate-800 hover:border-slate-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-xs sm:text-sm font-bold text-slate-200"
+                    className="w-full py-3 rounded-2xl bg-[#080b16] border border-slate-800 hover:border-slate-700 hover:bg-slate-900/50 active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-xs sm:text-sm font-bold text-slate-200 shadow-md"
                   >
                     <GoogleBrandIcon />
                     <span>Continue with Google</span>
@@ -978,7 +979,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 <button
                   type="button"
                   onClick={() => { setView('LOGIN'); setShowAdminVerify(false); }}
-                  className="text-xs text-slate-400 hover:text-white mt-4"
+                  className="text-xs text-slate-400 hover:text-white mt-4 transition-colors"
                 >
                   ← Back to Student Login
                 </button>
@@ -990,7 +991,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           {/* ══════════════════════════════════════════════════════════════════════
               SIDE 2: SIGN UP / INSTANT RECOVERY
           ══════════════════════════════════════════════════════════════════════ */}
-          <div className="absolute inset-0 w-full min-h-[580px] rounded-[2.5rem] bg-[#0c1020]/95 backdrop-blur-2xl [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-slate-800 overflow-y-auto">
+          <div className="absolute inset-0 w-full min-h-[590px] rounded-[2.5rem] bg-[#0c1020]/95 backdrop-blur-2xl [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col items-center justify-between p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.1)] border border-slate-800 overflow-y-auto">
             
             <div className="w-full flex flex-col items-center my-auto">
               
@@ -998,10 +999,10 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               {view === 'SIGNUP' && (
                 <>
                   <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-0.5">Sign Up</h2>
-                  <p className="text-xs font-medium text-slate-400 mb-3">Create your student account</p>
+                  <p className="text-xs font-medium text-slate-400 mb-3">Create your student account & get 50 coins</p>
 
                   {error && (
-                    <div className="w-full mb-2.5 px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                    <div className="w-full mb-2.5 px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
                       <XCircle size={14} className="shrink-0 text-rose-400" />
                       <span className="truncate">{error}</span>
                     </div>
@@ -1017,7 +1018,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Full name"
                         value={formData.name}
                         onChange={handleChange}
-                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 transition-all shadow-inner"
                       />
                     </div>
 
@@ -1029,7 +1030,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Mobile Number"
                         value={formData.mobile}
                         onChange={handleChange}
-                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 transition-all shadow-inner"
                       />
                     </div>
 
@@ -1042,7 +1043,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Email address"
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 transition-all shadow-inner"
                       />
                     </div>
 
@@ -1055,7 +1056,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         placeholder="Password (Min 6 chars)"
                         value={formData.password}
                         onChange={handleChange}
-                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                        className="w-full bg-[#070a14] rounded-2xl pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 transition-all shadow-inner"
                       />
                     </div>
 
@@ -1064,7 +1065,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                         name="securityQuestion"
                         value={formData.securityQuestion}
                         onChange={handleChange}
-                        className="w-full bg-[#070a14] rounded-xl px-3 py-2 text-xs text-slate-300 font-medium outline-none border border-slate-800"
+                        className="w-full bg-[#070a14] rounded-xl px-3 py-2 text-xs text-slate-300 font-medium outline-none border border-slate-800 shadow-inner"
                       >
                         {DEFAULT_QUESTIONS.map((q, idx) => (
                           <option key={idx} value={q}>{q}</option>
@@ -1080,7 +1081,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                           placeholder="Secret Answer (Recovery ke liye)"
                           value={formData.securityAnswer}
                           onChange={handleChange}
-                          className="w-full bg-[#070a14] rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                          className="w-full bg-[#070a14] rounded-xl pl-10 pr-3 py-2 text-xs text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner"
                         />
                       </div>
                     </div>
@@ -1088,7 +1089,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
+                      className="w-full py-3 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1 shadow-lg shadow-amber-500/20 active:scale-[0.98]"
                     >
                       {loading ? <Loader2 size={16} className="animate-spin" /> : <span>CREATE ACCOUNT</span>}
                     </button>
@@ -1128,7 +1129,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   </p>
 
                   {error && (
-                    <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                    <div className="w-full mb-3 px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
                       <XCircle size={15} className="shrink-0 text-rose-400" />
                       <span className="truncate">{error}</span>
                     </div>
@@ -1146,14 +1147,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                           placeholder="Mobile / Email / UID"
                           value={formData.id}
                           onChange={handleChange}
-                          className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                          className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner transition-all"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1"
+                        className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer mt-1 shadow-lg shadow-amber-500/20 active:scale-[0.98]"
                       >
                         {loading ? <Loader2 size={16} className="animate-spin" /> : <span>FIND ACCOUNT</span>}
                         <ArrowRight size={16} />
@@ -1164,7 +1165,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   {/* STEP 2: ANSWER VERIFICATION */}
                   {recoveryStep === 2 && (
                     <div className="w-full space-y-3.5">
-                      <div className="p-3.5 rounded-2xl bg-[#080b16] border border-slate-800 text-left">
+                      <div className="p-3.5 rounded-2xl bg-[#080b16] border border-slate-800 text-left shadow-inner">
                         <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">SECURITY QUESTION:</span>
                         <p className="text-xs sm:text-sm font-bold text-slate-200 mt-1">
                           {recoveryUserObj?.securityQuestion || "Aapka favorite subject kaunsa hai?"}
@@ -1180,14 +1181,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                             placeholder="Enter Security Answer"
                             value={userEnteredAnswer}
                             onChange={(e) => { setUserEnteredAnswer(e.target.value); setError(null); }}
-                            className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70"
+                            className="w-full bg-[#070a14] rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none border border-slate-800 focus:border-amber-500/70 shadow-inner"
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={loading}
-                          className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-emerald-400 hover:bg-emerald-500 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer"
+                          className="w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wider text-slate-950 bg-emerald-400 hover:bg-emerald-500 transition-all flex items-center justify-center gap-2 uppercase cursor-pointer shadow-lg shadow-emerald-500/25 active:scale-[0.98]"
                         >
                           <CheckCircle2 size={16} />
                           <span>VERIFY &amp; LOGIN</span>
@@ -1220,3 +1221,4 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
+
