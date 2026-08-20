@@ -43,6 +43,17 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+    navHomeActive?: string;
+    navRevisionActive?: string;
+    navRoutineActive?: string;
+    navCommunityActive?: string;
+    navProfileActive?: string;
+    appBgImage?: string;
+    homeBgImage?: string;
+    revisionBgImage?: string;
+    routineBgImage?: string;
+    communityBgImage?: string;
+    profileBgImage?: string;
 }
 
 const DEFAULT_THEME: ThemeState = {
@@ -64,6 +75,11 @@ const DEFAULT_THEME: ThemeState = {
     flashcardBg2: '#1e40af',
     chapterAccent: '#3b82f6',
     mcqTabActive: '#3b82f6',
+    navHomeActive: '#22c55e',
+    navRevisionActive: '#06b6d4',
+    navRoutineActive: '#f59e0b',
+    navCommunityActive: '#ec4899',
+    navProfileActive: '#8b5cf6',
 };
 
 const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefault?: boolean }> = [
@@ -498,7 +514,7 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'TABS' | 'WALLPAPERS';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
@@ -511,6 +527,8 @@ const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; 
     { id: 'FLASHCARD',  label: 'Flashcard',  icon: <Sparkles size={13} />,     desc: 'Flashcard screen background gradient' },
     { id: 'TEXT',       label: 'Text',       icon: <Type size={13} />,         desc: 'Primary aur secondary text alag' },
     { id: 'ACCENTS',    label: 'Accents',    icon: <Star size={13} />,         desc: 'Glow aur progress bar alag' },
+    { id: 'TABS',       label: 'Tab Colors', icon: <Navigation size={13} />,   desc: 'Individual tab active colors' },
+    { id: 'WALLPAPERS', label: 'Wallpapers', icon: <Globe size={13} />,        desc: 'App & Tab Wallpapers' },
 ];
 
 interface ColorRowProps {
@@ -629,6 +647,17 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         animSpeed:     t.animSpeed,
         themeName:     t.themeName,
         themeEmoji:    t.themeEmoji,
+        navHomeActive: t.navHomeActive,
+        navRevisionActive: t.navRevisionActive,
+        navRoutineActive: t.navRoutineActive,
+        navCommunityActive: t.navCommunityActive,
+        navProfileActive: t.navProfileActive,
+        appBgImage:    t.appBgImage,
+        homeBgImage:   t.homeBgImage,
+        revisionBgImage: t.revisionBgImage,
+        routineBgImage:  t.routineBgImage,
+        communityBgImage: t.communityBgImage,
+        profileBgImage:  t.profileBgImage,
     };
 };
 
@@ -773,6 +802,17 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             animSpeed:     theme.animSpeed,
             themeName:     theme.themeName,
             themeEmoji:    theme.themeEmoji,
+            navHomeActive: theme.navHomeActive,
+            navRevisionActive: theme.navRevisionActive,
+            navRoutineActive: theme.navRoutineActive,
+            navCommunityActive: theme.navCommunityActive,
+            navProfileActive: theme.navProfileActive,
+            appBgImage:    theme.appBgImage,
+            homeBgImage:   theme.homeBgImage,
+            revisionBgImage: theme.revisionBgImage,
+            routineBgImage:  theme.routineBgImage,
+            communityBgImage: theme.communityBgImage,
+            profileBgImage:  theme.profileBgImage,
             createdAt:     new Date().toISOString(),
             likes:         0,
         };
@@ -864,6 +904,17 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         animSpeed:     theme.animSpeed,
         themeName:     theme.themeName,
         themeEmoji:    theme.themeEmoji,
+        navHomeActive: theme.navHomeActive,
+        navRevisionActive: theme.navRevisionActive,
+        navRoutineActive: theme.navRoutineActive,
+        navCommunityActive: theme.navCommunityActive,
+        navProfileActive: theme.navProfileActive,
+        appBgImage:    theme.appBgImage,
+        homeBgImage:   theme.homeBgImage,
+        revisionBgImage: theme.revisionBgImage,
+        routineBgImage:  theme.routineBgImage,
+        communityBgImage: theme.communityBgImage,
+        profileBgImage:  theme.profileBgImage,
         createdAt:     new Date().toISOString(),
         likes:         0,
     });
@@ -1248,6 +1299,70 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 <ColorRow label="Glow / Accent" sub="Avatar glow, level ring, highlights" value={theme.accentGlow}    onChange={setColor('accentGlow')}    accent={theme.btnStart} />
                 <ColorRow label="Progress Bar"  sub="Score bars, loading bars ka color"   value={theme.progressColor} onChange={setColor('progressColor')} accent={theme.btnStart} />
             </>
+        ),
+
+        TABS: (
+            <>
+                <ColorRow label="Home Active" sub="HOME tab color" value={theme.navHomeActive || '#22c55e'} onChange={setColor('navHomeActive')} accent={theme.btnStart} />
+                <ColorRow label="Revision Active" sub="REVISION_HUB tab color" value={theme.navRevisionActive || '#06b6d4'} onChange={setColor('navRevisionActive')} accent={theme.btnStart} />
+                <ColorRow label="My Routine Active" sub="MY_ROUTINE tab color" value={theme.navRoutineActive || '#f59e0b'} onChange={setColor('navRoutineActive')} accent={theme.btnStart} />
+                <ColorRow label="Community Active" sub="COMMUNITY_SUPPORT tab color" value={theme.navCommunityActive || '#ec4899'} onChange={setColor('navCommunityActive')} accent={theme.btnStart} />
+                <ColorRow label="Profile Active" sub="PROFILE tab color" value={theme.navProfileActive || '#8b5cf6'} onChange={setColor('navProfileActive')} accent={theme.btnStart} />
+            </>
+        ),
+        WALLPAPERS: (
+            <div className="space-y-4">
+                <p className="text-[10px] text-white/50 mb-2">Maximum file size: ~700KB. Global/Home wallpaper acts as fallback.</p>
+                {[
+                    { key: 'appBgImage', label: 'App Background (Global)' },
+                    { key: 'homeBgImage', label: 'Home Wallpaper (Global Fallback)' },
+                    { key: 'revisionBgImage', label: 'Revision Hub Wallpaper' },
+                    { key: 'routineBgImage', label: 'My Routine Wallpaper' },
+                    { key: 'communityBgImage', label: 'Community Wallpaper' },
+                    { key: 'profileBgImage', label: 'Profile Wallpaper' }
+                ].map(({ key, label }) => (
+                    <div key={key} className="p-3 border rounded-xl border-white/10 bg-white/5">
+                        <p className="text-xs font-bold text-white mb-2">{label}</p>
+                        {theme[key as keyof ThemeState] && (
+                           <div className="mb-2 w-full h-24 rounded-lg overflow-hidden relative">
+                              <img src={theme[key as keyof ThemeState] as string} alt={label} className="w-full h-full object-cover" />
+                              <button onClick={() => setColor(key as keyof ThemeState)('')} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-md text-[10px] hover:bg-red-500">Remove</button>
+                           </div>
+                        )}
+                        <div className="flex flex-col gap-2">
+                            <input
+                                type="text"
+                                placeholder="Paste image URL here..."
+                                value={((theme[key as keyof ThemeState] as string) || '').startsWith('http') ? (theme[key as keyof ThemeState] as string) : ''}
+                                onChange={(e) => setColor(key as keyof ThemeState)(e.target.value)}
+                                className="w-full text-[10px] p-2 rounded-lg bg-black/30 text-white border border-white/10 outline-none"
+                            />
+                            <div className="relative overflow-hidden inline-block w-full">
+                                <button className="w-full text-[10px] py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/20">Upload Image File</button>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute left-0 top-0 opacity-0 cursor-pointer w-full h-full"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            if (file.size > 700 * 1024) {
+                                                alert("File size exceeds 700KB limit.");
+                                                return;
+                                            }
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                setColor(key as keyof ThemeState)(reader.result as string);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         ),
     };
 

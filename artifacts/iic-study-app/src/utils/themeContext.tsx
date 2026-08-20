@@ -15,6 +15,17 @@ export type TierThemeObj = typeof TIER_THEME[keyof typeof TIER_THEME] & {
   progressColor?: string;
   accentGlowColor?: string;
   appBgColor?: string | null;
+  navHomeActive?: string;
+  navRevisionActive?: string;
+  navRoutineActive?: string;
+  navCommunityActive?: string;
+  navProfileActive?: string;
+  appBgImage?: string;
+  homeBgImage?: string;
+  revisionBgImage?: string;
+  routineBgImage?: string;
+  communityBgImage?: string;
+  profileBgImage?: string;
 };
 
 const DEFAULT_THEME: TierThemeObj = {
