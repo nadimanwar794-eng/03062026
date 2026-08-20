@@ -1644,6 +1644,33 @@ export interface UserCustomTheme {
   animSpeed?: number;
   themeName?: string;
   themeEmoji?: string;
+
+  // Granular tab navigation colors
+  navHomeColor?: string;
+  navRoutineColor?: string;
+  navRevisionColor?: string;
+  navCommunityColor?: string;
+  navProfileColor?: string;
+
+  navHomeGlow?: string;
+  navRoutineGlow?: string;
+  navRevisionGlow?: string;
+  navCommunityGlow?: string;
+  navProfileGlow?: string;
+
+  // Granular tab page backgrounds
+  pageHomeBgColor?: string;
+  pageRoutineBgColor?: string;
+  pageRevisionBgColor?: string;
+  pageCommunityBgColor?: string;
+  pageProfileBgColor?: string;
+
+  // Granular tab page wallpapers (base64 or URLs)
+  pageHomeWallpaper?: string;
+  pageRoutineWallpaper?: string;
+  pageRevisionWallpaper?: string;
+  pageCommunityWallpaper?: string;
+  pageProfileWallpaper?: string;
   createdAt: string;
   appliedUntil?: string;
   publishedAt?: string;

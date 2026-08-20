@@ -201,6 +201,10 @@ export const buildGranularTierTheme = (
     btnStart?: string; btnEnd?: string; accentColor?: string;
     textColor?: string; textSecondary?: string;
     accentGlow?: string; progressColor?: string;
+    navHomeColor?: string; navRoutineColor?: string; navRevisionColor?: string; navCommunityColor?: string; navProfileColor?: string;
+    navHomeGlow?: string; navRoutineGlow?: string; navRevisionGlow?: string; navCommunityGlow?: string; navProfileGlow?: string;
+    pageHomeBgColor?: string; pageRoutineBgColor?: string; pageRevisionBgColor?: string; pageCommunityBgColor?: string; pageProfileBgColor?: string;
+    pageHomeWallpaper?: string; pageRoutineWallpaper?: string; pageRevisionWallpaper?: string; pageCommunityWallpaper?: string; pageProfileWallpaper?: string;
   }
 ): typeof TIER_THEME[UserTier] => {
   const accent = t.btnStart || t.accentColor || base.primary;
@@ -252,6 +256,26 @@ export const buildGranularTierTheme = (
     progressColor:   t.progressColor|| accent,
     accentGlowColor: t.accentGlow   || accent,
     appBgColor:      t.bgColor      || null,
+    navHomeColor: t.navHomeColor,
+    navRoutineColor: t.navRoutineColor,
+    navRevisionColor: t.navRevisionColor,
+    navCommunityColor: t.navCommunityColor,
+    navProfileColor: t.navProfileColor,
+    navHomeGlow: t.navHomeGlow,
+    navRoutineGlow: t.navRoutineGlow,
+    navRevisionGlow: t.navRevisionGlow,
+    navCommunityGlow: t.navCommunityGlow,
+    navProfileGlow: t.navProfileGlow,
+    pageHomeBgColor: t.pageHomeBgColor,
+    pageRoutineBgColor: t.pageRoutineBgColor,
+    pageRevisionBgColor: t.pageRevisionBgColor,
+    pageCommunityBgColor: t.pageCommunityBgColor,
+    pageProfileBgColor: t.pageProfileBgColor,
+    pageHomeWallpaper: t.pageHomeWallpaper,
+    pageRoutineWallpaper: t.pageRoutineWallpaper,
+    pageRevisionWallpaper: t.pageRevisionWallpaper,
+    pageCommunityWallpaper: t.pageCommunityWallpaper,
+    pageProfileWallpaper: t.pageProfileWallpaper,
   };
 };
 

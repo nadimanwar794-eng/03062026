@@ -43,6 +43,10 @@ interface ThemeState {
     animSpeed?: number;
     themeName?: string;
     themeEmoji?: string;
+    navHomeColor?: string; navRoutineColor?: string; navRevisionColor?: string; navCommunityColor?: string; navProfileColor?: string;
+    navHomeGlow?: string; navRoutineGlow?: string; navRevisionGlow?: string; navCommunityGlow?: string; navProfileGlow?: string;
+    pageHomeBgColor?: string; pageRoutineBgColor?: string; pageRevisionBgColor?: string; pageCommunityBgColor?: string; pageProfileBgColor?: string;
+    pageHomeWallpaper?: string; pageRoutineWallpaper?: string; pageRevisionWallpaper?: string; pageCommunityWallpaper?: string; pageProfileWallpaper?: string;
 }
 
 const DEFAULT_THEME: ThemeState = {
@@ -498,7 +502,7 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'PAGES';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
@@ -511,6 +515,7 @@ const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; 
     { id: 'FLASHCARD',  label: 'Flashcard',  icon: <Sparkles size={13} />,     desc: 'Flashcard screen background gradient' },
     { id: 'TEXT',       label: 'Text',       icon: <Type size={13} />,         desc: 'Primary aur secondary text alag' },
     { id: 'ACCENTS',    label: 'Accents',    icon: <Star size={13} />,         desc: 'Glow aur progress bar alag' },
+    { id: 'PAGES',      label: 'Tabs',       icon: <Layers size={13} />,       desc: 'Per-tab colors & bg' },
 ];
 
 interface ColorRowProps {
@@ -1222,6 +1227,61 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         CHAPTERS: (
             <ColorRow label="Chapter Accent" sub="Chapter list — left bar, number aur play button ka color" value={theme.chapterAccent || theme.btnStart} onChange={setColor('chapterAccent')} accent={theme.btnStart} />
         ),
+
+        PAGES: (
+            <div className="flex flex-col gap-6 p-2 h-[450px] overflow-y-auto">
+                <p className="text-[11px] text-white/50 mb-2">Set specific colors and wallpapers for each main tab.</p>
+                {['Home', 'Routine', 'Revision', 'Community', 'Profile'].map((tab) => {
+                    const idPrefix = tab === 'Home' ? 'Home' : tab === 'Routine' ? 'Routine' : tab === 'Revision' ? 'Revision' : tab === 'Community' ? 'Community' : 'Profile';
+                    return (
+                        <div key={tab} className="border border-white/10 rounded-xl p-3 bg-white/5 flex flex-col gap-3">
+                            <h4 className="text-sm font-black text-white">{tab} Tab</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-bold text-white/60 mb-1 block">Icon Color</label>
+                                    <div className="flex gap-2">
+                                        <input type="color" value={(theme as any)[`nav${idPrefix}Color`] || theme.navActive || '#ffffff'} onChange={(e) => setColor(`nav${idPrefix}Color` as keyof ThemeState)(e.target.value)} className="w-8 h-8 rounded cursor-pointer shrink-0" />
+                                        <input type="text" value={(theme as any)[`nav${idPrefix}Color`] || theme.navActive || ''} onChange={(e) => setColor(`nav${idPrefix}Color` as keyof ThemeState)(e.target.value)} className="w-full min-w-0 bg-black/30 border border-white/10 rounded px-2 text-xs text-white h-8" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-white/60 mb-1 block">Glow Color</label>
+                                    <div className="flex gap-2">
+                                        <input type="color" value={(theme as any)[`nav${idPrefix}Glow`] || theme.accentGlow || '#ffffff'} onChange={(e) => setColor(`nav${idPrefix}Glow` as keyof ThemeState)(e.target.value)} className="w-8 h-8 rounded cursor-pointer shrink-0" />
+                                        <input type="text" value={(theme as any)[`nav${idPrefix}Glow`] || theme.accentGlow || ''} onChange={(e) => setColor(`nav${idPrefix}Glow` as keyof ThemeState)(e.target.value)} className="w-full min-w-0 bg-black/30 border border-white/10 rounded px-2 text-xs text-white h-8" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-white/60 mb-1 block">Page Bg (Color)</label>
+                                    <div className="flex gap-2">
+                                        <input type="color" value={(theme as any)[`page${idPrefix}BgColor`] || theme.bgColor || '#ffffff'} onChange={(e) => setColor(`page${idPrefix}BgColor` as keyof ThemeState)(e.target.value)} className="w-8 h-8 rounded cursor-pointer shrink-0" />
+                                        <input type="text" value={(theme as any)[`page${idPrefix}BgColor`] || theme.bgColor || ''} onChange={(e) => setColor(`page${idPrefix}BgColor` as keyof ThemeState)(e.target.value)} className="w-full min-w-0 bg-black/30 border border-white/10 rounded px-2 text-xs text-white h-8" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-white/60 mb-1 block">Wallpaper (URL)</label>
+                                    <input type="text" placeholder="https://..." value={(theme as any)[`page${idPrefix}Wallpaper`] || ''} onChange={(e) => setColor(`page${idPrefix}Wallpaper` as keyof ThemeState)(e.target.value)} className="w-full bg-black/30 border border-white/10 rounded p-2 text-xs text-white h-8" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-[10px] font-bold text-white/60 mb-1 block">Upload Wallpaper (Image)</label>
+                                    <input type="file" accept="image/*" onChange={async (e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                            try {
+                                                const base64 = await compressImageToBase64(e.target.files[0]);
+                                                setColor(`page${idPrefix}Wallpaper` as keyof ThemeState)(base64);
+                                            } catch (err) {
+                                                console.error("Image upload failed", err);
+                                            }
+                                        }
+                                    }} className="w-full text-xs text-white file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-[10px] file:font-black file:bg-white/10 file:text-white hover:file:bg-white/20" />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        ),
+
         BUTTONS: (
             <>
                 <ColorRow label="Button Gradient — Start" sub="Pehla color" value={theme.btnStart} onChange={setColor('btnStart')} accent={theme.btnStart} />
@@ -1868,7 +1928,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                     ═══════════════════════════════════ */}
                     {builderMode === 'ADVANCED' && isAdmin && (
                     <div>
-                    <div className="grid grid-cols-4 gap-1.5 mb-3">
+                    <div className="grid grid-cols-4 md:grid-cols-8 gap-1.5 mb-3">
                         {SECTIONS.map(sec => {
                             const active = activeSection === sec.id;
                             return (

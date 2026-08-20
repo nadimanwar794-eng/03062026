@@ -550,6 +550,7 @@ const MeniscusNavIndicator = ({
   navBg,
   navBorderColor,
   activeColor,
+  activeGlowColor,
   ActiveIcon,
 }: {
   activeIndex: number;
@@ -557,6 +558,7 @@ const MeniscusNavIndicator = ({
   navBg: string;
   navBorderColor: string;
   activeColor: string;
+  activeGlowColor?: string;
   ActiveIcon?: any;
 }) => {
   const dockPathRef = React.useRef<SVGPathElement | null>(null);
@@ -661,7 +663,7 @@ const MeniscusNavIndicator = ({
         className="absolute top-[-14px] left-0 w-[48px] h-[48px] rounded-full z-20 flex items-center justify-center pointer-events-none text-white"
         style={{
           background: activeColor || "#22c55e",
-          boxShadow: `0 0 25px ${activeColor || "#22c55e"}99`,
+          boxShadow: `0 0 25px ${activeGlowColor || activeColor || "#22c55e"}99`,
           willChange: "transform",
         }}
       >
@@ -875,7 +877,28 @@ export const StudentDashboard: React.FC<Props> = ({
                   : getTierTheme(user);
 
   // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
+  const { pageHomeBgColor, pageRoutineBgColor, pageRevisionBgColor, pageCommunityBgColor, pageProfileBgColor, pageHomeWallpaper, pageRoutineWallpaper, pageRevisionWallpaper, pageCommunityWallpaper, pageProfileWallpaper } = tierTheme as any;
+  const _appBgImage = (() => {
+    let wp = null;
+    if (activeTab === 'HOME') wp = pageHomeWallpaper;
+    if (activeTab === 'MY_ROUTINE') wp = pageRoutineWallpaper;
+    if (activeTab === 'REVISION_HUB') wp = pageRevisionWallpaper;
+    if (activeTab === 'COMMUNITY_SUPPORT') wp = pageCommunityWallpaper;
+    if (activeTab === 'PROFILE') wp = pageProfileWallpaper;
+    // Default to home wallpaper if others are not set
+    if (!wp) wp = pageHomeWallpaper;
+    return wp ? `url(${wp})` : undefined;
+  })();
+
   const _appBg = (() => {
+    let tabBg = null;
+    if (activeTab === 'HOME') tabBg = pageHomeBgColor;
+    if (activeTab === 'MY_ROUTINE') tabBg = pageRoutineBgColor;
+    if (activeTab === 'REVISION_HUB') tabBg = pageRevisionBgColor;
+    if (activeTab === 'COMMUNITY_SUPPORT') tabBg = pageCommunityBgColor;
+    if (activeTab === 'PROFILE') tabBg = pageProfileBgColor;
+    if (tabBg) return tabBg;
+
     const themeBg = (tierTheme as any).appBgColor as string | null | undefined;
     if (themeBg && themeBg !== '#ffffff' && themeBg !== '#f8fafc' && themeBg !== '#f1f5f9') return themeBg;
     const manual = (settings as any)?.appBackground;
@@ -13033,7 +13056,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   return (
   <ThemeProvider theme={_extendedTheme}>
-    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg }}>
+    <div data-tier={tierTheme.tier} className="min-h-[100dvh] pb-0" style={{ background: _appBg, backgroundImage: _appBgImage, backgroundSize: _appBgImage ? "cover" : undefined, backgroundPosition: _appBgImage ? "center" : undefined, backgroundRepeat: _appBgImage ? "no-repeat" : undefined, backgroundAttachment: _appBgImage ? "fixed" : undefined }}>
       <NotificationPrompt />
       {/* Admin WhiteBoard floating panel — fixed z-[9999], visible in ALL modes */}
       {_isAdminUser && showAdminBoard && (
@@ -18356,7 +18379,8 @@ export const StudentDashboard: React.FC<Props> = ({
   totalTabs={totalVisible}
   navBg={tierTheme.navBg}
   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + "22"}
-  activeColor="#22c55e"
+  activeColor={(tierTheme as any)[`nav${visibleTabs[activeIndex]?.id === 'HOME' ? 'Home' : visibleTabs[activeIndex]?.id === 'MY_ROUTINE' ? 'Routine' : visibleTabs[activeIndex]?.id === 'REVISION_HUB' ? 'Revision' : visibleTabs[activeIndex]?.id === 'COMMUNITY_SUPPORT' ? 'Community' : visibleTabs[activeIndex]?.id === 'PROFILE' ? 'Profile' : ''}Color`] || (tierTheme as any).navActive || tierTheme.primary}
+  activeGlowColor={(tierTheme as any)[`nav${visibleTabs[activeIndex]?.id === 'HOME' ? 'Home' : visibleTabs[activeIndex]?.id === 'MY_ROUTINE' ? 'Routine' : visibleTabs[activeIndex]?.id === 'REVISION_HUB' ? 'Revision' : visibleTabs[activeIndex]?.id === 'COMMUNITY_SUPPORT' ? 'Community' : visibleTabs[activeIndex]?.id === 'PROFILE' ? 'Profile' : ''}Glow`] || (tierTheme as any).accentGlowColor || tierTheme.primary}
   ActiveIcon={visibleTabs[activeIndex]?.icon}
 />
 
