@@ -100,7 +100,11 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     if (welcomeTimer2Ref.current) clearTimeout(welcomeTimer2Ref.current);
     setWelcomeUser(user);
     welcomeTimer1Ref.current = setTimeout(() => setWelcomeFading(true), 600);
-    welcomeTimer2Ref.current = setTimeout(() => { setWelcomeUser(null); setWelcomeFading(false); onLogin(user); }, 900);
+    welcomeTimer2Ref.current = setTimeout(() => { 
+      setWelcomeUser(null); 
+      setWelcomeFading(false); 
+      onLogin(user); 
+    }, 900);
   };
 
   useEffect(() => {
@@ -136,6 +140,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     }
     if (pendingLoginUser) {
       const updated = { ...pendingLoginUser, schoolId: school.id, schoolName: school.name };
+      localStorage.setItem('nst_current_user', JSON.stringify(updated));
       await saveUserToLive(updated);
       setPendingLoginUser(updated);
     }
@@ -172,20 +177,26 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return true;
   };
 
-  // Google Authentication Flow with UID Migration Protection
+  // 100% FIXED GOOGLE AUTH: Persists Email, 50 Coins, & Session
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
       setError(null);
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
       await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
 
+      const userEmail = (firebaseUser.email || '').trim().toLowerCase();
+      const userDisplayName = firebaseUser.displayName || 'Student';
+      const userPhoto = firebaseUser.photoURL || '';
+
       let appUser: any = await getUserData(firebaseUser.uid);
 
-      if (!appUser && firebaseUser.email) {
-        appUser = await getUserByEmail(firebaseUser.email);
+      if (!appUser && userEmail) {
+        appUser = await getUserByEmail(userEmail);
       }
 
       if (!appUser) {
@@ -193,48 +204,70 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
 
       if (appUser) {
+        // --- EXISTING USER ---
         if (appUser.id !== firebaseUser.uid) {
           const oldId = appUser.id;
-          appUser = { ...appUser, id: firebaseUser.uid, provider: 'google' };
+          appUser = { ...appUser, id: firebaseUser.uid, provider: 'google', email: userEmail || appUser.email };
           await updateUserUID(oldId, firebaseUser.uid, appUser);
+        } else if (!appUser.email && userEmail) {
+          appUser.email = userEmail;
         }
 
-        if (firebaseUser.photoURL && appUser.photoURL !== firebaseUser.photoURL) {
-          appUser = { ...appUser, photoURL: firebaseUser.photoURL };
-          await saveUserToLive(appUser);
+        if (userPhoto && appUser.photoURL !== userPhoto) {
+          appUser = { ...appUser, photoURL: userPhoto };
         }
+
+        localStorage.setItem('nst_current_user', JSON.stringify(appUser));
+        await saveUserToLive(appUser);
 
         if (logActivity) logActivity("LOGIN", "Student Logged In via Google Auth", appUser);
         triggerWelcome(appUser);
       } else {
+        // --- NEW USER REGISTRATION ---
         const newId = generateUserId();
+        const signupCoins = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
+
         const newUser: User = {
           id: firebaseUser.uid,
           displayId: newId,
-          name: firebaseUser.displayName || 'Student',
-          email: firebaseUser.email || '',
+          name: userDisplayName,
+          email: userEmail,
           password: '',
           mobile: firebaseUser.phoneNumber || '',
           role: 'STUDENT',
           createdAt: new Date().toISOString(),
-          credits: settings?.signupBonus || 50,
-          streak: 0,
+          credits: signupCoins,
+          streak: 1,
+          totalScore: 0,
           lastLoginDate: new Date().toISOString(),
           board: '',
           classLevel: '',
           provider: 'google',
-          photoURL: firebaseUser.photoURL || '',
-          avatarChoice: firebaseUser.photoURL ? 'gmail' : 'app',
-          profileCompleted: true,
+          photoURL: userPhoto,
+          avatarChoice: userPhoto ? 'gmail' : 'app',
+          profileCompleted: false,
           securityQuestion: DEFAULT_QUESTIONS[0],
           securityAnswer: 'google',
           progress: {},
           redeemedCodes: [],
           subscriptionTier: 'FREE',
-          isPremium: false
+          isPremium: false,
+          inbox: [
+            {
+              id: `welcome-bonus-${Date.now()}`,
+              text: `🎉 Welcome to IIC! Aapko ${signupCoins} Welcome Credits mil gaye hain.`,
+              date: new Date().toISOString(),
+              read: false,
+              type: 'GIFT',
+              gift: { type: 'CREDITS', value: signupCoins },
+              isClaimed: true
+            }
+          ]
         };
 
+        localStorage.setItem('nst_current_user', JSON.stringify(newUser));
         await saveUserToLive(newUser);
+
         if (logActivity) logActivity("SIGNUP_GOOGLE", "New Student Registered via Google", newUser);
         triggerWelcome(newUser);
       }
@@ -262,7 +295,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     try {
       await setPersistence(auth, browserLocalPersistence);
 
-      // Attempt Direct Firebase Email Auth first if input looks like an email
       if (input.includes('@')) {
         try {
           const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
@@ -272,6 +304,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
             appUser = await getUserByEmail(input.toLowerCase());
           }
           if (appUser) {
+            localStorage.setItem('nst_current_user', JSON.stringify(appUser));
             if (logActivity) logActivity("LOGIN", "Student Logged In via Email", appUser);
             triggerWelcome(appUser);
             return;
@@ -285,14 +318,12 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         }
       }
 
-      // Anonymous session fallback for Firestore Security Rules
       try {
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
       } catch {}
 
-      // Database Search via Mobile, DisplayID or Email
       let targetUser: any = await getUserByMobileOrId(input);
       if (!targetUser && input.includes('@')) {
         targetUser = await getUserByEmail(input.toLowerCase());
@@ -312,6 +343,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           let freshProfile = await getUserData(targetUser.id);
           const finalUser = freshProfile || targetUser;
 
+          localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
           if (logActivity) logActivity("LOGIN", "Student Logged In via Mobile/UID", finalUser);
           triggerWelcome(finalUser);
 
@@ -372,6 +404,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       const res = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       const firebaseUser = res.user;
       const newId = generateUserId();
+      const signupCoins = settings?.signupBonus || appSettings?.signupBonus || 50;
 
       const newStudentUser: User = {
         id: firebaseUser.uid,
@@ -384,8 +417,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         securityAnswer: cleanAnswer,
         role: 'STUDENT',
         createdAt: new Date().toISOString(),
-        credits: settings?.signupBonus || appSettings?.signupBonus || 50,
-        streak: 0,
+        credits: signupCoins,
+        streak: 1,
+        totalScore: 0,
         lastLoginDate: new Date().toISOString(),
         board: '',
         classLevel: '',
@@ -394,9 +428,21 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         progress: {},
         redeemedCodes: [],
         subscriptionTier: 'FREE',
-        isPremium: false
+        isPremium: false,
+        inbox: [
+          {
+            id: `welcome-bonus-${Date.now()}`,
+            text: `🎉 Welcome to IIC! Aapko ${signupCoins} Welcome Credits mil gaye hain.`,
+            date: new Date().toISOString(),
+            read: false,
+            type: 'GIFT',
+            gift: { type: 'CREDITS', value: signupCoins },
+            isClaimed: true
+          }
+        ]
       };
 
+      localStorage.setItem('nst_current_user', JSON.stringify(newStudentUser));
       await saveUserToLive(newStudentUser);
       if (logActivity) logActivity("SIGNUP_EMAIL", "New Student Registered", newStudentUser);
 
@@ -475,6 +521,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       let freshProfile = await getUserData(recoveryUserObj.id);
       const finalUser = freshProfile || recoveryUserObj;
 
+      localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
       if (logActivity) logActivity("INSTANT_SECURITY_LOGIN", "Instant login via Security Answer", finalUser);
       setLoading(false);
       triggerWelcome(finalUser);
@@ -509,6 +556,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               board: 'CBSE', classLevel: '12', progress: {}, redeemedCodes: [], isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA'
             };
           }
+          localStorage.setItem('nst_current_user', JSON.stringify(adminUser));
           await saveUserToLive(adminUser);
           if (logActivity) logActivity("ADMIN_LOGIN", "Admin Access Granted", adminUser);
           onLogin(adminUser);
@@ -1154,3 +1202,4 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
+
