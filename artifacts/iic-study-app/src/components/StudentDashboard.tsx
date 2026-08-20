@@ -831,7 +831,7 @@ export const StudentDashboard: React.FC<Props> = ({
   // ── App background: personalTheme bgColor → tier appBg → admin override → dark mode → white ──
     // ── Multi-Source Wallpaper Logic ──
   // Do not show wallpapers in LESSON / NOTES reading view.
-  const isLessonView = (view === 'LESSON' && !showRevisionHubScreen && !showMyRoutine && !showChat);
+  const isLessonView = ((activeTab === 'PDF' || activeTab === 'VIDEO' || activeTab === 'MCQ' || (activeTab as any) === 'AUDIO') && !showRevisionHubScreen && !showMyRoutine && !showChat);
   const _wallpaperBg = (() => {
     if (isLessonView) return null;
 

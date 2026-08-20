@@ -9,3 +9,4 @@
   ➜  Network: http://192.168.0.2:5173/
 [BABEL] Note: The code generator has deoptimised the styling of /app/artifacts/iic-study-app/src/components/StudentDashboard.tsx as it exceeds the max of 500KB.
 9:59:31 AM [vite] (client) hmr update /src/index.css, /src/components/StudentDashboard.tsx
+10:27:31 AM [vite] (client) hmr update /src/index.css, /src/components/StudentDashboard.tsx
