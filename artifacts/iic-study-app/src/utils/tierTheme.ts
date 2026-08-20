@@ -201,6 +201,12 @@ export const buildGranularTierTheme = (
     btnStart?: string; btnEnd?: string; accentColor?: string;
     textColor?: string; textSecondary?: string;
     accentGlow?: string; progressColor?: string;
+    appBackgroundImage?: string; homeBackgroundImage?: string;
+    revisionBackgroundImage?: string; routineBackgroundImage?: string;
+    communityBackgroundImage?: string; profileBackgroundImage?: string;
+    homeGlowColor?: string; revisionGlowColor?: string;
+    routineGlowColor?: string; communityGlowColor?: string;
+    profileGlowColor?: string;
   }
 ): typeof TIER_THEME[UserTier] => {
   const accent = t.btnStart || t.accentColor || base.primary;
@@ -252,6 +258,17 @@ export const buildGranularTierTheme = (
     progressColor:   t.progressColor|| accent,
     accentGlowColor: t.accentGlow   || accent,
     appBgColor:      t.bgColor      || null,
+    appBackgroundImage: t.appBackgroundImage,
+    homeBackgroundImage: t.homeBackgroundImage,
+    revisionBackgroundImage: t.revisionBackgroundImage,
+    routineBackgroundImage: t.routineBackgroundImage,
+    communityBackgroundImage: t.communityBackgroundImage,
+    profileBackgroundImage: t.profileBackgroundImage,
+    homeGlowColor: t.homeGlowColor,
+    revisionGlowColor: t.revisionGlowColor,
+    routineGlowColor: t.routineGlowColor,
+    communityGlowColor: t.communityGlowColor,
+    profileGlowColor: t.profileGlowColor,
   };
 };
 
