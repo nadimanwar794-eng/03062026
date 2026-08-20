@@ -518,7 +518,8 @@ type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS'
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
     { id: 'TOPBAR',     label: 'Top Bar',    icon: <ChevronRight size={13} />, desc: 'Header gradient — dono colors alag' },
-    { id: 'NAVIGATION', label: 'Navigation', icon: <Navigation size={13} />,   desc: 'Bottom nav — 3 colors alag' },
+    { id: 'WALLPAPER', label: 'Wallpaper', icon: <Square size={13} />, desc: 'Page background & wallpaper' },
+    { id: 'NAVIGATION', label: 'Navigation', icon: <Navigation size={13} />, desc: 'Bottom nav colors (per tab)' },
     { id: 'CARDS',      label: 'Cards',      icon: <Square size={13} />,       desc: 'Card background aur border alag' },
     { id: 'CHAPTERS',   label: 'Chapters',   icon: <BarChart2 size={13} />,    desc: 'Chapter list ka accent color' },
     { id: 'BUTTONS',    label: 'Buttons',    icon: <Zap size={13} />,          desc: 'Button gradient — dono alag' },
@@ -1237,8 +1238,55 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 {isAdmin && (
                     <ColorRow label="Nav Background" sub="Bottom bar ka background (Admin only)" value={theme.navBg} onChange={setColor('navBg')} accent={theme.btnStart} />
                 )}
-                <ColorRow label="Active Tab Color" sub="Selected tab color + underline" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <ColorRow label="Global Active Tab" sub="Default active color" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <ColorRow label="Home Active" sub="Home icon glow" value={theme.navHomeActive || theme.navActive} onChange={setColor('navHomeActive')} accent={theme.btnStart} />
+                <ColorRow label="Revision Active" sub="Revision icon glow" value={theme.navRevisionActive || theme.navActive} onChange={setColor('navRevisionActive')} accent={theme.btnStart} />
+                <ColorRow label="Routine Active" sub="Routine icon glow" value={theme.navRoutineActive || theme.navActive} onChange={setColor('navRoutineActive')} accent={theme.btnStart} />
+                <ColorRow label="Community Active" sub="Community icon glow" value={theme.navCommunityActive || theme.navActive} onChange={setColor('navCommunityActive')} accent={theme.btnStart} />
+                <ColorRow label="Apps Active" sub="Apps icon glow" value={theme.navAppsActive || theme.navActive} onChange={setColor('navAppsActive')} accent={theme.btnStart} />
+                <ColorRow label="Profile Active" sub="Profile icon glow" value={theme.navProfileActive || theme.navActive} onChange={setColor('navProfileActive')} accent={theme.btnStart} />
                 <ColorRow label="Nav Border"       sub="Top border line ka color"       value={theme.navBorder} onChange={setColor('navBorder')} accent={theme.btnStart} />
+            </>
+        ),
+        WALLPAPER: (
+            <>
+                <ColorRow label="Page Bg Color" sub="Background for all pages" value={theme.pageBgColor || theme.bgColor} onChange={setColor('pageBgColor')} accent={theme.btnStart} />
+                <div className="mt-4 p-2 bg-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-white mb-2">Wallpaper URL</p>
+                    <input
+                        type="text"
+                        value={theme.pageWallpaperUrl || ''}
+                        onChange={(e) => setColor('pageWallpaperUrl')(e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        className="w-full bg-black/20 border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-white/30 transition-colors"
+                    />
+                </div>
+                <div className="mt-2 p-2 bg-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-white mb-2">Upload Wallpaper</p>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const b64 = ev.target?.result as string;
+                                setColor('pageWallpaperBase64')(b64);
+                            };
+                            reader.readAsDataURL(file);
+                        }}
+                        className="w-full text-xs text-white/70 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                    />
+                    {theme.pageWallpaperBase64 && (
+                        <button
+                            onClick={() => setColor('pageWallpaperBase64')('')}
+                            className="mt-2 text-[10px] text-red-400 font-bold bg-red-400/10 px-2 py-1 rounded-md"
+                        >
+                            Clear Upload
+                        </button>
+                    )}
+                </div>
             </>
         ),
         CARDS: (
@@ -1950,6 +1998,22 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                                     <div className="h-7 w-7 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.12)' }}>
                                         <span className="text-sm">🔔</span>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* WALLPAPER preview */}
+                        {activeSection === 'WALLPAPER' && (
+                            <div className="p-4" style={{
+                                background: theme.pageBgColor || theme.bgColor,
+                                backgroundImage: theme.pageWallpaperBase64 ? `url(${theme.pageWallpaperBase64})` : (theme.pageWallpaperUrl ? `url(${theme.pageWallpaperUrl})` : 'none'),
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                borderRadius: '0.75rem'
+                            }}>
+                                <div className="p-4 bg-black/40 backdrop-blur-md rounded-xl text-center">
+                                    <h3 className="text-white font-black text-lg mb-1">Page Wallpaper</h3>
+                                    <p className="text-white/80 text-xs">This applies to all pages except lesson notes.</p>
                                 </div>
                             </div>
                         )}
