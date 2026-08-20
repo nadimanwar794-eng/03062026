@@ -6,7 +6,7 @@ import { getTotalCredits, applyDeduction } from '../utils/creditSystem';
 import {
     ArrowLeft, Sparkles, RotateCcw, Eye, Palette,
     Layers, Navigation, Square, Type, Zap, Star,
-    ChevronRight, Check, X, AlertCircle, Globe, Clock, Users, BarChart2, CheckCircle, Home
+    ChevronRight, Check, X, AlertCircle, Globe, Clock, Users, BarChart2, CheckCircle, Home, Trash2
 } from 'lucide-react';
 
 interface Props {
@@ -39,6 +39,12 @@ interface ThemeState {
     chapterAccent?: string;
     mcqTabActive?: string;
     topBarEffect?: string;
+    homeGlowColor?: string;
+    routineGlowColor?: string;
+    revisionGlowColor?: string;
+    communityGlowColor?: string;
+    profileGlowColor?: string;
+    appBackgroundImage?: string;
     animColor?: string;
     animSpeed?: number;
     themeName?: string;
@@ -498,7 +504,7 @@ const PRESETS: Array<{ name: string; emoji: string; colors: ThemeState; isDefaul
     },
 ];
 
-type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS';
+type ColorSection = 'BACKGROUND' | 'TOPBAR' | 'NAVIGATION' | 'CARDS' | 'BUTTONS' | 'TEXT' | 'ACCENTS' | 'FLASHCARD' | 'CHAPTERS' | 'MCQ_TABS' | 'BUTTON_GLOWS';
 
 const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; desc: string }> = [
     { id: 'BACKGROUND', label: 'Background', icon: <Layers size={13} />,      desc: 'App ki main background color' },
@@ -511,6 +517,7 @@ const SECTIONS: Array<{ id: ColorSection; label: string; icon: React.ReactNode; 
     { id: 'FLASHCARD',  label: 'Flashcard',  icon: <Sparkles size={13} />,     desc: 'Flashcard screen background gradient' },
     { id: 'TEXT',       label: 'Text',       icon: <Type size={13} />,         desc: 'Primary aur secondary text alag' },
     { id: 'ACCENTS',    label: 'Accents',    icon: <Star size={13} />,         desc: 'Glow aur progress bar alag' },
+    { id: 'BUTTON_GLOWS', label: 'Nav Glows',  icon: <Sparkles size={13} />, desc: 'Bottom nav tabs ke alag alag glow colors' },
 ];
 
 interface ColorRowProps {
@@ -624,6 +631,12 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         flashcardBg2:  t.flashcardBg2  || t.topBarEnd   || DEFAULT_THEME.flashcardBg2,
         chapterAccent: t.chapterAccent || accent || DEFAULT_THEME.chapterAccent,
         mcqTabActive:  t.mcqTabActive  || accent || DEFAULT_THEME.mcqTabActive,
+        homeGlowColor: t.homeGlowColor,
+        routineGlowColor: t.routineGlowColor,
+        revisionGlowColor: t.revisionGlowColor,
+        communityGlowColor: t.communityGlowColor,
+        profileGlowColor: t.profileGlowColor,
+        appBackgroundImage: t.appBackgroundImage,
         topBarEffect:  t.topBarEffect,
         animColor:     t.animColor,
         animSpeed:     t.animSpeed,
@@ -768,6 +781,12 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             flashcardBg2:  theme.flashcardBg2,
             chapterAccent: theme.chapterAccent,
             mcqTabActive:  theme.mcqTabActive,
+            homeGlowColor: theme.homeGlowColor,
+            routineGlowColor: theme.routineGlowColor,
+            revisionGlowColor: theme.revisionGlowColor,
+            communityGlowColor: theme.communityGlowColor,
+            profileGlowColor: theme.profileGlowColor,
+            appBackgroundImage: theme.appBackgroundImage,
             topBarEffect:  theme.topBarEffect,
             animColor:     theme.animColor,
             animSpeed:     theme.animSpeed,
@@ -859,6 +878,12 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         flashcardBg2:  theme.flashcardBg2,
         chapterAccent: theme.chapterAccent,
         mcqTabActive:  theme.mcqTabActive,
+        homeGlowColor: theme.homeGlowColor,
+        routineGlowColor: theme.routineGlowColor,
+        revisionGlowColor: theme.revisionGlowColor,
+        communityGlowColor: theme.communityGlowColor,
+        profileGlowColor: theme.profileGlowColor,
+        appBackgroundImage: theme.appBackgroundImage,
         topBarEffect:  theme.topBarEffect,
         animColor:     theme.animColor,
         animSpeed:     theme.animSpeed,
@@ -1187,14 +1212,71 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
     };
 
     const sectionColors: Record<ColorSection, React.ReactNode> = {
-        BACKGROUND: isAdmin ? (
-            <ColorRow label="App Background" sub="Puri app ki main background (Admin only)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />
-        ) : (
-            <div className="py-4 px-2 text-center">
-                <div className="text-2xl mb-2">🔒</div>
-                <p className="text-white/70 text-xs font-semibold">Background Locked</p>
-                <p className="text-white/40 text-[10px] mt-1">White mode mein background hamesha white rahta hai. Sirf admin is setting ko change kar sakta hai.</p>
-            </div>
+        BACKGROUND: (
+            <>
+                {isAdmin ? (
+                    <ColorRow label="App Background" sub="Puri app ki main background (Admin only)" value={theme.bgColor} onChange={setColor('bgColor')} accent={theme.btnStart} />
+                ) : (
+                    <div className="py-4 px-2 text-center">
+                        <div className="text-2xl mb-2">🔒</div>
+                        <p className="text-white/70 text-xs font-semibold">Background Locked</p>
+                        <p className="text-white/40 text-[10px] mt-1">White mode mein background hamesha white rahta hai. Sirf admin is setting ko change kar sakta hai.</p>
+                    </div>
+                )}
+                <div className="px-3 py-2 mt-4 bg-white/5 rounded-lg border border-white/10">
+                    <label className="text-[11px] font-bold text-white/70 uppercase tracking-wider block mb-1">
+                        Home Default Wallpaper (Image Upload)
+                    </label>
+                    <p className="text-[10px] text-white/40 mb-2">Bina URL ke image upload karein. Ye Home tab aur default pages pe dikhega.</p>
+
+                    <div className="flex flex-col gap-2 mt-2">
+                        {theme.appBackgroundImage ? (
+                            <div className="relative w-full h-24 rounded overflow-hidden border border-white/20">
+                                <img src={theme.appBackgroundImage} alt="Wallpaper" className="w-full h-full object-cover" />
+                                <button
+                                    onClick={() => {
+                                        setTheme(prev => ({ ...prev, appBackgroundImage: undefined }));
+                                        setHasUnsavedChanges(true);
+                                    }}
+                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                setTheme(prev => ({ ...prev, appBackgroundImage: reader.result as string }));
+                                                setHasUnsavedChanges(true);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                    className="w-full text-[10px] text-white/60 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                                />
+                            </div>
+                        )}
+                        <p className="text-[10px] text-white/40 mt-1">Or enter Image URL:</p>
+                        <input
+                            type="text"
+                            placeholder="https://example.com/wallpaper.jpg"
+                            value={theme.appBackgroundImage || ''}
+                            onChange={(e) => {
+                                setTheme(prev => ({ ...prev, appBackgroundImage: e.target.value }));
+                                setHasUnsavedChanges(true);
+                            }}
+                            className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                        />
+                    </div>
+                </div>
+            </>
         ),
         TOPBAR: (
             <>
@@ -1247,6 +1329,15 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             <>
                 <ColorRow label="Glow / Accent" sub="Avatar glow, level ring, highlights" value={theme.accentGlow}    onChange={setColor('accentGlow')}    accent={theme.btnStart} />
                 <ColorRow label="Progress Bar"  sub="Score bars, loading bars ka color"   value={theme.progressColor} onChange={setColor('progressColor')} accent={theme.btnStart} />
+            </>
+        ),
+        BUTTON_GLOWS: (
+            <>
+                <ColorRow label="Home Tab Glow"      sub="Home tab ka active color"      value={theme.homeGlowColor || '#22c55e'}     onChange={setColor('homeGlowColor')}     accent={theme.btnStart} />
+                <ColorRow label="Routine Tab Glow"   sub="Routine tab ka active color"   value={theme.routineGlowColor || '#3b82f6'}  onChange={setColor('routineGlowColor')}  accent={theme.btnStart} />
+                <ColorRow label="Revision Tab Glow"  sub="Revision tab ka active color"  value={theme.revisionGlowColor || '#a855f7'} onChange={setColor('revisionGlowColor')} accent={theme.btnStart} />
+                <ColorRow label="Community Tab Glow" sub="Community tab ka active color" value={theme.communityGlowColor || '#f59e0b'} onChange={setColor('communityGlowColor')} accent={theme.btnStart} />
+                <ColorRow label="Profile Tab Glow"   sub="Profile tab ka active color"   value={theme.profileGlowColor || '#ef4444'}  onChange={setColor('profileGlowColor')}  accent={theme.btnStart} />
             </>
         ),
     };

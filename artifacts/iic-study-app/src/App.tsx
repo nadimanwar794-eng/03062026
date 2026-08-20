@@ -3312,12 +3312,13 @@ const App: React.FC = () => {
       return <AppLoadingScreen isPremium={state.user?.isPremium || false} subscriptionLevel={getUserPlan()} onComplete={() => setIsAppLoading(false)} />;
   }
 
-  const bgImageStyle = (state.settings?.appBackgroundImage && state.view !== 'LESSON') ? `url(${state.settings.appBackgroundImage})` : undefined;
+  const appBgImage = (tierTheme as any).appBackgroundImage || state.settings?.appBackgroundImage;
+  const bgImageStyle = (appBgImage && state.view !== 'LESSON') ? `url(${appBgImage})` : undefined;
 
   return (
     <ErrorBoundary>
     <div className="min-h-[100dvh] flex flex-col font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,0px)]" style={{
-      background: `var(--app-bar-color, ${state.settings?.appBackground || '#ffffff'})`,
+      background: `var(--app-bar-color, ${(tierTheme as any).appBgColor || state.settings?.appBackground || '#ffffff'})`,
       backgroundImage: bgImageStyle,
       backgroundSize: bgImageStyle ? 'cover' : undefined,
       backgroundPosition: bgImageStyle ? 'center' : undefined,
