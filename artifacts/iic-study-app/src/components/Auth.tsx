@@ -112,7 +112,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
     }
     if (pendingLoginUser) {
-      const updated = { ...pendingLoginUser, schoolId: school.id, schoolName: school.name };
+      const updated = { 
+        ...pendingLoginUser, 
+        id: pendingLoginUser.id || pendingLoginUser.uid,
+        uid: pendingLoginUser.id || pendingLoginUser.uid,
+        schoolId: school.id, 
+        schoolName: school.name,
+        profileCompleted: true
+      };
       localStorage.setItem('nst_current_user', JSON.stringify(updated));
       localStorage.setItem('nst_last_user_id', updated.id);
       await saveUserToLive(updated);
@@ -151,12 +158,18 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     return true;
   };
 
-  // Instant direct transition
   const triggerLoginSuccess = (user: User) => {
-    onLogin(user);
+    const validId = user.id || user.uid;
+    const safeUser = {
+      ...user,
+      id: validId,
+      uid: validId,
+      profileCompleted: true
+    };
+    onLogin(safeUser);
   };
 
-  // 100% RELIABLE GOOGLE AUTH WITH 50 CREDITS
+  // 100% RELIABLE GOOGLE AUTH
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
@@ -172,37 +185,35 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       const userDisplayName = firebaseUser.displayName || 'Student';
       const userPhoto = firebaseUser.photoURL || '';
       const userMobile = firebaseUser.phoneNumber || '';
+      const uid = firebaseUser.uid;
 
-      let appUser: any = await getUserData(firebaseUser.uid);
+      let appUser: any = await getUserData(uid);
 
       if (!appUser && userEmail) {
         appUser = await getUserByEmail(userEmail);
       }
 
       if (!appUser) {
-        appUser = await getUserByLinkedGoogleUid(firebaseUser.uid);
+        appUser = await getUserByLinkedGoogleUid(uid);
       }
 
       if (appUser) {
-        if (appUser.id !== firebaseUser.uid) {
-          const oldId = appUser.id;
-          appUser = { ...appUser, id: firebaseUser.uid, provider: 'google', email: userEmail || appUser.email };
-          await updateUserUID(oldId, firebaseUser.uid, appUser);
-        } else if (!appUser.email && userEmail) {
-          appUser.email = userEmail;
-        }
-
-        if (userPhoto && appUser.photoURL !== userPhoto) {
-          appUser = { ...appUser, photoURL: userPhoto };
-        }
-
-        if (typeof appUser.credits !== 'number' || appUser.credits === 0) {
-          appUser.credits = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
-        }
-        appUser.profileCompleted = true;
+        appUser = {
+          ...appUser,
+          id: uid,
+          uid: uid,
+          email: appUser.email || userEmail,
+          name: appUser.name || userDisplayName,
+          provider: 'google',
+          photoURL: userPhoto || appUser.photoURL,
+          profileCompleted: true,
+          securityQuestion: appUser.securityQuestion || DEFAULT_QUESTIONS[0],
+          securityAnswer: appUser.securityAnswer || 'google',
+          credits: typeof appUser.credits === 'number' && appUser.credits > 0 ? appUser.credits : 50
+        };
 
         localStorage.setItem('nst_current_user', JSON.stringify(appUser));
-        localStorage.setItem('nst_last_user_id', appUser.id);
+        localStorage.setItem('nst_last_user_id', uid);
         await saveUserToLive(appUser);
 
         if (logActivity) logActivity("LOGIN", "Student Logged In via Google Auth", appUser);
@@ -212,7 +223,8 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         const signupCoins = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
 
         const newUser: User = {
-          id: firebaseUser.uid,
+          id: uid,
+          uid: uid,
           displayId: newId,
           name: userDisplayName,
           email: userEmail,
@@ -224,8 +236,8 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           streak: 1,
           totalScore: 0,
           lastLoginDate: new Date().toISOString(),
-          board: '',
-          classLevel: '',
+          board: 'CBSE',
+          classLevel: '10',
           provider: 'google',
           photoURL: userPhoto,
           avatarChoice: userPhoto ? 'gmail' : 'app',
@@ -250,7 +262,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         };
 
         localStorage.setItem('nst_current_user', JSON.stringify(newUser));
-        localStorage.setItem('nst_last_user_id', newUser.id);
+        localStorage.setItem('nst_last_user_id', uid);
         await saveUserToLive(newUser);
 
         if (logActivity) logActivity("SIGNUP_GOOGLE", "New Student Registered via Google", newUser);
@@ -268,7 +280,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     }
   };
 
-  // Direct Unified Login Handler
+  // Direct Unified Login Handler (Fixed to retain UID, email, & security Q/A)
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -284,21 +296,42 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     try {
       await setPersistence(auth, browserLocalPersistence);
 
+      // Email Path
       if (input.includes('@')) {
         try {
           const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
           const uid = res.user.uid;
-          let appUser = await getUserData(uid);
+          
+          let appUser: any = await getUserData(uid);
           if (!appUser) {
             appUser = await getUserByEmail(input.toLowerCase());
           }
-          if (appUser) {
-            localStorage.setItem('nst_current_user', JSON.stringify(appUser));
-            localStorage.setItem('nst_last_user_id', appUser.id);
-            if (logActivity) logActivity("LOGIN", "Student Logged In via Email", appUser);
-            triggerLoginSuccess(appUser);
-            return;
-          }
+
+          const completeUser: User = {
+            ...(appUser || {}),
+            id: uid,
+            uid: uid,
+            email: appUser?.email || input.toLowerCase(),
+            name: appUser?.name || res.user.displayName || "Student",
+            mobile: appUser?.mobile || "",
+            role: appUser?.role || "STUDENT",
+            securityQuestion: appUser?.securityQuestion || DEFAULT_QUESTIONS[0],
+            securityAnswer: appUser?.securityAnswer || "",
+            board: appUser?.board || "CBSE",
+            classLevel: appUser?.classLevel || "10",
+            credits: appUser?.credits ?? 50,
+            streak: appUser?.streak ?? 1,
+            totalScore: appUser?.totalScore ?? 0,
+            profileCompleted: true
+          };
+
+          localStorage.setItem('nst_current_user', JSON.stringify(completeUser));
+          localStorage.setItem('nst_last_user_id', uid);
+          await saveUserToLive(completeUser);
+
+          if (logActivity) logActivity("LOGIN", "Student Logged In via Email", completeUser);
+          triggerLoginSuccess(completeUser);
+          return;
         } catch (e: any) {
           if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
             setError("Galat password. Dobara check karein.");
@@ -308,12 +341,14 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         }
       }
 
+      // Anonymous fallback for lookup
       try {
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
       } catch {}
 
+      // Mobile or Account ID Path
       let targetUser: any = await getUserByMobileOrId(input);
       if (!targetUser && input.includes('@')) {
         targetUser = await getUserByEmail(input.toLowerCase());
@@ -331,10 +366,24 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
         if (passwordMatch) {
           let freshProfile = await getUserData(targetUser.id);
-          const finalUser = freshProfile || targetUser;
+          const raw = freshProfile || targetUser;
+          const uid = raw.id || raw.uid;
+
+          const finalUser: User = {
+            ...raw,
+            id: uid,
+            uid: uid,
+            email: raw.email || "",
+            mobile: raw.mobile || "",
+            securityQuestion: raw.securityQuestion || DEFAULT_QUESTIONS[0],
+            securityAnswer: raw.securityAnswer || "",
+            profileCompleted: true
+          };
 
           localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
-          localStorage.setItem('nst_last_user_id', finalUser.id);
+          localStorage.setItem('nst_last_user_id', uid);
+          await saveUserToLive(finalUser);
+
           if (logActivity) logActivity("LOGIN", "Student Logged In via Mobile/UID", finalUser);
           triggerLoginSuccess(finalUser);
 
@@ -363,7 +412,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     }
   };
 
-  // Sign Up Handler
+  // Sign Up Handler (Fixed Data Sync)
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -393,12 +442,13 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     try {
       await setPersistence(auth, browserLocalPersistence);
       const res = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      const firebaseUser = res.user;
+      const uid = res.user.uid;
       const newId = generateUserId();
       const signupCoins = (settings && typeof settings.signupBonus === 'number') ? settings.signupBonus : (appSettings?.signupBonus || 50);
 
       const newStudentUser: User = {
-        id: firebaseUser.uid,
+        id: uid,
+        uid: uid,
         displayId: newId,
         name: cleanName,
         email: cleanEmail,
@@ -412,8 +462,8 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         streak: 1,
         totalScore: 0,
         lastLoginDate: new Date().toISOString(),
-        board: '',
-        classLevel: '',
+        board: 'CBSE',
+        classLevel: '10',
         provider: 'email',
         profileCompleted: true,
         progress: {},
@@ -434,7 +484,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       };
 
       localStorage.setItem('nst_current_user', JSON.stringify(newStudentUser));
-      localStorage.setItem('nst_last_user_id', newStudentUser.id);
+      localStorage.setItem('nst_last_user_id', uid);
       await saveUserToLive(newStudentUser);
       if (logActivity) logActivity("SIGNUP_EMAIL", "New Student Registered", newStudentUser);
 
@@ -511,10 +561,20 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     if (originalAnswer && entered === originalAnswer) {
       setLoading(true);
       let freshProfile = await getUserData(recoveryUserObj.id);
-      const finalUser = freshProfile || recoveryUserObj;
+      const raw = freshProfile || recoveryUserObj;
+      const uid = raw.id || raw.uid;
+
+      const finalUser: User = {
+        ...raw,
+        id: uid,
+        uid: uid,
+        profileCompleted: true
+      };
 
       localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
-      localStorage.setItem('nst_last_user_id', finalUser.id);
+      localStorage.setItem('nst_last_user_id', uid);
+      await saveUserToLive(finalUser);
+
       if (logActivity) logActivity("INSTANT_SECURITY_LOGIN", "Instant login via Security Answer", finalUser);
       setLoading(false);
       triggerLoginSuccess(finalUser);
@@ -541,12 +601,12 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           const cred = await signInAnonymously(auth);
           let adminUser: any = await getUserByEmail(formData.email);
           if (adminUser && adminUser.role === 'ADMIN') {
-            adminUser = { ...adminUser, id: cred.user.uid, lastLoginDate: new Date().toISOString(), isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA' };
+            adminUser = { ...adminUser, id: cred.user.uid, uid: cred.user.uid, lastLoginDate: new Date().toISOString(), isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA', profileCompleted: true };
           } else {
             adminUser = {
-              id: cred.user.uid, displayId: 'IIC-ADMIN', name: 'Administrator', email: formData.email, password: '', mobile: 'ADMIN', role: 'ADMIN',
+              id: cred.user.uid, uid: cred.user.uid, displayId: 'IIC-ADMIN', name: 'Administrator', email: formData.email, password: '', mobile: 'ADMIN', role: 'ADMIN',
               createdAt: new Date().toISOString(), credits: 99999, streak: 999, lastLoginDate: new Date().toISOString(),
-              board: 'CBSE', classLevel: '12', progress: {}, redeemedCodes: [], isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA'
+              board: 'CBSE', classLevel: '12', progress: {}, redeemedCodes: [], isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA', profileCompleted: true
             };
           }
           localStorage.setItem('nst_current_user', JSON.stringify(adminUser));
@@ -721,7 +781,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
       {showGuide && <LoginGuide onClose={() => setShowGuide(false)} />}
 
-      {/* TOP HEADER - Exact matching screenshot */}
+      {/* TOP HEADER */}
       <header className="w-full max-w-md flex items-center justify-between px-2 pt-2">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center shadow-md p-1 border border-amber-400/40">
@@ -761,7 +821,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
               )}
 
               <form onSubmit={handleLoginSubmit} className="w-full space-y-4">
-                {/* Identifier Input - Soft embossed */}
                 <div className="relative flex items-center">
                   <UserIcon size={16} className="absolute left-4 text-slate-400" />
                   <input
@@ -776,7 +835,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   />
                 </div>
 
-                {/* Password Input - Soft embossed */}
                 <div className="relative flex items-center">
                   <Lock size={16} className="absolute left-4 text-slate-400" />
                   <input
@@ -797,7 +855,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   </button>
                 </div>
 
-                {/* Remember me & Red Instant Recovery */}
                 <div className="flex items-center justify-between text-xs text-slate-500 pt-1 px-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <button
@@ -820,7 +877,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                   </button>
                 </div>
 
-                {/* SIGN IN BUTTON - Soft raised neumorphic pill */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -830,7 +886,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 </button>
               </form>
 
-              {/* GOOGLE SIGN-IN BUTTON */}
               <button 
                 type="button" 
                 onClick={handleGoogleAuth} 
@@ -841,7 +896,6 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
                 <span>Google Sign-in</span>
               </button>
 
-              {/* Bottom Sign up Switch */}
               <p className="text-xs text-slate-500 mt-5">
                 Don't have an account?{' '}
                 <button
@@ -1068,3 +1122,4 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 };
 
 export default Auth;
+
