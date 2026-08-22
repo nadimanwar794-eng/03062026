@@ -112,16 +112,17 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       }
     }
     if (pendingLoginUser) {
+      const validId = pendingLoginUser.id || pendingLoginUser.uid;
       const updated = { 
         ...pendingLoginUser, 
-        id: pendingLoginUser.id || pendingLoginUser.uid,
-        uid: pendingLoginUser.id || pendingLoginUser.uid,
+        id: validId,
+        uid: validId,
         schoolId: school.id, 
         schoolName: school.name,
         profileCompleted: true
       };
       localStorage.setItem('nst_current_user', JSON.stringify(updated));
-      localStorage.setItem('nst_last_user_id', updated.id);
+      localStorage.setItem('nst_last_user_id', validId);
       await saveUserToLive(updated);
       setPendingLoginUser(updated);
     }
@@ -412,7 +413,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     }
   };
 
-  // Sign Up Handler (Fixed Data Sync)
+  // Sign Up Handler
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -502,7 +503,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     }
   };
 
-  // Instant Recovery STEP 1: Find Account
+  // Instant Recovery STEP 1: Find Account (Full Data Preserved)
   const handleFindRecoveryAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -533,7 +534,19 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           setLoading(false);
           return;
         }
-        setRecoveryUserObj(targetUser);
+
+        const uid = targetUser.id || targetUser.uid;
+        const freshData = await getUserData(uid);
+        const mergedRecoveryUser = {
+          ...targetUser,
+          ...(freshData || {}),
+          id: uid,
+          uid: uid,
+          email: targetUser.email || freshData?.email || (identifier.includes('@') ? identifier : ""),
+          mobile: targetUser.mobile || freshData?.mobile || (!identifier.includes('@') ? identifier : "")
+        };
+
+        setRecoveryUserObj(mergedRecoveryUser);
         setRecoveryStep(2);
       } else {
         setError("Is detail se koi account nahi mila.");
@@ -545,7 +558,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
     }
   };
 
-  // Instant Recovery STEP 2: Answer Verification
+  // Instant Recovery STEP 2: Answer Verification & Full Session Lock
   const handleVerifyAnswerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -560,24 +573,44 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
 
     if (originalAnswer && entered === originalAnswer) {
       setLoading(true);
-      let freshProfile = await getUserData(recoveryUserObj.id);
-      const raw = freshProfile || recoveryUserObj;
-      const uid = raw.id || raw.uid;
+      try {
+        const validId = recoveryUserObj.id || recoveryUserObj.uid;
+        
+        let freshProfile = await getUserData(validId);
+        const raw = freshProfile || recoveryUserObj;
 
-      const finalUser: User = {
-        ...raw,
-        id: uid,
-        uid: uid,
-        profileCompleted: true
-      };
+        const completeUser: User = {
+          ...raw,
+          id: validId,
+          uid: validId,
+          displayId: raw.displayId || recoveryUserObj.displayId || validId.slice(0, 8).toUpperCase(),
+          name: raw.name || recoveryUserObj.name || "Student",
+          email: raw.email || recoveryUserObj.email || "",
+          mobile: raw.mobile || recoveryUserObj.mobile || "",
+          securityQuestion: raw.securityQuestion || recoveryUserObj.securityQuestion || DEFAULT_QUESTIONS[0],
+          securityAnswer: originalAnswer,
+          role: raw.role || "STUDENT",
+          board: raw.board || "CBSE",
+          classLevel: raw.classLevel || "10",
+          credits: typeof raw.credits === 'number' ? raw.credits : 50,
+          streak: raw.streak ?? 1,
+          totalScore: raw.totalScore ?? 0,
+          profileCompleted: true,
+          provider: raw.provider || 'recovery'
+        };
 
-      localStorage.setItem('nst_current_user', JSON.stringify(finalUser));
-      localStorage.setItem('nst_last_user_id', uid);
-      await saveUserToLive(finalUser);
+        localStorage.setItem('nst_current_user', JSON.stringify(completeUser));
+        localStorage.setItem('nst_last_user_id', validId);
+        await saveUserToLive(completeUser);
 
-      if (logActivity) logActivity("INSTANT_SECURITY_LOGIN", "Instant login via Security Answer", finalUser);
-      setLoading(false);
-      triggerLoginSuccess(finalUser);
+        if (logActivity) logActivity("INSTANT_SECURITY_LOGIN", "Instant login via Security Answer", completeUser);
+        
+        setLoading(false);
+        triggerLoginSuccess(completeUser);
+      } catch (err: any) {
+        setLoading(false);
+        setError("Recovery session restore fail hua. Dobara try karein.");
+      }
     } else {
       setError("Galat Answer! Sahi answer likhein.");
     }
