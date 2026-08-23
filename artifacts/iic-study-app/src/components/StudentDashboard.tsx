@@ -18252,19 +18252,22 @@ export const StudentDashboard: React.FC<Props> = ({
                 Icon: MessageSquare,
                 filledOnActive: true,
                 isActive: showChat,
-                onClick: () => {
-                  setShowCompareView(false);
-                  setShowRevisionHubScreen(false);
-                  setShowMyRoutine(false);
-                  setShowDailyEventPage(false);
-                  if (showCommunityStarsPage) {
-                    try { stopProfileStarRead(); } catch (_) {}
-                    setShowCommunityStarsPage(false);
-                  }
-                  try { stopProfileStarRead(); } catch (_) {}
-                  setShowStarredPage(false);
-                  setShowChat(true);
-                },
+                // ✅ Naya onClick
+        onClick: () => {
+  setShowCompareView(false);
+  setShowRevisionHubScreen(false);
+  setShowMyRoutine(false);
+  setShowDailyEventPage(false);
+  if (showCommunityStarsPage) {
+    try { stopProfileStarRead(); } catch (_) {}
+    setShowCommunityStarsPage(false);
+  }
+  try { stopProfileStarRead(); } catch (_) {}
+  setShowStarredPage(false);
+  setCurrentLogicalTab("COMMUNITY_SUPPORT" as any);
+  setShowChat(true);
+},
+
               },
 
               // Slot C — Apps store (admin-toggleable)
@@ -18287,7 +18290,9 @@ export const StudentDashboard: React.FC<Props> = ({
                 label: "Profile",
                 Icon: UserIcon,
                 filledOnActive: false,
-                isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showProgressDashboard && currentLogicalTab === "PROFILE",
+                // ✅ Nayi Line (Chat/Community open hone par Profile inactive rahega)
+isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showProgressDashboard && !showChat && currentLogicalTab === "PROFILE",
+
                 onClick: () => switchToLogicalTab("PROFILE"),
               },
             ];
