@@ -7,11 +7,41 @@ interface AppLoadingScreenProps {
   subscriptionLevel?: 'FREE' | 'BASIC' | 'ULTRA';
 }
 
+interface BlockItem {
+  id: number;
+  val: number;
+  slot: number;
+  isLifted: boolean;
+  isSorted: boolean;
+  isComparing: boolean;
+}
+
 export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('Loading Your Learning Journey...');
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
+  // Initial sequence: [3, 2, 7, 5, 8, 4, 1, 6]
+  const [blocks, setBlocks] = useState<BlockItem[]>([
+    { id: 0, val: 3, slot: 0, isLifted: false, isSorted: false, isComparing: false },
+    { id: 1, val: 2, slot: 1, isLifted: false, isSorted: false, isComparing: false },
+    { id: 2, val: 7, slot: 2, isLifted: false, isSorted: false, isComparing: false },
+    { id: 3, val: 5, slot: 3, isLifted: false, isSorted: false, isComparing: false },
+    { id: 4, val: 8, slot: 4, isLifted: false, isSorted: false, isComparing: false },
+    { id: 5, val: 4, slot: 5, isLifted: false, isSorted: false, isComparing: false },
+    { id: 6, val: 1, slot: 6, isLifted: false, isSorted: false, isComparing: false },
+    { id: 7, val: 6, slot: 7, isLifted: false, isSorted: false, isComparing: false },
+  ]);
+
+  // Crane Mechanics States
+  const [craneSlot, setCraneSlot] = useState<number>(0);
+  const [wireHeight, setWireHeight] = useState<number>(10);
+  const [isClawClosed, setIsClawClosed] = useState<boolean>(false);
+  const [actionPrompt, setActionPrompt] = useState<string>('a[0] > a[1] ?');
+
+  const SLOT_WIDTH = 38; 
+  const RIG_LEFT_PAD = 14;
 
   const statusMilestones = [
     { at: 0, text: 'Initializing App Modules...' },
@@ -22,41 +52,161 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
   ];
 
   useEffect(() => {
-    let current = 0;
-    const durationMs = 3800;
-    const interval = 25;
-    const increment = 100 / (durationMs / interval);
+    let isCancelled = false;
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= 100) {
-        current = 100;
-        setProgress(100);
-        setStatusText('Welcome to NSTA!');
-        clearInterval(timer);
-        setTimeout(() => {
-          if (onCompleteRef.current) onCompleteRef.current();
-        }, 350);
-        return;
-      }
+    const runSortEngine = async () => {
+      let state = [
+        { id: 0, val: 3 },
+        { id: 1, val: 2 },
+        { id: 2, val: 7 },
+        { id: 3, val: 5 },
+        { id: 4, val: 8 },
+        { id: 5, val: 4 },
+        { id: 6, val: 1 },
+        { id: 7, val: 6 },
+      ];
 
-      const p = Math.floor(current);
-      setProgress(p);
+      const n = state.length;
+      const totalComparisons = (n * (n - 1)) / 2;
+      let stepsCompleted = 0;
 
-      for (let i = statusMilestones.length - 1; i >= 0; i--) {
-        if (p >= statusMilestones[i].at) {
-          setStatusText(statusMilestones[i].text);
-          break;
+      const syncBlocks = (overrides = {}) => {
+        setBlocks(prev =>
+          prev.map(b => {
+            const currentSlot = state.findIndex(s => s.id === b.id);
+            return {
+              ...b,
+              slot: currentSlot,
+              ...overrides[b.id],
+            };
+          })
+        );
+      };
+
+      for (let p = 0; p < n - 1; p++) {
+        let swappedAny = false;
+
+        for (let i = 0; i < n - 1 - p; i++) {
+          if (isCancelled) return;
+
+          const itemA = state[i];
+          const itemB = state[i + 1];
+
+          // 1. Crane arrives & compares
+          setCraneSlot(i);
+          setWireHeight(10);
+          setIsClawClosed(false);
+          setActionPrompt(`a[${i}] > a[${i + 1}] ?`);
+
+          syncBlocks({
+            [itemA.id]: { isComparing: true, isLifted: false },
+            [itemB.id]: { isComparing: true, isLifted: false },
+          });
+
+          await sleep(75);
+          if (isCancelled) return;
+
+          // 2. Swap sequence
+          if (itemA.val > itemB.val) {
+            setActionPrompt(`swap a[${i}], a[${i + 1}]`);
+
+            // Cable descends over Block A
+            setWireHeight(58);
+            await sleep(55);
+            if (isCancelled) return;
+
+            // Claws grip
+            setIsClawClosed(true);
+            await sleep(40);
+            if (isCancelled) return;
+
+            // Lift Block A
+            setWireHeight(10);
+            syncBlocks({
+              [itemA.id]: { isLifted: true, isComparing: false },
+              [itemB.id]: { isComparing: false },
+            });
+            await sleep(85);
+            if (isCancelled) return;
+
+            // Crane moves to next slot
+            setCraneSlot(i + 1);
+
+            const temp = state[i];
+            state[i] = state[i + 1];
+            state[i + 1] = temp;
+
+            syncBlocks({
+              [itemA.id]: { isLifted: true, isComparing: false },
+              [itemB.id]: { isComparing: false, isLifted: false },
+            });
+            await sleep(100);
+            if (isCancelled) return;
+
+            // Cable lowers down
+            setWireHeight(58);
+            await sleep(55);
+            if (isCancelled) return;
+
+            // Release claw
+            setIsClawClosed(false);
+            syncBlocks({
+              [itemA.id]: { isLifted: false, isComparing: false },
+              [itemB.id]: { isComparing: false, isLifted: false },
+            });
+            await sleep(35);
+            if (isCancelled) return;
+
+            setWireHeight(10);
+            swappedAny = true;
+          } else {
+            syncBlocks({
+              [itemA.id]: { isComparing: false },
+              [itemB.id]: { isComparing: false },
+            });
+            await sleep(30);
+          }
+
+          stepsCompleted++;
+          const pct = Math.min(Math.floor((stepsCompleted / totalComparisons) * 98), 98);
+          setProgress(pct);
+
+          for (let s = statusMilestones.length - 1; s >= 0; s--) {
+            if (pct >= statusMilestones[s].at) {
+              setStatusText(statusMilestones[s].text);
+              break;
+            }
+          }
         }
-      }
-    }, interval);
 
-    return () => clearInterval(timer);
+        const sortedId = state[n - 1 - p].id;
+        setBlocks(prev =>
+          prev.map(b => (b.id === sortedId ? { ...b, isSorted: true } : b))
+        );
+
+        if (!swappedAny) break;
+      }
+
+      // Finish state
+      setBlocks(prev => prev.map(b => ({ ...b, isSorted: true, isComparing: false, isLifted: false })));
+      setActionPrompt('OPTIMAL_SORT_COMPLETE ✅');
+      setStatusText('Welcome to NSTA!');
+      setCraneSlot(3.5);
+      setWireHeight(10);
+      setProgress(100);
+
+      await sleep(350);
+      if (!isCancelled) onCompleteRef.current();
+    };
+
+    runSortEngine();
+    return () => { isCancelled = true; };
   }, []);
 
   return (
     <div 
-      className="fixed inset-0 z-[99999] w-screen h-screen min-h-screen flex flex-col items-center justify-between px-6 pt-10 pb-8 select-none overflow-hidden font-sans"
+      className="fixed inset-0 z-[99999] w-screen h-screen min-h-screen flex flex-col items-center justify-between px-6 pt-9 pb-7 select-none overflow-hidden font-sans"
       style={{
         background: 'radial-gradient(circle at 50% 18%, #1e1b4b 0%, #0c1033 40%, #030717 100%)',
       }}
@@ -68,7 +218,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
         }
       `}</style>
 
-      {/* Ambient Lights & Neon Track Rings */}
+      {/* Ambient Glows & Circular Background Track */}
       <div 
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)', filter: 'blur(70px)' }}
@@ -78,10 +228,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
         style={{ background: 'radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, transparent 70%)', filter: 'blur(70px)' }}
       />
       <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-sky-400/10 pointer-events-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-sky-400/10 pointer-events-none"
       />
 
-      {/* Background Academic Watermarks */}
+      {/* Academic Background Watermarks */}
       <svg className="absolute top-[8%] left-[8%] text-white/[0.04] pointer-events-none" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
       <svg className="absolute top-[19%] left-[10%] text-white/[0.04] pointer-events-none" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
       <svg className="absolute top-[31%] left-[8%] text-white/[0.04] pointer-events-none" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/></svg>
@@ -89,10 +239,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
       <svg className="absolute top-[19%] right-[10%] text-white/[0.04] pointer-events-none" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
       <svg className="absolute top-[31%] right-[8%] text-white/[0.04] pointer-events-none" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04z"/></svg>
 
-      {/* Top Branding Section */}
+      {/* ── TOP NSTA BRANDING & FEATURE BADGES ── */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-md">
         {/* 3D Glowing Open Book Logo with Graduation Cap */}
-        <div className="w-44 h-32 flex items-center justify-center">
+        <div className="w-40 h-28 flex items-center justify-center">
           <svg className="w-full h-full drop-shadow-[0_0_24px_rgba(56,189,248,0.65)]" viewBox="0 0 220 180" fill="none">
             <defs>
               <linearGradient id="mainPageLeft" x1="0" y1="0" x2="1" y2="1">
@@ -130,14 +280,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
           NSTA
         </h1>
 
-        <div className="flex items-center gap-1.5 mt-1.5 text-slate-100 text-sm font-bold">
+        <div className="flex items-center gap-1.5 mt-1 text-slate-100 text-sm font-bold">
           <span className="text-sky-400 text-xs">✦</span>
           <span>National Study & Tracking App</span>
           <span className="text-sky-400 text-xs">✦</span>
         </div>
 
-        {/* 4 Feature Badges */}
-        <div className="flex items-center justify-center gap-3 mt-3 text-xs font-bold flex-wrap">
+        {/* 4 Badges */}
+        <div className="flex items-center justify-center gap-2.5 mt-2.5 text-xs font-bold flex-wrap">
           <div className="flex items-center gap-1 text-sky-400">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.5 8.5 0 0 1 13 0"/></svg>
             <span>Self Study</span>
@@ -160,45 +310,100 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
         </div>
       </div>
 
-      {/* Center 3D Study Illustration */}
-      <div className="relative z-10 w-72 h-44 flex items-center justify-center">
-        <svg className="w-full h-full drop-shadow-[0_18px_30px_rgba(0,0,0,0.75)]" viewBox="0 0 280 180" fill="none">
-          <ellipse cx="140" cy="155" rx="100" ry="20" fill="#000000" opacity="0.65" />
-          
-          {/* Book Stack */}
-          <path d="M50 135 L140 156 L230 135 L140 114 Z" fill="#1e1b4b" />
-          <path d="M50 135 L50 148 L140 170 L140 156 Z" fill="#312e81" />
-          <path d="M230 135 L230 148 L140 170 L140 156 Z" fill="#4338ca" />
-          <path d="M58 118 L140 138 L222 118 L140 98 Z" fill="#2563eb" />
-          <path d="M58 118 L58 130 L140 150 L140 138 Z" fill="#1d4ed8" />
-          <path d="M222 118 L222 130 L140 150 L140 138 Z" fill="#3b82f6" />
+      {/* ── MECHANICAL 3D GANTRY CRANE STAGE (BUBBLE SORT BOX) ── */}
+      <div className="relative z-10 w-full max-w-[345px] h-[210px] rounded-2xl bg-gradient-to-b from-[#080f24]/90 to-[#040817]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2.5 overflow-hidden flex flex-col justify-between">
+        
+        {/* Corner Tech Accents */}
+        <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
+        <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
+        <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-cyan-400" />
+        <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-400" />
 
-          {/* Cap on Books */}
-          <path d="M140 60 L200 80 L140 100 L80 80 Z" fill="#1e293b" />
-          <path d="M115 90 L115 106 C115 115 165 115 165 106 L165 90 Z" fill="#0f172a" />
-          <path d="M200 80 L214 108 L210 110 L196 82 Z" fill="#f59e0b" />
+        {/* Steel Track & Crane System */}
+        <div className="relative w-full h-full pt-1 overflow-hidden">
+          {/* Track Line */}
+          <div className="absolute top-3 left-3 right-3 h-1.5 bg-slate-900 rounded-full border border-cyan-500/40 shadow-inner flex items-center">
+            {/* Crane Trolley & Claws */}
+            <div 
+              className="absolute -top-1.5 w-10 h-5 rounded-md bg-gradient-to-b from-cyan-400 to-cyan-700 border border-white shadow-[0_0_15px_#06b6d4] transition-all duration-120 ease-out flex flex-col items-center z-40 -ml-1"
+              style={{ 
+                transform: `translateX(${RIG_LEFT_PAD + craneSlot * SLOT_WIDTH}px)` 
+              }}
+            >
+              {/* Laser Target Beam */}
+              <div className="absolute top-5 w-7 h-28 bg-gradient-to-b from-cyan-400/20 to-transparent pointer-events-none blur-[2px]" />
 
-          {/* Checklist Clipboard */}
-          <rect x="170" y="60" width="56" height="76" rx="6" fill="#f8fafc" transform="rotate(10 170 60)" />
-          <rect x="184" y="56" width="28" height="9" rx="3" fill="#cbd5e1" transform="rotate(10 184 56)" />
-          <path d="M182 80 L186 85 L196 74" stroke="#3b82f6" strokeWidth="2.8" strokeLinecap="round" />
-          <path d="M186 100 L190 105 L200 94" stroke="#3b82f6" strokeWidth="2.8" strokeLinecap="round" />
-          <path d="M190 120 L194 125 L204 114" stroke="#3b82f6" strokeWidth="2.8" strokeLinecap="round" />
+              {/* Cables */}
+              <div 
+                className="w-3.5 flex justify-between transition-all duration-100 ease-out"
+                style={{ height: `${wireHeight}px` }}
+              >
+                <div className="w-0.5 bg-cyan-200 shadow-[0_0_6px_#22d3ee] h-full" />
+                <div className="w-0.5 bg-cyan-200 shadow-[0_0_6px_#22d3ee] h-full" />
+              </div>
 
-          {/* Clock */}
-          <circle cx="150" cy="140" r="24" fill="#1e293b" stroke="#38bdf8" strokeWidth="3.5" />
-          <circle cx="150" cy="140" r="20" fill="#ffffff" />
-          <path d="M150 126 L150 140 L160 140" stroke="#1e293b" strokeWidth="2.8" strokeLinecap="round" />
+              {/* Claw Head */}
+              <div className="relative -mt-0.5 flex items-center justify-center">
+                <div className={`w-8 h-2.5 rounded-t border ${isClawClosed ? 'bg-amber-400 border-amber-100 scale-95' : 'bg-cyan-500 border-cyan-200'} transition-all flex justify-between px-0.5 shadow-md`}>
+                  <div className={`w-1 h-5 rounded-b ${isClawClosed ? 'bg-amber-300 rotate-[18deg] shadow-[0_0_8px_#fbbf24]' : 'bg-cyan-300 -rotate-[16deg]'} transition-all origin-top-left`} />
+                  <div className={`w-1 h-5 rounded-b ${isClawClosed ? 'bg-amber-300 -rotate-[18deg] shadow-[0_0_8px_#fbbf24]' : 'bg-cyan-300 rotate-[16deg]'} transition-all origin-top-right`} />
+                </div>
+              </div>
+            </div>
+          </div>
 
-          {/* Plant */}
-          <path d="M42 130 C38 112 56 102 62 120 Z" fill="#10b981" />
-          <path d="M50 135 C46 122 64 118 66 130 Z" fill="#34d399" />
-          <path d="M38 130 L60 130 L56 144 L42 144 Z" fill="#f8fafc" />
-        </svg>
+          {/* 3D Floor Shadow */}
+          <div className="absolute bottom-6 left-2 right-2 h-2.5 rounded-full bg-slate-950 border-t border-cyan-900/50 blur-[1px]" />
+
+          {/* Blocks */}
+          <div className="relative w-full h-full pt-10 px-1">
+            {blocks.map((block) => {
+              const barHeight = block.val * 9 + 18;
+              const posX = RIG_LEFT_PAD + block.slot * SLOT_WIDTH;
+
+              let colorClass = 'bg-slate-800/90 border-slate-700 text-slate-300 shadow-md';
+              if (block.isSorted) {
+                colorClass = 'bg-emerald-500 border-emerald-300 text-black font-black shadow-[0_0_16px_rgba(16,185,129,0.9)]';
+              } else if (block.isLifted) {
+                colorClass = 'bg-gradient-to-t from-amber-500 via-amber-400 to-yellow-200 border-yellow-100 text-black font-black shadow-[0_0_24px_rgba(245,158,11,1)] scale-105';
+              } else if (block.isComparing) {
+                colorClass = 'bg-cyan-500 border-cyan-300 text-black font-black shadow-[0_0_14px_rgba(6,182,212,0.9)] -translate-y-1';
+              }
+
+              return (
+                <React.Fragment key={block.id}>
+                  {block.isLifted && (
+                    <div 
+                      className="absolute bottom-7 w-6 h-1.5 rounded-full bg-cyan-950 border border-cyan-500/40 blur-[1px] transition-all duration-120"
+                      style={{ left: `${posX}px` }}
+                    />
+                  )}
+
+                  <div
+                    className={`absolute bottom-7 w-6 rounded-t-md border flex flex-col items-center justify-start pt-0.5 font-mono text-[11px] font-bold transition-all duration-120 ease-out ${colorClass}`}
+                    style={{
+                      left: `${posX}px`,
+                      height: `${barHeight}px`,
+                      transform: block.isLifted ? 'translateY(-58px)' : 'translateY(0px)',
+                      zIndex: block.isLifted ? 50 : 10,
+                    }}
+                  >
+                    <span>{block.val}</span>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Dynamic Action Prompt */}
+        <div className="w-full text-center pb-0.5 font-mono text-[11px] text-cyan-300 font-bold tracking-wide">
+          {actionPrompt}
+        </div>
       </div>
 
-      {/* Loading Progress Area */}
-      <div className="relative z-10 w-full max-w-sm flex flex-col items-center gap-2.5 px-3">
+      {/* ── LOADING PROGRESS SECTION ── */}
+      <div className="relative z-10 w-full max-w-sm flex flex-col items-center gap-2 px-3">
         <div className="text-xs font-semibold text-slate-200">{statusText}</div>
         <div className="w-full flex items-center gap-3">
           <div className="flex-1 h-2.5 bg-slate-950/80 rounded-full p-[1.5px] border border-white/10 overflow-hidden shadow-inner">
@@ -218,9 +423,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
         </div>
       </div>
 
-      {/* Developer Credit Footer */}
+      {/* ── DEVELOPER CREDIT FOOTER ── */}
       <div className="relative z-10 flex flex-col items-center gap-0.5">
-        <svg className="w-11 h-8 drop-shadow-[0_0_10px_rgba(56,189,248,0.7)]" viewBox="0 0 60 40" fill="none">
+        <svg className="w-10 h-7 drop-shadow-[0_0_10px_rgba(56,189,248,0.7)]" viewBox="0 0 60 40" fill="none">
           <line x1="30" y1="2" x2="30" y2="7" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round"/>
           <line x1="16" y1="8" x2="20" y2="12" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round"/>
           <line x1="44" y1="8" x2="40" y2="12" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round"/>
@@ -247,4 +452,3 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }
 };
 
 export default AppLoadingScreen;
-
