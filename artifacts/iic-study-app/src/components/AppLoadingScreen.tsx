@@ -1,404 +1,535 @@
-// @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
-import { Check } from 'lucide-react';
-import { APP_VERSION } from '../constants';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NSTA - National Study & Tracking App</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
 
-interface AppLoadingScreenProps {
-  onComplete: () => void;
-  isPremium?: boolean;
-  subscriptionLevel?: 'FREE' | 'BASIC' | 'ULTRA';
-}
+    body {
+      background: #020617;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
 
-interface BlockItem {
-  id: number;
-  val: number;
-  slot: number;
-  isLifted: boolean;
-  isSorted: boolean;
-  isComparing: boolean;
-}
+    /* Main Container */
+    .splash-card {
+      position: relative;
+      width: 100%;
+      max-width: 410px;
+      height: 100vh;
+      max-height: 870px;
+      background: radial-gradient(circle at 50% 18%, #1e1b4b 0%, #0c1033 40%, #030717 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 34px 20px 22px;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+    }
 
-export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ onComplete }) => {
-  const [progress, setProgress] = useState(0);
-  const onCompleteRef = useRef(onComplete);
-  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+    /* Ambient Glows */
+    .ambient-glow-top {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 340px;
+      height: 340px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
+      filter: blur(50px);
+      pointer-events: none;
+    }
 
-  // Initial sequence: [3, 8, 2, 7, 5, 4, 1, 6]
-  const [blocks, setBlocks] = useState<BlockItem[]>([
-    { id: 0, val: 3, slot: 0, isLifted: false, isSorted: false, isComparing: false },
-    { id: 1, val: 8, slot: 1, isLifted: false, isSorted: false, isComparing: false },
-    { id: 2, val: 2, slot: 2, isLifted: false, isSorted: false, isComparing: false },
-    { id: 3, val: 7, slot: 3, isLifted: false, isSorted: false, isComparing: false },
-    { id: 4, val: 5, slot: 4, isLifted: false, isSorted: false, isComparing: false },
-    { id: 5, val: 4, slot: 5, isLifted: false, isSorted: false, isComparing: false },
-    { id: 6, val: 1, slot: 6, isLifted: false, isSorted: false, isComparing: false },
-    { id: 7, val: 6, slot: 7, isLifted: false, isSorted: false, isComparing: false },
-  ]);
+    .ambient-glow-bottom {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 420px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, transparent 70%);
+      filter: blur(50px);
+      pointer-events: none;
+    }
 
-  // Crane Mechanics States
-  const [craneSlot, setCraneSlot] = useState<number>(0);
-  const [wireHeight, setWireHeight] = useState<number>(14);
-  const [isClawClosed, setIsClawClosed] = useState<boolean>(false);
-  const [actionPrompt, setActionPrompt] = useState<string>('a[0] > a[1] ?');
-  const [activeCodeLine, setActiveCodeLine] = useState<number>(6);
+    .neon-arc-1 {
+      position: absolute;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      border: 1px solid rgba(56, 189, 248, 0.12);
+      top: 52%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
 
-  const developerName = 'Nadim Anwar';
-  const appVersion = APP_VERSION || 'v1.0.1';
+    /* Watermark Icons */
+    .watermark {
+      position: absolute;
+      color: rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+    }
+    .wm-pencil { top: 8%; left: 8%; }
+    .wm-target { top: 19%; left: 10%; }
+    .wm-bulb   { top: 31%; left: 8%; }
+    .wm-book   { top: 8%; right: 8%; }
+    .wm-chart  { top: 19%; right: 10%; }
+    .wm-brain  { top: 31%; right: 8%; }
 
-  const SLOT_WIDTH = 40; 
-  const RIG_LEFT_PAD = 14;
+    /* Top Logo & Branding */
+    .brand-section {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
 
-  useEffect(() => {
-    let isCancelled = false;
-    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+    .logo-container {
+      position: relative;
+      width: 160px;
+      height: 125px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2px;
+    }
 
-    // 10.0 Seconds Precise Loop
-    const runFastTenSecondSort = async () => {
-      let state = [
-        { id: 0, val: 3 },
-        { id: 1, val: 8 },
-        { id: 2, val: 2 },
-        { id: 3, val: 7 },
-        { id: 4, val: 5 },
-        { id: 5, val: 4 },
-        { id: 6, val: 1 },
-        { id: 7, val: 6 },
-      ];
+    .logo-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.65));
+    }
 
-      const n = state.length;
-      const totalComparisons = (n * (n - 1)) / 2;
-      let stepsCompleted = 0;
+    .main-title {
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      line-height: 1;
+      background: linear-gradient(180deg, #ffffff 0%, #dbeafe 55%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 4px 18px rgba(255, 255, 255, 0.25));
+    }
 
-      const syncBlocks = (overrides = {}) => {
-        setBlocks(prev =>
-          prev.map(b => {
-            const currentSlot = state.findIndex(s => s.id === b.id);
-            return {
-              ...b,
-              slot: currentSlot,
-              ...overrides[b.id],
-            };
-          })
-        );
-      };
+    .sub-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
 
-      for (let p = 0; p < n - 1; p++) {
-        let swappedAny = false;
+    .sparkle {
+      color: #38bdf8;
+      font-size: 10px;
+      text-shadow: 0 0 8px #38bdf8;
+    }
 
-        for (let i = 0; i < n - 1 - p; i++) {
-          if (isCancelled) return;
+    .sub-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      letter-spacing: 0.4px;
+    }
 
-          const itemA = state[i];
-          const itemB = state[i + 1];
+    /* 4 Feature Tags Row */
+    .features-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+      width: 100%;
+    }
 
-          // ── 1. Crane arrives & compares ──
-          setCraneSlot(i);
-          setWireHeight(14);
-          setIsClawClosed(false);
-          setActiveCodeLine(6);
-          setActionPrompt(`a[${i}] > a[${i + 1}] ?`);
+    .feat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
 
-          syncBlocks({
-            [itemA.id]: { isComparing: true, isLifted: false },
-            [itemB.id]: { isComparing: true, isLifted: false },
-          });
+    .feat-item svg {
+      width: 14px;
+      height: 14px;
+    }
 
-          await sleep(75);
-          if (isCancelled) return;
+    .c-self { color: #38bdf8; }
+    .c-disc { color: #34d399; }
+    .c-rout { color: #fbbf24; }
+    .c-rev  { color: #c084fc; }
 
-          // ── 2. Swap sequence with visible lift & carry ──
-          if (itemA.val > itemB.val) {
-            setActiveCodeLine(7);
-            setActionPrompt(`swap a[${i}], a[${i + 1}]`);
+    .bullet-dot {
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: #475569;
+    }
 
-            // Cable descends over Block A
-            setWireHeight(68);
-            await sleep(60);
-            if (isCancelled) return;
+    /* Center 3D Illustration */
+    .center-illustration {
+      position: relative;
+      z-index: 10;
+      width: 250px;
+      height: 165px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-            // Claws grip Block A
-            setIsClawClosed(true);
-            await sleep(45);
-            if (isCancelled) return;
+    .center-illustration svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 35px rgba(56, 189, 248, 0.3));
+    }
 
-            // Lift Block A up into the air
-            setWireHeight(14);
-            syncBlocks({
-              [itemA.id]: { isLifted: true, isComparing: false },
-              [itemB.id]: { isComparing: false },
-            });
-            await sleep(95);
-            if (isCancelled) return;
+    /* Loading Progress Area */
+    .progress-section {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+    }
 
-            // Crane carries Block A to next slot / Block B slides left
-            setCraneSlot(i + 1);
+    .status-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      letter-spacing: 0.3px;
+    }
 
-            const temp = state[i];
-            state[i] = state[i + 1];
-            state[i + 1] = temp;
+    .progress-bar-wrapper {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-            syncBlocks({
-              [itemA.id]: { isLifted: true, isComparing: false },
-              [itemB.id]: { isComparing: false, isLifted: false },
-            });
-            await sleep(110);
-            if (isCancelled) return;
+    .progress-track {
+      flex: 1;
+      height: 10px;
+      background: rgba(10, 15, 35, 0.85);
+      border-radius: 99px;
+      padding: 1.5px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.8);
+      position: relative;
+      overflow: hidden;
+    }
 
-            // Cable lowers Block A down
-            setWireHeight(68);
-            await sleep(60);
-            if (isCancelled) return;
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #38bdf8 0%, #818cf8 55%, #c084fc 100%);
+      box-shadow: 0 0 18px 2px rgba(99, 102, 241, 0.9);
+      transition: width 60ms linear;
+      position: relative;
+    }
 
-            // Release claw
-            setIsClawClosed(false);
-            syncBlocks({
-              [itemA.id]: { isLifted: false, isComparing: false },
-              [itemB.id]: { isComparing: false, isLifted: false },
-            });
-            await sleep(40);
-            if (isCancelled) return;
+    .progress-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+      animation: shineSweep 1.4s infinite;
+    }
 
-            setWireHeight(14);
-            swappedAny = true;
-          } else {
-            // No swap needed
-            syncBlocks({
-              [itemA.id]: { isComparing: false },
-              [itemB.id]: { isComparing: false },
-            });
-            await sleep(30);
-          }
+    @keyframes shineSweep {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
 
-          stepsCompleted++;
-          setProgress(Math.min(Math.floor((stepsCompleted / totalComparisons) * 96), 96));
-        }
+    .percent-label {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #f8fafc;
+      min-width: 36px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
 
-        // Mark current sorted block as green
-        const sortedId = state[n - 1 - p].id;
-        setBlocks(prev =>
-          prev.map(b => (b.id === sortedId ? { ...b, isSorted: true } : b))
-        );
+    /* Footer Developer Credit */
+    .footer-section {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
 
-        if (!swappedAny) break;
-      }
+    .dev-badge-icon {
+      width: 44px;
+      height: 32px;
+      filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.7));
+    }
 
-      // ── Finish & Sorted State ──
-      setBlocks(prev => prev.map(b => ({ ...b, isSorted: true, isComparing: false, isLifted: false })));
-      setActionPrompt('sorted!');
-      setActiveCodeLine(10);
-      setCraneSlot(3.5);
-      setWireHeight(14);
-      setProgress(100);
+    .dev-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-      // Brief finish pause before transition
-      await sleep(300);
-      if (!isCancelled) onCompleteRef.current();
-    };
+    .line-accent {
+      width: 26px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.7), transparent);
+    }
 
-    runFastTenSecondSort();
-    return () => { isCancelled = true; };
-  }, []);
+    .dev-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 0.3px;
+    }
 
-  const codeRows = [
-    { num: 1, kw: 'def', rest: ' bubble_sort(a):' },
-    { num: 2, kw: '    n =', rest: ' len(a)' },
-    { num: 3, kw: '    for', rest: ' p in range(n - 1):' },
-    { num: 4, kw: '        swapped =', rest: ' False' },
-    { num: 5, kw: '        for', rest: ' i in range(n - 1 - p):' },
-    { num: 6, kw: '            if', rest: ' a[i] > a[i + 1]:' },
-    { num: 7, kw: '                a[i], a[i + 1] =', rest: ' a[i + 1], a[i]' },
-    { num: 8, kw: '                swapped =', rest: ' True' },
-    { num: 9, kw: '        if not', rest: ' swapped:' },
-    { num: 10, kw: '            break', rest: '' },
-  ];
+    .dev-name {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 1.4px;
+      background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 14px rgba(99, 102, 241, 0.5));
+    }
 
-  return (
-    <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#040813] text-white select-none px-4 py-4 font-sans overflow-hidden">
-      
-      {/* ── ISOMETRIC GRID BACKGROUND ── */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(0, 229, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(0, 229, 255, 0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '24px 24px'
-        }}
-      />
+    .dev-tagline {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #64748b;
+      margin-top: 2px;
+    }
 
-      {/* ── COMPACT MAIN CARD CONTAINER ── */}
-      <div className="relative z-10 w-full max-w-[360px] flex flex-col items-center gap-3">
-        
-        {/* ── APP NAME LOGO & BADGES ── */}
-        <div className="flex flex-col items-center">
-          {/* IIC 3D Gradient Text Logo */}
-          <h1 className="text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.6)]">
-            IIC
-          </h1>
+    .heart-symbol {
+      color: #818cf8;
+      font-size: 8px;
+    }
+  </style>
+</head>
+<body>
 
-          {/* Badges */}
-          <div className="flex items-center gap-2 mt-1.5">
-            <div className="px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] font-mono font-bold text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.25)]">
-              ⚙ BUBBLE SORT
-            </div>
-            <div className="px-2.5 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-[10px] font-mono font-bold text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.25)]">
-              O(n²)
-            </div>
-          </div>
-        </div>
+  <div class="splash-card">
+    <div class="ambient-glow-top"></div>
+    <div class="ambient-glow-bottom"></div>
+    <div class="neon-arc-1"></div>
 
-        {/* ── MECHANICAL 3D GANTRY CRANE STAGE ── */}
-        <div className="relative w-full h-[225px] rounded-2xl bg-[#060c1d]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(2,132,199,0.25)] p-2.5 overflow-hidden">
-          
-          {/* Tech Corner Accents */}
-          <div className="absolute top-1.5 left-1.5 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
-          <div className="absolute top-1.5 right-1.5 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
-          <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b-2 border-l-2 border-cyan-400" />
-          <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b-2 border-r-2 border-cyan-400" />
+    <!-- Watermarks -->
+    <svg class="watermark wm-pencil" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+    <svg class="watermark wm-target" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    <svg class="watermark wm-bulb" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/></svg>
+    <svg class="watermark wm-book" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15z"/></svg>
+    <svg class="watermark wm-chart" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    <svg class="watermark wm-brain" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04z"/></svg>
 
-          {/* Steel Pillars */}
-          <div className="absolute top-3 left-2.5 bottom-5 w-1.5 bg-slate-700 rounded-full border border-slate-600 shadow-md" />
-          <div className="absolute top-3 right-2.5 bottom-5 w-1.5 bg-slate-700 rounded-full border border-slate-600 shadow-md" />
+    <!-- Top Branding -->
+    <div class="brand-section">
+      <div class="logo-container">
+        <!-- 3D Open Glowing Educational Book with Graduation Cap (No 'N') -->
+        <svg class="logo-svg" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="mainPageLeft" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#0284c7"/>
+              <stop offset="60%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#818cf8"/>
+            </linearGradient>
+            <linearGradient id="mainPageRight" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#9333ea"/>
+              <stop offset="60%" stop-color="#c084fc"/>
+              <stop offset="100%" stop-color="#818cf8"/>
+            </linearGradient>
+            <linearGradient id="glowBase" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#ffffff"/>
+            </linearGradient>
+          </defs>
 
-          {/* Top Crane Track */}
-          <div className="absolute top-3.5 left-3 right-3 h-2 bg-slate-800 rounded-full border border-cyan-500/40 shadow-inner flex items-center">
-            
-            {/* LARGE CRANE TROLLEY & CLAW */}
-            <div 
-              className="absolute -top-2 w-11 h-6 rounded-md bg-gradient-to-b from-cyan-400 to-cyan-700 border border-white shadow-[0_0_18px_#06b6d4] transition-all duration-150 ease-out flex flex-col items-center z-40 -ml-1.5"
-              style={{ 
-                transform: `translateX(${RIG_LEFT_PAD + craneSlot * SLOT_WIDTH}px)` 
-              }}
-            >
-              {/* Dual Heavy Cables */}
-              <div 
-                className="w-4 flex justify-between transition-all duration-100 ease-out"
-                style={{ height: `${wireHeight}px` }}
-              >
-                <div className="w-0.5 bg-cyan-200 shadow-[0_0_8px_#22d3ee] h-full" />
-                <div className="w-0.5 bg-cyan-200 shadow-[0_0_8px_#22d3ee] h-full" />
-              </div>
+          <!-- Outer Glow Base Layers -->
+          <path d="M110 148 C65 125 25 138 12 110 C50 102 85 118 110 138 Z" fill="#0369a1" opacity="0.6"/>
+          <path d="M110 148 C155 125 195 138 208 110 C170 102 135 118 110 138 Z" fill="#7e22ce" opacity="0.6"/>
 
-              {/* HEAVY-DUTY CLAW HEAD */}
-              <div className="relative -mt-1 flex items-center justify-center">
-                <div className={`w-9 h-3 rounded-t-md border-2 ${isClawClosed ? 'bg-amber-400 border-amber-100 scale-95' : 'bg-cyan-500 border-cyan-200'} transition-all flex justify-between px-0.5 shadow-md`}>
-                  {/* Left Grip Arm */}
-                  <div className={`w-1.5 h-7 rounded-b-md ${isClawClosed ? 'bg-amber-300 rotate-[18deg] shadow-[0_0_10px_#fbbf24]' : 'bg-cyan-300 -rotate-[16deg]'} transition-all origin-top-left`} />
-                  {/* Right Grip Arm */}
-                  <div className={`w-1.5 h-7 rounded-b-md ${isClawClosed ? 'bg-amber-300 -rotate-[18deg] shadow-[0_0_10px_#fbbf24]' : 'bg-cyan-300 rotate-[16deg]'} transition-all origin-top-right`} />
-                </div>
-              </div>
-            </div>
+          <!-- Mid Layer Pages -->
+          <path d="M110 140 C70 115 32 124 20 100 C56 94 90 108 110 128 Z" fill="url(#mainPageLeft)"/>
+          <path d="M110 140 C150 115 188 124 200 100 C164 94 130 108 110 128 Z" fill="url(#mainPageRight)"/>
 
-          </div>
+          <!-- Top Glowing Inner Pages -->
+          <path d="M110 130 C75 105 45 112 35 90 C68 84 95 98 110 118 Z" fill="#e0f2fe" opacity="0.95"/>
+          <path d="M110 130 C145 105 175 112 185 90 C152 84 125 98 110 118 Z" fill="#f3e8ff" opacity="0.95"/>
 
-          {/* 3D Platform Floor Shadow */}
-          <div className="absolute bottom-2.5 left-3 right-3 h-3 rounded-full bg-slate-900 border-t border-cyan-950/70 blur-[1px]" />
+          <!-- Glowing Spine Light Ray -->
+          <path d="M108 152 L112 152 L111 65 L109 65 Z" fill="url(#glowBase)" filter="drop-shadow(0 0 8px #38bdf8)"/>
 
-          {/* ── 3D NUMBERED BLOCKS ── */}
-          <div className="relative w-full h-full pt-12 px-1">
-            {blocks.map((block) => {
-              const barHeight = block.val * 10 + 20;
-              const posX = RIG_LEFT_PAD + block.slot * SLOT_WIDTH;
-
-              let colorClass = 'bg-slate-700/90 border-slate-600 text-slate-300 shadow-md';
-              if (block.isSorted) {
-                colorClass = 'bg-emerald-500 border-emerald-300 text-black font-black shadow-[0_0_20px_rgba(16,185,129,0.95)]';
-              } else if (block.isLifted) {
-                colorClass = 'bg-gradient-to-t from-amber-500 via-amber-400 to-yellow-200 border-yellow-100 text-black font-black shadow-[0_0_30px_rgba(245,158,11,1)] scale-105';
-              } else if (block.isComparing) {
-                colorClass = 'bg-cyan-500 border-cyan-300 text-black font-black shadow-[0_0_16px_rgba(6,182,212,0.9)] -translate-y-1';
-              }
-
-              return (
-                <React.Fragment key={block.id}>
-                  {/* Ground Shadow while lifted */}
-                  {block.isLifted && (
-                    <div 
-                      className="absolute bottom-3.5 w-7 h-2 rounded-full bg-cyan-950/80 border border-cyan-500/40 blur-[1px] transition-all duration-150"
-                      style={{ left: `${posX}px` }}
-                    />
-                  )}
-
-                  {/* 3D Block */}
-                  <div
-                    className={`absolute bottom-3.5 w-7 rounded-t-lg border flex flex-col items-center justify-start pt-1 font-mono text-xs font-bold transition-all duration-150 ease-out ${colorClass}`}
-                    style={{
-                      left: `${posX}px`,
-                      height: `${barHeight}px`,
-                      transform: block.isLifted ? 'translateY(-72px)' : 'translateY(0px)',
-                      zIndex: block.isLifted ? 50 : 10,
-                    }}
-                  >
-                    <span>{block.val}</span>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
-
-        </div>
-
-        {/* Dynamic Action Prompt (No Extra Vertical Gap) */}
-        <div className="flex items-center justify-center h-5">
-          {actionPrompt === 'sorted!' ? (
-            <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold text-xs tracking-wider animate-pulse">
-              <Check size={14} className="text-emerald-400" />
-              <span>sorted!</span>
-            </div>
-          ) : (
-            <span className="font-mono text-xs text-cyan-300 font-bold tracking-wide">
-              {actionPrompt}
-            </span>
-          )}
-        </div>
-
-        {/* ── PYTHON CODE SNIPPET BOX ── */}
-        <div className="w-full rounded-xl bg-[#02050f]/95 border border-cyan-950/80 p-2.5 shadow-inner">
-          <div className="font-mono text-[10.5px] leading-snug space-y-0.5">
-            {codeRows.map((line) => {
-              const isActive = activeCodeLine === line.num;
-              return (
-                <div 
-                  key={line.num} 
-                  className={`flex items-center gap-3 px-2 py-0.5 rounded transition-all duration-75 ${
-                    isActive 
-                      ? 'bg-cyan-950/90 border border-cyan-500/60 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)]' 
-                      : 'text-slate-500'
-                  }`}
-                >
-                  <span className="w-4 text-right text-slate-600 select-none text-[9.5px]">{line.num}</span>
-                  <span className={isActive ? 'text-cyan-200' : 'text-slate-400'}>
-                    <span className="text-pink-400">{line.kw}</span>
-                    <span>{line.rest}</span>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── FOOTER PROGRESS BAR & METADATA ── */}
-        <div className="w-full mt-1">
-          <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-cyan-950/50 mb-1.5">
-            <div 
-              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400 rounded-full transition-all duration-75 shadow-[0_0_10px_#22d3ee]"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-[10.5px] font-mono text-slate-400 px-1">
-            <span className="text-cyan-400 font-bold">{progress}%</span>
-            <span className="text-slate-500">Dev: {developerName}</span>
-            <span className="text-slate-500">{appVersion}</span>
-          </div>
-        </div>
-
+          <!-- Floating Graduation Cap Over the Book -->
+          <path d="M110 40 L160 58 L110 76 L60 58 Z" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+          <path d="M88 68 L88 84 C88 94 132 94 132 84 L132 68 Z" fill="#0f172a"/>
+          <path d="M160 58 L170 82 L166 84 L156 60 Z" fill="#fbbf24"/>
+        </svg>
       </div>
 
-    </div>
-  );
-};
+      <h1 class="main-title">NSTA</h1>
+      
+      <div class="sub-title-row">
+        <span class="sparkle">✦</span>
+        <span class="sub-title">National Study & Tracking App</span>
+        <span class="sparkle">✦</span>
+      </div>
 
-export default AppLoadingScreen;
+      <div class="features-row">
+        <div class="feat-item c-self">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.5 8.5 0 0 1 13 0"/></svg>
+          <span>Self Study</span>
+        </div>
+        <div class="bullet-dot"></div>
+        <div class="feat-item c-disc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Discipline</span>
+        </div>
+        <div class="bullet-dot"></div>
+        <div class="feat-item c-rout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span>Routine</span>
+        </div>
+        <div class="bullet-dot"></div>
+        <div class="feat-item c-rev">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Revision</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center 3D Illustration -->
+    <div class="center-illustration">
+      <svg viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="140" cy="155" rx="100" ry="20" fill="#000000" opacity="0.65"/>
+        
+        <!-- Books Stack -->
+        <path d="M50 135 L140 156 L230 135 L140 114 Z" fill="#1e1b4b"/>
+        <path d="M50 135 L50 148 L140 170 L140 156 Z" fill="#312e81"/>
+        <path d="M230 135 L230 148 L140 170 L140 156 Z" fill="#4338ca"/>
+        
+        <path d="M58 118 L140 138 L222 118 L140 98 Z" fill="#2563eb"/>
+        <path d="M58 118 L58 130 L140 150 L140 138 Z" fill="#1d4ed8"/>
+        <path d="M222 118 L222 130 L140 150 L140 138 Z" fill="#3b82f6"/>
+
+        <!-- Cap on Books -->
+        <path d="M140 60 L200 80 L140 100 L80 80 Z" fill="#1e293b"/>
+        <path d="M115 90 L115 106 C115 115 165 115 165 106 L165 90 Z" fill="#0f172a"/>
+        <path d="M200 80 L214 108 L210 110 L196 82 Z" fill="#f59e0b"/>
+
+        <!-- Clipboard Checklist -->
+        <rect x="170" y="60" width="56" height="76" rx="6" fill="#f8fafc" transform="rotate(10 170 60)"/>
+        <rect x="184" y="56" width="28" height="9" rx="3" fill="#cbd5e1" transform="rotate(10 184 56)"/>
+        <path d="M182 80 L186 85 L196 74" stroke="#3b82f6" stroke-width="2.8" stroke-linecap="round"/>
+        <path d="M186 100 L190 105 L200 94" stroke="#3b82f6" stroke-width="2.8" stroke-linecap="round"/>
+        <path d="M190 120 L194 125 L204 114" stroke="#3b82f6" stroke-width="2.8" stroke-linecap="round"/>
+
+        <!-- Clock -->
+        <circle cx="150" cy="140" r="24" fill="#1e293b" stroke="#38bdf8" stroke-width="3.5"/>
+        <circle cx="150" cy="140" r="20" fill="#ffffff"/>
+        <path d="M150 126 L150 140 L160 140" stroke="#1e293b" stroke-width="2.8" stroke-linecap="round"/>
+        
+        <!-- Plant -->
+        <path d="M42 130 C38 112 56 102 62 120 Z" fill="#10b981"/>
+        <path d="M50 135 C46 122 64 118 66 130 Z" fill="#34d399"/>
+        <path d="M38 130 L60 130 L56 144 L42 144 Z" fill="#f8fafc"/>
+      </svg>
+    </div>
+
+    <!-- Loading Bar -->
+    <div class="progress-section">
+      <div class="status-text" id="status-label">Loading Your Learning Journey...</div>
+      
+      <div class="progress-bar-wrapper">
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-bar"></div>
+        </div>
+        <div class="percent-label" id="percent-label">0%</div>
+      </div>
+    </div>
+
+    <!-- Developer Credit -->
+    <div class="footer-section">
+      <svg class="dev-badge-icon" viewBox="0 0 60 40" fill="none">
+        <line x1="30" y1="2" x2="30" y2="7" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+        <line x1="16" y1="8" x2="20" y2="12" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+        <line x1="44" y1="8" x2="40" y2="12" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+        <path d="M30 14 L30 36 M30 36 C20 31 10 33 5 37 L5 16 C10 12 20 10 30 14 C40 10 50 12 55 16 L55 37 C50 33 40 31 30 36 Z" fill="#38bdf8" fill-opacity="0.25" stroke="#38bdf8" stroke-width="2.2"/>
+      </svg>
+      
+      <div class="dev-title-row">
+        <div class="line-accent"></div>
+        <span class="dev-title">Developed & Managed by</span>
+        <div class="line-accent"></div>
+      </div>
+
+      <div class="dev-name">NADIM ANWAR</div>
+      
+      <div class="dev-tagline">
+        <span class="heart-symbol">♥</span>
+        <span>Built for Students, Designed for Success</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const bar = document.getElementById('progress-bar');
+    const label = document.getElementById('percent-label');
+    const statusText = document.getElementById('status-label');
+
+    const statusMilestones = [
+      { at: 0, text: "Initializing App Modules..." },
+      { at: 20, text: "Loading Your Learning Journey..." },
+      { at: 55, text: "Syncing Study Routine & Daily Goals..." },
+      { at: 80, text: "Preparing Fast Revision Engine..." },
+      { at: 96, text: "Welcome to NSTA!" }
+    ];
+
+    let current = 0;
+    const duration = 3800;
+    const stepInterval = 25;
+    const increment = 100 / (duration / stepInterval);
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= 100) {
+        current = 100;
+        clearInterval(timer);
+      }
+
+      const p = Math.floor(current);
+      bar.style.width = `${p}%`;
+      label.innerText = `${p}%`;
+
+      for (let i = statusMilestones.length - 1; i >= 0; i--) {
+        if (p >= statusMilestones[i].at) {
+          statusText.innerText = statusMilestones[i].text;
+          break;
+        }
+      }
+    }, stepInterval);
+  </script>
+</body>
+</html>
 
