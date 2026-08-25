@@ -937,11 +937,11 @@ export const StudentDashboard: React.FC<Props> = ({
   const _subValid      = SubscriptionEngine.isPremium(user); // true only if not expired
   const _isUltraUser   = _subValid && user.subscriptionLevel === 'ULTRA';
   const _isBasicUser   = _subValid && user.subscriptionLevel === 'BASIC';
+  // The first two loading-screen slots are available to every student.
+  // Subscription plans can still buy weekly access, but must not silently
+  // make the remaining slots appear unlocked in the selector.
   const _splashBaseSlotLimit =
-    user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 5
-      : _isUltraUser ? 4
-      : _isBasicUser ? 3
-      : 2;
+    user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 5 : 2;
   const _splashSlotPrices: Record<number, number> = { 3: 100, 4: 200, 5: 500 };
   const _splashWeeklyPrices: Record<number, number> = { 1: 0, 2: 50, 3: 100, 4: 250, 5: 500 };
   const _splashWeeklyDiscount = _isUltraUser ? 25 : _isBasicUser ? 15 : 0;
@@ -12731,7 +12731,7 @@ export const StudentDashboard: React.FC<Props> = ({
                    { id: 4, label: 'Discover', price: 250 },
                    { id: 5, label: 'Books', price: 500 },
                  ].map((style) => (
-                   <button
+                    <button
                      key={style.id}
                      type="button"
                       onClick={() => {
@@ -12773,7 +12773,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         try { sessionStorage.setItem('nst_splash_preview_style', String(style.id)); } catch {}
                         window.dispatchEvent(new CustomEvent('iic-preview-loading-screen', { detail: { styleId: style.id } }));
                      }}
-                     className="rounded-lg py-2 text-[10px] font-black transition-all active:scale-95"
+                      className="relative rounded-lg py-2 text-[10px] font-black transition-all active:scale-95"
                      style={{
                        background: splashStyle === style.id ? `${tierTheme.primary}25` : `${_pTxtMutedColor}08`,
                        color: splashStyle === style.id ? tierTheme.primary : _pTxtMutedColor,
@@ -12781,11 +12781,23 @@ export const StudentDashboard: React.FC<Props> = ({
                      }}
                      aria-pressed={splashStyle === style.id}
                    >
+                      {style.id > _splashBaseSlotLimit &&
+                        !splashSlotUnlocks[style.id] &&
+                        user.role !== 'ADMIN' &&
+                        user.role !== 'SUB_ADMIN' && (
+                          <span
+                            className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-amber-300/50 bg-slate-950 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.35)]"
+                            aria-label={`Slot ${style.id} locked`}
+                            title={`Slot ${style.id} locked`}
+                          >
+                            <Lock size={10} strokeWidth={2.5} />
+                          </span>
+                        )}
                      <span className="block text-[9px] opacity-60 mb-0.5">0{style.id}</span>
                       <span className="block truncate">{style.id > _splashBaseSlotLimit &&
                         !splashSlotUnlocks[style.id] &&
                         user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
-                          ? `🔓 Unlock Slot ${style.id}`
+                           ? `Unlock Slot ${style.id}`
                           : style.label}</span>
                       <span className="block text-[8px] opacity-70 mt-0.5">
                         {style.id > _splashBaseSlotLimit && !splashSlotUnlocks[style.id] && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
