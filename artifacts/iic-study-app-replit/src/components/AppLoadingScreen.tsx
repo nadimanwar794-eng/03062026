@@ -60,7 +60,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         permanentSlots[candidate] ||
         userRole === 'ADMIN' ||
         userRole === 'SUB_ADMIN';
-      return canUse ? candidate : 1;
+      // Preview mode should let the user see a locked design before deciding
+      // whether to pay for its permanent slot and weekly access.
+      return isPreview || canUse ? candidate : 1;
     } catch {
       return 1;
     }

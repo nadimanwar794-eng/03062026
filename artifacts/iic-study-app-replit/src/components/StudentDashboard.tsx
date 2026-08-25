@@ -2206,6 +2206,24 @@ export const StudentDashboard: React.FC<Props> = ({
   const rotateFullscreenRef = useRef(false);
   const themeOpenerRef = useRef<'PROFILE' | 'HOME'>('HOME');
 
+  useEffect(() => {
+    const syncLoadingScreenAccess = (event: Event) => {
+      const styleId = (event as CustomEvent<{ styleId?: number }>).detail?.styleId;
+      if (!styleId) return;
+      if (styleId > 2) {
+        setSplashSlotUnlocks(prev => ({ ...prev, [styleId]: true }));
+      }
+      if (styleId > 1) {
+        setSplashUnlocks(prev => ({
+          ...prev,
+          [styleId]: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        }));
+      }
+    };
+    window.addEventListener('iic-loading-screen-access-updated', syncLoadingScreenAccess);
+    return () => window.removeEventListener('iic-loading-screen-access-updated', syncLoadingScreenAccess);
+  }, []);
+
 
   const topBarScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -12735,40 +12753,8 @@ export const StudentDashboard: React.FC<Props> = ({
                      key={style.id}
                      type="button"
                       onClick={() => {
-                        const unlockUntil = splashUnlocks[style.id] || 0;
-                        const hasPermanentSlot =
-                          style.id <= _splashBaseSlotLimit ||
-                          splashSlotUnlocks[style.id] ||
-                          user.role === 'ADMIN' ||
-                          user.role === 'SUB_ADMIN';
-                        if (!hasPermanentSlot) {
-                          const slotPrice = _splashSlotPrices[style.id];
-                          const nextUser = applyDeduction(user, slotPrice);
-                          if (!nextUser) {
-                            showAlert(`Slot ${style.id} permanently unlock karne ke liye ${slotPrice} coins chahiye.`, 'ERROR');
-                            return;
-                          }
-                          const nextSlots = { ...splashSlotUnlocks, [style.id]: true };
-                          setSplashSlotUnlocks(nextSlots);
-                          try { localStorage.setItem(`nst_splash_slot_unlocks_${user.id}`, JSON.stringify(nextSlots)); } catch {}
-                          handleUserUpdate(nextUser);
-                          showAlert(`Slot ${style.id} permanently unlock ho gaya. Ab screen weekly kharid sakte ho.`, 'SUCCESS');
-                          return;
-                        }
-                        const isUnlocked = style.id === 1 || unlockUntil > Date.now() || user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-                        if (!isUnlocked && style.id > 1) {
-                          const price = Math.round(_splashWeeklyPrices[style.id] * (1 - _splashWeeklyDiscount / 100));
-                          const nextUser = applyDeduction(user, price);
-                          if (!nextUser) {
-                            showAlert(`Is design ko unlock karne ke liye ${price} coins chahiye.`, 'ERROR');
-                            return;
-                          }
-                          const nextUnlocks = { ...splashUnlocks, [style.id]: Date.now() + 7 * 24 * 60 * 60 * 1000 };
-                          setSplashUnlocks(nextUnlocks);
-                          try { localStorage.setItem(`nst_splash_unlocks_${user.id}`, JSON.stringify(nextUnlocks)); } catch {}
-                          handleUserUpdate(nextUser);
-                          showAlert(`Design 7 din ke liye unlock ho gaya (${price} coins).`, 'SUCCESS');
-                        }
+                         // Selecting a slot is preview-only. Payment and
+                         // persistence happen after the user presses Apply.
                         setSplashStyle(style.id);
                         try { sessionStorage.setItem('nst_splash_preview_style', String(style.id)); } catch {}
                         window.dispatchEvent(new CustomEvent('iic-preview-loading-screen', { detail: { styleId: style.id } }));

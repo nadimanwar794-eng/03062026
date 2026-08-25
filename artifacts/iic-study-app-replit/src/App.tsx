@@ -2945,11 +2945,66 @@ const App: React.FC = () => {
             setIsAppLoading(false);
           }}
           onApply={() => {
-            const previewStyle = sessionStorage.getItem('nst_splash_preview_style');
-            if (previewStyle) localStorage.setItem('nst_splash_style_preference', previewStyle);
-            sessionStorage.removeItem('nst_splash_preview_style');
-            setIsLoadingPreview(false);
-            setIsAppLoading(false);
+             const previewStyle = parseInt(sessionStorage.getItem('nst_splash_preview_style') || '1', 10);
+             const currentUser = state.user;
+             const isStaff = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUB_ADMIN';
+             const permanentUnlocks = currentUser
+               ? JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${currentUser.id}`) || '{}')
+               : {};
+             const weeklyUnlocks = currentUser
+               ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${currentUser.id}`) || '{}')
+               : {};
+             const permanentPrices: Record<number, number> = { 3: 100, 4: 200, 5: 500 };
+             const weeklyPrices: Record<number, number> = { 2: 50, 3: 100, 4: 250, 5: 500 };
+             const discount = currentUser?.isPremium
+               ? currentUser.subscriptionLevel === 'ULTRA' ? 25 : 15
+               : 0;
+             const needsPermanentUnlock =
+               !!currentUser && !isStaff && previewStyle > 2 && !permanentUnlocks[previewStyle];
+             const weeklyActive =
+               isStaff || previewStyle === 1 || (weeklyUnlocks[previewStyle] || 0) > Date.now();
+             const permanentCost = needsPermanentUnlock ? (permanentPrices[previewStyle] || 0) : 0;
+             const weeklyCost = !weeklyActive
+               ? Math.round((weeklyPrices[previewStyle] || 0) * (1 - discount / 100))
+               : 0;
+             const totalCost = permanentCost + weeklyCost;
+
+             const applyLoadingScreen = () => {
+               if (!currentUser) return;
+               const nextUser = totalCost > 0 ? applyDeduction(currentUser, totalCost) : currentUser;
+               if (!nextUser) return;
+               const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
+               if (needsPermanentUnlock) {
+                 permanentUnlocks[previewStyle] = true;
+                 localStorage.setItem(`nst_splash_slot_unlocks_${currentUser.id}`, JSON.stringify(permanentUnlocks));
+               }
+               if (!weeklyActive && previewStyle > 1) {
+                 weeklyUnlocks[previewStyle] = expiry;
+                 localStorage.setItem(`nst_splash_unlocks_${currentUser.id}`, JSON.stringify(weeklyUnlocks));
+               }
+               localStorage.setItem('nst_splash_style_preference', String(previewStyle));
+               if (totalCost > 0) {
+                 saveUserToLive(nextUser);
+                 setState(prev => ({ ...prev, user: nextUser }));
+               }
+               window.dispatchEvent(new CustomEvent('iic-loading-screen-access-updated', {
+                 detail: { styleId: previewStyle },
+               }));
+               setCreditModal(null);
+               sessionStorage.removeItem('nst_splash_preview_style');
+               setIsLoadingPreview(false);
+               setIsAppLoading(false);
+             };
+
+             if (totalCost > 0 && currentUser) {
+               setCreditModal({
+                 title: `Unlock Loading Screen ${previewStyle}`,
+                 cost: totalCost,
+                 onConfirm: () => applyLoadingScreen(),
+               });
+             } else {
+               applyLoadingScreen();
+             }
           }}
           onComplete={() => {
             sessionStorage.removeItem('nst_splash_preview_style');
