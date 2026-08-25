@@ -9,11 +9,10 @@ import {
   BarChart2, 
   WifiOff, 
   Zap, 
-  Terminal,
-  FileCheck,
-  TrendingUp,
-  CalendarCheck,
-  RotateCcw
+  FileCheck, 
+  TrendingUp, 
+  CalendarCheck, 
+  RotateCcw 
 } from 'lucide-react';
 import { APP_VERSION } from '../constants';
 
@@ -34,30 +33,17 @@ interface BlockItem {
 
 const STORAGE_KEY = 'nst_splash_style_idx';
 
-const PYTHON_CODE_ROWS = [
-  { num: 1, kw: 'def', rest: ' bubble_sort(a):' },
-  { num: 2, kw: '    n =', rest: ' len(a)' },
-  { num: 3, kw: '    for', rest: ' p in range(n - 1):' },
-  { num: 4, kw: '        swapped =', rest: ' False' },
-  { num: 5, kw: '        for', rest: ' i in range(n - 1 - p):' },
-  { num: 6, kw: '            if', rest: ' a[i] > a[i + 1]:' },
-  { num: 7, kw: '                a[i], a[i + 1] =', rest: ' a[i + 1], a[i]' },
-  { num: 8, kw: '                swapped =', rest: ' True' },
-  { num: 9, kw: '        if not', rest: ' swapped:' },
-  { num: 10, kw: '            break', rest: '' },
-];
-
 export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ 
   onComplete, 
   isPremium = false, 
   subscriptionLevel = 'FREE' 
 }) => {
-  // ── Alternate Style Selection (1 to 6) ──
+  // ── Alternate Style Selection (1 to 4) ──
   const [styleVariant] = useState<number>(() => {
     try {
       const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
-      const current = isNaN(saved) || saved < 1 || saved > 6 ? 1 : saved;
-      const next = current === 6 ? 1 : current + 1;
+      const current = isNaN(saved) || saved < 1 || saved > 4 ? 1 : saved;
+      const next = current === 4 ? 1 : current + 1;
       localStorage.setItem(STORAGE_KEY, String(next));
       return current;
     } catch {
@@ -72,7 +58,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
-  // ── 6 Orbit Nodes Config (For Variants 4, 5 & 6) ──
+  // ── 6 Orbit Nodes Config (For Variants 2 & 4) ──
   const orbitNodes = [
     { id: 'notes', label: 'Smart Notes', icon: BookOpen, color: '#38bdf8', angleDeg: 270, showAt: 10 },
     { id: 'mcq', label: 'MCQ Practice', icon: FileCheck, color: '#60a5fa', angleDeg: 330, showAt: 25 },
@@ -82,7 +68,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     { id: 'ai', label: 'AI Study Assistant', icon: BrainCircuit, color: '#c084fc', angleDeg: 210, showAt: 85 },
   ];
 
-  // ── Bubble Sort & Crane Engine States (for Variant 2 & 3) ──
+  // ── Bubble Sort & Crane Engine States (for Variant 3) ──
   const [blocks, setBlocks] = useState<BlockItem[]>([
     { id: 0, val: 3, slot: 0, isLifted: false, isSorted: false, isComparing: false },
     { id: 1, val: 2, slot: 1, isLifted: false, isSorted: false, isComparing: false },
@@ -98,10 +84,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const [wireHeight, setWireHeight] = useState<number>(10);
   const [isClawClosed, setIsClawClosed] = useState<boolean>(false);
   const [actionPrompt, setActionPrompt] = useState<string>('a[0] > a[1] ?');
-  const [activeCodeLine, setActiveCodeLine] = useState<number>(6);
 
   const developerName = 'Nadim Anwar';
-  const isSortMode = styleVariant === 2 || styleVariant === 3;
+  const isSortMode = styleVariant === 3;
 
   const statusMilestones = [
     { at: 0, text: 'Initializing App Modules...' },
@@ -111,18 +96,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     { at: 96, text: 'Welcome to NSTA!' }
   ];
 
-  // ── Engine 1: Linear Timer Progress ──
+  // ── Engine 1: Linear Timer Progress (Variants 1, 2, 4) -> 8s Duration ──
   useEffect(() => {
     if (isSortMode) return;
 
-    let duration = 3800;
-    if (styleVariant === 1) {
-      duration = 3000;
-    } else if (styleVariant === 4) {
-      duration = 10000; // 10s Smooth Spin for Orbit
-    }
-
-    const intervalTime = 30;
+    const duration = 8000; // All Variants (1, 2, 4) exact 8 seconds
+    const intervalTime = 25;
     const steps = duration / intervalTime;
     let currentStep = 0;
 
@@ -160,7 +139,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     return () => clearInterval(timer);
   }, [styleVariant, isSortMode]);
 
-  // ── Engine 2: Real-time Algorithm Sort Progress ──
+  // ── Engine 2: Real-time Algorithm Sort Progress (Variant 3) -> 8s Duration ──
   useEffect(() => {
     if (!isSortMode) return;
     let isCancelled = false;
@@ -207,7 +186,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           setCraneSlot(i);
           setWireHeight(10);
           setIsClawClosed(false);
-          setActiveCodeLine(6);
           setActionPrompt(`a[${i}] > a[${i + 1}] ?`);
 
           syncBlocks({
@@ -215,19 +193,18 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             [itemB.id]: { isComparing: true, isLifted: false },
           });
 
-          await sleep(75);
+          await sleep(155);
           if (isCancelled) return;
 
           if (itemA.val > itemB.val) {
-            setActiveCodeLine(7);
             setActionPrompt(`swap a[${i}], a[${i + 1}]`);
 
             setWireHeight(58);
-            await sleep(55);
+            await sleep(115);
             if (isCancelled) return;
 
             setIsClawClosed(true);
-            await sleep(40);
+            await sleep(85);
             if (isCancelled) return;
 
             setWireHeight(10);
@@ -235,7 +212,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isLifted: true, isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(85);
+            await sleep(175);
             if (isCancelled) return;
 
             setCraneSlot(i + 1);
@@ -248,11 +225,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isLifted: true, isComparing: false },
               [itemB.id]: { isComparing: false, isLifted: false },
             });
-            await sleep(100);
+            await sleep(200);
             if (isCancelled) return;
 
             setWireHeight(58);
-            await sleep(55);
+            await sleep(115);
             if (isCancelled) return;
 
             setIsClawClosed(false);
@@ -260,7 +237,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isLifted: false, isComparing: false },
               [itemB.id]: { isComparing: false, isLifted: false },
             });
-            await sleep(35);
+            await sleep(75);
             if (isCancelled) return;
 
             setWireHeight(10);
@@ -270,7 +247,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(30);
+            await sleep(65);
           }
 
           stepsCompleted++;
@@ -295,7 +272,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
       setBlocks(prev => prev.map(b => ({ ...b, isSorted: true, isComparing: false, isLifted: false })));
       setActionPrompt('OPTIMAL_SORT_COMPLETE ✅');
-      setActiveCodeLine(10);
       setStatusText('Welcome to NSTA!');
       setCraneSlot(3.5);
       setWireHeight(10);
@@ -416,9 +392,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         </div>
       </div>
 
-      {/* ── MIDDLE DYNAMIC CONTENT (1 TO 6) ── */}
+      {/* ── MIDDLE DYNAMIC CONTENT (1 TO 4) ── */}
       {styleVariant === 1 && (
-        /* VARIANT 1: 8 Feature Grid Flip Cards */
+        /* 1. Feature Grid Flip Cards */
         <div className="relative z-10 w-full max-w-[340px] h-[210px] perspective-1000 flex items-center justify-center">
           <div className={`absolute inset-0 grid grid-cols-2 gap-3 transition-all duration-500 ${progress < 50 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
             <div className={`flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/80 border border-slate-700/60 shadow-lg transition-all duration-500 transform ${stepPhase1 >= 0 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}>
@@ -461,7 +437,94 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       )}
 
       {styleVariant === 2 && (
-        /* VARIANT 2: Mechanical Gantry Crane Bubble Sort Box */
+        /* 2. Frameless Continuous Spinning Orbit Ring (8s Spin Duration) */
+        <div className="relative z-10 w-[345px] h-[345px] flex items-center justify-center my-auto">
+          <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
+          <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
+
+          {/* Original Glowing 3D Open Book Center Hub */}
+          <div 
+            className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
+            style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
+          >
+            <div className="w-28 h-16 relative flex items-center justify-center">
+              <div className="absolute -top-3 w-20 h-20 bg-gradient-to-t from-sky-400/30 to-transparent rounded-full blur-md pointer-events-none" />
+              
+              <svg className="w-full h-full drop-shadow-[0_0_18px_rgba(56,189,248,0.95)]" viewBox="0 0 160 110" fill="none">
+                <defs>
+                  <linearGradient id="orbBookLeftLarge" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" />
+                    <stop offset="100%" stopColor="#2563eb" />
+                  </linearGradient>
+                  <linearGradient id="orbBookRightLarge" x1="1" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#c084fc" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+                </defs>
+                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
+                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
+                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge)" />
+                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge)" />
+                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
+                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
+                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              </svg>
+            </div>
+
+            <p className="text-[11px] font-semibold text-slate-300 mt-1 leading-tight">Your All-in-One</p>
+            <p className="text-sm font-black text-sky-400 leading-tight drop-shadow-[0_0_10px_rgba(56,189,248,0.75)]">Study Partner</p>
+          </div>
+
+          {/* Orbit Items Layer (Smooth 360 Spin) */}
+          <div 
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ animation: 'orbitSpin 22s linear infinite' }}
+          >
+            {orbitNodes.map((node) => {
+              const rad = (node.angleDeg * Math.PI) / 180;
+              const x = Math.round(125 * Math.cos(rad));
+              const y = Math.round(125 * Math.sin(rad));
+              const IconComp = node.icon;
+
+              return (
+                <div
+                  key={node.id}
+                  className="absolute flex flex-col items-center justify-center text-center"
+                  style={{
+                    transform: `translate(${x}px, ${y}px)`,
+                    width: '82px',
+                  }}
+                >
+                  <div 
+                    style={{ animation: 'counterOrbitSpin 22s linear infinite' }} 
+                    className="flex flex-col items-center"
+                  >
+                    <div 
+                      className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
+                        border: `1.5px solid ${node.color}`,
+                        boxShadow: `0 0 14px ${node.color}55, inset 0 0 7px ${node.color}35`,
+                      }}
+                    >
+                      <IconComp size={18} style={{ color: node.color }} />
+                    </div>
+                    <span 
+                      className="text-[9.5px] font-bold text-slate-200 mt-1.5 leading-tight text-center whitespace-normal"
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}
+                    >
+                      {node.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {styleVariant === 3 && (
+        /* 3. Mechanical Gantry Crane Bubble Sort Box (8s Duration) */
         <div className="relative z-10 w-full max-w-[345px] h-[210px] rounded-2xl bg-gradient-to-b from-[#080f24]/90 to-[#040817]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2.5 overflow-hidden flex flex-col justify-between">
           <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
           <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
@@ -535,76 +598,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         </div>
       )}
 
-      {styleVariant === 3 && (
-        /* VARIANT 3: Mini Crane Stage + Python Code Terminal Window */
-        <div className="relative z-10 w-full max-w-[345px] flex flex-col gap-2">
-          <div className="relative w-full h-[145px] rounded-xl bg-[#080f24]/90 border border-cyan-500/35 p-2 overflow-hidden shadow-md">
-            <div className="absolute top-2 left-2 right-2 h-1 bg-slate-900 rounded-full border border-cyan-500/30 flex items-center">
-              <div 
-                className="absolute -top-1 w-8 h-4 rounded bg-cyan-500 border border-white flex flex-col items-center z-40"
-                style={{ transform: `translateX(${12 + craneSlot * 38}px)` }}
-              >
-                <div className="w-2.5 flex justify-between" style={{ height: `${wireHeight * 0.6}px` }}>
-                  <div className="w-0.5 bg-cyan-200 h-full" />
-                  <div className="w-0.5 bg-cyan-200 h-full" />
-                </div>
-              </div>
-            </div>
-            <div className="relative w-full h-full pt-6">
-              {blocks.map((block) => {
-                const posX = 12 + block.slot * 38;
-                return (
-                  <div
-                    key={block.id}
-                    className={`absolute bottom-2 w-5 rounded-t font-mono text-[10px] flex items-center justify-center font-bold ${block.isSorted ? 'bg-emerald-500 text-black' : block.isLifted ? 'bg-amber-400 text-black' : 'bg-slate-800 text-slate-300'}`}
-                    style={{
-                      left: `${posX}px`,
-                      height: `${block.val * 6 + 12}px`,
-                      transform: block.isLifted ? 'translateY(-35px)' : 'translateY(0px)',
-                    }}
-                  >
-                    {block.val}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="w-full rounded-xl bg-[#020512] border border-cyan-950/90 shadow-lg overflow-hidden font-mono text-[9.5px]">
-            <div className="flex items-center justify-between px-2.5 py-1 bg-[#070d22] border-b border-cyan-950/80 text-slate-400">
-              <div className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-rose-500/80" />
-                <span className="w-2 h-2 rounded-full bg-amber-500/80" />
-                <span className="w-2 h-2 rounded-full bg-emerald-500/80" />
-              </div>
-              <div className="flex items-center gap-1">
-                <Terminal size={10} className="text-cyan-400" />
-                <span>bubble_sort.py</span>
-              </div>
-              <span className="text-cyan-400 font-bold">Python</span>
-            </div>
-            <div className="p-1.5 space-y-0.5">
-              {PYTHON_CODE_ROWS.slice(4, 9).map((line) => {
-                const isActive = activeCodeLine === line.num;
-                return (
-                  <div key={line.num} className={`flex items-center gap-2 px-1.5 py-0.5 rounded ${isActive ? 'bg-cyan-950/90 text-cyan-300 font-bold' : 'text-slate-500'}`}>
-                    <span className="text-slate-600">{line.num}</span>
-                    <span className={isActive ? 'text-cyan-200' : 'text-slate-400'}>
-                      <span className="text-pink-400">{line.kw}</span>
-                      <span>{line.rest}</span>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── VARIANTS 4, 5 & 6: EXPANDED FRAMELESS ORBITAL HUBS WITH 3D OPEN BOOK CENTER ── */}
-      {(styleVariant === 4 || styleVariant === 5 || styleVariant === 6) && (
+      {styleVariant === 4 && (
+        /* 4. Frameless Sequential Discovery Ring (8s Duration) */
         <div className="relative z-10 w-[345px] h-[345px] flex items-center justify-center my-auto">
-          {/* Expanded Ring Tracks */}
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
           <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
 
@@ -618,19 +614,19 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               
               <svg className="w-full h-full drop-shadow-[0_0_18px_rgba(56,189,248,0.95)]" viewBox="0 0 160 110" fill="none">
                 <defs>
-                  <linearGradient id="orbBookLeftLarge" x1="0" y1="0" x2="1" y2="1">
+                  <linearGradient id="orbBookLeftLarge4" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#38bdf8" />
                     <stop offset="100%" stopColor="#2563eb" />
                   </linearGradient>
-                  <linearGradient id="orbBookRightLarge" x1="1" y1="0" x2="0" y2="1">
+                  <linearGradient id="orbBookRightLarge4" x1="1" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#c084fc" />
                     <stop offset="100%" stopColor="#6366f1" />
                   </linearGradient>
                 </defs>
                 <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
                 <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
-                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge)" />
-                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge)" />
+                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge4)" />
+                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge4)" />
                 <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
                 <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
                 <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
@@ -641,53 +637,43 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             <p className="text-sm font-black text-sky-400 leading-tight drop-shadow-[0_0_10px_rgba(56,189,248,0.75)]">Study Partner</p>
           </div>
 
-          {/* Orbit Items Layer */}
-          <div 
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={styleVariant === 4 ? { animation: 'orbitSpin 22s linear infinite' } : undefined}
-          >
-            {orbitNodes.map((node) => {
-              const rad = (node.angleDeg * Math.PI) / 180;
-              const x = Math.round(125 * Math.cos(rad));
-              const y = Math.round(125 * Math.sin(rad));
-              const IconComp = node.icon;
-              const isVisible = styleVariant === 5 ? progress >= node.showAt : true;
+          {/* Staggered Pop-In Orbit Nodes */}
+          {orbitNodes.map((node) => {
+            const isVisible = progress >= node.showAt;
+            const rad = (node.angleDeg * Math.PI) / 180;
+            const x = Math.round(125 * Math.cos(rad));
+            const y = Math.round(125 * Math.sin(rad));
+            const IconComp = node.icon;
 
-              return (
-                <div
-                  key={node.id}
-                  className="absolute flex flex-col items-center justify-center text-center transition-all duration-500 ease-out"
+            return (
+              <div
+                key={node.id}
+                className="absolute flex flex-col items-center justify-center text-center transition-all duration-500 ease-out"
+                style={{
+                  transform: `translate(${x}px, ${y}px) scale(${isVisible ? 1 : 0.3})`,
+                  opacity: isVisible ? 1 : 0,
+                  width: '82px',
+                }}
+              >
+                <div 
+                  className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300"
                   style={{
-                    transform: `translate(${x}px, ${y}px) scale(${isVisible ? 1 : 0.3})`,
-                    opacity: isVisible ? 1 : 0,
-                    width: '82px',
+                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
+                    border: `1.5px solid ${node.color}`,
+                    boxShadow: `0 0 14px ${node.color}55, inset 0 0 7px ${node.color}35`,
                   }}
                 >
-                  <div 
-                    style={styleVariant === 4 ? { animation: 'counterOrbitSpin 22s linear infinite' } : undefined} 
-                    className="flex flex-col items-center"
-                  >
-                    <div 
-                      className="w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
-                        border: `1.5px solid ${node.color}`,
-                        boxShadow: `0 0 14px ${node.color}55, inset 0 0 7px ${node.color}35`,
-                      }}
-                    >
-                      <IconComp size={18} style={{ color: node.color }} />
-                    </div>
-                    <span 
-                      className="text-[9.5px] font-bold text-slate-200 mt-1.5 leading-tight text-center whitespace-normal"
-                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}
-                    >
-                      {node.label}
-                    </span>
-                  </div>
+                  <IconComp size={18} style={{ color: node.color }} />
                 </div>
-              );
-            })}
-          </div>
+                <span 
+                  className="text-[9.5px] font-bold text-slate-200 mt-1.5 leading-tight text-center whitespace-normal"
+                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}
+                >
+                  {node.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
