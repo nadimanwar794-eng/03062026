@@ -100,7 +100,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   useEffect(() => {
     if (isSortMode) return;
 
-    const duration = 8000; // All Variants (1, 2, 4) exact 8 seconds
+    const duration = 8000;
     const intervalTime = 25;
     const steps = duration / intervalTime;
     let currentStep = 0;
@@ -139,7 +139,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     return () => clearInterval(timer);
   }, [styleVariant, isSortMode]);
 
-  // ── Engine 2: Real-time Algorithm Sort Progress (Variant 3) -> 8s Duration ──
+  // ── Engine 2: Real-time Algorithm Sort Progress (Variant 3) -> Exact ~7.8s ──
   useEffect(() => {
     if (!isSortMode) return;
     let isCancelled = false;
@@ -183,6 +183,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           const itemA = state[i];
           const itemB = state[i + 1];
 
+          // 1. Crane arrives & compares
           setCraneSlot(i);
           setWireHeight(10);
           setIsClawClosed(false);
@@ -193,18 +194,19 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             [itemB.id]: { isComparing: true, isLifted: false },
           });
 
-          await sleep(155);
+          await sleep(95);
           if (isCancelled) return;
 
+          // 2. Swap sequence
           if (itemA.val > itemB.val) {
             setActionPrompt(`swap a[${i}], a[${i + 1}]`);
 
             setWireHeight(58);
-            await sleep(115);
+            await sleep(70);
             if (isCancelled) return;
 
             setIsClawClosed(true);
-            await sleep(85);
+            await sleep(50);
             if (isCancelled) return;
 
             setWireHeight(10);
@@ -212,7 +214,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isLifted: true, isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(175);
+            await sleep(105);
             if (isCancelled) return;
 
             setCraneSlot(i + 1);
@@ -225,11 +227,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isLifted: true, isComparing: false },
               [itemB.id]: { isComparing: false, isLifted: false },
             });
-            await sleep(200);
+            await sleep(120);
             if (isCancelled) return;
 
             setWireHeight(58);
-            await sleep(115);
+            await sleep(70);
             if (isCancelled) return;
 
             setIsClawClosed(false);
@@ -237,7 +239,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isLifted: false, isComparing: false },
               [itemB.id]: { isComparing: false, isLifted: false },
             });
-            await sleep(75);
+            await sleep(45);
             if (isCancelled) return;
 
             setWireHeight(10);
@@ -247,7 +249,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               [itemA.id]: { isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(65);
+            await sleep(40);
           }
 
           stepsCompleted++;
@@ -277,7 +279,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       setWireHeight(10);
       setProgress(100);
 
-      await sleep(350);
+      await sleep(250);
       if (!isCancelled) onCompleteRef.current();
     };
 
@@ -437,7 +439,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       )}
 
       {styleVariant === 2 && (
-        /* 2. Frameless Continuous Spinning Orbit Ring (8s Spin Duration) */
+        /* 2. Frameless Continuous Spinning Orbit Ring (8s Duration) */
         <div className="relative z-10 w-[345px] h-[345px] flex items-center justify-center my-auto">
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
           <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
@@ -524,7 +526,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       )}
 
       {styleVariant === 3 && (
-        /* 3. Mechanical Gantry Crane Bubble Sort Box (8s Duration) */
+        /* 3. Mechanical Gantry Crane Bubble Sort Box (8s Calibrated) */
         <div className="relative z-10 w-full max-w-[345px] h-[210px] rounded-2xl bg-gradient-to-b from-[#080f24]/90 to-[#040817]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2.5 overflow-hidden flex flex-col justify-between">
           <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
           <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
@@ -727,4 +729,3 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 };
 
 export default AppLoadingScreen;
-
