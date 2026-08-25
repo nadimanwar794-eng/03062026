@@ -58,7 +58,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       const weeklySlots = userId
         ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${userId}`) || '{}')
         : {};
-      const canUse = candidate === 1 ||
+      const freeSlots = subscriptionLevel === 'ULTRA' ? 5 : subscriptionLevel === 'BASIC' ? 4 : 3;
+      const canUse = candidate <= freeSlots ||
         permanentSlots[candidate] ||
         Number(weeklySlots[candidate] || 0) > Date.now() ||
         userRole === 'ADMIN' ||

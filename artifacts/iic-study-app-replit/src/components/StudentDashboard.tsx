@@ -940,11 +940,11 @@ export const StudentDashboard: React.FC<Props> = ({
   // The first two loading-screen slots are available to every student.
   // Subscription plans can still buy weekly access, but must not silently
   // make the remaining slots appear unlocked in the selector.
-  const _splashBaseSlotLimit =
-    user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 5 : 2;
-  const _splashSlotPrices: Record<number, number> = { 3: 100, 4: 200, 5: 500 };
-  const _splashWeeklyPrices: Record<number, number> = { 1: 0, 2: 50, 3: 100, 4: 250, 5: 500 };
-  const _splashWeeklyDiscount = _isUltraUser ? 25 : _isBasicUser ? 15 : 0;
+   const _splashBaseSlotLimit =
+     user.role === 'ADMIN' || user.role === 'SUB_ADMIN'
+       ? 5
+       : _isUltraUser ? 5 : _isBasicUser ? 4 : 3;
+   const _splashSlotPrices: Record<number, number> = { 2: 50, 3: 100, 4: 200, 5: 500 };
   const _todayKey      = new Date().toISOString().split('T')[0];
 
   // ── Level-based limit bonus ─────────────────────────────────────────────
@@ -2208,12 +2208,13 @@ export const StudentDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     const syncLoadingScreenAccess = (event: Event) => {
-      const styleId = (event as CustomEvent<{ styleId?: number }>).detail?.styleId;
+       const detail = (event as CustomEvent<{ styleId?: number; permanentOnly?: boolean }>).detail;
+       const styleId = detail?.styleId;
       if (!styleId) return;
       if (styleId > 2) {
         setSplashSlotUnlocks(prev => ({ ...prev, [styleId]: true }));
       }
-      if (styleId > 1) {
+       if (styleId > 1 && !detail?.permanentOnly) {
         setSplashUnlocks(prev => ({
           ...prev,
           [styleId]: Date.now() + 7 * 24 * 60 * 60 * 1000,
@@ -12707,40 +12708,11 @@ export const StudentDashboard: React.FC<Props> = ({
                    </p>
                  </div>
                </div>
-                <p className={`text-[10px] mt-3 ${_pTxtSub}`}>
-                  Pehle slot permanently unlock karo, phir screen ko 7 din ke liye kharido. Basic 15% aur Ultra 25% off.
-                </p>
-                <div className="mt-2 rounded-lg border border-white/10 bg-black/10 px-2.5 py-2 text-[9px] font-bold">
-                  <div className={_pTxtSub}>Permanent slot unlock: Slot 3 = 100 CR · Slot 4 = 200 CR · Slot 5 = 500 CR</div>
-                  <div className="mt-1 text-emerald-400/90">Button dabane par credits turant deduct honge.</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const missingSlots = [3, 4, 5].filter((id) =>
-                      id > _splashBaseSlotLimit && !splashSlotUnlocks[id],
-                    );
-                    if (missingSlots.length > 0) {
-                      showAlert(`Pehle slot ${missingSlots.join(', ')} permanently unlock karo.`, 'ERROR');
-                      return;
-                    }
-                    const comboPrice = Math.round(850 * 0.8);
-                    const nextUser = applyDeduction(user, comboPrice);
-                    if (!nextUser) {
-                      showAlert(`All screens combo ke liye ${comboPrice} coins chahiye.`, 'ERROR');
-                      return;
-                    }
-                    const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
-                    const nextUnlocks = { ...splashUnlocks, 1: expiry, 2: expiry, 3: expiry, 4: expiry, 5: expiry };
-                    setSplashUnlocks(nextUnlocks);
-                    try { localStorage.setItem(`nst_splash_unlocks_${user.id}`, JSON.stringify(nextUnlocks)); } catch {}
-                    handleUserUpdate(nextUser);
-                    showAlert(`All 5 loading screens 7 din ke liye unlock (${comboPrice} coins, 20% off).`, 'SUCCESS');
-                  }}
-                  className="w-full mt-3 rounded-lg border border-amber-400/40 bg-amber-400/10 py-2 text-[10px] font-black text-amber-300 active:scale-95 transition-transform"
-                >
-                  🎁 Buy All 5 — 680 coins / 7 days (20% OFF)
-                </button>
+                 <div className="mt-2 rounded-lg border border-white/10 bg-black/10 px-2.5 py-2 text-[9px] font-bold">
+                   <div className={_pTxtSub}>Plan access: Free 1–3 · Basic 1–4 · Ultra 1–5</div>
+                   <div className={_pTxtSub}>Locked slot unlock: 2 = 50 CR · 3 = 100 CR · 4 = 200 CR · 5 = 500 CR (one-time)</div>
+                   <div className="mt-1 text-emerald-400/90">Preview ke baad Apply par pehle slot unlock, phir 7-day activation alag se hoga.</div>
+                 </div>
                 <div className="grid grid-cols-5 gap-1.5 mt-2">
                  {[
                    { id: 1, label: 'Cards', price: 0 },
@@ -12786,9 +12758,9 @@ export const StudentDashboard: React.FC<Props> = ({
                            ? `Unlock Slot ${style.id}`
                           : style.label}</span>
                       <span className="block text-[8px] opacity-70 mt-0.5">
-                        {style.id > _splashBaseSlotLimit && !splashSlotUnlocks[style.id] && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
+                         {style.id > _splashBaseSlotLimit && !splashSlotUnlocks[style.id] && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
                           ? `${_splashSlotPrices[style.id]} CR permanent`
-                          : style.price === 0 ? 'FREE' : `${Math.round(style.price * (1 - _splashWeeklyDiscount / 100))} CR / 7d`}
+                           : style.id <= _splashBaseSlotLimit ? 'Included in plan' : 'Unlocked'}
                       </span>
                    </button>
                  ))}
