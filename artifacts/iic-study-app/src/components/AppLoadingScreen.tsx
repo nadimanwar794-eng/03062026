@@ -87,6 +87,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
   const developerName = 'Nadim Anwar';
   const isSortMode = styleVariant === 3;
+  const SLOT_WIDTH = 40;
+  const RIG_PAD = 14;
 
   const statusMilestones = [
     { at: 0, text: 'Initializing App Modules...' },
@@ -96,11 +98,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     { at: 96, text: 'Welcome to NSTA!' }
   ];
 
-  // ── Engine 1: Linear Timer Progress (Variants 1, 2, 4) -> 8s Duration ──
+  // ── Engine 1: Linear Timer Progress (Variant 1: 5s | Variants 2, 4: 8s) ──
   useEffect(() => {
     if (isSortMode) return;
 
-    const duration = 8000;
+    const duration = styleVariant === 1 ? 5000 : 8000;
     const intervalTime = 25;
     const steps = duration / intervalTime;
     let currentStep = 0;
@@ -201,14 +203,17 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           if (itemA.val > itemB.val) {
             setActionPrompt(`swap a[${i}], a[${i + 1}]`);
 
+            // Cable descends
             setWireHeight(58);
             await sleep(70);
             if (isCancelled) return;
 
+            // Claw grips
             setIsClawClosed(true);
             await sleep(50);
             if (isCancelled) return;
 
+            // Lift block
             setWireHeight(10);
             syncBlocks({
               [itemA.id]: { isLifted: true, isComparing: false },
@@ -217,6 +222,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             await sleep(105);
             if (isCancelled) return;
 
+            // Move crane
             setCraneSlot(i + 1);
 
             const temp = state[i];
@@ -230,10 +236,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             await sleep(120);
             if (isCancelled) return;
 
+            // Cable lowers
             setWireHeight(58);
             await sleep(70);
             if (isCancelled) return;
 
+            // Release claw
             setIsClawClosed(false);
             syncBlocks({
               [itemA.id]: { isLifted: false, isComparing: false },
@@ -396,7 +404,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
       {/* ── MIDDLE DYNAMIC CONTENT (1 TO 4) ── */}
       {styleVariant === 1 && (
-        /* 1. Feature Grid Flip Cards */
+        /* 1. Feature Grid Flip Cards (5s Duration) */
         <div className="relative z-10 w-full max-w-[340px] h-[210px] perspective-1000 flex items-center justify-center">
           <div className={`absolute inset-0 grid grid-cols-2 gap-3 transition-all duration-500 ${progress < 50 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
             <div className={`flex flex-col items-center justify-center p-4 rounded-xl bg-slate-900/80 border border-slate-700/60 shadow-lg transition-all duration-500 transform ${stepPhase1 >= 0 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}>
@@ -526,18 +534,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       )}
 
       {styleVariant === 3 && (
-        /* 3. Mechanical Gantry Crane Bubble Sort Box (8s Calibrated) */
-        <div className="relative z-10 w-full max-w-[345px] h-[210px] rounded-2xl bg-gradient-to-b from-[#080f24]/90 to-[#040817]/95 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2.5 overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
-          <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
-          <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-cyan-400" />
-          <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-400" />
-
-          <div className="relative w-full h-full pt-1 overflow-hidden">
-            <div className="absolute top-3 left-3 right-3 h-1.5 bg-slate-900 rounded-full border border-cyan-500/40 shadow-inner flex items-center">
+        /* 3. Frameless Bubble Sort with Crane (Direct on Main Screen) */
+        <div className="relative z-10 w-full max-w-[345px] h-[210px] flex flex-col justify-between my-auto">
+          {/* Top Crane Track & Trolley */}
+          <div className="relative w-full h-8">
+            <div className="absolute top-2 left-2 right-2 h-1.5 bg-slate-800 rounded-full border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)] flex items-center">
               <div 
                 className="absolute -top-1.5 w-10 h-5 rounded-md bg-gradient-to-b from-cyan-400 to-cyan-700 border border-white shadow-[0_0_15px_#06b6d4] transition-all duration-120 ease-out flex flex-col items-center z-40 -ml-1"
-                style={{ transform: `translateX(${14 + craneSlot * 38}px)` }}
+                style={{ transform: `translateX(${RIG_PAD + craneSlot * SLOT_WIDTH}px)` }}
               >
                 <div className="absolute top-5 w-7 h-28 bg-gradient-to-b from-cyan-400/20 to-transparent pointer-events-none blur-[2px]" />
                 <div className="w-3.5 flex justify-between transition-all duration-100 ease-out" style={{ height: `${wireHeight}px` }}>
@@ -552,48 +556,51 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
                 </div>
               </div>
             </div>
-
-            <div className="absolute bottom-6 left-2 right-2 h-2.5 rounded-full bg-slate-950 border-t border-cyan-900/50 blur-[1px]" />
-
-            <div className="relative w-full h-full pt-10 px-1">
-              {blocks.map((block) => {
-                const barHeight = block.val * 9 + 18;
-                const posX = 14 + block.slot * 38;
-
-                let colorClass = 'bg-slate-800/90 border-slate-700 text-slate-300 shadow-md';
-                if (block.isSorted) {
-                  colorClass = 'bg-emerald-500 border-emerald-300 text-black font-black shadow-[0_0_16px_rgba(16,185,129,0.9)]';
-                } else if (block.isLifted) {
-                  colorClass = 'bg-gradient-to-t from-amber-500 via-amber-400 to-yellow-200 border-yellow-100 text-black font-black shadow-[0_0_24px_rgba(245,158,11,1)] scale-105';
-                } else if (block.isComparing) {
-                  colorClass = 'bg-cyan-500 border-cyan-300 text-black font-black shadow-[0_0_14px_rgba(6,182,212,0.9)] -translate-y-1';
-                }
-
-                return (
-                  <React.Fragment key={block.id}>
-                    {block.isLifted && (
-                      <div 
-                        className="absolute bottom-7 w-6 h-1.5 rounded-full bg-cyan-950 border border-cyan-500/40 blur-[1px] transition-all duration-120"
-                        style={{ left: `${posX}px` }}
-                      />
-                    )}
-                    <div
-                      className={`absolute bottom-7 w-6 rounded-t-md border flex flex-col items-center justify-start pt-0.5 font-mono text-[11px] font-bold transition-all duration-120 ease-out ${colorClass}`}
-                      style={{
-                        left: `${posX}px`,
-                        height: `${barHeight}px`,
-                        transform: block.isLifted ? 'translateY(-58px)' : 'translateY(0px)',
-                        zIndex: block.isLifted ? 50 : 10,
-                      }}
-                    >
-                      <span>{block.val}</span>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
           </div>
 
+          {/* Floor Shadow Line */}
+          <div className="absolute bottom-6 left-2 right-2 h-2.5 rounded-full bg-slate-950 border-t border-cyan-900/50 blur-[1px]" />
+
+          {/* Number Bars */}
+          <div className="relative w-full h-full pt-10 px-1">
+            {blocks.map((block) => {
+              const barHeight = block.val * 9 + 18;
+              const posX = RIG_PAD + block.slot * SLOT_WIDTH;
+
+              let colorClass = 'bg-slate-800/90 border-slate-700 text-slate-300 shadow-md';
+              if (block.isSorted) {
+                colorClass = 'bg-emerald-500 border-emerald-300 text-black font-black shadow-[0_0_16px_rgba(16,185,129,0.9)]';
+              } else if (block.isLifted) {
+                colorClass = 'bg-gradient-to-t from-amber-500 via-amber-400 to-yellow-200 border-yellow-100 text-black font-black shadow-[0_0_24px_rgba(245,158,11,1)] scale-105';
+              } else if (block.isComparing) {
+                colorClass = 'bg-cyan-500 border-cyan-300 text-black font-black shadow-[0_0_14px_rgba(6,182,212,0.9)] -translate-y-1';
+              }
+
+              return (
+                <React.Fragment key={block.id}>
+                  {block.isLifted && (
+                    <div 
+                      className="absolute bottom-7 w-6 h-1.5 rounded-full bg-cyan-950 border border-cyan-500/40 blur-[1px] transition-all duration-120"
+                      style={{ left: `${posX}px` }}
+                    />
+                  )}
+                  <div
+                    className={`absolute bottom-7 w-6 rounded-t-md border flex flex-col items-center justify-start pt-0.5 font-mono text-[11px] font-bold transition-all duration-120 ease-out ${colorClass}`}
+                    style={{
+                      left: `${posX}px`,
+                      height: `${barHeight}px`,
+                      transform: block.isLifted ? 'translateY(-58px)' : 'translateY(0px)',
+                      zIndex: block.isLifted ? 50 : 10,
+                    }}
+                  >
+                    <span>{block.val}</span>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          {/* Action Prompt */}
           <div className="w-full text-center pb-0.5 font-mono text-[11px] text-cyan-300 font-bold tracking-wide">
             {actionPrompt}
           </div>
@@ -729,3 +736,4 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 };
 
 export default AppLoadingScreen;
+
