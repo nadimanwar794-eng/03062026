@@ -53,12 +53,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   isPremium = false, 
   subscriptionLevel = 'FREE' 
 }) => {
-  // ── Alternate Style Selection (1, 2, 3, 4, 5) ──
+  // ── Alternate Style Selection (1 to 7) ──
   const [styleVariant] = useState<number>(() => {
     try {
       const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
-      const current = isNaN(saved) || saved < 1 || saved > 5 ? 1 : saved;
-      const next = current === 5 ? 1 : current + 1;
+      const current = isNaN(saved) || saved < 1 || saved > 7 ? 1 : saved;
+      const next = current === 7 ? 1 : current + 1;
       localStorage.setItem(STORAGE_KEY, String(next));
       return current;
     } catch {
@@ -73,14 +73,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
-  // ── 6 Orbit Nodes Config (For Variant 5) ──
+  // ── 6 Orbit Nodes Config (For Variant 5, 6 & 7) ──
   const orbitNodes = [
-    { id: 'notes', label: 'Smart Notes', icon: BookOpen, color: '#38bdf8', angleDeg: 270 },
-    { id: 'mcq', label: 'MCQ Practice', icon: FileCheck, color: '#60a5fa', angleDeg: 330 },
-    { id: 'progress', label: 'Progress Tracking', icon: TrendingUp, color: '#34d399', angleDeg: 30 },
-    { id: 'routine', label: 'Daily Routine', icon: CalendarCheck, color: '#f472b6', angleDeg: 90 },
-    { id: 'revision', label: 'Revision Hub', icon: RotateCcw, color: '#fbbf24', angleDeg: 150 },
-    { id: 'ai', label: 'AI Study Assistant', icon: BrainCircuit, color: '#c084fc', angleDeg: 210 },
+    { id: 'notes', label: 'Smart Notes', icon: BookOpen, color: '#38bdf8', angleDeg: 270, showAt: 10 },
+    { id: 'mcq', label: 'MCQ Practice', icon: FileCheck, color: '#60a5fa', angleDeg: 330, showAt: 25 },
+    { id: 'progress', label: 'Progress Tracking', icon: TrendingUp, color: '#34d399', angleDeg: 30, showAt: 40 },
+    { id: 'routine', label: 'Daily Routine', icon: CalendarCheck, color: '#f472b6', angleDeg: 90, showAt: 55 },
+    { id: 'revision', label: 'Revision Hub', icon: RotateCcw, color: '#fbbf24', angleDeg: 150, showAt: 70 },
+    { id: 'ai', label: 'AI Study Assistant', icon: BrainCircuit, color: '#c084fc', angleDeg: 210, showAt: 85 },
   ];
 
   // ── Bubble Sort & Crane Engine States (for Variant 2 & 4) ──
@@ -112,7 +112,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     { at: 96, text: 'Welcome to NSTA!' }
   ];
 
-  // ── Engine 1: Linear Timer Progress (Variant 1, 3 & 5) ──
+  // ── Engine 1: Linear Timer Progress (Variant 1, 3, 5, 6 & 7) ──
   useEffect(() => {
     if (isSortMode) return;
 
@@ -220,17 +220,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             setActiveCodeLine(7);
             setActionPrompt(`swap a[${i}], a[${i + 1}]`);
 
-            // Cable descends over Block A
             setWireHeight(58);
             await sleep(55);
             if (isCancelled) return;
 
-            // Claws grip
             setIsClawClosed(true);
             await sleep(40);
             if (isCancelled) return;
 
-            // Lift Block A
             setWireHeight(10);
             syncBlocks({
               [itemA.id]: { isLifted: true, isComparing: false },
@@ -239,7 +236,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             await sleep(85);
             if (isCancelled) return;
 
-            // Crane moves to next slot
             setCraneSlot(i + 1);
 
             const temp = state[i];
@@ -253,12 +249,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             await sleep(100);
             if (isCancelled) return;
 
-            // Cable lowers down
             setWireHeight(58);
             await sleep(55);
             if (isCancelled) return;
 
-            // Release claw
             setIsClawClosed(false);
             syncBlocks({
               [itemA.id]: { isLifted: false, isComparing: false },
@@ -297,7 +291,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         if (!swappedAny) break;
       }
 
-      // Finish state
       setBlocks(prev => prev.map(b => ({ ...b, isSorted: true, isComparing: false, isLifted: false })));
       setActionPrompt('OPTIMAL_SORT_COMPLETE ✅');
       setActiveCodeLine(10);
@@ -329,6 +322,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         @keyframes floatSlow {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-4px); }
+        }
+        @keyframes orbitSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes counterOrbitSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(-360deg); }
         }
       `}</style>
 
@@ -398,7 +399,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           <span className="text-sky-400 text-xs">✦</span>
         </div>
 
-        {/* 4 Badges */}
         <div className="flex items-center justify-center gap-2.5 mt-2.5 text-xs font-bold flex-wrap">
           <div className="flex items-center gap-1 text-sky-400">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.5 8.5 0 0 1 13 0"/></svg>
@@ -422,7 +422,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         </div>
       </div>
 
-      {/* ── MIDDLE DYNAMIC CONTENT (STYLE 1, 2, 3, 4, 5) ── */}
+      {/* ── MIDDLE DYNAMIC CONTENT (STYLE 1 to 7) ── */}
       {styleVariant === 1 && (
         /* VARIANT 1: 8 Feature Grid Flip Cards */
         <div className="relative z-10 w-full max-w-[340px] h-[210px] perspective-1000 flex items-center justify-center">
@@ -637,7 +637,154 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       )}
 
       {styleVariant === 5 && (
-        /* VARIANT 5: Satellite Orbital System with 6 Study Hubs */
+        /* VARIANT 5: Continuous Smooth Rotating Orbit (Spinning Ring) */
+        <div className="relative z-10 w-[295px] h-[295px] rounded-2xl bg-[#080f24]/85 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2 flex items-center justify-center overflow-hidden my-auto">
+          <div className="absolute inset-3 rounded-full border border-sky-400/20 pointer-events-none" />
+          <div className="absolute inset-7 rounded-full border border-dashed border-indigo-400/15 pointer-events-none" />
+
+          {/* Center Hub */}
+          <div className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none">
+            <div className="w-24 h-14 relative flex items-center justify-center">
+              <div className="absolute -top-3 w-16 h-16 bg-gradient-to-t from-sky-400/30 to-transparent rounded-full blur-md pointer-events-none" />
+              <svg className="w-full h-full drop-shadow-[0_0_16px_rgba(56,189,248,0.9)]" viewBox="0 0 160 110" fill="none">
+                <defs>
+                  <linearGradient id="orb5BookLeft" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" />
+                    <stop offset="100%" stopColor="#2563eb" />
+                  </linearGradient>
+                  <linearGradient id="orb5BookRight" x1="1" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#c084fc" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+                </defs>
+                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
+                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
+                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orb5BookLeft)" />
+                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orb5BookRight)" />
+                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
+                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
+                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              </svg>
+            </div>
+            <p className="text-[9.5px] font-semibold text-slate-400 mt-0.5 leading-tight">Your All-in-One</p>
+            <p className="text-[11px] font-bold text-sky-400 leading-tight">Study Partner</p>
+          </div>
+
+          {/* Rotating Container Layer */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'orbitSpin 22s linear infinite' }}>
+            {orbitNodes.map((node) => {
+              const rad = (node.angleDeg * Math.PI) / 180;
+              const x = Math.round(102 * Math.cos(rad));
+              const y = Math.round(102 * Math.sin(rad));
+              const IconComp = node.icon;
+
+              return (
+                <div
+                  key={node.id}
+                  className="absolute flex flex-col items-center justify-center text-center"
+                  style={{ transform: `translate(${x}px, ${y}px)`, width: '68px' }}
+                >
+                  <div style={{ animation: 'counterOrbitSpin 22s linear infinite' }} className="flex flex-col items-center">
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center shadow-md"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
+                        border: `1.5px solid ${node.color}90`,
+                        boxShadow: `0 0 10px ${node.color}40, inset 0 0 5px ${node.color}20`,
+                      }}
+                    >
+                      <IconComp size={15} style={{ color: node.color }} />
+                    </div>
+                    <span 
+                      className="text-[8px] font-bold text-slate-200 mt-0.5 leading-tight text-center whitespace-normal"
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                    >
+                      {node.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {styleVariant === 6 && (
+        /* VARIANT 6: Staggered Sequential Discovery (One-by-One Pop-In) */
+        <div className="relative z-10 w-[295px] h-[295px] rounded-2xl bg-[#080f24]/85 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2 flex items-center justify-center overflow-hidden my-auto">
+          <div className="absolute inset-3 rounded-full border border-sky-400/20 pointer-events-none" />
+          <div className="absolute inset-7 rounded-full border border-dashed border-indigo-400/15 pointer-events-none" />
+
+          {/* Center Hub */}
+          <div className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none">
+            <div className="w-24 h-14 relative flex items-center justify-center">
+              <div className="absolute -top-3 w-16 h-16 bg-gradient-to-t from-sky-400/30 to-transparent rounded-full blur-md pointer-events-none" />
+              <svg className="w-full h-full drop-shadow-[0_0_16px_rgba(56,189,248,0.9)]" viewBox="0 0 160 110" fill="none">
+                <defs>
+                  <linearGradient id="orb6BookLeft" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" />
+                    <stop offset="100%" stopColor="#2563eb" />
+                  </linearGradient>
+                  <linearGradient id="orb6BookRight" x1="1" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#c084fc" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+                </defs>
+                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
+                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
+                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orb6BookLeft)" />
+                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orb6BookRight)" />
+                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
+                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
+                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              </svg>
+            </div>
+            <p className="text-[9.5px] font-semibold text-slate-400 mt-0.5 leading-tight">Your All-in-One</p>
+            <p className="text-[11px] font-bold text-sky-400 leading-tight">Study Partner</p>
+          </div>
+
+          {/* Sequential One-by-One Elements */}
+          {orbitNodes.map((node) => {
+            const isVisible = progress >= node.showAt;
+            const rad = (node.angleDeg * Math.PI) / 180;
+            const x = Math.round(102 * Math.cos(rad));
+            const y = Math.round(102 * Math.sin(rad));
+            const IconComp = node.icon;
+
+            return (
+              <div
+                key={node.id}
+                className="absolute flex flex-col items-center justify-center text-center transition-all duration-500 ease-out"
+                style={{
+                  transform: `translate(${x}px, ${y}px) scale(${isVisible ? 1 : 0.3})`,
+                  opacity: isVisible ? 1 : 0,
+                  width: '68px',
+                }}
+              >
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform duration-300"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9))',
+                    border: `1.5px solid ${node.color}`,
+                    boxShadow: `0 0 14px ${node.color}60, inset 0 0 5px ${node.color}30`,
+                  }}
+                >
+                  <IconComp size={15} style={{ color: node.color }} />
+                </div>
+                <span 
+                  className="text-[8px] font-bold text-slate-200 mt-0.5 leading-tight text-center whitespace-normal"
+                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                >
+                  {node.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {styleVariant === 7 && (
+        /* VARIANT 7: Static 6-Hub Orbital System */
         <div className="relative z-10 w-[295px] h-[295px] rounded-2xl bg-[#080f24]/85 border border-cyan-500/35 shadow-[0_0_35px_rgba(6,182,212,0.2)] p-2 flex items-center justify-center overflow-hidden my-auto">
           <div className="absolute inset-3 rounded-full border border-sky-400/20 pointer-events-none" />
           <div className="absolute inset-7 rounded-full border border-dashed border-indigo-400/15 pointer-events-none" />
@@ -648,19 +795,19 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               <div className="absolute -top-3 w-16 h-16 bg-gradient-to-t from-sky-400/30 to-transparent rounded-full blur-md pointer-events-none" />
               <svg className="w-full h-full drop-shadow-[0_0_16px_rgba(56,189,248,0.9)]" viewBox="0 0 160 110" fill="none">
                 <defs>
-                  <linearGradient id="orbBookLeft" x1="0" y1="0" x2="1" y2="1">
+                  <linearGradient id="orb7BookLeft" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#38bdf8" />
                     <stop offset="100%" stopColor="#2563eb" />
                   </linearGradient>
-                  <linearGradient id="orbBookRight" x1="1" y1="0" x2="0" y2="1">
+                  <linearGradient id="orb7BookRight" x1="1" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#c084fc" />
                     <stop offset="100%" stopColor="#6366f1" />
                   </linearGradient>
                 </defs>
                 <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
                 <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
-                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeft)" />
-                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRight)" />
+                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orb7BookLeft)" />
+                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orb7BookRight)" />
                 <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
                 <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
                 <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
@@ -670,7 +817,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             <p className="text-[11px] font-bold text-sky-400 leading-tight">Study Partner</p>
           </div>
 
-          {/* 6 Surrounding Orbit Nodes */}
+          {/* 6 Static Nodes */}
           {orbitNodes.map((node) => {
             const rad = (node.angleDeg * Math.PI) / 180;
             const x = Math.round(102 * Math.cos(rad));
