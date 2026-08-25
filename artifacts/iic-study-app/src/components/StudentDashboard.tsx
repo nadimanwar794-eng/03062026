@@ -12680,6 +12680,7 @@ export const StudentDashboard: React.FC<Props> = ({
                      onClick={() => {
                        setSplashStyle(style.id);
                        try { localStorage.setItem('nst_splash_style_preference', String(style.id)); } catch {}
+                       window.dispatchEvent(new CustomEvent('iic-preview-loading-screen'));
                      }}
                      className="rounded-lg py-2 text-[10px] font-black transition-all active:scale-95"
                      style={{
@@ -12758,9 +12759,9 @@ export const StudentDashboard: React.FC<Props> = ({
                  rel="noopener noreferrer"
                  aria-label="WhatsApp support"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
+                  style={{ background: 'rgba(16,185,129,0.09)', border: '1px solid rgba(16,185,129,0.22)' }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(16,185,129,0.16)', color: '#34d399' }}>
                    <FaWhatsapp size={18} />
                  </span>
                  <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>WhatsApp</span>
@@ -12771,9 +12772,9 @@ export const StudentDashboard: React.FC<Props> = ({
                  rel="noopener noreferrer"
                  aria-label="IIC YouTube channel"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
+                  style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.22)' }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(244,63,94,0.16)', color: '#fb7185' }}>
                    <FaYoutube size={18} />
                  </span>
                  <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>YouTube</span>
@@ -12784,9 +12785,9 @@ export const StudentDashboard: React.FC<Props> = ({
                  rel="noopener noreferrer"
                  aria-label="Developer Instagram"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
+                  style={{ background: 'rgba(236,72,153,0.08)', border: '1px solid rgba(236,72,153,0.22)' }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(236,72,153,0.16)', color: '#f472b6' }}>
                    <FaInstagram size={18} />
                  </span>
                  <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>Instagram</span>
@@ -12795,9 +12796,9 @@ export const StudentDashboard: React.FC<Props> = ({
                  href={`mailto:${SUPPORT_EMAIL}?subject=Support%20Request`}
                  aria-label="Email developer"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
+                  style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.22)' }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
+                  <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(59,130,246,0.16)', color: '#60a5fa' }}>
                    <SiGmail size={17} />
                  </span>
                  <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>Email</span>

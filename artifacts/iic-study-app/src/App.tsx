@@ -91,6 +91,14 @@ const App: React.FC = () => {
     }
   }, [isAppLoading]);
 
+  // Profile se loading-screen preview request aaye to sirf animation dikhayein,
+  // phir user ko usi page par wapas laayein.
+  useEffect(() => {
+    const previewLoadingScreen = () => setIsAppLoading(true);
+    window.addEventListener('iic-preview-loading-screen', previewLoadingScreen);
+    return () => window.removeEventListener('iic-preview-loading-screen', previewLoadingScreen);
+  }, []);
+
   // TESTING OVERRIDE: Render component directly bypassing auth
   useEffect(() => {
       const urlParams = new URLSearchParams(window.location.search);
