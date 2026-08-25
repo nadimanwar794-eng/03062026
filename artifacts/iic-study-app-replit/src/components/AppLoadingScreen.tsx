@@ -739,11 +739,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       {isArtworkMode && (
         <div className="relative z-10 w-full max-w-[345px] flex-1 min-h-[240px] flex items-center justify-center my-auto">
           <div className="absolute w-[300px] h-[300px] rounded-full border border-sky-500/20 shadow-[0_0_35px_rgba(56,189,248,0.2)]" />
-          <div className="relative w-[310px] rounded-3xl overflow-hidden border border-sky-300/25 shadow-[0_0_35px_rgba(56,189,248,0.25)] bg-[#06184b]">
+           <div className="relative w-[min(310px,78vw)] max-h-[54vh] rounded-3xl overflow-hidden border border-sky-300/25 shadow-[0_0_35px_rgba(56,189,248,0.25)] bg-black">
             <img
               src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
-              alt="Books, checklist and clock"
-              className="block w-full h-auto object-cover"
+               alt="NSTA loading screen artwork"
+               className="block w-full max-h-[54vh] object-contain"
             />
             <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#07143e] to-transparent pointer-events-none" />
           </div>
