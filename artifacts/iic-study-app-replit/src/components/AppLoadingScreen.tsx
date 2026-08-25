@@ -52,50 +52,26 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   loadingScreenSlotUnlocks,
   loadingScreenUnlocks,
 }) => {
-  // ── Selected style (default is the 5th loading screen) ──
+  // ── Selected style ──
   const [styleVariant] = useState<number>(() => {
     try {
       const previewStyle = isPreview ? sessionStorage.getItem('nst_splash_preview_style') : null;
-       const savedForUser = userId
-         ? localStorage.getItem(`nst_splash_style_preference_${userId}`)
-         : null;
-       const selected = parseInt(previewStyle || savedForUser || localStorage.getItem('nst_splash_style_preference') || '1', 10);
-        const assignments = userId
-          ? (loadingScreenSlotAssignments ||
-            JSON.parse(localStorage.getItem(`nst_splash_slot_assignments_${userId}`) || '{}'))
-          : {};
-       const assignedStyles = Object.values(assignments)
-         .map(Number)
-         .filter(styleId => styleId >= 1 && styleId <= 5);
-       let candidate = !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 1;
-       // Outside preview, rotate through every design assigned to a slot so
-       // multiple slots produce multiple alternate loading screens.
-       if (!isPreview && assignedStyles.length > 0) {
-         const rotationKey = `nst_splash_rotation_${userId}`;
-         const rotationIndex = parseInt(localStorage.getItem(rotationKey) || '0', 10);
-         candidate = assignedStyles[rotationIndex % assignedStyles.length];
-         localStorage.setItem(rotationKey, String((rotationIndex + 1) % assignedStyles.length));
-       }
-       const permanentSlots = userId
-         ? (loadingScreenSlotUnlocks ||
-           JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${userId}`) || '{}'))
-         : {};
-       const weeklySlots = userId
-         ? (loadingScreenUnlocks ||
-           JSON.parse(localStorage.getItem(`nst_splash_unlocks_${userId}`) || '{}'))
-         : {};
-       // The five designs are separate purchasable items. Only the first
-       // design is free; subscription level controls other app features, not
-       // loading-screen item ownership.
-       const freeSlots = userRole === 'ADMIN' || userRole === 'SUB_ADMIN' ? 5 : 1;
-      const canUse = candidate <= freeSlots ||
-        permanentSlots[candidate] ||
-        Number(weeklySlots[candidate] || 0) > Date.now() ||
-        userRole === 'ADMIN' ||
-        userRole === 'SUB_ADMIN';
-      // Preview mode should let the user see a locked design before deciding
-      // whether to pay for its permanent slot and weekly access.
-      return isPreview || canUse ? candidate : 1;
+      const selected = parseInt(
+        previewStyle ||
+        (userId ? localStorage.getItem(`nst_splash_style_preference_${userId}`) : null) ||
+        localStorage.getItem('nst_splash_style_preference') ||
+        '1',
+        10,
+      );
+      if (isPreview) return !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 1;
+
+      // Every user gets all five designs. Rotate globally for that user's
+      // next app open; no slots, unlocks, subscription, or credit checks.
+      const rotationKey = `nst_splash_rotation_${userId || 'guest'}`;
+      const rotationIndex = parseInt(localStorage.getItem(rotationKey) || '0', 10);
+      const candidate = (rotationIndex % 5) + 1;
+      localStorage.setItem(rotationKey, String((rotationIndex + 1) % 5));
+      return candidate;
     } catch {
       return 1;
     }

@@ -12725,7 +12725,7 @@ export const StudentDashboard: React.FC<Props> = ({
             </button>
             </>)}
 
-             {/* Loading screen selector — kept separate from the slot purchase row */}
+             {/* Loading screen selector — all five designs are free and rotate automatically */}
              <div className={`w-full px-4 py-4 ${_pHovCls}`} style={{ borderBottom: _pSep }}>
                <div className="flex items-center gap-3.5">
                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -12735,84 +12735,29 @@ export const StudentDashboard: React.FC<Props> = ({
                  <div className="flex-1 min-w-0">
                    <p className={`text-sm font-bold ${_pTxt}`}>Loading Screen</p>
                    <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
-                      {`Slot ${splashStyle} selected — tap a slot below to preview`}
+                       {`Screen ${splashStyle} selected — tap any design to preview`}
                    </p>
                  </div>
                </div>
-                 <div className="mt-2 rounded-lg border border-white/10 bg-black/10 px-2.5 py-2 text-[9px] font-bold">
-                    <div className={_pTxtSub}>5 loading-screen items · Screen 1 free</div>
-                    <div className={_pTxtSub}>Item unlock: 2 = 50 CR · 3 = 100 CR · 4 = 200 CR · 5 = 500 CR (one-time)</div>
-                    <div className="mt-1 text-emerald-400/90">Pehle item unlock karein, phir neeche kisi slot me assign karein.</div>
-                 </div>
-                 <div className="mt-3 border-t border-white/10 pt-3">
-                   <div className="flex items-center justify-between">
-                   <div>
-                     <p className={`text-[11px] font-black ${_pTxt}`}>Loading Screen Items</p>
-                     <p className={`text-[9px] mt-0.5 ${_pTxtSub}`}>
-                       Unlock any of the 5 designs, then assign them below
-                     </p>
-                   </div>
-                   <span className="rounded-full px-2 py-1 text-[9px] font-black"
-                     style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
-                     {1 + Object.keys(splashSlotUnlocks).filter(key => splashSlotUnlocks[Number(key)] && Number(key) > 1).length}/5
-                   </span>
-                   </div>
-                   <div className="mt-2 grid grid-cols-5 gap-1.5">
-                     {[1, 2, 3, 4, 5].map(slot => {
-                       const assignedStyle = splashSlotAssignments[slot];
-                       const slotActive = selectedSplashSlot === slot;
-                       return (
-                         <button
-                           key={slot}
-                           type="button"
-                           onClick={() => setSelectedSplashSlot(slot)}
-                           className="rounded-lg py-2 text-[9px] font-black transition-all active:scale-95"
-                           style={{
-                             background: slotActive ? `${tierTheme.primary}25` : `${_pTxtMutedColor}08`,
-                             color: slotActive ? tierTheme.primary : _pTxtMutedColor,
-                             border: `1px solid ${slotActive ? tierTheme.primary + '70' : _pTxtMutedColor + '20'}`,
-                           }}
-                         >
-                           <span className="block opacity-60">SLOT {slot}</span>
-                           <span className="block mt-0.5">{assignedStyle ? `Screen ${assignedStyle}` : 'Empty'}</span>
-                         </button>
-                       );
-                     })}
-                   </div>
-                   <p className={`mt-1.5 text-[9px] ${_pTxtSub}`}>
-                     Slot {selectedSplashSlot} selected — neeche kisi unlocked item par tap karke assign karein
-                   </p>
-                 </div>
-                <div className="grid grid-cols-5 gap-1.5 mt-2">
+                  <div className="mt-2 rounded-lg border border-white/10 bg-black/10 px-2.5 py-2 text-[9px] font-bold">
+                     <div className={_pTxtSub}>5 loading screens · Sabhi users ke liye free</div>
+                     <div className="mt-1 text-emerald-400/90">App khulne par ye 5 screens automatically alternate hongi.</div>
+                  </div>
+                 <div className="grid grid-cols-5 gap-1.5 mt-3">
                  {[
-                   { id: 1, label: 'Cards', price: 0 },
-                   { id: 2, label: 'Orbit', price: 50 },
-                   { id: 3, label: 'Sort', price: 100 },
-                    { id: 4, label: 'Discover', price: 200 },
-                   { id: 5, label: 'Books', price: 500 },
+                    { id: 1, label: 'Cards' },
+                    { id: 2, label: 'Orbit' },
+                    { id: 3, label: 'Sort' },
+                    { id: 4, label: 'Discover' },
+                    { id: 5, label: 'Books' },
                  ].map((style) => (
                      <button
                      key={style.id}
                      type="button"
-                      onClick={() => {
-                         const isStaff = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-                         const itemUnlocked = style.id === 1 || !!splashSlotUnlocks[style.id] || isStaff;
+                       onClick={() => {
                         setSplashStyle(style.id);
-                         if (itemUnlocked) {
-                           const nextAssignments = { ...splashSlotAssignments, [selectedSplashSlot]: style.id };
-                           setSplashSlotAssignments(nextAssignments);
-                           try {
-                             localStorage.setItem(`nst_splash_slot_assignments_${user.id}`, JSON.stringify(nextAssignments));
-                             localStorage.setItem(`nst_splash_active_slot_${user.id}`, String(selectedSplashSlot));
-                             localStorage.setItem(splashPreferenceKey, String(style.id));
-                           } catch {}
-                            handleUserUpdate({
-                              ...user,
-                              loadingScreenSlotAssignments: nextAssignments,
-                              loadingScreenSlotUnlocks: splashSlotUnlocks,
-                              loadingScreenUnlocks: splashUnlocks,
-                            });
-                         }
+                          try { localStorage.setItem(splashPreferenceKey, String(style.id)); } catch {}
+                          handleUserUpdate({ ...user });
                         try { sessionStorage.setItem('nst_splash_preview_style', String(style.id)); } catch {}
                         window.dispatchEvent(new CustomEvent('iic-preview-loading-screen', { detail: { styleId: style.id } }));
                      }}
@@ -12824,28 +12769,10 @@ export const StudentDashboard: React.FC<Props> = ({
                      }}
                      aria-pressed={splashStyle === style.id}
                    >
-                       {style.id > 1 &&
-                         !splashSlotUnlocks[style.id] &&
-                        user.role !== 'ADMIN' &&
-                        user.role !== 'SUB_ADMIN' && (
-                          <span
-                            className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-amber-300/50 bg-slate-950 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.35)]"
-                            aria-label={`Slot ${style.id} locked`}
-                            title={`Slot ${style.id} locked`}
-                          >
-                            <Lock size={10} strokeWidth={2.5} />
-                          </span>
-                        )}
                       <span className="block text-[9px] opacity-60 mb-0.5">0{style.id} · Preview</span>
-                       <span className="block truncate">{style.id > 1 &&
-                        !splashSlotUnlocks[style.id] &&
-                        user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
-                           ? `Unlock Slot ${style.id}`
-                          : style.label}</span>
+                        <span className="block truncate">{style.label}</span>
                       <span className="block text-[8px] opacity-70 mt-0.5">
-                          {style.id > 1 && !splashSlotUnlocks[style.id] && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
-                          ? `${_splashSlotPrices[style.id]} CR permanent`
-                            : 'Unlocked item — tap to assign'}
+                           Free — tap to preview
                       </span>
                    </button>
                  ))}

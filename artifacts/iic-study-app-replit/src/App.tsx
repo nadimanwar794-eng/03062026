@@ -2950,86 +2950,13 @@ const App: React.FC = () => {
           onApply={() => {
              const previewStyle = parseInt(sessionStorage.getItem('nst_splash_preview_style') || '1', 10);
              const currentUser = state.user;
-             const isStaff = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUB_ADMIN';
-             const permanentUnlocks = currentUser
-               ? JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${currentUser.id}`) || '{}')
-               : {};
-             const weeklyUnlocks = currentUser
-               ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${currentUser.id}`) || '{}')
-               : {};
-               // Loading screens are purchased as individual items. The
-               // first design is free; purchased designs can then be placed
-               // into any of the user's five slots.
-               const freeSlots = isStaff ? 5 : 1;
-              const permanentPrices: Record<number, number> = { 2: 50, 3: 100, 4: 200, 5: 500 };
-              const weeklyPrices: Record<number, number> = { 2: 50, 3: 100, 4: 200, 5: 500 };
-              const needsPermanentUnlock =
-                !!currentUser && !isStaff && previewStyle > freeSlots && !permanentUnlocks[previewStyle];
-              // Slot 1 is always free. Every other slot needs a current
-              // weekly pass (the permanent slot unlock only grants access
-              // to purchase that pass; it is not the pass itself).
-              const weeklyActive =
-                isStaff || previewStyle === 1 || (weeklyUnlocks[previewStyle] || 0) > Date.now();
-             const permanentCost = needsPermanentUnlock ? (permanentPrices[previewStyle] || 0) : 0;
-              const weeklyCost = !weeklyActive ? (weeklyPrices[previewStyle] || 0) : 0;
-              // Unlocking a slot and activating a loading screen are two
-              // separate purchases. The first Apply unlocks the slot only;
-              // the next Apply activates it for seven days.
-              const payableCost = needsPermanentUnlock ? permanentCost : weeklyCost;
-
-             const applyLoadingScreen = () => {
-                if (!currentUser) return;
-                const nextUser = payableCost > 0
-                  ? applyDeduction(currentUser, payableCost, true)
-                  : currentUser;
-               if (!nextUser) return;
-               const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
-               if (needsPermanentUnlock) {
-                 permanentUnlocks[previewStyle] = true;
-                 localStorage.setItem(`nst_splash_slot_unlocks_${currentUser.id}`, JSON.stringify(permanentUnlocks));
-                } else if (!weeklyActive && previewStyle > 1) {
-                 weeklyUnlocks[previewStyle] = expiry;
-                 localStorage.setItem(`nst_splash_unlocks_${currentUser.id}`, JSON.stringify(weeklyUnlocks));
-               }
-                const syncedUser = {
-                  ...nextUser,
-                  loadingScreenSlotUnlocks: permanentUnlocks,
-                  loadingScreenUnlocks: weeklyUnlocks,
-                };
-                 // Keep the active loading screen isolated per user. The
-                 // legacy global key is also updated for older sessions.
-                 if (!needsPermanentUnlock || permanentUnlocks[previewStyle]) {
-                   localStorage.setItem(`nst_splash_style_preference_${currentUser.id}`, String(previewStyle));
-                   localStorage.setItem('nst_splash_style_preference', String(previewStyle));
-                 }
-                if (payableCost > 0) {
-                  saveUserToLive(syncedUser);
-                  setState(prev => ({ ...prev, user: syncedUser }));
-               }
-               window.dispatchEvent(new CustomEvent('iic-loading-screen-access-updated', {
-                  detail: { styleId: previewStyle, permanentOnly: needsPermanentUnlock },
-               }));
-                setCreditModal(null);
-                if (needsPermanentUnlock) {
-                  showAlert(`Slot ${previewStyle} permanently unlock ho gaya. Ab Apply this dobara dabakar 7-day access activate karein.`, 'SUCCESS');
-                  return;
-                }
-                sessionStorage.removeItem('nst_splash_preview_style');
-                setIsLoadingPreview(false);
-                setIsAppLoading(false);
-             };
-
-              if (payableCost > 0 && currentUser) {
-               setCreditModal({
-                  title: needsPermanentUnlock
-                    ? `Unlock Slot ${previewStyle} permanently`
-                    : `Activate Loading Screen ${previewStyle} for 7 days`,
-                  cost: payableCost,
-                 onConfirm: () => applyLoadingScreen(),
-               });
-             } else {
-               applyLoadingScreen();
-             }
+              if (currentUser && previewStyle >= 1 && previewStyle <= 5) {
+                localStorage.setItem(`nst_splash_style_preference_${currentUser.id}`, String(previewStyle));
+                localStorage.setItem('nst_splash_style_preference', String(previewStyle));
+              }
+              sessionStorage.removeItem('nst_splash_preview_style');
+              setIsLoadingPreview(false);
+              setIsAppLoading(false);
           }}
           onComplete={() => {
             sessionStorage.removeItem('nst_splash_preview_style');
