@@ -1,3 +1,4 @@
 {
-  "outputDirectory": "artifacts/iic-study-app-replit/dist/public"
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist"
 }
