@@ -1,6 +1,6 @@
-# [Project name]
+# IIC Study App
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A student study platform with daily routine tracking, spaced-repetition revision hub, mistake bank practice, and AI-generated lesson content.
 
 ## Run & Operate
 
