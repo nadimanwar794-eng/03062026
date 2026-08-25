@@ -12677,8 +12677,8 @@ export const StudentDashboard: React.FC<Props> = ({
 
           {/* App info + Support — unified professional card */}
           <div className="mx-4 mb-6 mt-2 rounded-2xl overflow-hidden" style={{
-            background: _light ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.07)',
-            border: `1px solid ${_light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
+             background: _pCard,
+             border: _pBdrSoft,
           }}>
             {/* App identity row */}
             <div className="px-5 pt-4 pb-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${_light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.09)'}` }}>
@@ -12699,7 +12699,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
            {/* Contact & Support — icon-only app links */}
            <div className="px-4 pt-3.5 pb-4">
-             <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.35)' }}>
+             <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: _pTxtMutedColor }}>
                Connect &amp; Support
              </span>
              <div className="grid grid-cols-4 gap-2 mt-2.5">
@@ -12709,12 +12709,12 @@ export const StudentDashboard: React.FC<Props> = ({
                  rel="noopener noreferrer"
                  aria-label="WhatsApp support"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: _light ? 'rgba(16,185,129,0.09)' : 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.22)' }}
+                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(16,185,129,0.16)', color: '#34d399' }}>
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
                    <FaWhatsapp size={18} />
                  </span>
-                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>WhatsApp</span>
+                 <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>WhatsApp</span>
                </a>
                <a
                  href="https://youtube.com/@iic_apk?si=7dxoZZ8-vV6YoitR"
@@ -12722,12 +12722,12 @@ export const StudentDashboard: React.FC<Props> = ({
                  rel="noopener noreferrer"
                  aria-label="IIC YouTube channel"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: _light ? 'rgba(244,63,94,0.08)' : 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.22)' }}
+                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(244,63,94,0.16)', color: '#fb7185' }}>
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
                    <FaYoutube size={18} />
                  </span>
-                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>YouTube</span>
+                 <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>YouTube</span>
                </a>
                <a
                  href="https://www.instagram.com/thenadimanwarx?igsi=Z3hxbXE2dnZ3c3g3"
@@ -12735,23 +12735,23 @@ export const StudentDashboard: React.FC<Props> = ({
                  rel="noopener noreferrer"
                  aria-label="Developer Instagram"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: _light ? 'rgba(236,72,153,0.08)' : 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.22)' }}
+                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(236,72,153,0.16)', color: '#f472b6' }}>
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
                    <FaInstagram size={18} />
                  </span>
-                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>Instagram</span>
+                 <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>Instagram</span>
                </a>
                <a
                  href={`mailto:${SUPPORT_EMAIL}?subject=Support%20Request`}
                  aria-label="Email developer"
                  className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
-                 style={{ background: _light ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.22)' }}
+                 style={{ background: `${tierTheme.primary}0d`, border: `1px solid ${tierTheme.primary}22` }}
                >
-                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(59,130,246,0.16)', color: '#60a5fa' }}>
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
                    <SiGmail size={17} />
                  </span>
-                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>Email</span>
+                 <span className="text-[10px] font-bold" style={{ color: _pTxtSubColor }}>Email</span>
                </a>
              </div>
            </div>
