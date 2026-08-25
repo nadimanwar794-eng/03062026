@@ -203,6 +203,8 @@ import {
   Tv,
   Loader2,
 } from "lucide-react";
+import { FaInstagram, FaWhatsapp, FaYoutube } from "react-icons/fa";
+import { SiGmail } from "react-icons/si";
 import { speakText, stopSpeech, stripHtml } from "../utils/textToSpeech";
 import { parseMCQText, normalizeMcqPaste } from "../utils/mcqParser";
 import { getMistakeBankSync, getMistakeBank, addMistakes, removeMistakeByQuestion, MistakeEntry } from "../utils/mistakeBank";
@@ -12695,24 +12697,64 @@ export const StudentDashboard: React.FC<Props> = ({
               }}>v{APP_VERSION}</span>
             </div>
 
-            {/* Contact & Support row — tappable */}
-            <button
-              onClick={handleSupportEmail}
-              className="w-full px-5 pt-3 pb-4 flex flex-col gap-1.5 text-left active:opacity-60 transition-opacity"
-            >
-              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.35)' }}>
-                Contact &amp; Support
-              </span>
-              <div className="flex items-center gap-2">
-                <Mail size={13} style={{ color: _light ? '#6366f1' : 'rgba(255,255,255,0.7)', flexShrink: 0 }} />
-                <span className="text-[13px] font-bold" style={{ color: _light ? '#1e293b' : 'rgba(255,255,255,0.88)' }}>
-                  {SUPPORT_EMAIL}
-                </span>
-              </div>
-              <span className="text-[10px]" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.30)' }}>
-                Tap to email the developer for help
-              </span>
-            </button>
+           {/* Contact & Support — icon-only app links */}
+           <div className="px-4 pt-3.5 pb-4">
+             <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: _light ? '#94a3b8' : 'rgba(255,255,255,0.35)' }}>
+               Connect &amp; Support
+             </span>
+             <div className="grid grid-cols-4 gap-2 mt-2.5">
+               <a
+                 href="https://wa.me/918227070298?text=Hello%20Support,%20I%20need%20help%20with%20IIC%20App"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 aria-label="WhatsApp support"
+                 className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
+                 style={{ background: _light ? 'rgba(16,185,129,0.09)' : 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.22)' }}
+               >
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(16,185,129,0.16)', color: '#34d399' }}>
+                   <FaWhatsapp size={18} />
+                 </span>
+                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>WhatsApp</span>
+               </a>
+               <a
+                 href="https://youtube.com/@iic_apk?si=7dxoZZ8-vV6YoitR"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 aria-label="IIC YouTube channel"
+                 className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
+                 style={{ background: _light ? 'rgba(244,63,94,0.08)' : 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.22)' }}
+               >
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(244,63,94,0.16)', color: '#fb7185' }}>
+                   <FaYoutube size={18} />
+                 </span>
+                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>YouTube</span>
+               </a>
+               <a
+                 href="https://www.instagram.com/thenadimanwarx?igsi=Z3hxbXE2dnZ3c3g3"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 aria-label="Developer Instagram"
+                 className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
+                 style={{ background: _light ? 'rgba(236,72,153,0.08)' : 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.22)' }}
+               >
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(236,72,153,0.16)', color: '#f472b6' }}>
+                   <FaInstagram size={18} />
+                 </span>
+                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>Instagram</span>
+               </a>
+               <a
+                 href={`mailto:${SUPPORT_EMAIL}?subject=Support%20Request`}
+                 aria-label="Email developer"
+                 className="flex flex-col items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
+                 style={{ background: _light ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.22)' }}
+               >
+                 <span className="w-9 h-9 rounded-full flex items-center justify-center mb-1" style={{ background: 'rgba(59,130,246,0.16)', color: '#60a5fa' }}>
+                   <SiGmail size={17} />
+                 </span>
+                 <span className="text-[10px] font-bold" style={{ color: _light ? '#475569' : 'rgba(255,255,255,0.75)' }}>Email</span>
+               </a>
+             </div>
+           </div>
           </div>
 
           {/* ── Level Style Chooser Sheet ── */}
