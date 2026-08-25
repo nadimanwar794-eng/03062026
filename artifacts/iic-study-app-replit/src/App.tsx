@@ -2938,6 +2938,9 @@ const App: React.FC = () => {
           subscriptionLevel={getUserPlan()}
           userId={state.user?.id}
           userRole={state.user?.role}
+           loadingScreenSlotAssignments={state.user?.loadingScreenSlotAssignments}
+           loadingScreenSlotUnlocks={state.user?.loadingScreenSlotUnlocks}
+           loadingScreenUnlocks={state.user?.loadingScreenUnlocks}
           isPreview={isLoadingPreview}
           onBack={() => {
             sessionStorage.removeItem('nst_splash_preview_style');
@@ -2988,6 +2991,11 @@ const App: React.FC = () => {
                  weeklyUnlocks[previewStyle] = expiry;
                  localStorage.setItem(`nst_splash_unlocks_${currentUser.id}`, JSON.stringify(weeklyUnlocks));
                }
+                const syncedUser = {
+                  ...nextUser,
+                  loadingScreenSlotUnlocks: permanentUnlocks,
+                  loadingScreenUnlocks: weeklyUnlocks,
+                };
                  // Keep the active loading screen isolated per user. The
                  // legacy global key is also updated for older sessions.
                  if (!needsPermanentUnlock || permanentUnlocks[previewStyle]) {
@@ -2995,8 +3003,8 @@ const App: React.FC = () => {
                    localStorage.setItem('nst_splash_style_preference', String(previewStyle));
                  }
                 if (payableCost > 0) {
-                 saveUserToLive(nextUser);
-                 setState(prev => ({ ...prev, user: nextUser }));
+                  saveUserToLive(syncedUser);
+                  setState(prev => ({ ...prev, user: syncedUser }));
                }
                window.dispatchEvent(new CustomEvent('iic-loading-screen-access-updated', {
                   detail: { styleId: previewStyle, permanentOnly: needsPermanentUnlock },

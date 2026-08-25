@@ -856,6 +856,7 @@ export const saveUserToLive = async (user: any) => {
         mcqHistory, usageHistory, progress, testResults, inbox,
         topicStrength, subscriptionHistory, activeSubscriptions,
         pendingRewards, redeemedCodes, unlockedContent, timedUnlocks, dailyRoutine,
+        loadingScreenSlotUnlocks, loadingScreenUnlocks, loadingScreenSlotAssignments,
         ...coreProfile
     } = sanitizedUser;
 
@@ -904,6 +905,9 @@ export const saveUserToLive = async (user: any) => {
     if (user.hasOwnProperty('unlockedContent')) bulkyData.unlockedContent = unlockedContent;
     if (user.hasOwnProperty('timedUnlocks')) bulkyData.timedUnlocks = timedUnlocks;
     if (user.hasOwnProperty('dailyRoutine')) bulkyData.dailyRoutine = dailyRoutine;
+    if (user.hasOwnProperty('loadingScreenSlotUnlocks')) bulkyData.loadingScreenSlotUnlocks = loadingScreenSlotUnlocks;
+    if (user.hasOwnProperty('loadingScreenUnlocks')) bulkyData.loadingScreenUnlocks = loadingScreenUnlocks;
+    if (user.hasOwnProperty('loadingScreenSlotAssignments')) bulkyData.loadingScreenSlotAssignments = loadingScreenSlotAssignments;
 
     // Use { merge: true } so we don't delete fields we didn't explicitly pass this time.
     if (Object.keys(bulkyData).length > 0) {

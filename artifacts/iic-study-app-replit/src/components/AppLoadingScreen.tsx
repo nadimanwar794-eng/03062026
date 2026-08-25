@@ -25,6 +25,9 @@ interface AppLoadingScreenProps {
   subscriptionLevel?: 'FREE' | 'BASIC' | 'ULTRA';
   userId?: string;
   userRole?: string;
+  loadingScreenSlotAssignments?: Record<string, number>;
+  loadingScreenSlotUnlocks?: Record<string, boolean>;
+  loadingScreenUnlocks?: Record<string, number>;
 }
 
 interface BlockItem {
@@ -45,6 +48,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   subscriptionLevel = 'FREE',
   userId,
   userRole,
+  loadingScreenSlotAssignments,
+  loadingScreenSlotUnlocks,
+  loadingScreenUnlocks,
 }) => {
   // ── Selected style (default is the 5th loading screen) ──
   const [styleVariant] = useState<number>(() => {
@@ -54,9 +60,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
          ? localStorage.getItem(`nst_splash_style_preference_${userId}`)
          : null;
        const selected = parseInt(previewStyle || savedForUser || localStorage.getItem('nst_splash_style_preference') || '1', 10);
-       const assignments = userId
-         ? JSON.parse(localStorage.getItem(`nst_splash_slot_assignments_${userId}`) || '{}')
-         : {};
+        const assignments = userId
+          ? (loadingScreenSlotAssignments ||
+            JSON.parse(localStorage.getItem(`nst_splash_slot_assignments_${userId}`) || '{}'))
+          : {};
        const assignedStyles = Object.values(assignments)
          .map(Number)
          .filter(styleId => styleId >= 1 && styleId <= 5);
@@ -69,12 +76,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
          candidate = assignedStyles[rotationIndex % assignedStyles.length];
          localStorage.setItem(rotationKey, String((rotationIndex + 1) % assignedStyles.length));
        }
-      const permanentSlots = userId
-        ? JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${userId}`) || '{}')
-        : {};
-      const weeklySlots = userId
-        ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${userId}`) || '{}')
-        : {};
+       const permanentSlots = userId
+         ? (loadingScreenSlotUnlocks ||
+           JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${userId}`) || '{}'))
+         : {};
+       const weeklySlots = userId
+         ? (loadingScreenUnlocks ||
+           JSON.parse(localStorage.getItem(`nst_splash_unlocks_${userId}`) || '{}'))
+         : {};
        // The five designs are separate purchasable items. Only the first
        // design is free; subscription level controls other app features, not
        // loading-screen item ownership.

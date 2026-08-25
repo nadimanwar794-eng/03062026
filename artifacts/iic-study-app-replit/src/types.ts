@@ -178,6 +178,10 @@ export interface User {
   securityQuestion?: string;
   securityAnswer?: string;
   photoURL?: string;
+  /** Loading-screen item ownership and slot assignments, synced across devices. */
+  loadingScreenSlotUnlocks?: Record<string, boolean>;
+  loadingScreenUnlocks?: Record<string, number>;
+  loadingScreenSlotAssignments?: Record<string, number>;
   avatarChoice?: 'gmail' | 'app';
   linkedGoogleUid?: string;
   linkedGoogleEmail?: string;

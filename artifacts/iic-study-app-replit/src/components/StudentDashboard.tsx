@@ -2184,14 +2184,14 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [splashUnlocks, setSplashUnlocks] = useState<Record<number, number>>(() => {
     try {
-      return JSON.parse(localStorage.getItem(`nst_splash_unlocks_${user.id}`) || '{}');
+      return user.loadingScreenUnlocks || JSON.parse(localStorage.getItem(`nst_splash_unlocks_${user.id}`) || '{}');
     } catch {
       return {};
     }
   });
   const [splashSlotUnlocks, setSplashSlotUnlocks] = useState<Record<number, boolean>>(() => {
     try {
-      return JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${user.id}`) || '{}');
+      return user.loadingScreenSlotUnlocks || JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${user.id}`) || '{}');
     } catch {
       return {};
     }
@@ -2199,11 +2199,31 @@ export const StudentDashboard: React.FC<Props> = ({
   const [splashSlotAssignments, setSplashSlotAssignments] = useState<Record<number, number>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(`nst_splash_slot_assignments_${user.id}`) || '{}');
-      return saved && Object.keys(saved).length ? saved : { 1: 1 };
+      const synced = user.loadingScreenSlotAssignments;
+      return synced && Object.keys(synced).length ? synced : (saved && Object.keys(saved).length ? saved : { 1: 1 });
     } catch {
       return { 1: 1 };
     }
   });
+
+  // Firebase is the source of truth for these settings. Mirror synced values
+  // into localStorage so the splash can use them immediately on the next load.
+  useEffect(() => {
+    try {
+      if (user.loadingScreenSlotUnlocks) {
+        setSplashSlotUnlocks(user.loadingScreenSlotUnlocks);
+        localStorage.setItem(`nst_splash_slot_unlocks_${user.id}`, JSON.stringify(user.loadingScreenSlotUnlocks));
+      }
+      if (user.loadingScreenUnlocks) {
+        setSplashUnlocks(user.loadingScreenUnlocks);
+        localStorage.setItem(`nst_splash_unlocks_${user.id}`, JSON.stringify(user.loadingScreenUnlocks));
+      }
+      if (user.loadingScreenSlotAssignments && Object.keys(user.loadingScreenSlotAssignments).length) {
+        setSplashSlotAssignments(user.loadingScreenSlotAssignments);
+        localStorage.setItem(`nst_splash_slot_assignments_${user.id}`, JSON.stringify(user.loadingScreenSlotAssignments));
+      }
+    } catch {}
+  }, [user.id, user.loadingScreenSlotUnlocks, user.loadingScreenUnlocks, user.loadingScreenSlotAssignments]);
   const [selectedSplashSlot, setSelectedSplashSlot] = useState(1);
   const [showLevelChooser, setShowLevelChooser] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -12786,6 +12806,12 @@ export const StudentDashboard: React.FC<Props> = ({
                              localStorage.setItem(`nst_splash_active_slot_${user.id}`, String(selectedSplashSlot));
                              localStorage.setItem(splashPreferenceKey, String(style.id));
                            } catch {}
+                            handleUserUpdate({
+                              ...user,
+                              loadingScreenSlotAssignments: nextAssignments,
+                              loadingScreenSlotUnlocks: splashSlotUnlocks,
+                              loadingScreenUnlocks: splashUnlocks,
+                            });
                          }
                         try { sessionStorage.setItem('nst_splash_preview_style', String(style.id)); } catch {}
                         window.dispatchEvent(new CustomEvent('iic-preview-loading-screen', { detail: { styleId: style.id } }));
