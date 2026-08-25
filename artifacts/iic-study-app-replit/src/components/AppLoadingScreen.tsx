@@ -49,10 +49,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     try {
       const previewStyle = isPreview ? sessionStorage.getItem('nst_splash_preview_style') : null;
       const selected = parseInt(previewStyle || localStorage.getItem('nst_splash_style_preference') || '', 10);
-      if (!isNaN(selected) && selected >= 1 && selected <= 4) return selected;
+      if (!isNaN(selected) && selected >= 1 && selected <= 5) return selected;
       const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
-      const current = isNaN(saved) || saved < 1 || saved > 4 ? 1 : saved;
-      const next = current === 4 ? 1 : current + 1;
+      const current = isNaN(saved) || saved < 1 || saved > 5 ? 1 : saved;
+      const next = current === 5 ? 1 : current + 1;
       localStorage.setItem(STORAGE_KEY, String(next));
       return current;
     } catch {
@@ -96,6 +96,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
   const developerName = 'Nadim Anwar';
   const isSortMode = styleVariant === 3;
+  const isArtworkMode = styleVariant === 5;
   const SLOT_WIDTH = 40;
   const RIG_PAD = 14;
 
@@ -143,7 +144,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
       if (currentStep >= steps) {
         clearInterval(timer);
-        setTimeout(() => onCompleteRef.current(), 350);
+        if (!isPreview) {
+          setTimeout(() => onCompleteRef.current(), 350);
+        }
       }
     }, intervalTime);
 
@@ -297,7 +300,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       setProgress(100);
 
       await sleep(250);
-      if (!isCancelled) onCompleteRef.current();
+      if (!isCancelled && !isPreview) onCompleteRef.current();
     };
 
     runSortEngine();
@@ -698,6 +701,20 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {isArtworkMode && (
+        <div className="relative z-10 w-full max-w-[345px] flex-1 min-h-[240px] flex items-center justify-center my-auto">
+          <div className="absolute w-[300px] h-[300px] rounded-full border border-sky-500/20 shadow-[0_0_35px_rgba(56,189,248,0.2)]" />
+          <div className="relative w-[310px] rounded-3xl overflow-hidden border border-sky-300/25 shadow-[0_0_35px_rgba(56,189,248,0.25)] bg-[#06184b]">
+            <img
+              src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
+              alt="Books, checklist and clock"
+              className="block w-full h-auto object-cover"
+            />
+            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#07143e] to-transparent pointer-events-none" />
+          </div>
         </div>
       )}
 

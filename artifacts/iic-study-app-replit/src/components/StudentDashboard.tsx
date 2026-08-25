@@ -12683,6 +12683,7 @@ export const StudentDashboard: React.FC<Props> = ({
                    { id: 2, label: 'Orbit' },
                    { id: 3, label: 'Sort' },
                    { id: 4, label: 'Discover' },
+                   { id: 5, label: 'Books' },
                  ].map((style) => (
                    <button
                      key={style.id}

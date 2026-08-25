@@ -1,0 +1,1 @@
+- [Imported artifact paths](imported-artifact-paths.md) — an imported backup artifact can reserve `/`, so the active migrated copy may need a unique preview path.
