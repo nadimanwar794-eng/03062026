@@ -12692,6 +12692,10 @@ export const StudentDashboard: React.FC<Props> = ({
                 <p className={`text-[10px] mt-3 ${_pTxtSub}`}>
                   Pehle slot permanently unlock karo, phir screen ko 7 din ke liye kharido. Basic 15% aur Ultra 25% off.
                 </p>
+                <div className="mt-2 rounded-lg border border-white/10 bg-black/10 px-2.5 py-2 text-[9px] font-bold">
+                  <div className={_pTxtSub}>Permanent slot unlock: Slot 3 = 100 CR · Slot 4 = 200 CR · Slot 5 = 500 CR</div>
+                  <div className="mt-1 text-emerald-400/90">Button dabane par credits turant deduct honge.</div>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -12781,12 +12785,12 @@ export const StudentDashboard: React.FC<Props> = ({
                       <span className="block truncate">{style.id > _splashBaseSlotLimit &&
                         !splashSlotUnlocks[style.id] &&
                         user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
-                          ? `🔐 Slot ${style.id}`
+                          ? `🔓 Unlock Slot ${style.id}`
                           : style.label}</span>
                       <span className="block text-[8px] opacity-70 mt-0.5">
                         {style.id > _splashBaseSlotLimit && !splashSlotUnlocks[style.id] && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
-                          ? `${_splashSlotPrices[style.id]} once`
-                          : style.price === 0 ? 'FREE' : `${Math.round(style.price * (1 - _splashWeeklyDiscount / 100))} / 7d`}
+                          ? `${_splashSlotPrices[style.id]} CR permanent`
+                          : style.price === 0 ? 'FREE' : `${Math.round(style.price * (1 - _splashWeeklyDiscount / 100))} CR / 7d`}
                       </span>
                    </button>
                  ))}
