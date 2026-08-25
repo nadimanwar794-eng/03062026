@@ -52,12 +52,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   isPremium = false, 
   subscriptionLevel = 'FREE' 
 }) => {
-  // ── Alternate Style Selection (1 to 7) ──
+  // ── Alternate Style Selection (1 to 6) ──
   const [styleVariant] = useState<number>(() => {
     try {
       const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
-      const current = isNaN(saved) || saved < 1 || saved > 7 ? 1 : saved;
-      const next = current === 7 ? 1 : current + 1;
+      const current = isNaN(saved) || saved < 1 || saved > 6 ? 1 : saved;
+      const next = current === 6 ? 1 : current + 1;
       localStorage.setItem(STORAGE_KEY, String(next));
       return current;
     } catch {
@@ -72,7 +72,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
-  // ── 6 Orbit Nodes Config (For Variants 5, 6 & 7) ──
+  // ── 6 Orbit Nodes Config (For Variants 4, 5 & 6) ──
   const orbitNodes = [
     { id: 'notes', label: 'Smart Notes', icon: BookOpen, color: '#38bdf8', angleDeg: 270, showAt: 10 },
     { id: 'mcq', label: 'MCQ Practice', icon: FileCheck, color: '#60a5fa', angleDeg: 330, showAt: 25 },
@@ -82,7 +82,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     { id: 'ai', label: 'AI Study Assistant', icon: BrainCircuit, color: '#c084fc', angleDeg: 210, showAt: 85 },
   ];
 
-  // ── Bubble Sort & Crane Engine States (for Variant 2 & 4) ──
+  // ── Bubble Sort & Crane Engine States (for Variant 2 & 3) ──
   const [blocks, setBlocks] = useState<BlockItem[]>([
     { id: 0, val: 3, slot: 0, isLifted: false, isSorted: false, isComparing: false },
     { id: 1, val: 2, slot: 1, isLifted: false, isSorted: false, isComparing: false },
@@ -101,7 +101,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const [activeCodeLine, setActiveCodeLine] = useState<number>(6);
 
   const developerName = 'Nadim Anwar';
-  const isSortMode = styleVariant === 2 || styleVariant === 4;
+  const isSortMode = styleVariant === 2 || styleVariant === 3;
 
   const statusMilestones = [
     { at: 0, text: 'Initializing App Modules...' },
@@ -118,8 +118,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     let duration = 3800;
     if (styleVariant === 1) {
       duration = 3000;
-    } else if (styleVariant === 5) {
-      duration = 10000; // 10s Smooth Orbit Spin
+    } else if (styleVariant === 4) {
+      duration = 10000; // 10s Smooth Spin for Orbit
     }
 
     const intervalTime = 30;
@@ -204,7 +204,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           const itemA = state[i];
           const itemB = state[i + 1];
 
-          // 1. Crane arrives & compares
           setCraneSlot(i);
           setWireHeight(10);
           setIsClawClosed(false);
@@ -219,7 +218,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           await sleep(75);
           if (isCancelled) return;
 
-          // 2. Swap sequence
           if (itemA.val > itemB.val) {
             setActiveCodeLine(7);
             setActionPrompt(`swap a[${i}], a[${i + 1}]`);
@@ -323,9 +321,13 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
-        @keyframes floatSlow {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
+        @keyframes floatCenter {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          50% { transform: translateY(-4px) scale(1.02); }
+        }
+        @keyframes pulseGold {
+          0%, 100% { opacity: 0.35; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.12); }
         }
         @keyframes orbitSpin {
           from { transform: rotate(0deg); }
@@ -349,14 +351,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       <div 
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-sky-400/10 pointer-events-none"
       />
-
-      {/* Academic Background Watermarks */}
-      <svg className="absolute top-[8%] left-[8%] text-white/[0.04] pointer-events-none" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-      <svg className="absolute top-[19%] left-[10%] text-white/[0.04] pointer-events-none" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-      <svg className="absolute top-[31%] left-[8%] text-white/[0.04] pointer-events-none" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"/></svg>
-      <svg className="absolute top-[8%] right-[8%] text-white/[0.04] pointer-events-none" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15z"/></svg>
-      <svg className="absolute top-[19%] right-[10%] text-white/[0.04] pointer-events-none" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-      <svg className="absolute top-[31%] right-[8%] text-white/[0.04] pointer-events-none" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04z"/></svg>
 
       {/* ── TOP NSTA BRANDING & FEATURE BADGES ── */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-md">
@@ -426,7 +420,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         </div>
       </div>
 
-      {/* ── MIDDLE DYNAMIC CONTENT (1 TO 7) ── */}
+      {/* ── MIDDLE DYNAMIC CONTENT (1 TO 6) ── */}
       {styleVariant === 1 && (
         /* VARIANT 1: 8 Feature Grid Flip Cards */
         <div className="relative z-10 w-full max-w-[340px] h-[210px] perspective-1000 flex items-center justify-center">
@@ -546,36 +540,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       )}
 
       {styleVariant === 3 && (
-        /* VARIANT 3: 3D Study Desk Illustration */
-        <div className="relative z-10 w-72 h-44 flex items-center justify-center">
-          <svg className="w-full h-full drop-shadow-[0_18px_30px_rgba(0,0,0,0.75)]" viewBox="0 0 280 180" fill="none">
-            <ellipse cx="140" cy="155" rx="100" ry="20" fill="#000000" opacity="0.65" />
-            <path d="M50 135 L140 156 L230 135 L140 114 Z" fill="#1e1b4b" />
-            <path d="M50 135 L50 148 L140 170 L140 156 Z" fill="#312e81" />
-            <path d="M230 135 L230 148 L140 170 L140 156 Z" fill="#4338ca" />
-            <path d="M58 118 L140 138 L222 118 L140 98 Z" fill="#2563eb" />
-            <path d="M58 118 L58 130 L140 150 L140 138 Z" fill="#1d4ed8" />
-            <path d="M222 118 L222 130 L140 150 L140 138 Z" fill="#3b82f6" />
-            <path d="M140 60 L200 80 L140 100 L80 80 Z" fill="#1e293b" />
-            <path d="M115 90 L115 106 C115 115 165 115 165 106 L165 90 Z" fill="#0f172a" />
-            <path d="M200 80 L214 108 L210 110 L196 82 Z" fill="#f59e0b" />
-            <rect x="170" y="60" width="56" height="76" rx="6" fill="#f8fafc" transform="rotate(10 170 60)" />
-            <rect x="184" y="56" width="28" height="9" rx="3" fill="#cbd5e1" transform="rotate(10 184 56)" />
-            <path d="M182 80 L186 85 L196 74" stroke="#3b82f6" strokeWidth="2.8" strokeLinecap="round" />
-            <path d="M186 100 L190 105 L200 94" stroke="#3b82f6" strokeWidth="2.8" strokeLinecap="round" />
-            <path d="M190 120 L194 125 L204 114" stroke="#3b82f6" strokeWidth="2.8" strokeLinecap="round" />
-            <circle cx="150" cy="140" r="24" fill="#1e293b" stroke="#38bdf8" strokeWidth="3.5" />
-            <circle cx="150" cy="140" r="20" fill="#ffffff" />
-            <path d="M150 126 L150 140 L160 140" stroke="#1e293b" strokeWidth="2.8" strokeLinecap="round" />
-            <path d="M42 130 C38 112 56 102 62 120 Z" fill="#10b981" />
-            <path d="M50 135 C46 122 64 118 66 130 Z" fill="#34d399" />
-            <path d="M38 130 L60 130 L56 144 L42 144 Z" fill="#f8fafc" />
-          </svg>
-        </div>
-      )}
-
-      {styleVariant === 4 && (
-        /* VARIANT 4: Mini Crane Stage + Python Code Terminal Window */
+        /* VARIANT 3: Mini Crane Stage + Python Code Terminal Window */
         <div className="relative z-10 w-full max-w-[345px] flex flex-col gap-2">
           <div className="relative w-full h-[145px] rounded-xl bg-[#080f24]/90 border border-cyan-500/35 p-2 overflow-hidden shadow-md">
             <div className="absolute top-2 left-2 right-2 h-1 bg-slate-900 rounded-full border border-cyan-500/30 flex items-center">
@@ -640,55 +605,89 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         </div>
       )}
 
-      {/* ── VARIANTS 5, 6 & 7: EXPANDED FRAMELESS ORBITAL HUBS ── */}
-      {(styleVariant === 5 || styleVariant === 6 || styleVariant === 7) && (
+      {/* ── VARIANTS 4, 5 & 6: EXPANDED FRAMELESS ORBITAL HUBS WITH GOLDEN IIC EMBLEM ── */}
+      {(styleVariant === 4 || styleVariant === 5 || styleVariant === 6) && (
         <div className="relative z-10 w-[345px] h-[345px] flex items-center justify-center my-auto">
           {/* Expanded Ring Tracks */}
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
-          <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
+          <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-amber-400/20 pointer-events-none" />
 
-          {/* Center Hub */}
+          {/* Golden IIC Center Hub */}
           <div 
             className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
-            style={styleVariant === 7 ? { animation: 'floatSlow 4s infinite ease-in-out' } : undefined}
+            style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
           >
-            <div className="w-28 h-16 relative flex items-center justify-center">
-              <div className="absolute -top-3 w-20 h-20 bg-gradient-to-t from-sky-400/30 to-transparent rounded-full blur-md pointer-events-none" />
-              <svg className="w-full h-full drop-shadow-[0_0_18px_rgba(56,189,248,0.95)]" viewBox="0 0 160 110" fill="none">
+            <div className="w-24 h-24 relative flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/30 via-yellow-500/30 to-amber-700/30 rounded-full blur-lg" style={{ animation: 'pulseGold 3s ease-in-out infinite' }} />
+              
+              <svg className="w-24 h-24 drop-shadow-[0_0_16px_rgba(245,158,11,0.7)]" viewBox="0 0 200 200" fill="none">
                 <defs>
-                  <linearGradient id="orbBookLeftLarge" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#38bdf8" />
-                    <stop offset="100%" stopColor="#2563eb" />
+                  <linearGradient id="goldGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#fffbeb" />
+                    <stop offset="25%" stopColor="#fde047" />
+                    <stop offset="50%" stopColor="#d97706" />
+                    <stop offset="75%" stopColor="#fef08a" />
+                    <stop offset="100%" stopColor="#b45309" />
                   </linearGradient>
-                  <linearGradient id="orbBookRightLarge" x1="1" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#c084fc" />
-                    <stop offset="100%" stopColor="#6366f1" />
+                  <linearGradient id="goldDark" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#92400e" />
+                    <stop offset="100%" stopColor="#451a03" />
                   </linearGradient>
                 </defs>
-                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
-                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
-                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge)" />
-                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge)" />
-                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
-                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
-                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+
+                <circle cx="100" cy="100" r="92" stroke="url(#goldGradient)" strokeWidth="3" fill="#080c1d" />
+                <circle cx="100" cy="100" r="86" stroke="url(#goldGradient)" strokeWidth="1.5" opacity="0.6" />
+
+                <path d="M 28 92 C 32 82, 38 78, 42 80 C 40 86, 36 92, 28 92 Z" fill="url(#goldGradient)" />
+                <path d="M 24 110 C 28 100, 36 96, 40 98 C 38 104, 32 110, 24 110 Z" fill="url(#goldGradient)" />
+                <path d="M 26 128 C 30 118, 38 116, 42 118 C 38 124, 32 128, 26 128 Z" fill="url(#goldGradient)" />
+                <path d="M 34 146 C 40 138, 48 138, 52 142 C 46 146, 40 148, 34 146 Z" fill="url(#goldGradient)" />
+
+                <path d="M 172 92 C 168 82, 162 78, 158 80 C 160 86, 164 92, 172 92 Z" fill="url(#goldGradient)" />
+                <path d="M 176 110 C 172 100, 164 96, 160 98 C 162 104, 168 110, 176 110 Z" fill="url(#goldGradient)" />
+                <path d="M 174 128 C 170 118, 162 116, 158 118 C 162 124, 168 128, 174 128 Z" fill="url(#goldGradient)" />
+                <path d="M 166 146 C 160 138, 152 138, 148 142 C 154 146, 160 148, 166 146 Z" fill="url(#goldGradient)" />
+
+                <path d="M 100 35 L 142 50 L 100 65 L 58 50 Z" fill="url(#goldGradient)" stroke="#fff" strokeWidth="0.5" />
+                <path d="M 80 58 L 80 72 C 80 80, 120 80, 120 72 L 120 58 Z" fill="url(#goldDark)" stroke="url(#goldGradient)" strokeWidth="1.2" />
+                <path d="M 142 50 L 150 70 L 146 72 L 138 52 Z" fill="url(#goldGradient)" />
+                <circle cx="100" cy="48" r="2.5" fill="#ffffff" />
+
+                <path d="M 100 106 C 80 86, 56 94, 46 98 L 46 118 C 56 114, 80 106, 100 124 C 120 106, 144 114, 154 118 L 154 98 C 144 94, 120 86, 100 106 Z" fill="url(#goldGradient)" />
+                <path d="M 100 106 L 100 124" stroke="#451a03" strokeWidth="1.5" />
+                
+                <path d="M 52 103 C 65 99, 82 96, 96 108" stroke="#78350f" strokeWidth="0.8" fill="none" />
+                <path d="M 52 108 C 65 104, 82 101, 96 113" stroke="#78350f" strokeWidth="0.8" fill="none" />
+                <path d="M 148 103 C 135 99, 118 96, 104 108" stroke="#78350f" strokeWidth="0.8" fill="none" />
+                <path d="M 148 108 C 135 104, 118 101, 104 113" stroke="#78350f" strokeWidth="0.8" fill="none" />
+
+                <text x="100" y="152" fontFamily="'Times New Roman', serif" fontSize="30" fontWeight="900" fill="url(#goldGradient)" textAnchor="middle" letterSpacing="2" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.8))">IIC</text>
+
+                <path d="M 45 162 Q 100 182 155 162" stroke="url(#goldGradient)" strokeWidth="1.2" fill="none" />
+                <text fontFamily="sans-serif" fontSize="6.5" fontWeight="bold" fill="url(#goldGradient)" letterSpacing="1.8">
+                  <textPath href="#bottomSloganPath" startOffset="50%" textAnchor="middle">
+                    LEARN • GROW • ACHIEVE
+                  </textPath>
+                </text>
+                <path id="bottomSloganPath" d="M 40 174 Q 100 186 160 174" fill="none" />
               </svg>
             </div>
-            <p className="text-[11px] font-semibold text-slate-300 mt-1 leading-tight">Your All-in-One</p>
-            <p className="text-sm font-black text-sky-400 leading-tight drop-shadow-[0_0_10px_rgba(56,189,248,0.75)]">Study Partner</p>
+
+            <p className="text-[10px] font-semibold text-amber-200/90 mt-1 leading-tight tracking-wider uppercase">Official Institute</p>
+            <p className="text-xs font-black text-amber-400 leading-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.7)] tracking-wide">NSTA Routine Hub</p>
           </div>
 
           {/* Orbit Items Layer */}
           <div 
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={styleVariant === 5 ? { animation: 'orbitSpin 22s linear infinite' } : undefined}
+            style={styleVariant === 4 ? { animation: 'orbitSpin 22s linear infinite' } : undefined}
           >
             {orbitNodes.map((node) => {
               const rad = (node.angleDeg * Math.PI) / 180;
               const x = Math.round(125 * Math.cos(rad));
               const y = Math.round(125 * Math.sin(rad));
               const IconComp = node.icon;
-              const isVisible = styleVariant === 6 ? progress >= node.showAt : true;
+              const isVisible = styleVariant === 5 ? progress >= node.showAt : true;
 
               return (
                 <div
@@ -701,7 +700,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
                   }}
                 >
                   <div 
-                    style={styleVariant === 5 ? { animation: 'counterOrbitSpin 22s linear infinite' } : undefined} 
+                    style={styleVariant === 4 ? { animation: 'counterOrbitSpin 22s linear infinite' } : undefined} 
                     className="flex flex-col items-center"
                   >
                     <div 
@@ -778,4 +777,3 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 };
 
 export default AppLoadingScreen;
-
