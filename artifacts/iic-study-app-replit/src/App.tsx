@@ -2991,9 +2991,12 @@ const App: React.FC = () => {
                  weeklyUnlocks[previewStyle] = expiry;
                  localStorage.setItem(`nst_splash_unlocks_${currentUser.id}`, JSON.stringify(weeklyUnlocks));
                }
-                if (!needsPermanentUnlock) {
-                  localStorage.setItem('nst_splash_style_preference', String(previewStyle));
-                }
+                 // Keep the active loading screen isolated per user. The
+                 // legacy global key is also updated for older sessions.
+                 if (!needsPermanentUnlock || permanentUnlocks[previewStyle]) {
+                   localStorage.setItem(`nst_splash_style_preference_${currentUser.id}`, String(previewStyle));
+                   localStorage.setItem('nst_splash_style_preference', String(previewStyle));
+                 }
                 if (payableCost > 0) {
                  saveUserToLive(nextUser);
                  setState(prev => ({ ...prev, user: nextUser }));

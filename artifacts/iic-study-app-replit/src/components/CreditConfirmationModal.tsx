@@ -15,8 +15,22 @@ export const CreditConfirmationModal: React.FC<Props> = ({ title, cost, userCred
     const canPay = userCredits >= cost;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div
+            className="fixed inset-0 z-[100000] flex items-center justify-center overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+            style={{
+                paddingTop: 'max(1rem, env(safe-area-inset-top))',
+                paddingRight: 'max(1rem, env(safe-area-inset-right))',
+                paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+                paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+        >
+            <div
+                className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-200"
+                style={{ maxHeight: 'calc(100dvh - max(3rem, env(safe-area-inset-top) + env(safe-area-inset-bottom)))' }}
+            >
                 {/* Header */}
                 <div
                     className="p-6 text-center"

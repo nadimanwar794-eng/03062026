@@ -2174,9 +2174,11 @@ export const StudentDashboard: React.FC<Props> = ({
   const [cardFxOff, setCardFxOff] = useState(() => { try { return localStorage.getItem('nst_card_fx_off') === '1'; } catch { return false; } });
   const [hapticEnabled, setHapticEnabled] = useState(() => { try { return localStorage.getItem('nst_haptic_enabled') !== '0'; } catch { return true; } });
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
+  const splashPreferenceKey = `nst_splash_style_preference_${user.id}`;
   const [splashStyle, setSplashStyle] = useState<number>(() => {
     try {
-      const value = parseInt(localStorage.getItem('nst_splash_style_preference') || '5', 10);
+      const savedForUser = localStorage.getItem(`nst_splash_style_preference_${user.id}`);
+      const value = parseInt(savedForUser || localStorage.getItem('nst_splash_style_preference') || '5', 10);
       return value >= 1 && value <= 5 ? value : 5;
     } catch { return 5; }
   });
@@ -2211,7 +2213,7 @@ export const StudentDashboard: React.FC<Props> = ({
        const detail = (event as CustomEvent<{ styleId?: number; permanentOnly?: boolean }>).detail;
        const styleId = detail?.styleId;
       if (!styleId) return;
-      if (styleId > 2) {
+       if (styleId > 1) {
         setSplashSlotUnlocks(prev => ({ ...prev, [styleId]: true }));
       }
        if (styleId > 1 && !detail?.permanentOnly) {
@@ -12694,7 +12696,7 @@ export const StudentDashboard: React.FC<Props> = ({
             </button>
             </>)}
 
-             {/* Loading screen style selector */}
+             {/* Loading screen selector — kept separate from the slot purchase row */}
              <div className={`w-full px-4 py-4 ${_pHovCls}`} style={{ borderBottom: _pSep }}>
                <div className="flex items-center gap-3.5">
                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -12704,7 +12706,7 @@ export const StudentDashboard: React.FC<Props> = ({
                  <div className="flex-1 min-w-0">
                    <p className={`text-sm font-bold ${_pTxt}`}>Loading Screen</p>
                    <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
-                     Apni pasand ka loading design choose karo
+                      {`Slot ${splashStyle} selected — tap a slot below to preview`}
                    </p>
                  </div>
                </div>
@@ -12713,12 +12715,24 @@ export const StudentDashboard: React.FC<Props> = ({
                    <div className={_pTxtSub}>Locked slot unlock: 2 = 50 CR · 3 = 100 CR · 4 = 200 CR · 5 = 500 CR (one-time)</div>
                    <div className="mt-1 text-emerald-400/90">Preview ke baad Apply par pehle slot unlock, phir 7-day activation alag se hoga.</div>
                  </div>
+                 <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+                   <div>
+                     <p className={`text-[11px] font-black ${_pTxt}`}>Loading Screen Slots</p>
+                     <p className={`text-[9px] mt-0.5 ${_pTxtSub}`}>
+                       {_splashBaseSlotLimit + Object.keys(splashSlotUnlocks).filter(key => splashSlotUnlocks[Number(key)] && Number(key) > _splashBaseSlotLimit).length} of 5 unlocked for this user
+                     </p>
+                   </div>
+                   <span className="rounded-full px-2 py-1 text-[9px] font-black"
+                     style={{ background: `${tierTheme.primary}18`, color: tierTheme.primary }}>
+                     {Math.min(5, _splashBaseSlotLimit + Object.keys(splashSlotUnlocks).filter(key => splashSlotUnlocks[Number(key)] && Number(key) > _splashBaseSlotLimit).length)}/5
+                   </span>
+                 </div>
                 <div className="grid grid-cols-5 gap-1.5 mt-2">
                  {[
                    { id: 1, label: 'Cards', price: 0 },
                    { id: 2, label: 'Orbit', price: 50 },
                    { id: 3, label: 'Sort', price: 100 },
-                   { id: 4, label: 'Discover', price: 250 },
+                    { id: 4, label: 'Discover', price: 200 },
                    { id: 5, label: 'Books', price: 500 },
                  ].map((style) => (
                     <button
