@@ -2936,6 +2936,8 @@ const App: React.FC = () => {
         <AppLoadingScreen
           isPremium={state.user?.isPremium || false}
           subscriptionLevel={getUserPlan()}
+          userId={state.user?.id}
+          userRole={state.user?.role}
           isPreview={isLoadingPreview}
           onBack={() => {
             sessionStorage.removeItem('nst_splash_preview_style');

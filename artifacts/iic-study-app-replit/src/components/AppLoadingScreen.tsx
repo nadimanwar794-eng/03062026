@@ -23,6 +23,8 @@ interface AppLoadingScreenProps {
   isPreview?: boolean;
   isPremium?: boolean;
   subscriptionLevel?: 'FREE' | 'BASIC' | 'ULTRA';
+  userId?: string;
+  userRole?: string;
 }
 
 interface BlockItem {
@@ -40,17 +42,27 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   onApply,
   isPreview = false,
   isPremium = false, 
-  subscriptionLevel = 'FREE' 
+  subscriptionLevel = 'FREE',
+  userId,
+  userRole,
 }) => {
   // ── Selected style (default is the 5th loading screen) ──
   const [styleVariant] = useState<number>(() => {
     try {
       const previewStyle = isPreview ? sessionStorage.getItem('nst_splash_preview_style') : null;
       const selected = parseInt(previewStyle || localStorage.getItem('nst_splash_style_preference') || '5', 10);
-      if (!isNaN(selected) && selected >= 1 && selected <= 5) return selected;
-      return 5;
+      const candidate = !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 5;
+      const subscriptionSlots = subscriptionLevel === 'ULTRA' ? 4 : subscriptionLevel === 'BASIC' ? 3 : 2;
+      const permanentSlots = userId
+        ? JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${userId}`) || '{}')
+        : {};
+      const canUse = candidate <= subscriptionSlots ||
+        permanentSlots[candidate] ||
+        userRole === 'ADMIN' ||
+        userRole === 'SUB_ADMIN';
+      return canUse ? candidate : 1;
     } catch {
-      return 5;
+      return 1;
     }
   });
 
