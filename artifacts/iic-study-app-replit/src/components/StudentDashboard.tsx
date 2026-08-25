@@ -937,6 +937,14 @@ export const StudentDashboard: React.FC<Props> = ({
   const _subValid      = SubscriptionEngine.isPremium(user); // true only if not expired
   const _isUltraUser   = _subValid && user.subscriptionLevel === 'ULTRA';
   const _isBasicUser   = _subValid && user.subscriptionLevel === 'BASIC';
+  const _splashBaseSlotLimit =
+    user.role === 'ADMIN' || user.role === 'SUB_ADMIN' ? 5
+      : _isUltraUser ? 4
+      : _isBasicUser ? 3
+      : 2;
+  const _splashSlotPrices: Record<number, number> = { 3: 100, 4: 200, 5: 500 };
+  const _splashWeeklyPrices: Record<number, number> = { 1: 0, 2: 50, 3: 100, 4: 250, 5: 500 };
+  const _splashWeeklyDiscount = _isUltraUser ? 25 : _isBasicUser ? 15 : 0;
   const _todayKey      = new Date().toISOString().split('T')[0];
 
   // ── Level-based limit bonus ─────────────────────────────────────────────
@@ -2168,13 +2176,20 @@ export const StudentDashboard: React.FC<Props> = ({
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
   const [splashStyle, setSplashStyle] = useState<number>(() => {
     try {
-      const value = parseInt(localStorage.getItem('nst_splash_style_preference') || '1', 10);
-      return value >= 1 && value <= 4 ? value : 1;
-    } catch { return 1; }
+      const value = parseInt(localStorage.getItem('nst_splash_style_preference') || '5', 10);
+      return value >= 1 && value <= 5 ? value : 5;
+    } catch { return 5; }
   });
   const [splashUnlocks, setSplashUnlocks] = useState<Record<number, number>>(() => {
     try {
       return JSON.parse(localStorage.getItem(`nst_splash_unlocks_${user.id}`) || '{}');
+    } catch {
+      return {};
+    }
+  });
+  const [splashSlotUnlocks, setSplashSlotUnlocks] = useState<Record<number, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${user.id}`) || '{}');
     } catch {
       return {};
     }
@@ -12675,34 +12690,80 @@ export const StudentDashboard: React.FC<Props> = ({
                  </div>
                </div>
                 <p className={`text-[10px] mt-3 ${_pTxtSub}`}>
-                  Free: 2 designs · Basic: 3 · Ultra: 4. Locked designs unlock for 100 credits for 7 days.
+                  Pehle slot permanently unlock karo, phir screen ko 7 din ke liye kharido. Basic 15% aur Ultra 25% off.
                 </p>
-                <div className="grid grid-cols-4 gap-1.5 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const missingSlots = [3, 4, 5].filter((id) =>
+                      id > _splashBaseSlotLimit && !splashSlotUnlocks[id],
+                    );
+                    if (missingSlots.length > 0) {
+                      showAlert(`Pehle slot ${missingSlots.join(', ')} permanently unlock karo.`, 'ERROR');
+                      return;
+                    }
+                    const comboPrice = Math.round(850 * 0.8);
+                    const nextUser = applyDeduction(user, comboPrice);
+                    if (!nextUser) {
+                      showAlert(`All screens combo ke liye ${comboPrice} coins chahiye.`, 'ERROR');
+                      return;
+                    }
+                    const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
+                    const nextUnlocks = { ...splashUnlocks, 1: expiry, 2: expiry, 3: expiry, 4: expiry, 5: expiry };
+                    setSplashUnlocks(nextUnlocks);
+                    try { localStorage.setItem(`nst_splash_unlocks_${user.id}`, JSON.stringify(nextUnlocks)); } catch {}
+                    handleUserUpdate(nextUser);
+                    showAlert(`All 5 loading screens 7 din ke liye unlock (${comboPrice} coins, 20% off).`, 'SUCCESS');
+                  }}
+                  className="w-full mt-3 rounded-lg border border-amber-400/40 bg-amber-400/10 py-2 text-[10px] font-black text-amber-300 active:scale-95 transition-transform"
+                >
+                  🎁 Buy All 5 — 680 coins / 7 days (20% OFF)
+                </button>
+                <div className="grid grid-cols-5 gap-1.5 mt-2">
                  {[
-                   { id: 1, label: 'Cards' },
-                   { id: 2, label: 'Orbit' },
-                   { id: 3, label: 'Sort' },
-                   { id: 4, label: 'Discover' },
-                   { id: 5, label: 'Books' },
+                   { id: 1, label: 'Cards', price: 0 },
+                   { id: 2, label: 'Orbit', price: 50 },
+                   { id: 3, label: 'Sort', price: 100 },
+                   { id: 4, label: 'Discover', price: 250 },
+                   { id: 5, label: 'Books', price: 500 },
                  ].map((style) => (
                    <button
                      key={style.id}
                      type="button"
                       onClick={() => {
-                        const planLimit = user.subscriptionLevel === 'ULTRA' ? 4 : user.subscriptionLevel === 'BASIC' ? 3 : 2;
                         const unlockUntil = splashUnlocks[style.id] || 0;
-                        const isUnlocked = style.id <= planLimit || unlockUntil > Date.now() || user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
-                        if (!isUnlocked) {
-                          const nextUser = applyDeduction(user, 100);
+                        const hasPermanentSlot =
+                          style.id <= _splashBaseSlotLimit ||
+                          splashSlotUnlocks[style.id] ||
+                          user.role === 'ADMIN' ||
+                          user.role === 'SUB_ADMIN';
+                        if (!hasPermanentSlot) {
+                          const slotPrice = _splashSlotPrices[style.id];
+                          const nextUser = applyDeduction(user, slotPrice);
                           if (!nextUser) {
-                            showAlert('Is design ko unlock karne ke liye 100 credits chahiye.', 'ERROR');
+                            showAlert(`Slot ${style.id} permanently unlock karne ke liye ${slotPrice} coins chahiye.`, 'ERROR');
+                            return;
+                          }
+                          const nextSlots = { ...splashSlotUnlocks, [style.id]: true };
+                          setSplashSlotUnlocks(nextSlots);
+                          try { localStorage.setItem(`nst_splash_slot_unlocks_${user.id}`, JSON.stringify(nextSlots)); } catch {}
+                          handleUserUpdate(nextUser);
+                          showAlert(`Slot ${style.id} permanently unlock ho gaya. Ab screen weekly kharid sakte ho.`, 'SUCCESS');
+                          return;
+                        }
+                        const isUnlocked = style.id === 1 || unlockUntil > Date.now() || user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+                        if (!isUnlocked && style.id > 1) {
+                          const price = Math.round(_splashWeeklyPrices[style.id] * (1 - _splashWeeklyDiscount / 100));
+                          const nextUser = applyDeduction(user, price);
+                          if (!nextUser) {
+                            showAlert(`Is design ko unlock karne ke liye ${price} coins chahiye.`, 'ERROR');
                             return;
                           }
                           const nextUnlocks = { ...splashUnlocks, [style.id]: Date.now() + 7 * 24 * 60 * 60 * 1000 };
                           setSplashUnlocks(nextUnlocks);
                           try { localStorage.setItem(`nst_splash_unlocks_${user.id}`, JSON.stringify(nextUnlocks)); } catch {}
                           handleUserUpdate(nextUser);
-                          showAlert('Design 7 din ke liye unlock ho gaya.', 'SUCCESS');
+                          showAlert(`Design 7 din ke liye unlock ho gaya (${price} coins).`, 'SUCCESS');
                         }
                         setSplashStyle(style.id);
                         try { sessionStorage.setItem('nst_splash_preview_style', String(style.id)); } catch {}
@@ -12717,10 +12778,16 @@ export const StudentDashboard: React.FC<Props> = ({
                      aria-pressed={splashStyle === style.id}
                    >
                      <span className="block text-[9px] opacity-60 mb-0.5">0{style.id}</span>
-                      {style.id > (user.subscriptionLevel === 'ULTRA' ? 4 : user.subscriptionLevel === 'BASIC' ? 3 : 2) &&
-                      !(splashUnlocks[style.id] > Date.now()) && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
-                        ? `🔒 ${style.label}`
-                        : style.label}
+                      <span className="block truncate">{style.id > _splashBaseSlotLimit &&
+                        !splashSlotUnlocks[style.id] &&
+                        user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
+                          ? `🔐 Slot ${style.id}`
+                          : style.label}</span>
+                      <span className="block text-[8px] opacity-70 mt-0.5">
+                        {style.id > _splashBaseSlotLimit && !splashSlotUnlocks[style.id] && user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'
+                          ? `${_splashSlotPrices[style.id]} once`
+                          : style.price === 0 ? 'FREE' : `${Math.round(style.price * (1 - _splashWeeklyDiscount / 100))} / 7d`}
+                      </span>
                    </button>
                  ))}
                </div>

@@ -34,8 +34,6 @@ interface BlockItem {
   isComparing: boolean;
 }
 
-const STORAGE_KEY = 'nst_splash_style_idx';
-
 export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ 
   onComplete,
   onBack,
@@ -44,19 +42,15 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   isPremium = false, 
   subscriptionLevel = 'FREE' 
 }) => {
-  // ── Alternate Style Selection (1 to 4) ──
+  // ── Selected style (default is the 5th loading screen) ──
   const [styleVariant] = useState<number>(() => {
     try {
       const previewStyle = isPreview ? sessionStorage.getItem('nst_splash_preview_style') : null;
-      const selected = parseInt(previewStyle || localStorage.getItem('nst_splash_style_preference') || '', 10);
+      const selected = parseInt(previewStyle || localStorage.getItem('nst_splash_style_preference') || '5', 10);
       if (!isNaN(selected) && selected >= 1 && selected <= 5) return selected;
-      const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
-      const current = isNaN(saved) || saved < 1 || saved > 5 ? 1 : saved;
-      const next = current === 5 ? 1 : current + 1;
-      localStorage.setItem(STORAGE_KEY, String(next));
-      return current;
+      return 5;
     } catch {
-      return 1;
+      return 5;
     }
   });
 
