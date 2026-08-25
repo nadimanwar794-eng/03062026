@@ -2166,6 +2166,12 @@ export const StudentDashboard: React.FC<Props> = ({
   const [cardFxOff, setCardFxOff] = useState(() => { try { return localStorage.getItem('nst_card_fx_off') === '1'; } catch { return false; } });
   const [hapticEnabled, setHapticEnabled] = useState(() => { try { return localStorage.getItem('nst_haptic_enabled') !== '0'; } catch { return true; } });
   const [displayLevel, setDisplayLevel] = useState<number | null>(() => { try { const v = localStorage.getItem('nst_display_level'); return v ? parseInt(v, 10) : null; } catch { return null; } });
+  const [splashStyle, setSplashStyle] = useState<number>(() => {
+    try {
+      const value = parseInt(localStorage.getItem('nst_splash_style_preference') || '1', 10);
+      return value >= 1 && value <= 4 ? value : 1;
+    } catch { return 1; }
+  });
   const [showLevelChooser, setShowLevelChooser] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [rewardSubTab, setRewardSubTab] = useState<'EARNED' | 'RULES' | 'HISTORY'>('EARNED');
@@ -12646,6 +12652,49 @@ export const StudentDashboard: React.FC<Props> = ({
               <ChevronRight size={15} style={{ color: _pTxtMutedColor }} className="shrink-0" />
             </button>
             </>)}
+
+             {/* Loading screen style selector */}
+             <div className={`w-full px-4 py-4 ${_pHovCls}`} style={{ borderBottom: _pSep }}>
+               <div className="flex items-center gap-3.5">
+                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                   style={{ background: `${tierTheme.primary}18`, border: `1px solid ${tierTheme.primary}35` }}>
+                   <Sparkles size={17} style={{ color: tierTheme.primary }} />
+                 </div>
+                 <div className="flex-1 min-w-0">
+                   <p className={`text-sm font-bold ${_pTxt}`}>Loading Screen</p>
+                   <p className={`text-[10px] mt-0.5 ${_pTxtSub}`}>
+                     Apni pasand ka loading design choose karo
+                   </p>
+                 </div>
+               </div>
+               <div className="grid grid-cols-4 gap-1.5 mt-3">
+                 {[
+                   { id: 1, label: 'Cards' },
+                   { id: 2, label: 'Orbit' },
+                   { id: 3, label: 'Sort' },
+                   { id: 4, label: 'Discover' },
+                 ].map((style) => (
+                   <button
+                     key={style.id}
+                     type="button"
+                     onClick={() => {
+                       setSplashStyle(style.id);
+                       try { localStorage.setItem('nst_splash_style_preference', String(style.id)); } catch {}
+                     }}
+                     className="rounded-lg py-2 text-[10px] font-black transition-all active:scale-95"
+                     style={{
+                       background: splashStyle === style.id ? `${tierTheme.primary}25` : `${_pTxtMutedColor}08`,
+                       color: splashStyle === style.id ? tierTheme.primary : _pTxtMutedColor,
+                       border: `1px solid ${splashStyle === style.id ? tierTheme.primary + '70' : _pTxtMutedColor + '20'}`,
+                     }}
+                     aria-pressed={splashStyle === style.id}
+                   >
+                     <span className="block text-[9px] opacity-60 mb-0.5">0{style.id}</span>
+                     {style.label}
+                   </button>
+                 ))}
+               </div>
+             </div>
 
             {/* App Guide */}
             <button onClick={() => setShowUserGuide(true)}

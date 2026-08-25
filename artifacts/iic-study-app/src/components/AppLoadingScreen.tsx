@@ -41,6 +41,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   // ── Alternate Style Selection (1 to 4) ──
   const [styleVariant] = useState<number>(() => {
     try {
+      const selected = parseInt(localStorage.getItem('nst_splash_style_preference') || '', 10);
+      if (!isNaN(selected) && selected >= 1 && selected <= 4) return selected;
       const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '1', 10);
       const current = isNaN(saved) || saved < 1 || saved > 4 ? 1 : saved;
       const next = current === 4 ? 1 : current + 1;
@@ -471,13 +473,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
                     <stop offset="100%" stopColor="#6366f1" />
                   </linearGradient>
                 </defs>
-                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
-                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
-                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge)" />
-                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge)" />
-                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
-                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
-                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+                 <path d="M80 88 C57 76 30 78 12 62 C16 81 43 94 80 96 Z" fill="#0284c7" opacity="0.72" />
+                 <path d="M80 88 C103 76 130 78 148 62 C144 81 117 94 80 96 Z" fill="#7c3aed" opacity="0.72" />
+                 <path d="M80 82 C58 69 33 70 16 57 C23 74 47 85 80 90 Z" fill="url(#orbBookLeftLarge)" />
+                 <path d="M80 82 C102 69 127 70 144 57 C137 74 113 85 80 90 Z" fill="url(#orbBookRightLarge)" />
+                 <path d="M80 77 C59 63 38 64 22 53 C31 67 51 76 80 84 Z" fill="#f8fcff" />
+                 <path d="M80 77 C101 63 122 64 138 53 C129 67 109 76 80 84 Z" fill="#fffaff" />
+                 <path d="M80 84 C61 72 44 70 29 66 M80 84 C99 72 116 70 131 66" stroke="#bfdbfe" strokeWidth="1.2" opacity="0.8" />
+                 <line x1="80" y1="91" x2="80" y2="35" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" opacity="0.9" />
               </svg>
             </div>
 
@@ -632,13 +635,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
                     <stop offset="100%" stopColor="#6366f1" />
                   </linearGradient>
                 </defs>
-                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
-                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
-                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge4)" />
-                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge4)" />
-                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
-                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
-                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+                 <path d="M80 88 C57 76 30 78 12 62 C16 81 43 94 80 96 Z" fill="#0284c7" opacity="0.72" />
+                 <path d="M80 88 C103 76 130 78 148 62 C144 81 117 94 80 96 Z" fill="#7c3aed" opacity="0.72" />
+                 <path d="M80 82 C58 69 33 70 16 57 C23 74 47 85 80 90 Z" fill="url(#orbBookLeftLarge4)" />
+                 <path d="M80 82 C102 69 127 70 144 57 C137 74 113 85 80 90 Z" fill="url(#orbBookRightLarge4)" />
+                 <path d="M80 77 C59 63 38 64 22 53 C31 67 51 76 80 84 Z" fill="#f8fcff" />
+                 <path d="M80 77 C101 63 122 64 138 53 C129 67 109 76 80 84 Z" fill="#fffaff" />
+                 <path d="M80 84 C61 72 44 70 29 66 M80 84 C99 72 116 70 131 66" stroke="#bfdbfe" strokeWidth="1.2" opacity="0.8" />
+                 <line x1="80" y1="91" x2="80" y2="35" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" opacity="0.9" />
               </svg>
             </div>
 
