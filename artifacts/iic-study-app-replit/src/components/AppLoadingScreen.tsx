@@ -53,15 +53,32 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
        const savedForUser = userId
          ? localStorage.getItem(`nst_splash_style_preference_${userId}`)
          : null;
-       const selected = parseInt(previewStyle || savedForUser || localStorage.getItem('nst_splash_style_preference') || '5', 10);
-      const candidate = !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 5;
+       const selected = parseInt(previewStyle || savedForUser || localStorage.getItem('nst_splash_style_preference') || '1', 10);
+       const assignments = userId
+         ? JSON.parse(localStorage.getItem(`nst_splash_slot_assignments_${userId}`) || '{}')
+         : {};
+       const assignedStyles = Object.values(assignments)
+         .map(Number)
+         .filter(styleId => styleId >= 1 && styleId <= 5);
+       let candidate = !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 1;
+       // Outside preview, rotate through every design assigned to a slot so
+       // multiple slots produce multiple alternate loading screens.
+       if (!isPreview && assignedStyles.length > 0) {
+         const rotationKey = `nst_splash_rotation_${userId}`;
+         const rotationIndex = parseInt(localStorage.getItem(rotationKey) || '0', 10);
+         candidate = assignedStyles[rotationIndex % assignedStyles.length];
+         localStorage.setItem(rotationKey, String((rotationIndex + 1) % assignedStyles.length));
+       }
       const permanentSlots = userId
         ? JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${userId}`) || '{}')
         : {};
       const weeklySlots = userId
         ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${userId}`) || '{}')
         : {};
-      const freeSlots = subscriptionLevel === 'ULTRA' ? 5 : subscriptionLevel === 'BASIC' ? 4 : 3;
+       // The five designs are separate purchasable items. Only the first
+       // design is free; subscription level controls other app features, not
+       // loading-screen item ownership.
+       const freeSlots = userRole === 'ADMIN' || userRole === 'SUB_ADMIN' ? 5 : 1;
       const canUse = candidate <= freeSlots ||
         permanentSlots[candidate] ||
         Number(weeklySlots[candidate] || 0) > Date.now() ||

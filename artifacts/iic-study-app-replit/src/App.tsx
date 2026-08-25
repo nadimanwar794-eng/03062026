@@ -2954,13 +2954,10 @@ const App: React.FC = () => {
              const weeklyUnlocks = currentUser
                ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${currentUser.id}`) || '{}')
                : {};
-              const freeSlots = isStaff
-                ? 5
-                : currentUser?.subscriptionLevel === 'ULTRA'
-                  ? 5
-                  : currentUser?.subscriptionLevel === 'BASIC'
-                    ? 4
-                    : 3;
+               // Loading screens are purchased as individual items. The
+               // first design is free; purchased designs can then be placed
+               // into any of the user's five slots.
+               const freeSlots = isStaff ? 5 : 1;
               const permanentPrices: Record<number, number> = { 2: 50, 3: 100, 4: 200, 5: 500 };
               const weeklyPrices: Record<number, number> = { 2: 50, 3: 100, 4: 200, 5: 500 };
               const needsPermanentUnlock =
