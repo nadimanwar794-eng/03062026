@@ -67,8 +67,9 @@ export const getTotalCredits = (user: CreditUser): number => {
 export const applyDeduction = <T extends CreditUser>(
   user: T,
   amount: number,
+  chargeStaff = false,
 ): T | null => {
-  if (user.role === 'ADMIN' || user.role === 'SUB_ADMIN') return user;
+  if (!chargeStaff && (user.role === 'ADMIN' || user.role === 'SUB_ADMIN')) return user;
 
   // Fold legacy bonusCredits into permanent
   const permanent = (user.credits ?? 0) + (user.bonusCredits ?? 0);

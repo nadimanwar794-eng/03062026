@@ -12751,7 +12751,7 @@ export const StudentDashboard: React.FC<Props> = ({
                             <Lock size={10} strokeWidth={2.5} />
                           </span>
                         )}
-                     <span className="block text-[9px] opacity-60 mb-0.5">0{style.id}</span>
+                      <span className="block text-[9px] opacity-60 mb-0.5">0{style.id} · Preview</span>
                       <span className="block truncate">{style.id > _splashBaseSlotLimit &&
                         !splashSlotUnlocks[style.id] &&
                         user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN'

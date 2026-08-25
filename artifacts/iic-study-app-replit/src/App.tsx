@@ -2979,7 +2979,9 @@ const App: React.FC = () => {
 
              const applyLoadingScreen = () => {
                 if (!currentUser) return;
-                const nextUser = payableCost > 0 ? applyDeduction(currentUser, payableCost) : currentUser;
+                const nextUser = payableCost > 0
+                  ? applyDeduction(currentUser, payableCost, true)
+                  : currentUser;
                if (!nextUser) return;
                const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
                if (needsPermanentUnlock) {
