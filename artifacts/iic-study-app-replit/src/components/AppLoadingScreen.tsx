@@ -353,8 +353,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         }
       `}</style>
 
-       {isArtworkMode && (
-         <div className="artwork-fullscreen-image fixed inset-0 z-[100] flex items-center justify-center bg-black">
+         {isArtworkMode && (
+          <div className="artwork-fullscreen-image fixed inset-0 z-[100] flex items-center justify-center bg-[#02082d]">
            <img
              src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
              alt="NSTA loading screen artwork"
@@ -755,7 +755,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       {isArtworkMode && (
         <div className="relative z-10 w-full max-w-[345px] flex-1 min-h-[240px] flex items-center justify-center my-auto">
           <div className="absolute w-[300px] h-[300px] rounded-full border border-sky-500/20 shadow-[0_0_35px_rgba(56,189,248,0.2)]" />
-           <div className="relative w-[min(310px,78vw)] max-h-[54vh] rounded-3xl overflow-hidden border border-sky-300/25 shadow-[0_0_35px_rgba(56,189,248,0.25)] bg-black">
+            <div className="relative w-[min(310px,78vw)] max-h-[54vh] rounded-3xl overflow-hidden border border-sky-300/25 shadow-[0_0_35px_rgba(56,189,248,0.25)] bg-[#02082d]">
             <img
               src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
                alt="NSTA loading screen artwork"
