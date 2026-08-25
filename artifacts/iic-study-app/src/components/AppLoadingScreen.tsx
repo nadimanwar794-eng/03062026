@@ -325,10 +325,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           0%, 100% { transform: translateY(0px) scale(1); }
           50% { transform: translateY(-4px) scale(1.02); }
         }
-        @keyframes pulseGold {
-          0%, 100% { opacity: 0.35; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.12); }
-        }
         @keyframes orbitSpin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -605,76 +601,44 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         </div>
       )}
 
-      {/* ── VARIANTS 4, 5 & 6: EXPANDED FRAMELESS ORBITAL HUBS WITH GOLDEN IIC EMBLEM ── */}
+      {/* ── VARIANTS 4, 5 & 6: EXPANDED FRAMELESS ORBITAL HUBS WITH 3D OPEN BOOK CENTER ── */}
       {(styleVariant === 4 || styleVariant === 5 || styleVariant === 6) && (
         <div className="relative z-10 w-[345px] h-[345px] flex items-center justify-center my-auto">
           {/* Expanded Ring Tracks */}
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
-          <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-amber-400/20 pointer-events-none" />
+          <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
 
-          {/* Golden IIC Center Hub */}
+          {/* Original Glowing 3D Open Book Center Hub */}
           <div 
             className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
             style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
           >
-            <div className="w-24 h-24 relative flex items-center justify-center">
-              <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/30 via-yellow-500/30 to-amber-700/30 rounded-full blur-lg" style={{ animation: 'pulseGold 3s ease-in-out infinite' }} />
+            <div className="w-28 h-16 relative flex items-center justify-center">
+              <div className="absolute -top-3 w-20 h-20 bg-gradient-to-t from-sky-400/30 to-transparent rounded-full blur-md pointer-events-none" />
               
-              <svg className="w-24 h-24 drop-shadow-[0_0_16px_rgba(245,158,11,0.7)]" viewBox="0 0 200 200" fill="none">
+              <svg className="w-full h-full drop-shadow-[0_0_18px_rgba(56,189,248,0.95)]" viewBox="0 0 160 110" fill="none">
                 <defs>
-                  <linearGradient id="goldGradient" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#fffbeb" />
-                    <stop offset="25%" stopColor="#fde047" />
-                    <stop offset="50%" stopColor="#d97706" />
-                    <stop offset="75%" stopColor="#fef08a" />
-                    <stop offset="100%" stopColor="#b45309" />
+                  <linearGradient id="orbBookLeftLarge" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" />
+                    <stop offset="100%" stopColor="#2563eb" />
                   </linearGradient>
-                  <linearGradient id="goldDark" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#92400e" />
-                    <stop offset="100%" stopColor="#451a03" />
+                  <linearGradient id="orbBookRightLarge" x1="1" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#c084fc" />
+                    <stop offset="100%" stopColor="#6366f1" />
                   </linearGradient>
                 </defs>
-
-                <circle cx="100" cy="100" r="92" stroke="url(#goldGradient)" strokeWidth="3" fill="#080c1d" />
-                <circle cx="100" cy="100" r="86" stroke="url(#goldGradient)" strokeWidth="1.5" opacity="0.6" />
-
-                <path d="M 28 92 C 32 82, 38 78, 42 80 C 40 86, 36 92, 28 92 Z" fill="url(#goldGradient)" />
-                <path d="M 24 110 C 28 100, 36 96, 40 98 C 38 104, 32 110, 24 110 Z" fill="url(#goldGradient)" />
-                <path d="M 26 128 C 30 118, 38 116, 42 118 C 38 124, 32 128, 26 128 Z" fill="url(#goldGradient)" />
-                <path d="M 34 146 C 40 138, 48 138, 52 142 C 46 146, 40 148, 34 146 Z" fill="url(#goldGradient)" />
-
-                <path d="M 172 92 C 168 82, 162 78, 158 80 C 160 86, 164 92, 172 92 Z" fill="url(#goldGradient)" />
-                <path d="M 176 110 C 172 100, 164 96, 160 98 C 162 104, 168 110, 176 110 Z" fill="url(#goldGradient)" />
-                <path d="M 174 128 C 170 118, 162 116, 158 118 C 162 124, 168 128, 174 128 Z" fill="url(#goldGradient)" />
-                <path d="M 166 146 C 160 138, 152 138, 148 142 C 154 146, 160 148, 166 146 Z" fill="url(#goldGradient)" />
-
-                <path d="M 100 35 L 142 50 L 100 65 L 58 50 Z" fill="url(#goldGradient)" stroke="#fff" strokeWidth="0.5" />
-                <path d="M 80 58 L 80 72 C 80 80, 120 80, 120 72 L 120 58 Z" fill="url(#goldDark)" stroke="url(#goldGradient)" strokeWidth="1.2" />
-                <path d="M 142 50 L 150 70 L 146 72 L 138 52 Z" fill="url(#goldGradient)" />
-                <circle cx="100" cy="48" r="2.5" fill="#ffffff" />
-
-                <path d="M 100 106 C 80 86, 56 94, 46 98 L 46 118 C 56 114, 80 106, 100 124 C 120 106, 144 114, 154 118 L 154 98 C 144 94, 120 86, 100 106 Z" fill="url(#goldGradient)" />
-                <path d="M 100 106 L 100 124" stroke="#451a03" strokeWidth="1.5" />
-                
-                <path d="M 52 103 C 65 99, 82 96, 96 108" stroke="#78350f" strokeWidth="0.8" fill="none" />
-                <path d="M 52 108 C 65 104, 82 101, 96 113" stroke="#78350f" strokeWidth="0.8" fill="none" />
-                <path d="M 148 103 C 135 99, 118 96, 104 108" stroke="#78350f" strokeWidth="0.8" fill="none" />
-                <path d="M 148 108 C 135 104, 118 101, 104 113" stroke="#78350f" strokeWidth="0.8" fill="none" />
-
-                <text x="100" y="152" fontFamily="'Times New Roman', serif" fontSize="30" fontWeight="900" fill="url(#goldGradient)" textAnchor="middle" letterSpacing="2" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.8))">IIC</text>
-
-                <path d="M 45 162 Q 100 182 155 162" stroke="url(#goldGradient)" strokeWidth="1.2" fill="none" />
-                <text fontFamily="sans-serif" fontSize="6.5" fontWeight="bold" fill="url(#goldGradient)" letterSpacing="1.8">
-                  <textPath href="#bottomSloganPath" startOffset="50%" textAnchor="middle">
-                    LEARN • GROW • ACHIEVE
-                  </textPath>
-                </text>
-                <path id="bottomSloganPath" d="M 40 174 Q 100 186 160 174" fill="none" />
+                <path d="M80 88 C48 70 20 80 8 60 C36 54 62 66 80 80 Z" fill="#0284c7" opacity="0.7" />
+                <path d="M80 88 C112 70 140 80 152 60 C124 54 98 66 80 80 Z" fill="#7c3aed" opacity="0.7" />
+                <path d="M80 82 C52 65 24 72 14 54 C40 50 64 60 80 74 Z" fill="url(#orbBookLeftLarge)" />
+                <path d="M80 82 C108 65 136 72 146 54 C120 50 96 60 80 74 Z" fill="url(#orbBookRightLarge)" />
+                <path d="M80 76 C55 60 32 64 24 50 C46 47 67 56 80 68 Z" fill="#e0f2fe" opacity="0.9" />
+                <path d="M80 76 C105 60 128 64 136 50 C114 47 93 56 80 68 Z" fill="#f3e8ff" opacity="0.9" />
+                <line x1="80" y1="88" x2="80" y2="35" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
               </svg>
             </div>
 
-            <p className="text-[10px] font-semibold text-amber-200/90 mt-1 leading-tight tracking-wider uppercase">Official Institute</p>
-            <p className="text-xs font-black text-amber-400 leading-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.7)] tracking-wide">NSTA Routine Hub</p>
+            <p className="text-[11px] font-semibold text-slate-300 mt-1 leading-tight">Your All-in-One</p>
+            <p className="text-sm font-black text-sky-400 leading-tight drop-shadow-[0_0_10px_rgba(56,189,248,0.75)]">Study Partner</p>
           </div>
 
           {/* Orbit Items Layer */}
@@ -777,3 +741,4 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 };
 
 export default AppLoadingScreen;
+
