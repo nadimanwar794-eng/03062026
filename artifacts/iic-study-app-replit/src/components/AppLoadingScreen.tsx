@@ -341,12 +341,15 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[99999] w-screen h-screen min-h-screen flex flex-col items-center justify-between px-6 pt-9 pb-7 select-none overflow-hidden font-sans"
+       className={`fixed inset-0 z-[99999] w-screen h-screen min-h-screen flex flex-col items-center justify-between px-6 pt-9 pb-7 select-none overflow-hidden font-sans ${isArtworkMode ? 'artwork-fullscreen' : ''}`}
       style={{
-        background: 'radial-gradient(circle at 50% 18%, #1e1b4b 0%, #0c1033 40%, #030717 100%)',
+         background: isArtworkMode ? '#000' : 'radial-gradient(circle at 50% 18%, #1e1b4b 0%, #0c1033 40%, #030717 100%)',
       }}
     >
       <style>{`
+         .artwork-fullscreen > :not(style):not(.artwork-fullscreen-image) {
+           display: none !important;
+         }
         @keyframes shineSweep {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
@@ -364,6 +367,34 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           to { transform: rotate(-360deg); }
         }
       `}</style>
+
+       {isArtworkMode && (
+         <div className="artwork-fullscreen-image fixed inset-0 z-[100] flex items-center justify-center bg-black">
+           <img
+             src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
+             alt="NSTA loading screen artwork"
+             className="h-full w-full object-contain"
+           />
+           {isPreview && (
+             <div className="absolute inset-x-0 bottom-0 flex gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+               <button
+                 type="button"
+                 onClick={onBack}
+                 className="flex-1 rounded-xl border border-white/20 bg-black/65 py-3 text-xs font-black text-white backdrop-blur-sm active:scale-95 transition-transform"
+               >
+                 ← Back
+               </button>
+               <button
+                 type="button"
+                 onClick={onApply}
+                 className="flex-1 rounded-xl bg-indigo-600/90 py-3 text-xs font-black text-white shadow-lg backdrop-blur-sm active:scale-95 transition-transform"
+               >
+                 ✓ Apply this
+               </button>
+             </div>
+           )}
+         </div>
+       )}
 
       {/* Ambient Background Glows */}
       <div 
