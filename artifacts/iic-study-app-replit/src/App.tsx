@@ -2961,8 +2961,11 @@ const App: React.FC = () => {
                : 0;
              const needsPermanentUnlock =
                !!currentUser && !isStaff && previewStyle > 2 && !permanentUnlocks[previewStyle];
-             const weeklyActive =
-               isStaff || previewStyle === 1 || (weeklyUnlocks[previewStyle] || 0) > Date.now();
+              // Slot 1 is always free. Every other slot needs a current
+              // weekly pass (the permanent slot unlock only grants access
+              // to purchase that pass; it is not the pass itself).
+              const weeklyActive =
+                isStaff || previewStyle === 1 || (weeklyUnlocks[previewStyle] || 0) > Date.now();
              const permanentCost = needsPermanentUnlock ? (permanentPrices[previewStyle] || 0) : 0;
              const weeklyCost = !weeklyActive
                ? Math.round((weeklyPrices[previewStyle] || 0) * (1 - discount / 100))

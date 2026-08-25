@@ -52,12 +52,15 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
       const previewStyle = isPreview ? sessionStorage.getItem('nst_splash_preview_style') : null;
       const selected = parseInt(previewStyle || localStorage.getItem('nst_splash_style_preference') || '5', 10);
       const candidate = !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 5;
-      const subscriptionSlots = subscriptionLevel === 'ULTRA' ? 4 : subscriptionLevel === 'BASIC' ? 3 : 2;
       const permanentSlots = userId
         ? JSON.parse(localStorage.getItem(`nst_splash_slot_unlocks_${userId}`) || '{}')
         : {};
-      const canUse = candidate <= subscriptionSlots ||
+      const weeklySlots = userId
+        ? JSON.parse(localStorage.getItem(`nst_splash_unlocks_${userId}`) || '{}')
+        : {};
+      const canUse = candidate === 1 ||
         permanentSlots[candidate] ||
+        Number(weeklySlots[candidate] || 0) > Date.now() ||
         userRole === 'ADMIN' ||
         userRole === 'SUB_ADMIN';
       // Preview mode should let the user see a locked design before deciding
