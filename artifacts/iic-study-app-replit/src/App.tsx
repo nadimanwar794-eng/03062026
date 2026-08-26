@@ -2950,7 +2950,7 @@ const App: React.FC = () => {
           onApply={() => {
              const previewStyle = parseInt(sessionStorage.getItem('nst_splash_preview_style') || '1', 10);
              const currentUser = state.user;
-              if (currentUser && previewStyle >= 1 && previewStyle <= 5) {
+              if (currentUser && previewStyle >= 1 && previewStyle <= 4) {
                 localStorage.setItem(`nst_splash_style_preference_${currentUser.id}`, String(previewStyle));
                 localStorage.setItem('nst_splash_style_preference', String(previewStyle));
               }

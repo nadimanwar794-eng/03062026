@@ -63,14 +63,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         '1',
         10,
       );
-      if (isPreview) return !isNaN(selected) && selected >= 1 && selected <= 5 ? selected : 1;
+      if (isPreview) return !isNaN(selected) && selected >= 1 && selected <= 4 ? selected : 1;
 
-      // Every user gets all five designs. Rotate globally for that user's
+      // Every user gets all four designs. Rotate globally for that user's
       // next app open; no slots, unlocks, subscription, or credit checks.
       const rotationKey = `nst_splash_rotation_${userId || 'guest'}`;
       const rotationIndex = parseInt(localStorage.getItem(rotationKey) || '0', 10);
-      const candidate = (rotationIndex % 5) + 1;
-      localStorage.setItem(rotationKey, String((rotationIndex + 1) % 5));
+      const candidate = (rotationIndex % 4) + 1;
+      localStorage.setItem(rotationKey, String((rotationIndex + 1) % 4));
       return candidate;
     } catch {
       return 1;
@@ -113,7 +113,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
   const developerName = 'Nadim Anwar';
   const isSortMode = styleVariant === 3;
-  const isArtworkMode = styleVariant === 5;
   const SLOT_WIDTH = 40;
   const RIG_PAD = 14;
 
@@ -326,15 +325,12 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
   return (
     <div 
-       className={`fixed inset-0 z-[99999] w-screen h-screen min-h-screen flex flex-col items-center justify-between px-6 pt-9 pb-7 select-none overflow-hidden font-sans ${isArtworkMode ? 'artwork-fullscreen' : ''}`}
+       className="fixed inset-0 z-[99999] w-screen h-screen min-h-screen flex flex-col items-center justify-between px-6 pt-9 pb-7 select-none overflow-hidden font-sans"
       style={{
-         background: isArtworkMode ? '#000' : 'radial-gradient(circle at 50% 18%, #1e1b4b 0%, #0c1033 40%, #030717 100%)',
+         background: 'radial-gradient(circle at 50% 18%, #1e1b4b 0%, #0c1033 40%, #030717 100%)',
       }}
     >
       <style>{`
-         .artwork-fullscreen > :not(style):not(.artwork-fullscreen-image) {
-           display: none !important;
-         }
         @keyframes shineSweep {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
@@ -352,34 +348,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           to { transform: rotate(-360deg); }
         }
       `}</style>
-
-         {isArtworkMode && (
-          <div className="artwork-fullscreen-image fixed inset-0 z-[100] flex items-center justify-center bg-[#02082d]">
-           <img
-             src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
-             alt="NSTA loading screen artwork"
-             className="h-full w-full object-contain"
-           />
-           {isPreview && (
-             <div className="absolute inset-x-0 bottom-0 flex gap-3 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-               <button
-                 type="button"
-                 onClick={onBack}
-                 className="flex-1 rounded-xl border border-white/20 bg-black/65 py-3 text-xs font-black text-white backdrop-blur-sm active:scale-95 transition-transform"
-               >
-                 ← Back
-               </button>
-               <button
-                 type="button"
-                 onClick={onApply}
-                 className="flex-1 rounded-xl bg-indigo-600/90 py-3 text-xs font-black text-white shadow-lg backdrop-blur-sm active:scale-95 transition-transform"
-               >
-                 ✓ Apply this
-               </button>
-             </div>
-           )}
-         </div>
-       )}
 
       {/* Ambient Background Glows */}
       <div 
@@ -749,20 +717,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {isArtworkMode && (
-        <div className="relative z-10 w-full max-w-[345px] flex-1 min-h-[240px] flex items-center justify-center my-auto">
-          <div className="absolute w-[300px] h-[300px] rounded-full border border-sky-500/20 shadow-[0_0_35px_rgba(56,189,248,0.2)]" />
-            <div className="relative w-[min(310px,78vw)] max-h-[54vh] rounded-3xl overflow-hidden border border-sky-300/25 shadow-[0_0_35px_rgba(56,189,248,0.25)] bg-[#02082d]">
-            <img
-              src={`${import.meta.env.BASE_URL}loading-screen-5.jpg`}
-               alt="NSTA loading screen artwork"
-               className="block w-full max-h-[54vh] object-contain"
-            />
-            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#07143e] to-transparent pointer-events-none" />
-          </div>
         </div>
       )}
 

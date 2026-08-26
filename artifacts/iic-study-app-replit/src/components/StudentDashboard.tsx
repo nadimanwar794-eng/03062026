@@ -2179,8 +2179,8 @@ export const StudentDashboard: React.FC<Props> = ({
     try {
       const savedForUser = localStorage.getItem(`nst_splash_style_preference_${user.id}`);
       const value = parseInt(savedForUser || localStorage.getItem('nst_splash_style_preference') || '5', 10);
-      return value >= 1 && value <= 5 ? value : 5;
-    } catch { return 5; }
+      return value >= 1 && value <= 4 ? value : 1;
+    } catch { return 1; }
   });
   const [splashUnlocks, setSplashUnlocks] = useState<Record<number, number>>(() => {
     try {
@@ -12725,8 +12725,8 @@ export const StudentDashboard: React.FC<Props> = ({
             </button>
             </>)}
 
-             {/* Loading screen selector — all five designs are free and rotate automatically */}
-             <div className={`w-full px-4 py-4 ${_pHovCls}`} style={{ borderBottom: _pSep }}>
+             {/* Loading-screen controls were intentionally removed from Profile. */}
+             {false && (<div className={`w-full px-4 py-4 ${_pHovCls}`} style={{ borderBottom: _pSep }}>
                <div className="flex items-center gap-3.5">
                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                    style={{ background: `${tierTheme.primary}18`, border: `1px solid ${tierTheme.primary}35` }}>
@@ -12777,14 +12777,14 @@ export const StudentDashboard: React.FC<Props> = ({
                    </button>
                  ))}
                </div>
-             </div>
+              </div>)}
 
             {/* App Guide */}
             <button onClick={() => setShowUserGuide(true)}
               className={`w-full px-4 py-4 flex items-center gap-3.5 ${_pHovCls} transition-colors`}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)' }}>
                 <Smartphone size={17} className="text-blue-400" />
-              </div>
+               </div>
               <p className={`flex-1 text-sm font-bold text-left ${_pTxt}`}>App Guide</p>
               <ChevronRight size={15} style={{ color: _pTxtMutedColor }} className="shrink-0" />
             </button>
