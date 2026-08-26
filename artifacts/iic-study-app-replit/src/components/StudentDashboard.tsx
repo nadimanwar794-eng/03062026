@@ -545,9 +545,19 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
-const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, ActiveIcon?: React.ElementType }) => {
+const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, surfaceBg, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, surfaceBg: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+       {/* A small app-surface ring creates the clean negative space around the
+           active bead without changing the nav or bead dimensions. */}
+       <div
+          className="absolute top-[-18px] w-14 h-14 rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 28px)`,
+             backgroundColor: surfaceBg,
+             willChange: 'left',
+          }}
+       />
        {/* The bead floats above the capsule, matching the reference navigation. */}
        <div
           className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
@@ -18453,6 +18463,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                   navBg={_bottomNavBg}
                   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
                   activeColor={getNavActiveColor(activeIndex)}
+                  surfaceBg={_appBg}
                   ActiveIcon={visibleTabs[activeIndex]?.Icon}
                 />
                 {visibleTabs.map((tab, tabIndex) => {
