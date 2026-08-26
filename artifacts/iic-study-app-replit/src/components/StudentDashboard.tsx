@@ -546,10 +546,52 @@ const stripHtmlForPreview = (html: string): string =>
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, surfaceBg, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, surfaceBg: string, ActiveIcon?: React.ElementType }) => {
+  // Draw the nav surface around the active bead instead of hiding the bead
+  // behind a flat rectangular footer. The path uses a fixed design grid and
+  // is stretched only horizontally so it follows the full-width nav.
+  const navViewBoxWidth = 380;
+  const cx = ((activeIndex + 0.5) / Math.max(totalTabs, 1)) * navViewBoxWidth;
+  const by = 18;
+  const span = 34;
+  const left = cx - span;
+  const right = cx + span;
+  const meniscusPath = `
+    M 24 0
+    L ${left} 0
+    C ${cx - 18} 0, ${cx - 16} ${by}, ${cx} ${by}
+    C ${cx + 16} ${by}, ${cx + 18} 0, ${right} 0
+    L 356 0
+    A 24 24 0 0 1 380 24
+    L 380 48
+    A 24 24 0 0 1 356 72
+    L 24 72
+    A 24 24 0 0 1 0 48
+    L 0 24
+    A 24 24 0 0 1 24 0
+    Z
+  `;
+
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+       <svg
+         aria-hidden="true"
+         className="absolute inset-0 w-full h-full overflow-visible"
+         viewBox="0 0 380 72"
+         preserveAspectRatio="none"
+         xmlns="http://www.w3.org/2000/svg"
+       >
+         <path
+           d={meniscusPath}
+           fill={navBg}
+           stroke={navBorderColor}
+           strokeWidth="1.5"
+           vectorEffect="non-scaling-stroke"
+           strokeLinejoin="round"
+         />
+       </svg>
        {/* A small app-surface ring creates the clean negative space around the
-           active bead without changing the nav or bead dimensions. */}
+           active bead without changing the nav or bead dimensions. The SVG
+           meniscus above makes the socket itself part of the nav surface. */}
        <div
           className="absolute top-[-18px] w-14 h-14 rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
@@ -18090,12 +18132,12 @@ export const StudentDashboard: React.FC<Props> = ({
         data-iic-bottom-nav=""
         className={`iic-bottom-nav fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
         style={{
-          // Theme Studio controls navBg/navBorderColor/navActiveColor. The
-          // capsule stays opaque enough for Android visual-viewport resizes
-          // while retaining the reference's soft, floating glass treatment.
-          background: `color-mix(in srgb, ${_bottomNavBg} 92%, transparent)`,
-          border: `1px solid ${((tierTheme as any).navBorderColor || tierTheme.primary + '44')}`,
-          boxShadow: `0 14px 32px -16px ${tierTheme.shadowColor}, 0 0 0 1px rgba(255,255,255,0.04) inset`,
+          // The meniscus SVG owns the visible nav surface and border. Keep
+          // this wrapper transparent so its rectangular background cannot
+          // fill the socket cut-out around the active bead.
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
         }}
         aria-label="Primary"
       >
