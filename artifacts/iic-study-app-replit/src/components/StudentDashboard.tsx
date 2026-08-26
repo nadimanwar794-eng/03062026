@@ -551,15 +551,15 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
   // is stretched only horizontally so it follows the full-width nav.
   const navViewBoxWidth = 380;
   const cx = ((activeIndex + 0.5) / Math.max(totalTabs, 1)) * navViewBoxWidth;
-  const by = 25;
-  const span = 40;
+  const by = 33;
+  const span = 47;
   const left = cx - span;
   const right = cx + span;
   const meniscusPath = `
     M 0 0
     L ${left} 0
-    C ${cx - 24} 0, ${cx - 22} ${by}, ${cx} ${by}
-    C ${cx + 22} ${by}, ${cx + 24} 0, ${right} 0
+    C ${cx - 30} 0, ${cx - 28} ${by}, ${cx} ${by}
+    C ${cx + 28} ${by}, ${cx + 30} 0, ${right} 0
     L 380 0
     L 380 72
     L 0 72
@@ -579,8 +579,9 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
            d={meniscusPath}
            fill={navBg}
            stroke={navBorderColor}
-           strokeWidth="1.5"
+           strokeWidth="2"
            vectorEffect="non-scaling-stroke"
+           strokeLinecap="round"
            strokeLinejoin="round"
          />
        </svg>
@@ -588,18 +589,18 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
            active bead without changing the nav or bead dimensions. The SVG
            meniscus above makes the socket itself part of the nav surface. */}
         <div
-          className="absolute top-[-25px] w-[60px] h-[60px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[-33px] w-[66px] h-[66px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 30px)`,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 33px)`,
              backgroundColor: surfaceBg,
              willChange: 'left',
           }}
        />
        {/* The bead floats above the capsule, matching the reference navigation. */}
         <div
-          className="absolute top-[-21px] w-[52px] h-[52px] rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[-28px] w-14 h-14 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1) * 100)}% - 26px)`,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1) * 100)}% - 28px)`,
              backgroundColor: activeColor,
              border: `2px solid ${navBg}`,
               boxShadow: `0 8px 20px -6px ${activeColor}, 0 0 0 1px ${navBorderColor}, inset 0 1px 0 rgba(255,255,255,0.28)`,
