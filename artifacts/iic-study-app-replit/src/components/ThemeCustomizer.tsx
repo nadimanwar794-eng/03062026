@@ -26,6 +26,7 @@ interface ThemeState {
     topBarEnd: string;
     navBg: string;
     navActive: string;
+    navInactive?: string;
     navActiveColors?: string[];
     navBorder: string;
     cardBg: string;
@@ -53,6 +54,7 @@ const DEFAULT_THEME: ThemeState = {
     topBarEnd: '#0f1e3c',
     navBg: '#ffffff',
     navActive: '#3b82f6',
+    navInactive: '#ffffff',
     navActiveColors: [...DEFAULT_NAV_ACTIVE_COLORS],
     navBorder: '#e2e8f0',
     cardBg: '#f8fafc',
@@ -617,6 +619,7 @@ const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
         topBarEnd:     t.topBarEnd     || DEFAULT_THEME.topBarEnd,
         navBg:         t.navBg         || DEFAULT_THEME.navBg,
         navActive:     t.navActive     || accent || DEFAULT_THEME.navActive,
+        navInactive:   t.navInactive   || DEFAULT_THEME.navInactive,
         navActiveColors,
         navBorder:     t.navBorder     || DEFAULT_THEME.navBorder,
         cardBg:        t.cardBg        || t.cardColor   || DEFAULT_THEME.cardBg,
@@ -781,6 +784,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             topBarEnd:     theme.topBarEnd,
             navBg:         isAdmin ? theme.navBg : '#ffffff',
             navActive:     theme.navActive,
+            navInactive:   theme.navInactive || DEFAULT_THEME.navInactive,
             navActiveColors: [...(theme.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS)].slice(0, 5),
             navBorder:     theme.navBorder,
             cardBg:        isAdmin ? theme.cardBg : '#ffffff',
@@ -873,6 +877,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         topBarEnd:     theme.topBarEnd,
         navBg:         theme.navBg,
         navActive:     theme.navActive,
+        navInactive:   theme.navInactive || DEFAULT_THEME.navInactive,
         navActiveColors: [...(theme.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS)].slice(0, 5),
         navBorder:     theme.navBorder,
         cardBg:        theme.cardBg,
@@ -912,6 +917,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 topBarEnd:     themeObj.topBarEnd,
                 navBg:         themeObj.navBg,
                 navActive:     themeObj.navActive,
+                navInactive:   themeObj.navInactive || '#ffffff',
                 navBorder:     themeObj.navBorder,
                 cardBg:        themeObj.cardBg,
                 cardBorder:    themeObj.cardBorder,
@@ -1236,6 +1242,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                     <ColorRow label="Nav Background" sub="Bottom bar ka background (Admin only)" value={theme.navBg} onChange={setColor('navBg')} accent={theme.btnStart} />
                 )}
                 <ColorRow label="Default Active Color" sub="Fallback color — jab kisi button ka custom color na ho" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <ColorRow label="Inactive Item Color" sub="Off/unselected bottom button ka color" value={theme.navInactive || DEFAULT_THEME.navInactive} onChange={setColor('navInactive')} accent={theme.btnStart} />
                 <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
                     <p className="text-[10px] font-black text-white/80">5 Bottom Buttons ke Active Colors</p>
                     <p className="text-[9px] text-white/40 mt-0.5 mb-1.5">Har button ka active icon aur label alag color mein dikhega.</p>

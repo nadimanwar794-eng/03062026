@@ -737,6 +737,7 @@ export const StudentDashboard: React.FC<Props> = ({
             topBarEnd: _scheduledThemeActive.themeColors.topBarEnd,
             navBg: _scheduledThemeActive.themeColors.navBg,
             navActive: _scheduledThemeActive.themeColors.navActive,
+             navInactive: _scheduledThemeActive.themeColors.navInactive,
             navActiveColors: _scheduledThemeActive.navActiveColors,
             navBorder: _scheduledThemeActive.themeColors.navBorder,
             cardBg: _scheduledThemeActive.themeColors.cardBg,
@@ -18454,6 +18455,8 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
               : [((tierTheme as any).navActive || tierTheme.primary), ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)];
             const getNavActiveColor = (index: number) =>
               navActiveColors[index] || (tierTheme as any).navActive || tierTheme.primary;
+            const getNavInactiveColor = () =>
+              (tierTheme as any).navInactive || '#ffffff';
 
             return (
               <>
@@ -18537,7 +18540,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className={tab.isActive ? 'opacity-0 scale-50 transition-all duration-300' : 'opacity-100 scale-100 transition-all duration-300'}
-                            style={{ color: getNavActiveColor(tabIndex) }}
+                            style={{ color: tab.isActive ? getNavActiveColor(tabIndex) : getNavInactiveColor() }}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
                                 ? "currentColor"
@@ -18563,7 +18566,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                             ? "font-bold translate-y-[2px] opacity-100"
                             : "font-medium translate-y-0 opacity-100 scale-100"
                         }`}
-                        style={{ color: getNavActiveColor(tabIndex) }}
+                        style={{ color: tab.isActive ? getNavActiveColor(tabIndex) : getNavInactiveColor() }}
                       >
                         {tab.label}
                       </span>

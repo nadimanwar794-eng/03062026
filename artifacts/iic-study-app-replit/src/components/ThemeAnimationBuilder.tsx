@@ -32,6 +32,7 @@ interface ThemeState {
     topBarEnd: string;
     navBg: string;
     navActive: string;
+    navInactive?: string;
     navBorder: string;
     cardBg: string;
     cardBorder: string;
@@ -49,6 +50,7 @@ const DEFAULT_THEME: ThemeState = {
     topBarEnd: '#0f1e3c',
     navBg: '#0d0f18',
     navActive: '#3b82f6',
+    navInactive: '#ffffff',
     navBorder: '#1e2a3f',
     cardBg: '#111827',
     cardBorder: '#1e293b',
@@ -274,6 +276,7 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
                 topBarEnd: ct.topBarEnd || DEFAULT_THEME.topBarEnd,
                 navBg: ct.navBg || DEFAULT_THEME.navBg,
                 navActive: ct.navActive || (ct.accentColor || DEFAULT_THEME.navActive),
+                navInactive: ct.navInactive || DEFAULT_THEME.navInactive,
                 navBorder: ct.navBorder || DEFAULT_THEME.navBorder,
                 cardBg: ct.cardBg || (ct.cardColor || DEFAULT_THEME.cardBg),
                 cardBorder: ct.cardBorder || DEFAULT_THEME.cardBorder,
@@ -331,6 +334,7 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
             <>
                 <ColorRow label="Nav Background" sub="Bottom bar ka background" value={theme.navBg} onChange={setColor('navBg')} />
                 <ColorRow label="Active Item Color" sub="Selected tab ka color" value={theme.navActive} onChange={setColor('navActive')} />
+                <ColorRow label="Inactive Item Color" sub="Unselected tab ka color" value={theme.navInactive || '#ffffff'} onChange={setColor('navInactive')} />
                 <ColorRow label="Nav Border" sub="Top border line ka color" value={theme.navBorder} onChange={setColor('navBorder')} />
             </>
         ),
@@ -381,6 +385,7 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
             topBarEnd: theme.topBarEnd,
             navBg: theme.navBg,
             navActive: theme.navActive,
+            navInactive: theme.navInactive || '#ffffff',
             navBorder: theme.navBorder,
             cardBg: theme.cardBg,
             cardBorder: theme.cardBorder,
@@ -458,6 +463,7 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
             topBarEnd: c.topBarEnd,
             navBg: c.navBg,
             navActive: c.navActive,
+            navInactive: c.navInactive || DEFAULT_THEME.navInactive,
             navBorder: c.navBorder,
             cardBg: c.cardBg,
             cardBorder: c.cardBorder,
@@ -506,6 +512,7 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
                 topBarEnd: appTheme.colors.topBarEnd,
                 navBg: appTheme.colors.navBg,
                 navActive: appTheme.colors.navActive,
+                navInactive: appTheme.colors.navInactive || '#ffffff',
                 navBorder: appTheme.colors.navBorder,
                 cardBg: appTheme.colors.cardBg,
                 cardBorder: appTheme.colors.cardBorder,
@@ -761,7 +768,7 @@ export const ThemeAnimationBuilder: React.FC<Props> = ({ user, onUpdateUser, onB
                                             style={{ opacity: active ? 1 : 0.35 }}
                                         >
                                             <span className="text-base">{icon as string}</span>
-                                            <p className="text-[8px] font-bold" style={{ color: active ? theme.navActive : theme.textSecondary }}>{lbl as string}</p>
+                                             <p className="text-[8px] font-bold" style={{ color: active ? theme.navActive : (theme.navInactive || '#ffffff') }}>{lbl as string}</p>
                                             <div
                                                 className="h-0.5 w-4 rounded-full"
                                                 style={{ background: active ? theme.navActive : 'transparent' }}

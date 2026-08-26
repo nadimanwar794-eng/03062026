@@ -46,7 +46,7 @@ export const TIER_THEME = {
     profileCardBg: '#374151',
     navBg:         '#ffffff',
     navActive:     '#374151',
-    navInactive:   '#94a3b8',
+    navInactive:   '#ffffff',
     cardBg:        '#ffffff',
     cardBorder:    '#e5e7eb',
     appBg:         '#ffffff',
@@ -77,7 +77,7 @@ export const TIER_THEME = {
     profileCardBg: '#162844',
     navBg:         '#ffffff',
     navActive:     '#213252',
-    navInactive:   '#94a3b8',
+    navInactive:   '#ffffff',
     cardBg:        '#ffffff',
     cardBorder:    '#e2e8f0',
     appBg:         '#ffffff',
@@ -108,7 +108,7 @@ export const TIER_THEME = {
     profileCardBg: '#1b3f41',
     navBg:         '#ffffff',
     navActive:     '#366669',
-    navInactive:   '#94a3b8',
+    navInactive:   '#ffffff',
     cardBg:        '#ffffff',
     cardBorder:    '#e2e8f0',
     appBg:         '#ffffff',
@@ -205,6 +205,7 @@ export const buildGranularTierTheme = (
   t: {
     bgColor?: string; topBarStart?: string; topBarEnd?: string;
     navBg?: string; navBorder?: string; navActive?: string;
+    navInactive?: string;
     navActiveColors?: string[];
     cardBg?: string; cardColor?: string; cardBorder?: string;
     btnStart?: string; btnEnd?: string; accentColor?: string;
@@ -254,6 +255,7 @@ export const buildGranularTierTheme = (
     cardBg:          '#ffffff',
     // Granular extras — accessible via (tierTheme as any).xxx
     navActive:       t.navActive    || accent,
+    navInactive:     t.navInactive  || base.navInactive || '#ffffff',
     navActiveColors: Array.isArray((t as any).navActiveColors) && (t as any).navActiveColors.length
       ? (t as any).navActiveColors.slice(0, 5)
       : [t.navActive || accent, ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)],

@@ -11,6 +11,7 @@ export interface ThemeColors {
   topBarEnd: string;
   navBg: string;
   navActive: string;
+  navInactive?: string;
   navBorder: string;
   cardBg: string;
   cardBorder: string;
@@ -67,7 +68,7 @@ function mc(accent: string, bg: BgStyle = 'dark', accent2?: string, ov?: Partial
   const cardBg  = r2h(Math.max(6,r*0.09), Math.max(6,g*0.09), Math.max(6,b*0.09));
   return {
     bgColor, topBarStart: tsStart, topBarEnd: tsEnd,
-    navBg, navActive: accent, navBorder: `rgba(${r},${g},${b},0.25)`,
+    navBg, navActive: accent, navInactive: '#ffffff', navBorder: `rgba(${r},${g},${b},0.25)`,
     cardBg, cardBorder: `rgba(${r},${g},${b},0.18)`,
     btnStart: accent, btnEnd: a2,
     textPrimary: '#f1f5f9', textSecondary: `rgba(${Math.min(255,r+110)},${Math.min(255,g+110)},${Math.min(255,b+110)},0.75)`,
