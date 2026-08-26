@@ -1013,9 +1013,21 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box;
     isolation: isolate;
+    overflow: visible;
+    -webkit-backdrop-filter: blur(18px);
 }
 .iic-bottom-nav > div {
     min-height: 64px;
+    width: 100%;
+}
+.iic-bottom-nav button {
+    min-width: 0;
+    touch-action: manipulation;
+}
+.iic-bottom-nav button:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: -4px;
+    border-radius: 14px;
 }
 .dark-mode nav[aria-label="Primary"],
 .dark-mode-blue nav[aria-label="Primary"] {

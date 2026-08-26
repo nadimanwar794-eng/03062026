@@ -233,7 +233,7 @@ import { UniversalInfoPage } from "./UniversalInfoPage";
 import { UniversalChat } from "./UniversalChat";
 import { ExpiryPopup } from "./ExpiryPopup";
 import { SubscriptionHistory } from "./SubscriptionHistory";
-import { getTierTheme, buildOverrideTierTheme, buildGranularTierTheme, getEffectiveOverrideColor, getUserTier, DEFAULT_NAV_ACTIVE_COLORS } from '../utils/tierTheme';
+import { getTierTheme, buildOverrideTierTheme, buildGranularTierTheme, getEffectiveOverrideColor, getUserTier } from '../utils/tierTheme';
 import { ThemeProvider } from '../utils/themeContext';
 import { SearchResult } from "../utils/syllabusSearch";
 import { RevisionHub } from "./RevisionHub"; // NEW
@@ -551,23 +551,18 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
   // is stretched only horizontally so it follows the full-width nav.
   const navViewBoxWidth = 380;
   const cx = ((activeIndex + 0.5) / Math.max(totalTabs, 1)) * navViewBoxWidth;
-  const by = 18;
-  const span = 34;
+  const by = 25;
+  const span = 40;
   const left = cx - span;
   const right = cx + span;
   const meniscusPath = `
-    M 24 0
+    M 0 0
     L ${left} 0
-    C ${cx - 18} 0, ${cx - 16} ${by}, ${cx} ${by}
-    C ${cx + 16} ${by}, ${cx + 18} 0, ${right} 0
-    L 356 0
-    A 24 24 0 0 1 380 24
-    L 380 48
-    A 24 24 0 0 1 356 72
-    L 24 72
-    A 24 24 0 0 1 0 48
-    L 0 24
-    A 24 24 0 0 1 24 0
+    C ${cx - 24} 0, ${cx - 22} ${by}, ${cx} ${by}
+    C ${cx + 22} ${by}, ${cx + 24} 0, ${right} 0
+    L 380 0
+    L 380 72
+    L 0 72
     Z
   `;
 
@@ -592,22 +587,22 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
        {/* A small app-surface ring creates the clean negative space around the
            active bead without changing the nav or bead dimensions. The SVG
            meniscus above makes the socket itself part of the nav surface. */}
-       <div
-          className="absolute top-[-18px] w-14 h-14 rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+        <div
+          className="absolute top-[-25px] w-[60px] h-[60px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 28px)`,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 30px)`,
              backgroundColor: surfaceBg,
              willChange: 'left',
           }}
        />
        {/* The bead floats above the capsule, matching the reference navigation. */}
-       <div
-          className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
+        <div
+          className="absolute top-[-21px] w-[52px] h-[52px] rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1) * 100)}% - 26px)`,
              backgroundColor: activeColor,
              border: `2px solid ${navBg}`,
-             boxShadow: `0 8px 22px -5px ${activeColor}, 0 0 0 1px ${navBorderColor}, inset 0 1px 0 rgba(255,255,255,0.28)`,
+              boxShadow: `0 8px 20px -6px ${activeColor}, 0 0 0 1px ${navBorderColor}, inset 0 1px 0 rgba(255,255,255,0.28)`,
              willChange: 'left',
           }}
        >
@@ -18492,11 +18487,18 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
             });
             const totalVisible = Math.max(visibleTabs.length, 1);
             const activeIndex = Math.max(0, visibleTabs.findIndex((t) => t.isActive));
-            const navActiveColors = Array.isArray((tierTheme as any).navActiveColors) && (tierTheme as any).navActiveColors.length
-              ? (tierTheme as any).navActiveColors
-              : [((tierTheme as any).navActive || tierTheme.primary), ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)];
+            const configuredNavActiveColors = Array.isArray((tierTheme as any).navActiveColors)
+              ? (tierTheme as any).navActiveColors.filter(Boolean)
+              : [];
+            const themeNavActive = (tierTheme as any).navActive || tierTheme.primary;
+            // Keep the reference design's calm, single-accent treatment by
+            // default. Theme Studio can still opt into per-tab colors through
+            // navActiveColors when a theme explicitly defines them.
+            const navActiveColors = configuredNavActiveColors.length
+              ? configuredNavActiveColors
+              : [themeNavActive];
             const getNavActiveColor = (index: number) =>
-              navActiveColors[index] || (tierTheme as any).navActive || tierTheme.primary;
+              navActiveColors[index] || navActiveColors[0] || themeNavActive;
             const getNavInactiveColor = () =>
               (tierTheme as any).navInactive || '#ffffff';
 

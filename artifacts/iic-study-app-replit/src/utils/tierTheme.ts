@@ -258,7 +258,7 @@ export const buildGranularTierTheme = (
     navInactive:     t.navInactive  || base.navInactive || '#ffffff',
     navActiveColors: Array.isArray((t as any).navActiveColors) && (t as any).navActiveColors.length
       ? (t as any).navActiveColors.slice(0, 5)
-      : [t.navActive || accent, ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)],
+      : [t.navActive || accent],
     navBorderColor:  t.navBorder    || `rgba(${r},${g},${b},0.22)`,
     cardBorderColor: t.cardBorder   || `rgba(${r},${g},${b},0.28)`,
     textPrimary:     t.textColor    || accent,
