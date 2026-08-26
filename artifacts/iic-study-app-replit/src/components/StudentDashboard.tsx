@@ -18537,7 +18537,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className={tab.isActive ? 'opacity-0 scale-50 transition-all duration-300' : 'opacity-100 scale-100 transition-all duration-300'}
-                            style={{ color: tab.isActive ? getNavActiveColor(tabIndex) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
+                            style={{ color: getNavActiveColor(tabIndex) }}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
                                 ? "currentColor"
@@ -18561,9 +18561,9 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                         className={`relative z-10 text-[10.5px] leading-none tracking-wide transition-all duration-300 ${
                           tab.isActive
                             ? "font-bold translate-y-[2px] opacity-100"
-                             : "font-medium translate-y-0 opacity-0 scale-90"
+                            : "font-medium translate-y-0 opacity-100 scale-100"
                         }`}
-                        style={tab.isActive ? { color: getNavActiveColor(tabIndex) } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
+                        style={{ color: getNavActiveColor(tabIndex) }}
                       >
                         {tab.label}
                       </span>

@@ -281,11 +281,18 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
             setWireHeight(10);
             swappedAny = true;
           } else {
+             // Even when the pair is already in order, the crane still
+             // performs a deliberate inspect cycle: descend to the boxes,
+             // then return to the overhead wire before continuing.
+             setWireHeight(58);
+             await sleep(70);
+             if (isCancelled) return;
+             setWireHeight(10);
             syncBlocks({
               [itemA.id]: { isComparing: false },
               [itemB.id]: { isComparing: false },
             });
-            await sleep(40);
+             await sleep(110);
           }
 
           stepsCompleted++;
@@ -347,6 +354,46 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           from { transform: rotate(0deg); }
           to { transform: rotate(-360deg); }
         }
+         .sort-scene-3d {
+           perspective: 900px;
+           transform-style: preserve-3d;
+         }
+         .sort-block-3d {
+           transform-style: preserve-3d;
+           transform-origin: 50% 100%;
+           will-change: transform;
+           isolation: isolate;
+         }
+         .sort-block-3d::before {
+           content: '';
+           position: absolute;
+           top: -7px;
+           left: 1px;
+           width: calc(100% - 2px);
+           height: 7px;
+           border: 1px solid color-mix(in srgb, var(--block-top) 75%, white);
+           border-bottom: 0;
+           border-radius: 5px 4px 0 0;
+           background: linear-gradient(135deg, color-mix(in srgb, var(--block-top) 92%, white), var(--block-top));
+           transform: skewX(-38deg);
+           transform-origin: left bottom;
+           z-index: -1;
+         }
+         .sort-block-3d::after {
+           content: '';
+           position: absolute;
+           top: 2px;
+           right: -7px;
+           width: 7px;
+           height: calc(100% - 2px);
+           border-right: 1px solid color-mix(in srgb, var(--block-side) 80%, white);
+           border-bottom: 1px solid color-mix(in srgb, var(--block-side) 80%, white);
+           border-radius: 0 3px 4px 0;
+           background: linear-gradient(180deg, var(--block-side), color-mix(in srgb, var(--block-side) 70%, black));
+           transform: skewY(-28deg);
+           transform-origin: left top;
+           z-index: -1;
+         }
       `}</style>
 
       {/* Ambient Background Glows */}
@@ -566,21 +613,22 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
       {styleVariant === 3 && (
         /* 3. Frameless Bubble Sort with Crane (Direct on Main Screen) */
-        <div className="relative z-10 w-full max-w-[345px] h-[210px] flex flex-col justify-between my-auto">
+         <div className="sort-scene-3d relative z-10 w-full max-w-[345px] h-[210px] flex flex-col justify-between my-auto">
           {/* Top Crane Track & Trolley */}
           <div className="relative w-full h-8">
-            <div className="absolute top-2 left-2 right-2 h-1.5 bg-slate-800 rounded-full border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)] flex items-center">
+             <div className="absolute top-0 left-8 right-8 h-px bg-cyan-300/50 shadow-[0_0_8px_rgba(34,211,238,0.65)]" />
+             <div className="absolute top-2 left-2 right-2 h-1.5 bg-slate-800 rounded-full border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)] flex items-center">
               <div 
-                className="absolute -top-1.5 w-10 h-5 rounded-md bg-gradient-to-b from-cyan-400 to-cyan-700 border border-white shadow-[0_0_15px_#06b6d4] transition-all duration-120 ease-out flex flex-col items-center z-40 -ml-1"
-                style={{ transform: `translateX(${RIG_PAD + craneSlot * SLOT_WIDTH}px)` }}
+                 className="absolute -top-1.5 w-10 h-5 rounded-md bg-gradient-to-b from-cyan-300 via-cyan-500 to-cyan-800 border border-cyan-100 shadow-[0_0_15px_#06b6d4] transition-transform duration-500 ease-in-out flex flex-col items-center z-40 -ml-1"
+                 style={{ transform: `translate3d(${RIG_PAD + craneSlot * SLOT_WIDTH}px, 0, 24px)`, transformStyle: 'preserve-3d' }}
               >
                 <div className="absolute top-5 w-7 h-28 bg-gradient-to-b from-cyan-400/20 to-transparent pointer-events-none blur-[2px]" />
-                <div className="w-3.5 flex justify-between transition-all duration-100 ease-out" style={{ height: `${wireHeight}px` }}>
-                  <div className="w-0.5 bg-cyan-200 shadow-[0_0_6px_#22d3ee] h-full" />
-                  <div className="w-0.5 bg-cyan-200 shadow-[0_0_6px_#22d3ee] h-full" />
+                 <div className="w-3.5 flex justify-between" style={{ height: `${wireHeight}px`, transition: 'height 420ms cubic-bezier(0.22, 1, 0.36, 1)', transformStyle: 'preserve-3d' }}>
+                   <div className="w-0.5 bg-cyan-100 shadow-[0_0_6px_#22d3ee] h-full rounded-full" />
+                   <div className="w-0.5 bg-cyan-100 shadow-[0_0_6px_#22d3ee] h-full rounded-full" />
                 </div>
                 <div className="relative -mt-0.5 flex items-center justify-center">
-                  <div className={`w-8 h-2.5 rounded-t border ${isClawClosed ? 'bg-amber-400 border-amber-100 scale-95' : 'bg-cyan-500 border-cyan-200'} transition-all flex justify-between px-0.5 shadow-md`}>
+                   <div className={`w-8 h-2.5 rounded-t border ${isClawClosed ? 'bg-amber-400 border-amber-100 scale-95' : 'bg-cyan-500 border-cyan-200'} transition-all duration-300 flex justify-between px-0.5 shadow-md`}>
                     <div className={`w-1 h-5 rounded-b ${isClawClosed ? 'bg-amber-300 rotate-[18deg] shadow-[0_0_8px_#fbbf24]' : 'bg-cyan-300 -rotate-[16deg]'} transition-all origin-top-left`} />
                     <div className={`w-1 h-5 rounded-b ${isClawClosed ? 'bg-amber-300 -rotate-[18deg] shadow-[0_0_8px_#fbbf24]' : 'bg-cyan-300 rotate-[16deg]'} transition-all origin-top-right`} />
                   </div>
@@ -606,6 +654,13 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
               } else if (block.isComparing) {
                 colorClass = 'bg-cyan-500 border-cyan-300 text-black font-black shadow-[0_0_14px_rgba(6,182,212,0.9)] -translate-y-1';
               }
+               const block3DColors = block.isSorted
+                 ? { top: '#86efac', side: '#047857' }
+                 : block.isLifted
+                   ? { top: '#fef08a', side: '#b45309' }
+                   : block.isComparing
+                     ? { top: '#a5f3fc', side: '#0e7490' }
+                     : { top: '#475569', side: '#0f172a' };
 
               return (
                 <React.Fragment key={block.id}>
@@ -616,12 +671,16 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
                     />
                   )}
                   <div
-                    className={`absolute bottom-7 w-6 rounded-t-md border flex flex-col items-center justify-start pt-0.5 font-mono text-[11px] font-bold transition-all duration-120 ease-out ${colorClass}`}
+                     className={`sort-block-3d absolute bottom-7 w-6 rounded-t-md border flex flex-col items-center justify-start pt-0.5 font-mono text-[11px] font-bold transition-all duration-300 ease-out ${colorClass}`}
                     style={{
                       left: `${posX}px`,
                       height: `${barHeight}px`,
-                      transform: block.isLifted ? 'translateY(-58px)' : 'translateY(0px)',
+                       transform: block.isLifted
+                         ? 'translate3d(0, -58px, 24px) rotateX(-5deg) rotateY(-5deg)'
+                         : 'translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg)',
                       zIndex: block.isLifted ? 50 : 10,
+                       '--block-top': block3DColors.top,
+                       '--block-side': block3DColors.side,
                     }}
                   >
                     <span>{block.val}</span>
