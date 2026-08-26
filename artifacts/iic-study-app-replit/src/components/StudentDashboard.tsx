@@ -846,9 +846,16 @@ export const StudentDashboard: React.FC<Props> = ({
     return manual || tierAppBg || '#ffffff';
   })();
 
+  // ── Bottom nav surface — always use the solid branded app surface ────────
+  // A custom/theme navBg may be translucent (or plain white), which lets the
+  // Home cards show through the fixed footer on Android visual-viewport
+  // changes. The profile surface is the tier's opaque branded navy/teal
+  // surface and matches the stable nav shown on full-screen pages.
+  const _bottomNavBg = (tierTheme as any).profileBg || tierTheme.navBg || '#0e1f3a';
+
   // ── Nav background luminance — for dynamic icon/text color ───────────────
   const _isNavDark = (() => {
-    const nb = tierTheme.navBg || '#ffffff';
+    const nb = _bottomNavBg;
     const hx = nb.replace('#', '');
     if (hx.length < 6) return false;
     const rN = parseInt(hx.substring(0, 2), 16) / 255;
@@ -883,7 +890,7 @@ export const StudentDashboard: React.FC<Props> = ({
     // Nav active dot/icon color
     s.setProperty('--nst-nav-active',       (tierTheme as any).navActive      || p);
     // Nav background & border
-    s.setProperty('--nst-nav-bg',           tierTheme.navBg                   || '#ffffff');
+    s.setProperty('--nst-nav-bg',           _bottomNavBg);
     s.setProperty('--nst-nav-border',       (tierTheme as any).navBorderColor || `rgba(${r},${g},${b},0.22)`);
     // Card border (use actual cardBorder color, not just primary-derived)
     s.setProperty('--nst-card-border',      (tierTheme as any).cardBorderColor|| `rgba(${r},${g},${b},0.28)`);
@@ -905,7 +912,7 @@ export const StudentDashboard: React.FC<Props> = ({
     // Top bar gradient (for CSS-driven consumers)
     s.setProperty('--nst-top-bar-grad',     tierTheme.topBarGrad);
   }, [
-    tierTheme.primary, tierTheme.topBarGrad, tierTheme.navBg, tierTheme.btnGrad,
+    tierTheme.primary, tierTheme.topBarGrad, tierTheme.navBg, tierTheme.profileBg, tierTheme.btnGrad,
     tierTheme.profileCardBg,
     (tierTheme as any).mcqTabActive, (tierTheme as any).chapterAccent,
     (tierTheme as any).navActive,    (tierTheme as any).navBorderColor,
@@ -18127,7 +18134,7 @@ export const StudentDashboard: React.FC<Props> = ({
           // Keep a real background while the SVG indicator measures the nav.
           // Without it, Android can briefly paint the fixed footer transparent
           // during a visual-viewport resize and make its contents look clipped.
-          background: tierTheme.navBg,
+          background: _bottomNavBg,
           borderTop: 'none',
           boxShadow: `0 -4px 20px -8px ${tierTheme.shadowColor}`,
         }}
@@ -18491,7 +18498,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                 <MeniscusNavIndicator
                   activeIndex={activeIndex}
                   totalTabs={totalVisible}
-                  navBg={tierTheme.navBg}
+                  navBg={_bottomNavBg}
                   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
                   activeColor={_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary}
                   ActiveIcon={visibleTabs[activeIndex]?.Icon}
