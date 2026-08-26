@@ -550,16 +550,16 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
        {/* The bead floats above the capsule, matching the reference navigation. */}
        <div
-          className="absolute top-[-17px] w-[52px] h-[52px] rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 26px)`,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
              backgroundColor: activeColor,
              border: `2px solid ${navBg}`,
              boxShadow: `0 8px 22px -5px ${activeColor}, 0 0 0 1px ${navBorderColor}, inset 0 1px 0 rgba(255,255,255,0.28)`,
              willChange: 'left',
           }}
        >
-         {ActiveIcon && <ActiveIcon className="w-[21px] h-[21px] text-white stroke-[2.2] z-30" />}
+         {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
        </div>
     </div>
   );
@@ -18077,7 +18077,7 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
         data-iic-bottom-nav=""
-        className={`iic-bottom-nav fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[360px] rounded-[24px] backdrop-blur-xl z-[300] ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
+        className={`iic-bottom-nav fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
         style={{
           // Theme Studio controls navBg/navBorderColor/navActiveColor. The
           // capsule stays opaque enough for Android visual-viewport resizes

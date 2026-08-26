@@ -1005,12 +1005,14 @@
 
 /* ── BOTTOM NAVIGATION BAR — premium dark ── */
 .iic-bottom-nav {
-    /* A floating capsule leaves the gesture bar and page edges visually clear. */
-    bottom: max(12px, env(safe-area-inset-bottom, 0px));
-    min-height: 64px;
+    /*
+     * Keep the original full-width footer dimensions. The visual treatment
+     * can change without shifting the app's established navigation geometry.
+     */
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box;
     isolation: isolate;
-    overflow: visible;
 }
 .iic-bottom-nav > div {
     min-height: 64px;

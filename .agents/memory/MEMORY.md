@@ -1,1 +1,2 @@
 - [Imported artifact paths](imported-artifact-paths.md) — an imported backup artifact can reserve `/`, so the active migrated copy may need a unique preview path.
+- [Bottom navigation dimensions](bottom-navigation-dimensions.md) — preserve the established full-width nav geometry; Theme Studio owns its colors.
