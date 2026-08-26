@@ -551,20 +551,15 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
   // is stretched only horizontally so it follows the full-width nav.
   const navViewBoxWidth = 380;
   const cx = ((activeIndex + 0.5) / Math.max(totalTabs, 1)) * navViewBoxWidth;
-  // Keep a short flat run on either side of the socket, then ease into a
-  // rounded, symmetric U-shaped curve. The previous narrow control points
-  // made the socket look pinched/triangular on wider screens.
-  const by = 36;
-  const span = 52;
+  const by = 33;
+  const span = 47;
   const left = cx - span;
   const right = cx + span;
   const meniscusPath = `
     M 0 0
     L ${left} 0
-    C ${cx - 42} 0, ${cx - 41} ${by}, ${cx - 22} ${by}
-    C ${cx - 12} ${by}, ${cx - 10} ${by}, ${cx} ${by}
-    C ${cx + 10} ${by}, ${cx + 12} ${by}, ${cx + 22} ${by}
-    C ${cx + 41} ${by}, ${cx + 42} 0, ${right} 0
+    C ${cx - 30} 0, ${cx - 28} ${by}, ${cx} ${by}
+    C ${cx + 28} ${by}, ${cx + 30} 0, ${right} 0
     L 380 0
     L 380 72
     L 0 72
