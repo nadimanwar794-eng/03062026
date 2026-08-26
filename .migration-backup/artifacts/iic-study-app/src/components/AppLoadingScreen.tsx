@@ -332,8 +332,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-[500px] h-[300px] pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, transparent 70%)', filter: 'blur(70px)' }}
       />
+
+      {/* ── Continuous Spinning Ambient Background Ring (Active across all 4 styles) ── */}
       <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-sky-400/10 pointer-events-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-dashed border-sky-400/20 pointer-events-none"
+        style={{ animation: 'orbitSpin 32s linear infinite' }}
       />
 
       {/* ── TOP NSTA BRANDING & FEATURE BADGES ── */}
@@ -454,7 +457,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
           <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
 
-          {/* Original Glowing 3D Open Book Center Hub */}
+          {/* Glowing 3D Open Book Center Hub */}
           <div 
             className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
             style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
@@ -616,7 +619,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
           <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
 
-          {/* Original Glowing 3D Open Book Center Hub */}
+          {/* Glowing 3D Open Book Center Hub */}
           <div 
             className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
             style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
