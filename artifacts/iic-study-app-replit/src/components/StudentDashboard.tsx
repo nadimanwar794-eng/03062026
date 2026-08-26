@@ -846,24 +846,43 @@ export const StudentDashboard: React.FC<Props> = ({
     return manual || tierAppBg || '#ffffff';
   })();
 
-  // ── Bottom nav surface — always use the solid branded app surface ────────
-  // A custom/theme navBg may be translucent (or plain white), which lets the
-  // Home cards show through the fixed footer on Android visual-viewport
-  // changes. The profile surface is the tier's opaque branded navy/teal
-  // surface and matches the stable nav shown on full-screen pages.
-  const _bottomNavBg = (tierTheme as any).profileBg || tierTheme.navBg || '#0e1f3a';
+  // ── Bottom nav surface — always use a solid branded dark surface ─────────
+  // A saved custom navBg/profileBg can be white or translucent. Using that
+  // value directly makes the Home cards bleed through the fixed footer and
+  // can make the nav look different after switching tabs on Android. Keep
+  // the branded surface when it is genuinely dark; otherwise fall back to
+  // the top-bar color, then to the standard navy used by the app.
+  const _surfaceLuminance = (value: unknown): number | null => {
+    if (typeof value !== 'string') return null;
+    const hex = value.match(/^#([0-9a-f]{6})$/i)?.[1];
+    if (hex) {
+      const r = parseInt(hex.slice(0, 2), 16) / 255;
+      const g = parseInt(hex.slice(2, 4), 16) / 255;
+      const b = parseInt(hex.slice(4, 6), 16) / 255;
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+    const rgb = value.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+    if (rgb) {
+      return 0.2126 * Number(rgb[1]) / 255
+        + 0.7152 * Number(rgb[2]) / 255
+        + 0.0722 * Number(rgb[3]) / 255;
+    }
+    return null;
+  };
+  const _bottomNavBg = (() => {
+    const candidates = [
+      (tierTheme as any).profileBg,
+      String(tierTheme.topBarGrad || '').match(/#[0-9a-f]{6}/i)?.[0],
+      '#151a43',
+    ];
+    return candidates.find((candidate) => {
+      const lum = _surfaceLuminance(candidate);
+      return typeof candidate === 'string' && lum !== null && lum < 0.42;
+    }) || '#151a43';
+  })();
 
   // ── Nav background luminance — for dynamic icon/text color ───────────────
-  const _isNavDark = (() => {
-    const nb = _bottomNavBg;
-    const hx = nb.replace('#', '');
-    if (hx.length < 6) return false;
-    const rN = parseInt(hx.substring(0, 2), 16) / 255;
-    const gN = parseInt(hx.substring(2, 4), 16) / 255;
-    const bN = parseInt(hx.substring(4, 6), 16) / 255;
-    const lum = 0.2126 * rN + 0.7152 * gN + 0.0722 * bN;
-    return lum < 0.4;
-  })();
+  const _isNavDark = (_surfaceLuminance(_bottomNavBg) ?? 0) < 0.42;
 
   // ── Sync CSS variables with tierTheme so ALL CSS-class-driven elements update ─
   useEffect(() => {
