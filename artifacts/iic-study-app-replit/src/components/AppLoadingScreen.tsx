@@ -321,25 +321,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           from { transform: rotate(0deg); }
           to { transform: rotate(-360deg); }
         }
-        @keyframes drawStroke {
-          0% {
-            stroke-dashoffset: 450;
-            fill: transparent;
-          }
-          70% {
-            stroke-dashoffset: 0;
-            fill: transparent;
-          }
-          100% {
-            stroke-dashoffset: 0;
-            fill: url(#nstaTextGrad);
-          }
-        }
-        .animate-nsta-draw {
-          stroke-dasharray: 450;
-          stroke-dashoffset: 450;
-          animation: drawStroke 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
       `}</style>
 
       {/* Ambient Background Glows */}
@@ -351,11 +332,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
         className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-[500px] h-[300px] pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, transparent 70%)', filter: 'blur(70px)' }}
       />
-
-      {/* ── Continuous Spinning Ambient Background Ring (Active across all 4 styles) ── */}
       <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-dashed border-sky-400/20 pointer-events-none"
-        style={{ animation: 'orbitSpin 32s linear infinite' }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-sky-400/10 pointer-events-none"
       />
 
       {/* ── TOP NSTA BRANDING & FEATURE BADGES ── */}
@@ -393,32 +371,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           </svg>
         </div>
 
-        {/* 3-Second Pure CSS SVG Path Drawing Animation for "NSTA" */}
-        <div className="w-full flex items-center justify-center h-16">
-          <svg className="w-64 h-14 drop-shadow-[0_4px_18px_rgba(255,255,255,0.25)] overflow-visible" viewBox="0 0 300 70">
-            <defs>
-              <linearGradient id="nstaTextGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="50%" stopColor="#93c5fd" />
-                <stop offset="100%" stopColor="#c084fc" />
-              </linearGradient>
-            </defs>
-            <text 
-              x="50%" 
-              y="52" 
-              textAnchor="middle" 
-              className="font-black tracking-[0.25em] animate-nsta-draw"
-              style={{
-                fontSize: '52px',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                stroke: '#38bdf8',
-                strokeWidth: '1.5px',
-              }}
-            >
-              NSTA
-            </text>
-          </svg>
-        </div>
+        <h1 className="text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-white via-blue-100 to-blue-300 drop-shadow-[0_4px_18px_rgba(255,255,255,0.25)]">
+          NSTA
+        </h1>
 
         <div className="flex items-center gap-1.5 mt-1 text-slate-100 text-sm font-bold">
           <span className="text-sky-400 text-xs">✦</span>
@@ -499,7 +454,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
           <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
 
-          {/* Glowing 3D Open Book Center Hub */}
+          {/* Original Glowing 3D Open Book Center Hub */}
           <div 
             className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
             style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
@@ -661,7 +616,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
           <div className="absolute w-[250px] h-[250px] rounded-full border border-sky-500/25 shadow-[0_0_24px_rgba(56,189,248,0.18)] pointer-events-none" />
           <div className="absolute w-[280px] h-[280px] rounded-full border border-dashed border-indigo-400/20 pointer-events-none" />
 
-          {/* Glowing 3D Open Book Center Hub */}
+          {/* Original Glowing 3D Open Book Center Hub */}
           <div 
             className="relative z-20 flex flex-col items-center justify-center text-center px-2 pointer-events-none"
             style={{ animation: 'floatCenter 4s ease-in-out infinite' }}
@@ -785,3 +740,4 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 };
 
 export default AppLoadingScreen;
+
