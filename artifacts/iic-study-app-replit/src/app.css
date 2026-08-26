@@ -1004,6 +1004,21 @@
 }
 
 /* ── BOTTOM NAVIGATION BAR — premium dark ── */
+.iic-bottom-nav {
+    /*
+     * Keep the content row at a stable 64px and reserve the OS gesture /
+     * three-button navigation inset separately.  The inset can change when
+     * Chrome's visual viewport expands or collapses, so relying on an
+     * implicit fixed-footer height causes the row to be clipped intermittently.
+     */
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    isolation: isolate;
+}
+.iic-bottom-nav > div {
+    min-height: 64px;
+}
 .dark-mode nav[aria-label="Primary"] {
     background-color: rgba(5, 5, 5, 0.97) !important;
     border-top: 1px solid rgba(255,255,255,0.06) !important;

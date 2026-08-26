@@ -18122,15 +18122,18 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
         data-iic-bottom-nav=""
-        className={`fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
+        className={`iic-bottom-nav fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
         style={{
-          background: 'transparent', // Meniscus will draw background
+          // Keep a real background while the SVG indicator measures the nav.
+          // Without it, Android can briefly paint the fixed footer transparent
+          // during a visual-viewport resize and make its contents look clipped.
+          background: tierTheme.navBg,
           borderTop: 'none',
           boxShadow: `0 -4px 20px -8px ${tierTheme.shadowColor}`,
         }}
         aria-label="Primary"
       >
-        <div className="relative flex justify-around items-stretch h-[64px] max-w-3xl mx-auto px-1">
+        <div className="relative z-[1] flex justify-around items-stretch h-[64px] min-h-[64px] max-w-3xl mx-auto px-1">
           {(() => {
             // ---- PER-TAB SNAPSHOT / RESTORE ----
             // Capture every overlay/position state for the tab the user is leaving,
@@ -18539,7 +18542,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                       }}
                       aria-label={tab.label}
                       aria-current={tab.isActive ? "page" : undefined}
-                      className={`group relative flex-1 flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 bg-transparent border-0 outline-none appearance-none transition-[color,transform] duration-150 ease-out active:scale-[0.90] ${
+                      className={`group relative z-[1] flex-1 flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 bg-transparent border-0 outline-none appearance-none transition-[color,transform] duration-150 ease-out active:scale-[0.90] ${
                         isLocked ? "opacity-50" : ""
                       }`}
                       style={{ WebkitTapHighlightColor: 'transparent' }}

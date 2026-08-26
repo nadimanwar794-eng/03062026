@@ -3092,8 +3092,6 @@ const App: React.FC = () => {
           </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 h-[env(safe-area-inset-bottom,32px)] z-[100]" style={{ background: 'var(--nst-nav-bg, #ffffff)' }}></div>
-
       {state.settings.isWatermarkEnabled !== false && (
       <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden select-none">
           {state.settings.appLogo && (
