@@ -233,7 +233,7 @@ import { UniversalInfoPage } from "./UniversalInfoPage";
 import { UniversalChat } from "./UniversalChat";
 import { ExpiryPopup } from "./ExpiryPopup";
 import { SubscriptionHistory } from "./SubscriptionHistory";
-import { getTierTheme, buildOverrideTierTheme, buildGranularTierTheme, getEffectiveOverrideColor, getUserTier } from '../utils/tierTheme';
+import { getTierTheme, buildOverrideTierTheme, buildGranularTierTheme, getEffectiveOverrideColor, getUserTier, DEFAULT_NAV_ACTIVE_COLORS } from '../utils/tierTheme';
 import { ThemeProvider } from '../utils/themeContext';
 import { SearchResult } from "../utils/syllabusSearch";
 import { RevisionHub } from "./RevisionHub"; // NEW
@@ -546,109 +546,15 @@ const stripHtmlForPreview = (html: string): string =>
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, ActiveIcon?: React.ElementType }) => {
-  const dockPathRef = React.useRef<SVGPathElement>(null);
-  const beadRef = React.useRef<HTMLDivElement>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const animState = React.useRef({ currentX: 0, targetX: 0, velocity: 0, w: 360, h: 64, isAwake: false, hasMeasured: false });
-  const rafRef = React.useRef<number>(0);
-
-  const wakeUp = React.useCallback(() => {
-    if (animState.current.isAwake) return;
-    animState.current.isAwake = true;
-
-    const loop = () => {
-      const spring = 0.16;
-      const damping = 0.68;
-      const state = animState.current;
-      const force = (state.targetX - state.currentX) * spring;
-      state.velocity = (state.velocity + force) * damping;
-      state.currentX += state.velocity;
-
-      if (dockPathRef.current && containerRef.current) {
-        const W = state.w;
-        const H = state.h;
-        const cx = state.currentX;
-        const sw = 36;
-        const depth = 28;
-        const left = Math.max(0, cx - sw);
-        const right = Math.min(W, cx + sw);
-
-        // Meniscus path
-        const path = `M 0,0 L ${left},0 C ${left + 12},0 ${cx - 20},${depth} ${cx},${depth} C ${cx + 20},${depth} ${right - 12},0 ${right},0 L ${W},0 L ${W},${H} L 0,${H} Z`;
-        dockPathRef.current.setAttribute('d', path);
-        dockPathRef.current.parentElement!.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      }
-      if (Math.abs(state.velocity) < 0.05 && Math.abs(state.targetX - state.currentX) < 0.05) {
-         state.currentX = state.targetX;
-         state.velocity = 0;
-         state.isAwake = false;
-         return; // sleep
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-  }, []);
-
-  React.useEffect(() => {
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  React.useEffect(() => {
-     let frame = 0;
-     const updateTarget = () => {
-        const container = containerRef.current;
-        if (!container) return;
-        const rect = container.getBoundingClientRect();
-        // A fixed nav can report 0×0 for the first layout pass on Android.
-        // Wait for the next frame instead of locking the indicator at x=0.
-        if (rect.width <= 0 || rect.height <= 0) {
-          frame = requestAnimationFrame(updateTarget);
-          return;
-        }
-
-        const state = animState.current;
-        state.w = rect.width;
-        state.h = rect.height;
-        const tabWidth = rect.width / Math.max(totalTabs, 1);
-        state.targetX = (activeIndex * tabWidth) + (tabWidth / 2);
-
-        if (!state.hasMeasured) {
-          // First valid measurement should paint the active tab immediately.
-          // Subsequent tab changes use the spring animation.
-          state.currentX = state.targetX;
-          state.velocity = 0;
-          state.hasMeasured = true;
-        }
-        wakeUp();
-     };
-     frame = requestAnimationFrame(updateTarget);
-     const resizeObserver = typeof ResizeObserver !== 'undefined'
-       ? new ResizeObserver(updateTarget)
-       : null;
-     if (resizeObserver && containerRef.current) resizeObserver.observe(containerRef.current);
-     window.addEventListener('resize', updateTarget);
-     return () => {
-       cancelAnimationFrame(frame);
-       resizeObserver?.disconnect();
-       window.removeEventListener('resize', updateTarget);
-     };
-  }, [activeIndex, totalTabs, wakeUp]);
-
   return (
-    <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-visible z-0">
-       <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-          <path ref={dockPathRef} fill={navBg} stroke={navBorderColor} strokeWidth="1" />
-       </svg>
+    <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+       {/* Keep the original moving active circle; only the curved meniscus is removed. */}
        <div
-          ref={beadRef}
           className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             // CSS positions the active circle from the actual tab count.
-             // This remains correct even during the first Android layout pass;
-             // the spring below only animates the decorative meniscus path.
              left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
              backgroundColor: activeColor,
-             willChange: 'left'
+             willChange: 'left',
           }}
        >
          {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
@@ -819,6 +725,7 @@ export const StudentDashboard: React.FC<Props> = ({
             topBarEnd: _scheduledThemeActive.themeColors.topBarEnd,
             navBg: _scheduledThemeActive.themeColors.navBg,
             navActive: _scheduledThemeActive.themeColors.navActive,
+            navActiveColors: _scheduledThemeActive.navActiveColors,
             navBorder: _scheduledThemeActive.themeColors.navBorder,
             cardBg: _scheduledThemeActive.themeColors.cardBg,
             cardBorder: _scheduledThemeActive.themeColors.cardBorder,
@@ -18519,8 +18426,8 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
               },
             ];
 
-            // Filter out hidden tabs first so the sliding indicator math
-            // matches what's actually rendered.
+            // Filter out hidden tabs first so the circle and colors match the
+            // buttons that are actually rendered.
             const visibleTabs = tabs.filter((t) => {
               const access = t.featureId
                 ? getFeatureAccess(t.featureId)
@@ -18529,7 +18436,11 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
             });
             const totalVisible = Math.max(visibleTabs.length, 1);
             const activeIndex = Math.max(0, visibleTabs.findIndex((t) => t.isActive));
-            const tabWidthPct = 100 / totalVisible;
+            const navActiveColors = Array.isArray((tierTheme as any).navActiveColors) && (tierTheme as any).navActiveColors.length
+              ? (tierTheme as any).navActiveColors
+              : [((tierTheme as any).navActive || tierTheme.primary), ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)];
+            const getNavActiveColor = (index: number) =>
+              navActiveColors[index] || (tierTheme as any).navActive || tierTheme.primary;
 
             return (
               <>
@@ -18538,10 +18449,10 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                   totalTabs={totalVisible}
                   navBg={_bottomNavBg}
                   navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
-                  activeColor={_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary}
+                  activeColor={getNavActiveColor(activeIndex)}
                   ActiveIcon={visibleTabs[activeIndex]?.Icon}
                 />
-                {visibleTabs.map((tab) => {
+                {visibleTabs.map((tab, tabIndex) => {
                   const access = tab.featureId
                     ? getFeatureAccess(tab.featureId)
                     : { hasAccess: true, isHidden: false };
@@ -18592,7 +18503,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                       }`}
                       style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
-                      {/* Icon container — only the icon scales; background pill is the sliding glow above */}
+                      {/* Icon container — active tabs stay color-only with no background shape */}
                       <span
                         key={tab.isActive ? `${tab.id}-on` : `${tab.id}-off`}
                         className={`relative z-10 inline-flex items-center justify-center transition-transform duration-300 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ${
@@ -18612,7 +18523,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                             size={22}
                             strokeWidth={tab.isActive ? 2.4 : 2}
                             className={tab.isActive ? 'opacity-0 scale-50 transition-all duration-300' : 'opacity-100 scale-100 transition-all duration-300'}
-                            style={{ color: tab.isActive ? (_isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
+                            style={{ color: tab.isActive ? getNavActiveColor(tabIndex) : (_isNavDark ? 'rgba(255,255,255,0.72)' : '#64748b') }}
                             fill={
                               tab.filledOnActive && tab.isActive && !isLocked
                                 ? "currentColor"
@@ -18638,7 +18549,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                             ? "font-bold translate-y-[2px] opacity-100"
                             : "font-medium translate-y-0 opacity-100"
                         }`}
-                        style={tab.isActive ? { color: _isNavDark ? ((tierTheme as any).navActive || '#7dd3fc') : tierTheme.primary } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
+                        style={tab.isActive ? { color: getNavActiveColor(tabIndex) } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
                       >
                         {tab.label}
                       </span>

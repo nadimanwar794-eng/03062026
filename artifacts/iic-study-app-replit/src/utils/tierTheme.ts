@@ -3,6 +3,14 @@ import { User } from '../types';
 
 export type UserTier = 'ultra' | 'basic' | 'free';
 
+export const DEFAULT_NAV_ACTIVE_COLORS = [
+  '#2563eb',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ec4899',
+];
+
 export const getUserTier = (
   user: Pick<User, 'isPremium' | 'subscriptionLevel' | 'subscriptionEndDate'>
 ): UserTier => {
@@ -197,6 +205,7 @@ export const buildGranularTierTheme = (
   t: {
     bgColor?: string; topBarStart?: string; topBarEnd?: string;
     navBg?: string; navBorder?: string; navActive?: string;
+    navActiveColors?: string[];
     cardBg?: string; cardColor?: string; cardBorder?: string;
     btnStart?: string; btnEnd?: string; accentColor?: string;
     textColor?: string; textSecondary?: string;
@@ -245,6 +254,9 @@ export const buildGranularTierTheme = (
     cardBg:          '#ffffff',
     // Granular extras — accessible via (tierTheme as any).xxx
     navActive:       t.navActive    || accent,
+    navActiveColors: Array.isArray((t as any).navActiveColors) && (t as any).navActiveColors.length
+      ? (t as any).navActiveColors.slice(0, 5)
+      : [t.navActive || accent, ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)],
     navBorderColor:  t.navBorder    || `rgba(${r},${g},${b},0.22)`,
     cardBorderColor: t.cardBorder   || `rgba(${r},${g},${b},0.28)`,
     textPrimary:     t.textColor    || accent,

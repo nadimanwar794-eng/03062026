@@ -1631,6 +1631,7 @@ export interface UserCustomTheme {
   topBarEnd?: string;
   navBg?: string;
   navActive?: string;
+  navActiveColors?: string[];
   navBorder?: string;
   cardBg?: string;
   cardBorder?: string;
@@ -1694,6 +1695,7 @@ export interface ScheduledTheme {
     progressColor: string;
     [key: string]: string;
   };
+  navActiveColors?: string[];
   topBarEffect?: string;
   animColor?: string;
   scheduledAt: string;

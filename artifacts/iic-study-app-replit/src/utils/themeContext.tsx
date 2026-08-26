@@ -8,6 +8,7 @@ export type TierThemeObj = typeof TIER_THEME[keyof typeof TIER_THEME] & {
   chapterAccent?: string;
   mcqTabActive?: string;
   navActive?: string;
+  navActiveColors?: string[];
   navBorderColor?: string;
   cardBorderColor?: string;
   textPrimary?: string;

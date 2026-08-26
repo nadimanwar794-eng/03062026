@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, UserCustomTheme, SystemSettings, ThemeHistoryEntry } from '../types';
 import { saveUserToLive, saveSystemSettings } from '../firebase';
 import { getTotalCredits, applyDeduction } from '../utils/creditSystem';
+import { DEFAULT_NAV_ACTIVE_COLORS } from '../utils/tierTheme';
 import {
     ArrowLeft, Sparkles, RotateCcw, Eye, Palette,
     Layers, Navigation, Square, Type, Zap, Star,
@@ -25,6 +26,7 @@ interface ThemeState {
     topBarEnd: string;
     navBg: string;
     navActive: string;
+    navActiveColors?: string[];
     navBorder: string;
     cardBg: string;
     cardBorder: string;
@@ -51,6 +53,7 @@ const DEFAULT_THEME: ThemeState = {
     topBarEnd: '#0f1e3c',
     navBg: '#ffffff',
     navActive: '#3b82f6',
+    navActiveColors: [...DEFAULT_NAV_ACTIVE_COLORS],
     navBorder: '#e2e8f0',
     cardBg: '#f8fafc',
     cardBorder: '#e2e8f0',
@@ -605,12 +608,16 @@ const ColorRow: React.FC<ColorRowProps> = ({ label, sub, value, onChange, accent
 const stateFromTheme = (t: UserCustomTheme | undefined): ThemeState => {
     if (!t) return { ...DEFAULT_THEME };
     const accent = t.accentColor || t.btnStart || DEFAULT_THEME.btnStart;
+    const navActiveColors = Array.isArray(t.navActiveColors) && t.navActiveColors.length
+        ? t.navActiveColors.slice(0, 5)
+        : [t.navActive || accent, ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)];
     return {
         bgColor:       t.bgColor       || DEFAULT_THEME.bgColor,
         topBarStart:   t.topBarStart   || DEFAULT_THEME.topBarStart,
         topBarEnd:     t.topBarEnd     || DEFAULT_THEME.topBarEnd,
         navBg:         t.navBg         || DEFAULT_THEME.navBg,
         navActive:     t.navActive     || accent || DEFAULT_THEME.navActive,
+        navActiveColors,
         navBorder:     t.navBorder     || DEFAULT_THEME.navBorder,
         cardBg:        t.cardBg        || t.cardColor   || DEFAULT_THEME.cardBg,
         cardBorder:    t.cardBorder    || DEFAULT_THEME.cardBorder,
@@ -716,6 +723,23 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
     const setColor = (key: keyof ThemeState) => (v: string) =>
         setTheme(prev => ({ ...prev, [key]: v }));
 
+    const setNavActiveColor = (index: number) => (value: string) =>
+        setTheme(prev => {
+            const colors = [
+                ...(prev.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS),
+            ];
+            while (colors.length < 5) colors.push(DEFAULT_NAV_ACTIVE_COLORS[colors.length]);
+            colors[index] = value;
+            return { ...prev, navActiveColors: colors.slice(0, 5) };
+        });
+
+    const navPreviewColors = [
+        ...(theme.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS),
+    ];
+    while (navPreviewColors.length < 5) {
+        navPreviewColors.push(DEFAULT_NAV_ACTIVE_COLORS[navPreviewColors.length]);
+    }
+
     /* ── SIMPLE THEME: derive all fields from 1 color + 1 border ── */
     const applySimpleTheme = (color: string, borderColor: string) => {
         setTheme(prev => ({
@@ -723,6 +747,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             topBarStart:   color,
             topBarEnd:     color,
             navActive:     color,
+            navActiveColors: Array(5).fill(color),
             btnStart:      color,
             btnEnd:        color,
             accentGlow:    color,
@@ -756,6 +781,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
             topBarEnd:     theme.topBarEnd,
             navBg:         isAdmin ? theme.navBg : '#ffffff',
             navActive:     theme.navActive,
+            navActiveColors: [...(theme.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS)].slice(0, 5),
             navBorder:     theme.navBorder,
             cardBg:        isAdmin ? theme.cardBg : '#ffffff',
             cardBorder:    theme.cardBorder,
@@ -847,6 +873,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
         topBarEnd:     theme.topBarEnd,
         navBg:         theme.navBg,
         navActive:     theme.navActive,
+        navActiveColors: [...(theme.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS)].slice(0, 5),
         navBorder:     theme.navBorder,
         cardBg:        theme.cardBg,
         cardBorder:    theme.cardBorder,
@@ -895,6 +922,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 accentGlow:    themeObj.accentGlow,
                 progressColor: themeObj.progressColor,
             },
+            navActiveColors: themeObj.navActiveColors,
             topBarEffect:     themeObj.topBarEffect,
             animColor:        themeObj.animColor,
             scheduledAt:      new Date(scheduleStartDt).toISOString(),
@@ -1207,7 +1235,26 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                 {isAdmin && (
                     <ColorRow label="Nav Background" sub="Bottom bar ka background (Admin only)" value={theme.navBg} onChange={setColor('navBg')} accent={theme.btnStart} />
                 )}
-                <ColorRow label="Active Tab Color" sub="Selected tab color + underline" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <ColorRow label="Default Active Color" sub="Fallback color — jab kisi button ka custom color na ho" value={theme.navActive} onChange={setColor('navActive')} accent={theme.btnStart} />
+                <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                    <p className="text-[10px] font-black text-white/80">5 Bottom Buttons ke Active Colors</p>
+                    <p className="text-[9px] text-white/40 mt-0.5 mb-1.5">Har button ka active icon aur label alag color mein dikhega.</p>
+                    {[
+                        ['Button 1 — Home', '🏠'],
+                        ['Button 2 — Revision', '🧠'],
+                        ['Button 3 — Routine', '📅'],
+                        ['Button 4 — Community', '💬'],
+                        ['Button 5 — Profile', '👤'],
+                    ].map(([label, icon], index) => (
+                        <ColorRow
+                            key={label}
+                            label={`${icon} ${label}`}
+                            value={(theme.navActiveColors || DEFAULT_NAV_ACTIVE_COLORS)[index] || DEFAULT_NAV_ACTIVE_COLORS[index]}
+                            onChange={setNavActiveColor(index)}
+                            accent={theme.btnStart}
+                        />
+                    ))}
+                </div>
                 <ColorRow label="Nav Border"       sub="Top border line ka color"       value={theme.navBorder} onChange={setColor('navBorder')} accent={theme.btnStart} />
             </>
         ),
@@ -1708,12 +1755,12 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                                 </div>
                             </div>
                         </div>
-                        <div className="grid grid-cols-4 border-t" style={{ background: theme.navBg, borderColor: theme.navBorder }}>
-                            {[['🏠', 'Home', true], ['📖', 'Study', false], ['🎯', 'MCQ', false], ['👤', 'Profile', false]].map(([ic, lb, ac]) => (
+                        <div className="grid grid-cols-5 border-t" style={{ background: theme.navBg, borderColor: theme.navBorder }}>
+                            {[['🏠', 'Home', true], ['🧠', 'Revision', false], ['📅', 'Routine', false], ['💬', 'Community', false], ['👤', 'Profile', false]].map(([ic, lb, ac], index) => (
                                 <div key={lb as string} className="flex flex-col items-center py-2.5 gap-0.5" style={{ opacity: ac ? 1 : 0.35 }}>
                                     <span className="text-base">{ic as string}</span>
-                                    <p className="text-[8px] font-bold" style={{ color: ac ? theme.navActive : theme.textSecondary }}>{lb as string}</p>
-                                    <div className="h-0.5 w-4 rounded-full" style={{ background: ac ? theme.navActive : 'transparent' }} />
+                                    <p className="text-[8px] font-bold" style={{ color: ac ? navPreviewColors[index] : theme.textSecondary }}>{lb as string}</p>
+                                    <div className="h-0.5 w-4 rounded-full" style={{ background: ac ? navPreviewColors[index] : 'transparent' }} />
                                 </div>
                             ))}
                         </div>
@@ -1777,7 +1824,7 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                         >
                             <span className="text-base">✨</span>
                             <span className="text-[10px] font-black" style={{ color: builderMode === 'SIMPLE' ? theme.btnStart : 'rgba(255,255,255,0.40)' }}>Simple</span>
-                            <span className="text-[8px]" style={{ color: 'rgba(255,255,255,0.22)' }}>Ek color — sab jagah</span>
+                            <span className="text-[8px]" style={{ color: 'rgba(255,255,255,0.22)' }}>Quick color + optional controls</span>
                         </button>
                         <div style={{ width: '1px', background: 'rgba(255,255,255,0.07)', alignSelf: 'stretch' }} />
                         <button
@@ -1849,15 +1896,58 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                                             ⚡ Start Learning
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-4 border-t" style={{ background: theme.navBg, borderColor: simpleBorderColor }}>
-                                        {[['🏠', 'Home', true], ['📖', 'Study', false], ['🎯', 'MCQ', false], ['👤', 'Profile', false]].map(([ic, lb, ac]) => (
+                                    <div className="grid grid-cols-5 border-t" style={{ background: theme.navBg, borderColor: simpleBorderColor }}>
+                                        {[['🏠', 'Home', true], ['🧠', 'Revision', false], ['📅', 'Routine', false], ['💬', 'Community', false], ['👤', 'Profile', false]].map(([ic, lb, ac], index) => (
                                             <div key={lb as string} className="flex flex-col items-center py-2.5 gap-0.5" style={{ opacity: ac ? 1 : 0.35 }}>
                                                 <span className="text-base">{ic as string}</span>
-                                                <p className="text-[8px] font-bold" style={{ color: ac ? simpleColor : theme.textSecondary }}>{lb as string}</p>
-                                                <div className="h-0.5 w-4 rounded-full" style={{ background: ac ? simpleColor : 'transparent' }} />
+                                                <p className="text-[8px] font-bold" style={{ color: ac ? navPreviewColors[index] : theme.textSecondary }}>{lb as string}</p>
+                                                <div className="h-0.5 w-4 rounded-full" style={{ background: ac ? navPreviewColors[index] : 'transparent' }} />
                                             </div>
                                         ))}
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Optional individual controls are also available in Simple mode. */}
+                            <div className="rounded-2xl p-3 border" style={{ background: 'rgba(255,255,255,0.025)', borderColor: `${theme.btnStart}28` }}>
+                                <div className="flex items-center gap-2 mb-2.5">
+                                    <Palette size={12} style={{ color: theme.btnStart }} />
+                                    <div className="flex-1">
+                                        <p className="text-[10px] font-black text-white/80">Optional Customization</p>
+                                        <p className="text-[9px] text-white/40">Simple mode mein bhi kisi ek element ka color alag se badlo.</p>
+                                    </div>
+                                    <span className="text-[8px] font-black px-2 py-1 rounded-full" style={{ color: theme.btnStart, background: `${theme.btnStart}18` }}>More</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1.5 mb-3">
+                                    {SECTIONS.map(sec => {
+                                        const active = activeSection === sec.id;
+                                        return (
+                                            <button
+                                                key={sec.id}
+                                                onClick={() => setActiveSection(sec.id)}
+                                                className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-center active:scale-90 transition-all border"
+                                                style={{
+                                                    background: active ? `${theme.btnStart}22` : '#0d0f1a',
+                                                    borderColor: active ? `${theme.btnStart}55` : 'rgba(255,255,255,0.06)',
+                                                }}
+                                            >
+                                                <span style={{ color: active ? theme.btnStart : 'rgba(255,255,255,0.30)' }}>{sec.icon}</span>
+                                                <span className="text-[7px] font-black leading-tight" style={{ color: active ? theme.textPrimary : 'rgba(255,255,255,0.35)' }}>
+                                                    {sec.label}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="rounded-2xl p-3 border" style={{ background: '#0d0f1a', borderColor: `${theme.btnStart}25` }}>
+                                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
+                                        <span style={{ color: theme.btnStart }}>{SECTIONS.find(s => s.id === activeSection)?.icon}</span>
+                                        <div>
+                                            <p className="text-[10px] font-black text-white">{SECTIONS.find(s => s.id === activeSection)?.label}</p>
+                                            <p className="text-[8px] text-white/30">{SECTIONS.find(s => s.id === activeSection)?.desc}</p>
+                                        </div>
+                                    </div>
+                                    {sectionColors[activeSection]}
                                 </div>
                             </div>
                         </div>
@@ -1928,12 +2018,12 @@ export const ThemeCustomizer: React.FC<Props> = ({ user, onUpdateUser, onBack, s
                         {activeSection === 'NAVIGATION' && (
                             <div style={{ background: theme.bgColor, padding: '8px 8px 0' }}>
                                 <p className="text-[8px] text-white/20 text-center mb-1">— App Content —</p>
-                                <div className="grid grid-cols-4 rounded-t-xl overflow-hidden" style={{ background: theme.navBg, borderTop: `1.5px solid ${theme.navBorder}` }}>
-                                    {[['🏠', 'Home', true], ['📖', 'Study', false], ['🎯', 'MCQ', false], ['👤', 'Profile', false]].map(([ic, lb, ac]) => (
+                                <div className="grid grid-cols-5 rounded-t-xl overflow-hidden" style={{ background: theme.navBg, borderTop: `1.5px solid ${theme.navBorder}` }}>
+                                    {[['🏠', 'Home', true], ['🧠', 'Revision', false], ['📅', 'Routine', false], ['💬', 'Community', false], ['👤', 'Profile', false]].map(([ic, lb, ac], index) => (
                                         <div key={lb as string} className="flex flex-col items-center py-3 gap-1" style={{ opacity: ac ? 1 : 0.45 }}>
                                             <span className="text-lg">{ic as string}</span>
-                                            <p className="text-[9px] font-bold" style={{ color: ac ? theme.navActive : theme.textSecondary }}>{lb as string}</p>
-                                            <div className="h-0.5 w-5 rounded-full" style={{ background: ac ? theme.navActive : 'transparent' }} />
+                                            <p className="text-[9px] font-bold" style={{ color: ac ? navPreviewColors[index] : theme.textSecondary }}>{lb as string}</p>
+                                            <div className="h-0.5 w-5 rounded-full" style={{ background: ac ? navPreviewColors[index] : 'transparent' }} />
                                         </div>
                                     ))}
                                 </div>
