@@ -1005,31 +1005,20 @@
 
 /* ── BOTTOM NAVIGATION BAR — premium dark ── */
 .iic-bottom-nav {
-    /*
-     * Keep the content row at a stable 64px and reserve the OS gesture /
-     * three-button navigation inset separately.  The inset can change when
-     * Chrome's visual viewport expands or collapses, so relying on an
-     * implicit fixed-footer height causes the row to be clipped intermittently.
-     */
-    min-height: calc(64px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* A floating capsule leaves the gesture bar and page edges visually clear. */
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    min-height: 64px;
     box-sizing: border-box;
     isolation: isolate;
+    overflow: visible;
 }
 .iic-bottom-nav > div {
     min-height: 64px;
 }
-.dark-mode nav[aria-label="Primary"] {
-    background-color: rgba(5, 5, 5, 0.97) !important;
-    border-top: 1px solid rgba(255,255,255,0.06) !important;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.6) !important;
-    backdrop-filter: blur(12px) !important;
-}
+.dark-mode nav[aria-label="Primary"],
 .dark-mode-blue nav[aria-label="Primary"] {
-    background-color: rgba(6, 9, 26, 0.97) !important;
-    border-top: 1px solid rgba(59,130,246,0.18) !important;
-    box-shadow: 0 -4px 24px rgba(0,0,20,0.65), 0 -1px 0 rgba(59,130,246,0.1) !important;
-    backdrop-filter: blur(12px) !important;
+    /* Preserve the selected Theme Studio surface in dark modes too. */
+    backdrop-filter: blur(18px) !important;
 }
 .dark-mode nav[aria-label="Primary"] button span[class*="text-slate-5"],
 .dark-mode nav[aria-label="Primary"] button span[class*="text-slate-4"] {

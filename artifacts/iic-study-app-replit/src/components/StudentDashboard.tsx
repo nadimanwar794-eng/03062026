@@ -548,16 +548,18 @@ const stripHtmlForPreview = (html: string): string =>
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
-       {/* Keep the original moving active circle; only the curved meniscus is removed. */}
+       {/* The bead floats above the capsule, matching the reference navigation. */}
        <div
-          className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-20 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[-17px] w-[52px] h-[52px] rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 26px)`,
              backgroundColor: activeColor,
+             border: `2px solid ${navBg}`,
+             boxShadow: `0 8px 22px -5px ${activeColor}, 0 0 0 1px ${navBorderColor}, inset 0 1px 0 rgba(255,255,255,0.28)`,
              willChange: 'left',
           }}
        >
-         {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
+         {ActiveIcon && <ActiveIcon className="w-[21px] h-[21px] text-white stroke-[2.2] z-30" />}
        </div>
     </div>
   );
@@ -772,12 +774,9 @@ export const StudentDashboard: React.FC<Props> = ({
     return manual || tierAppBg || '#ffffff';
   })();
 
-  // ── Bottom nav surface — always use a solid branded dark surface ─────────
-  // A saved custom navBg/profileBg can be white or translucent. Using that
-  // value directly makes the Home cards bleed through the fixed footer and
-  // can make the nav look different after switching tabs on Android. Keep
-  // the branded surface when it is genuinely dark; otherwise fall back to
-  // the top-bar color, then to the standard navy used by the app.
+  // ── Bottom nav surface — honor the Theme Studio navBg value ───────────────
+  // New themes provide navBg directly. Keep the older branded fallbacks for
+  // themes saved before the bottom-nav color control existed.
   const _surfaceLuminance = (value: unknown): number | null => {
     if (typeof value !== 'string') return null;
     const hex = value.match(/^#([0-9a-f]{6})$/i)?.[1];
@@ -796,6 +795,10 @@ export const StudentDashboard: React.FC<Props> = ({
     return null;
   };
   const _bottomNavBg = (() => {
+    const configuredNavBg = (tierTheme as any).navBg;
+    if (typeof configuredNavBg === 'string' && configuredNavBg.trim()) {
+      return configuredNavBg;
+    }
     const candidates = [
       (tierTheme as any).profileBg,
       String(tierTheme.topBarGrad || '').match(/#[0-9a-f]{6}/i)?.[0],
@@ -18074,14 +18077,14 @@ export const StudentDashboard: React.FC<Props> = ({
       {/* FIXED BOTTOM NAVIGATION */}
       <nav
         data-iic-bottom-nav=""
-        className={`iic-bottom-nav fixed bottom-0 left-0 right-0 w-full mx-auto backdrop-blur-md z-[300] pb-safe ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
+        className={`iic-bottom-nav fixed left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[360px] rounded-[24px] backdrop-blur-xl z-[300] ${activeExternalApp || isDocFullscreen || (contentViewStep === "PLAYER" && selectedChapter && activeTab !== 'STORE' && activeTab !== 'PROFILE') || isLandscapeUiHidden || isInternalImmersive || !!hwActiveHwId || !!lucentNoteViewer || coachingNotesReaderOpen ? "hidden" : ""}`}
         style={{
-          // Keep a real background while the SVG indicator measures the nav.
-          // Without it, Android can briefly paint the fixed footer transparent
-          // during a visual-viewport resize and make its contents look clipped.
-          background: _bottomNavBg,
-          borderTop: 'none',
-          boxShadow: `0 -4px 20px -8px ${tierTheme.shadowColor}`,
+          // Theme Studio controls navBg/navBorderColor/navActiveColor. The
+          // capsule stays opaque enough for Android visual-viewport resizes
+          // while retaining the reference's soft, floating glass treatment.
+          background: `color-mix(in srgb, ${_bottomNavBg} 92%, transparent)`,
+          border: `1px solid ${((tierTheme as any).navBorderColor || tierTheme.primary + '44')}`,
+          boxShadow: `0 14px 32px -16px ${tierTheme.shadowColor}, 0 0 0 1px rgba(255,255,255,0.04) inset`,
         }}
         aria-label="Primary"
       >
@@ -18547,7 +18550,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                         className={`relative z-10 text-[10.5px] leading-none tracking-wide transition-all duration-300 ${
                           tab.isActive
                             ? "font-bold translate-y-[2px] opacity-100"
-                            : "font-medium translate-y-0 opacity-100"
+                             : "font-medium translate-y-0 opacity-0 scale-90"
                         }`}
                         style={tab.isActive ? { color: getNavActiveColor(tabIndex) } : { color: _isNavDark ? 'rgba(255,255,255,0.65)' : '#64748b' }}
                       >
