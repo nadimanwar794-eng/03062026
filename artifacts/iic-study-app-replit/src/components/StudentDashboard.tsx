@@ -549,7 +549,7 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
   const dockPathRef = React.useRef<SVGPathElement>(null);
   const beadRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const animState = React.useRef({ currentX: 0, targetX: 0, velocity: 0, w: 360, h: 64, isAwake: false });
+  const animState = React.useRef({ currentX: 0, targetX: 0, velocity: 0, w: 360, h: 64, isAwake: false, hasMeasured: false });
   const rafRef = React.useRef<number>(0);
 
   const wakeUp = React.useCallback(() => {
@@ -578,10 +578,6 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
         dockPathRef.current.setAttribute('d', path);
         dockPathRef.current.parentElement!.setAttribute('viewBox', `0 0 ${W} ${H}`);
       }
-      if (beadRef.current) {
-         beadRef.current.style.transform = `translateX(${state.currentX - 24}px)`;
-      }
-
       if (Math.abs(state.velocity) < 0.05 && Math.abs(state.targetX - state.currentX) < 0.05) {
          state.currentX = state.targetX;
          state.velocity = 0;
@@ -598,25 +594,44 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
   }, []);
 
   React.useEffect(() => {
+     let frame = 0;
      const updateTarget = () => {
-        if (containerRef.current) {
-           const rect = containerRef.current.getBoundingClientRect();
-           animState.current.w = rect.width;
-           animState.current.h = rect.height;
-           const tabWidth = rect.width / totalTabs;
-           animState.current.targetX = (activeIndex * tabWidth) + (tabWidth / 2);
-
-           if (animState.current.currentX === 0) {
-              animState.current.currentX = animState.current.targetX;
-           }
-           wakeUp();
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        // A fixed nav can report 0×0 for the first layout pass on Android.
+        // Wait for the next frame instead of locking the indicator at x=0.
+        if (rect.width <= 0 || rect.height <= 0) {
+          frame = requestAnimationFrame(updateTarget);
+          return;
         }
+
+        const state = animState.current;
+        state.w = rect.width;
+        state.h = rect.height;
+        const tabWidth = rect.width / Math.max(totalTabs, 1);
+        state.targetX = (activeIndex * tabWidth) + (tabWidth / 2);
+
+        if (!state.hasMeasured) {
+          // First valid measurement should paint the active tab immediately.
+          // Subsequent tab changes use the spring animation.
+          state.currentX = state.targetX;
+          state.velocity = 0;
+          state.hasMeasured = true;
+        }
+        wakeUp();
      };
-     updateTarget();
-     // slight delay to ensure layout is done
-     setTimeout(updateTarget, 50);
+     frame = requestAnimationFrame(updateTarget);
+     const resizeObserver = typeof ResizeObserver !== 'undefined'
+       ? new ResizeObserver(updateTarget)
+       : null;
+     if (resizeObserver && containerRef.current) resizeObserver.observe(containerRef.current);
      window.addEventListener('resize', updateTarget);
-     return () => window.removeEventListener('resize', updateTarget);
+     return () => {
+       cancelAnimationFrame(frame);
+       resizeObserver?.disconnect();
+       window.removeEventListener('resize', updateTarget);
+     };
   }, [activeIndex, totalTabs, wakeUp]);
 
   return (
@@ -626,10 +641,14 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
        </svg>
        <div
           ref={beadRef}
-          className="absolute top-[-14px] left-0 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-20 pointer-events-none"
+          className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
+             // CSS positions the active circle from the actual tab count.
+             // This remains correct even during the first Android layout pass;
+             // the spring below only animates the decorative meniscus path.
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
              backgroundColor: activeColor,
-             willChange: 'transform'
+             willChange: 'left'
           }}
        >
          {ActiveIcon && <ActiveIcon className="w-5 h-5 text-white stroke-[2.2] z-30" />}
