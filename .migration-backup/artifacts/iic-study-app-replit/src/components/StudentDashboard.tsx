@@ -7774,9 +7774,9 @@ export const StudentDashboard: React.FC<Props> = ({
             {/* ── COMPETITION STICKY MODE TAB BAR — Lucent jaisa ── */}
             {/* Access: Free=Reading+Writing+MCQ | Basic+=Q&A+PDF | Ultra+=Video+Audio+Flashcard | Admin=+Projector */}
             {!hwImmersive && !isLandscapeUiHidden && effectiveMode !== 'flashcard' && (() => {
-              const _hwTabCls = (active: boolean, activeBg: string, activeText: string) =>
-                `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
-                ` ${active ? `${activeBg} ${activeText}` : 'bg-white text-slate-500 active:bg-slate-50'}`;
+              const _hwTabCls = (active: boolean, _activeBg: string, _activeText: string) =>
+                `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0` +
+                ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
               const _hwTabStyle = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
               const _isReadActive = effectiveMode === 'notes' && hwNotesViewMode === 'chunk';
               const _isWriteActive = effectiveMode === 'notes' && hwNotesViewMode === 'html';
@@ -7840,8 +7840,8 @@ export const StudentDashboard: React.FC<Props> = ({
                 }
               };
               return (
-                <div ref={hwTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
-                  <div className="flex min-w-max">
+                <div ref={hwTabBarRef} className="border-b border-[#30315a] shadow-[0_2px_8px_rgba(10,12,45,0.22)] shrink-0 overflow-x-auto bg-[#17183a]" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
+                  <div className="flex min-w-max bg-[#17183a]">
                     {/* Free+ — Reading (coin gate: 20 coins, once per lesson) */}
                     <button data-tab-active={String(_isReadActive)} onClick={() => {
                       const _doRead = () => { stopSpeech(); setHwViewMode('notes'); setHwNotesViewMode('chunk'); _hwSave('notes', 'chunk'); };
@@ -20170,9 +20170,9 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
               const _hasAudioTb = !!(currentPage as any)?.audioUrl;
               const _isReadActive = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk';
               const _isWriteActive = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
-              const _tabCls = (active: boolean, activeBg: string, activeText: string) =>
-                `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
-                ` ${active ? `${activeBg} ${activeText}` : 'bg-white text-slate-500 active:bg-slate-50'}`;
+               const _tabCls = (active: boolean, _activeBg: string, _activeText: string) =>
+                 `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0` +
+                 ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
               const _tabStyle = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
               const _save = (tab: string, vm?: string) => { try { localStorage.setItem(`iic_tab_${entry.id}`, tab); if (vm) localStorage.setItem(`iic_tabvm_${entry.id}`, vm); } catch {} };
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
@@ -20244,8 +20244,8 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                 }
               };
               return (
-                <div ref={lucentTabBarRef} className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
-                  <div className="flex min-w-max">
+                 <div ref={lucentTabBarRef} className="border-b border-[#30315a] shadow-[0_2px_8px_rgba(10,12,45,0.22)] shrink-0 overflow-x-auto bg-[#17183a]" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
+                   <div className="flex min-w-max bg-[#17183a]">
                     <button data-tab-active={String(_isReadActive)} onClick={() => { stopSpeech(); setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); _save('NOTES', 'chunk'); }} style={_tabStyle} className={_tabCls(_isReadActive, 'bg-indigo-600', 'text-white')}>
                       Reading Mode
                     </button>
@@ -22949,13 +22949,13 @@ RULES:
       {/* ===================== FLASHCARD MCQ OVERLAY (shared by Lucent + Homework) ===================== */}
       {flashcardMcqs && (() => {
         const fl = flashcardMcqs.fromLesson;
-        const _tcls = (active: boolean, activeBg: string) =>
-          `flex items-center justify-center px-2 py-2.5 shrink-0 transition-all text-center font-bold text-[11px] leading-tight` +
-          ` ${active ? `${activeBg} text-white` : 'bg-white text-slate-500 active:bg-slate-50'}`;
+         const _tcls = (active: boolean, _activeBg: string) =>
+           `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0` +
+           ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
         const _ts = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
         const tabBarNode = fl ? (
-          <div className="border-b border-slate-200 shadow-sm shrink-0 overflow-x-auto bg-white" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
-            <div className="flex min-w-max">
+           <div className="border-b border-[#30315a] shadow-[0_2px_8px_rgba(10,12,45,0.22)] shrink-0 overflow-x-auto bg-[#17183a]" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
+             <div className="flex min-w-max bg-[#17183a]">
               {/* Reading Mode */}
               <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
                 onClick={() => {
