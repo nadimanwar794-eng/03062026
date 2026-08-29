@@ -7445,16 +7445,18 @@ export const StudentDashboard: React.FC<Props> = ({
                         key={lesson.id}
                         onClick={() => {
                           if (!lesson.mcqs?.length) return;
-                          stopSpeech();
-                          setFlashcardMcqs({
-                            items: lesson.mcqs,
-                            title: lesson.lessonTitle || 'MCQ Practice',
-                            subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
-                            subject: '',
-                            startInProjectorMode: true,
-                            hideProjectorLabel: true,
-                            // fromLesson omitted: no tab bar, no mode buttons — only projector mode.
-                          });
+                         handleProjectorModeGate(lesson.id, 0, () => {
+                           stopSpeech();
+                           setFlashcardMcqs({
+                             items: lesson.mcqs,
+                             title: lesson.lessonTitle || 'MCQ Practice',
+                             subtitle: `${lesson.mcqCount || lesson.mcqs.length} Questions`,
+                             subject: '',
+                             startInProjectorMode: true,
+                             hideProjectorLabel: true,
+                             // fromLesson omitted: no tab bar, no mode buttons — only projector mode.
+                           });
+                         });
                         }}
                         className={`w-full text-left ${theme.cardBg || 'bg-white'} border ${theme.border} rounded-2xl p-3.5 active:scale-[0.99] transition-all shadow-sm hover:shadow-md`}
                       >
@@ -22972,6 +22974,26 @@ RULES:
       {/* ===================== FLASHCARD MCQ OVERLAY (shared by Lucent + Homework) ===================== */}
       {flashcardMcqs && (() => {
         const fl = flashcardMcqs.fromLesson;
+        const _overlayUnlockId = fl?.unlockId || `standalone_${flashcardMcqs.title}`;
+        const _overlayUnlockPage = fl?.unlockPageIndex ?? 0;
+        const _gateOverlayMode = (
+          mode: 'READING' | 'WRITING' | 'MCQ' | 'QA' | 'FLASHCARD',
+          action: () => void,
+        ) => {
+          if (_isAdminUser) { action(); return; }
+          const modeConfig = {
+            READING: { label: 'Reading Mode', isUnlocked: isPgReadUnlocked(_overlayUnlockId, _overlayUnlockPage), mark: () => markPgReadUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+            WRITING: { label: 'Writing Mode', isUnlocked: isPgWriteUnlocked(_overlayUnlockId, _overlayUnlockPage), mark: () => markPgWriteUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+            MCQ: { label: 'MCQ Practice', isUnlocked: isMcqPageUnlocked(_overlayUnlockId, _overlayUnlockPage), mark: () => markMcqPageUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+            QA: { label: 'Q&A Mode', isUnlocked: isQaPageUnlocked(_overlayUnlockId, _overlayUnlockPage), mark: () => markQaPageUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+            FLASHCARD: { label: 'Flashcard', isUnlocked: isFcPageUnlocked(_overlayUnlockId, _overlayUnlockPage), mark: () => markFcPageUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+          }[mode];
+          if (modeConfig.isUnlocked) { action(); return; }
+          showCoinGate(20, modeConfig.label, () => {
+            modeConfig.mark();
+            action();
+          });
+        };
          const _tcls = (active: boolean, _activeBg: string) =>
            `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0 relative` +
            ` ${active ? 'bg-[#17183a] text-white after:content-[\'\'] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[3px] after:w-[calc(100%-16px)] after:rounded-full after:bg-[#d8d2ff] after:shadow-[0_0_9px_2px_rgba(190,172,255,0.9)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
@@ -22982,27 +23004,33 @@ RULES:
               {/* Reading Mode */}
               <button style={_ts} className={_tcls(false, 'bg-indigo-600')}
                 onClick={() => {
-                  setFlashcardMcqs(null);
-                  if (fl.isCompetition) { setHwViewMode('notes'); setHwNotesViewMode('chunk'); }
-                  else { setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); }
+                   _gateOverlayMode('READING', () => {
+                     setFlashcardMcqs(null);
+                     if (fl?.isCompetition) { setHwViewMode('notes'); setHwNotesViewMode('chunk'); }
+                     else { setLucentActiveTab('NOTES'); setLucentNotesViewMode('chunk'); }
+                   });
                 }}>
                 Reading Mode
               </button>
               {/* Writing Mode — coin gate for competition */}
               <button style={_ts} className={_tcls(false, 'bg-teal-600')}
                 onClick={() => {
-                  setFlashcardMcqs(null);
-                  if (fl.isCompetition) { handleWriteModeGate(() => { setHwViewMode('notes'); setHwNotesViewMode('html'); }, undefined, hwActiveHwId, 0); }
-                  else { setLucentActiveTab('NOTES'); setLucentNotesViewMode('html'); }
+                   _gateOverlayMode('WRITING', () => {
+                     setFlashcardMcqs(null);
+                     if (fl?.isCompetition) { setHwViewMode('notes'); setHwNotesViewMode('html'); }
+                     else { setLucentActiveTab('NOTES'); setLucentNotesViewMode('html'); }
+                   });
                 }}>
                 Writing Mode
               </button>
               {fl.hasMcq && (
                 <button style={_ts} className={_tcls(false, 'bg-purple-600')}
                   onClick={() => {
-                    setFlashcardMcqs(null);
-                    if (fl.isCompetition) { setHwViewMode('mcq'); }
-                    else { setLucentActiveTab('MCQS'); }
+                     _gateOverlayMode('MCQ', () => {
+                       setFlashcardMcqs(null);
+                       if (fl?.isCompetition) { setHwViewMode('mcq'); }
+                       else { setLucentActiveTab('MCQS'); }
+                     });
                   }}>
                   MCQ Practice
                 </button>
@@ -23013,9 +23041,7 @@ RULES:
                   className={_tcls(fl.activeMode === 'projector', 'bg-amber-500')}
                   onClick={() => {
                      if (fl.activeMode === 'projector') return;
-                     const _projectorId = fl.unlockId || `standalone_${flashcardMcqs.title}`;
-                     const _projectorPage = fl.unlockPageIndex ?? 0;
-                     handleProjectorModeGate(_projectorId, _projectorPage, () => {
+                     handleProjectorModeGate(_overlayUnlockId, _overlayUnlockPage, () => {
                        setFlashcardMcqs(prev => prev ? {
                          ...prev,
                          startInProjectorMode: true,
@@ -23032,13 +23058,13 @@ RULES:
                   className={_tcls(fl.activeMode === 'flashcard', 'bg-amber-500') + (!_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
                   onClick={() => {
                     if (!_isUltraUser && !_isAdminUser) { showAlert('🔒 Flashcard ke liye ULTRA subscription chahiye!', 'INFO'); return; }
-                    if (fl.activeMode !== 'flashcard') {
-                      setFlashcardMcqs(prev => prev ? {
-                        ...prev,
-                        startInProjectorMode: false,
-                        fromLesson: prev.fromLesson ? { ...prev.fromLesson, activeMode: 'flashcard' } : prev.fromLesson,
-                      } : null);
-                    }
+                     if (fl.activeMode !== 'flashcard') {
+                       _gateOverlayMode('FLASHCARD', () => setFlashcardMcqs(prev => prev ? {
+                         ...prev,
+                         startInProjectorMode: false,
+                         fromLesson: prev.fromLesson ? { ...prev.fromLesson, activeMode: 'flashcard' } : prev.fromLesson,
+                       } : null));
+                     }
                   }}>
                   {!_isUltraUser && !_isAdminUser ? '🔒' : '🃏'} Flashcard
                 </button>
@@ -23048,9 +23074,11 @@ RULES:
                   className={_tcls(false, 'bg-indigo-600') + (!_isBasicUser && !_isUltraUser && !_isAdminUser ? ' opacity-60' : '')}
                   onClick={() => {
                     if (!_isBasicUser && !_isUltraUser && !_isAdminUser) { showAlert('🔒 Q&A ke liye BASIC subscription chahiye!', 'INFO'); return; }
-                    setFlashcardMcqs(null);
-                    if (fl.isCompetition) { setHwViewMode('qa'); }
-                    else { setLucentActiveTab('QA'); }
+                     _gateOverlayMode('QA', () => {
+                       setFlashcardMcqs(null);
+                       if (fl?.isCompetition) { setHwViewMode('qa'); }
+                       else { setLucentActiveTab('QA'); }
+                     });
                   }}>
                   {!_isBasicUser && !_isUltraUser && !_isAdminUser ? '🔒' : '💬'} Q&amp;A
                 </button>
