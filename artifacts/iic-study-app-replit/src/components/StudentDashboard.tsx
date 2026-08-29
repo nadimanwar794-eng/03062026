@@ -23187,6 +23187,13 @@ RULES:
               sourceMeta={{ lessonTitle: flashcardMcqs.title, subject: flashcardMcqs.subject }}
               sourceKey={flashcardMcqs.sourceKey}
               startInProjectorMode={flashcardMcqs.startInProjectorMode}
+              onProjectorModeChange={(enabled) => setFlashcardMcqs(prev => prev ? {
+                ...prev,
+                startInProjectorMode: enabled,
+                fromLesson: prev.fromLesson
+                  ? { ...prev.fromLesson, activeMode: enabled ? 'projector' : 'flashcard' }
+                  : prev.fromLesson,
+              } : null)}
               hideProjectorLabel={flashcardMcqs.hideProjectorLabel}
               tabBar={tabBarNode}
             />

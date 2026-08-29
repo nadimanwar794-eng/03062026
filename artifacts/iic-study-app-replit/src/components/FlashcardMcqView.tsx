@@ -36,6 +36,9 @@ interface Props {
   sourceKey?: string;
   /** If true, component opens directly in Projector Mode (TV button shortcut) */
   startInProjectorMode?: boolean;
+  /** Keep the parent lesson tab selection in sync when projector is toggled
+   * from inside the flashcard overlay. */
+  onProjectorModeChange?: (enabled: boolean) => void;
   /** Lesson tab bar rendered at the very top (Reading Mode | Writing Mode | MCQ Practice | Projector) */
   tabBar?: React.ReactNode;
   /** If true, hides the "PROJECTOR MODE" badge in the projector header */
@@ -76,7 +79,7 @@ const addTodayCount = (userId: string, n: number) => {
 };
 
 export const FlashcardMcqView: React.FC<Props> = ({
-  questions, title, subtitle, subject, onBack, user, settings, onUpdateUser, sourceMeta, sourceKey, startInProjectorMode, tabBar, hideProjectorLabel
+  questions, title, subtitle, subject, onBack, user, settings, onUpdateUser, sourceMeta, sourceKey, startInProjectorMode, onProjectorModeChange, tabBar, hideProjectorLabel
 }) => {
   const isMountedRef = useRef(true);
   const [pickedIndices, setPickedIndices] = useState<number[]>([]);
@@ -629,7 +632,18 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 {/* Projector Mode */}
                 {questions.length > 0 && (
                   <button
-                    onClick={() => { setShowTopMenu(false); setProjectorQIndex(0); setProjectorReveal(false); setProjectorAnswered(new Set()); setProjectorCorrect(0); setProjectorWrong(0); setProjectorSelections({}); setProjectorShowReview(false); setIsProjectorMode(true); }}
+                    onClick={() => {
+                      setShowTopMenu(false);
+                      setProjectorQIndex(0);
+                      setProjectorReveal(false);
+                      setProjectorAnswered(new Set());
+                      setProjectorCorrect(0);
+                      setProjectorWrong(0);
+                      setProjectorSelections({});
+                      setProjectorShowReview(false);
+                      setIsProjectorMode(true);
+                      onProjectorModeChange?.(true);
+                    }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors text-amber-700 hover:bg-amber-50"
                   >
                     <Tv size={15} className="text-amber-500 shrink-0" />
@@ -1010,6 +1024,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                       } else {
                         setIsProjectorMode(false);
                         setProjectorRotated(false);
+                        onProjectorModeChange?.(false);
                       }
                     }}
                     style={{ flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', width:36, height:36, background:'#f1f5f9', border:'1px solid #e2e8f0', borderRadius:10, color:'#475569', cursor:'pointer' }}>
