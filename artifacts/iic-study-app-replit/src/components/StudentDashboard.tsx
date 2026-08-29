@@ -546,19 +546,9 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
-const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, surfaceBg, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, surfaceBg: string, ActiveIcon?: React.ElementType }) => {
+const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
-       {/* A small app-surface ring creates the clean negative space around the
-           active bead without changing the nav or bead dimensions. */}
-       <div
-          className="absolute top-[-18px] w-14 h-14 rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
-          style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 28px)`,
-             backgroundColor: surfaceBg,
-             willChange: 'left',
-          }}
-       />
         {/* The bead floats above the capsule, matching the reference navigation.
             Keep its illumination directional so the light falls below the
             active item instead of creating an outline around it. */}
@@ -18095,8 +18085,8 @@ export const StudentDashboard: React.FC<Props> = ({
           // capsule stays opaque enough for Android visual-viewport resizes
           // while retaining the reference's soft, floating glass treatment.
           background: `color-mix(in srgb, ${_bottomNavBg} 92%, transparent)`,
-          border: `1px solid ${((tierTheme as any).navBorderColor || tierTheme.primary + '44')}`,
-          boxShadow: `0 14px 32px -16px ${tierTheme.shadowColor}, 0 0 0 1px rgba(255,255,255,0.04) inset`,
+          border: 'none',
+          boxShadow: `0 14px 32px -16px ${tierTheme.shadowColor}`,
         }}
         aria-label="Primary"
       >
@@ -18471,7 +18461,6 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                     activeIndex={activeIndex}
                     totalTabs={totalVisible}
                     activeColor={getNavActiveColor(activeIndex)}
-                    surfaceBg={_appBg}
                     ActiveIcon={visibleTabs[activeIndex]?.Icon}
                   />
                 )}
