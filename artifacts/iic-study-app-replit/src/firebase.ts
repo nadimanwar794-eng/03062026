@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, collection, updateDoc, deleteDoc, onSnapshot, getDocs, query, where, limitToLast, orderBy, increment, arrayUnion, limit, startAfter, QueryDocumentSnapshot } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, getDocFromServer, collection, updateDoc, deleteDoc, onSnapshot, getDocs, query, where, limitToLast, orderBy, increment, arrayUnion, limit, startAfter, QueryDocumentSnapshot } from "firebase/firestore";
 import { getDatabase, ref, set, get, onValue, update, remove, query as rtdbQuery, limitToLast as rtdbLimitToLast, orderByChild as rtdbOrderByChild, equalTo as rtdbEqualTo, runTransaction } from "firebase/database";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { storage } from "./utils/storage";
@@ -1062,25 +1062,47 @@ export const subscribeToRecentUsers = (callback: (users: any[]) => void) => {
 };
 
 export const subscribeToUser = (userId: string, callback: (user: any) => void) => {
-    // Primary: Firestore onSnapshot (requires Firebase Auth session).
-    // Fallback: RTDB onValue (no auth needed) — used when Firestore gives permission-denied
-    // (e.g. RTDB-recovered login on a fresh device with no Firebase Auth session).
-
-    let unsubRtdb: (() => void) | null = null;
+    // Listen to both stores. Firestore is the canonical profile store, while RTDB
+    // is the account-state mirror and fresh-device fallback. Keeping both active
+    // avoids a cached Firestore snapshot hiding a newer balance from RTDB.
+    let latestRtdbCore: any = null;
     let unsubUserData: (() => void) | null = null;
     let latestCore: any = null;
     let latestUserData: any = null;
 
     const emitCombined = () => {
-        if (latestCore) callback({ ...latestCore, ...(latestUserData || {}) });
+        if (!latestCore && !latestRtdbCore) return;
+
+        // Account fields are deliberately resolved from user_data first, then
+        // RTDB, then the profile document. This prevents a stale local Firestore
+        // profile cache from replacing the balance just received from another
+        // device. Profile/settings fields continue to prefer Firestore.
+        const combined = { ...(latestRtdbCore || {}), ...(latestCore || {}), ...(latestUserData || {}) };
+        for (const field of ACCOUNT_STATE_FIELDS) {
+            if (latestUserData && Object.prototype.hasOwnProperty.call(latestUserData, field)) {
+                combined[field] = latestUserData[field];
+            } else if (latestRtdbCore && Object.prototype.hasOwnProperty.call(latestRtdbCore, field)) {
+                combined[field] = latestRtdbCore[field];
+            } else if (latestCore && Object.prototype.hasOwnProperty.call(latestCore, field)) {
+                combined[field] = latestCore[field];
+            }
+        }
+        callback(combined);
     };
+
+    const unsubRtdb = onValue(ref(rtdb, `users/${userId}`), (snap) => {
+        if (snap.exists()) {
+            latestRtdbCore = snap.val();
+            emitCombined();
+        }
+    }, (error: any) => {
+        console.warn('[IIC] subscribeToUser RTDB error:', error?.code || error);
+    });
 
     const unsubFirestore = onSnapshot(
         doc(db, "users", userId),
         (docSnap) => {
             if (docSnap.exists()) {
-                // Firestore working — cancel any RTDB fallback listener
-                if (unsubRtdb) { unsubRtdb(); unsubRtdb = null; }
                 latestCore = docSnap.data();
                 emitCombined();
             } else {
@@ -1094,20 +1116,9 @@ export const subscribeToUser = (userId: string, callback: (user: any) => void) =
             }
         },
         (error) => {
-            // Firestore permission-denied → fall back to RTDB so user data still loads.
-            // Any other error → log but do NOT log out the user.
-            if (error.code === 'permission-denied') {
-                if (!unsubRtdb) {
-                    unsubRtdb = onValue(ref(rtdb, `users/${userId}`), (snap) => {
-                        if (snap.exists()) {
-                            latestCore = snap.val();
-                            emitCombined();
-                        }
-                        // RTDB also missing → user may be deleted; but we don't force-logout
-                        // without a confirmed Firestore delete to avoid false positives.
-                    });
-                }
-            } else {
+            // RTDB stays active regardless of Firestore permission/cache state.
+            // Any Firestore error must not log the user out or hide account data.
+            if (error.code !== 'permission-denied') {
                 console.warn('[IIC] subscribeToUser Firestore error:', error.code);
             }
         }
@@ -1131,7 +1142,7 @@ export const subscribeToUser = (userId: string, callback: (user: any) => void) =
 
     return () => {
         unsubFirestore();
-        if (unsubRtdb) unsubRtdb();
+        unsubRtdb();
         if (unsubUserData) unsubUserData();
     };
 };
@@ -1164,6 +1175,60 @@ export const getUserData = async (userId: string) => {
 
         return null;
     } catch (e) { console.error(e); return null; }
+};
+
+// Login-time read that bypasses a device's persistent Firestore cache. The
+// normal getUserData helper intentionally supports offline cache; authentication
+// must not use that cache to initialize a new device with an old credit balance.
+export const getFreshUserData = async (userId: string) => {
+    if (!userId) return null;
+    try {
+        let coreData: any = null;
+        let rtdbData: any = null;
+        try {
+            const docSnap = await getDocFromServer(doc(db, "users", userId));
+            if (docSnap.exists()) coreData = docSnap.data();
+        } catch {
+            // RTDB is also mirrored on every account write and works as the
+            // recovery path when Firestore is offline or unauthenticated.
+            const snap = await get(ref(rtdb, `users/${userId}`));
+            if (snap.exists()) coreData = snap.val();
+        }
+
+        if (!coreData) return null;
+
+        // Always read the RTDB mirror as a second account-state source. This
+        // covers the case where the profile is available from Firestore but
+        // user_data is temporarily blocked or unavailable.
+        try {
+            const snap = await get(ref(rtdb, `users/${userId}`));
+            if (snap.exists()) rtdbData = snap.val();
+        } catch {}
+
+        let accountData: any = null;
+        try {
+            const bulkySnap = await getDocFromServer(doc(db, "user_data", userId));
+            if (bulkySnap.exists()) accountData = bulkySnap.data();
+        } catch {
+            // The mirrored account fields on RTDB are enough to keep credits and
+            // subscription state accurate when user_data is not readable yet.
+        }
+
+        const merged = { ...(rtdbData || {}), ...coreData, ...(accountData || {}) };
+        for (const field of ACCOUNT_STATE_FIELDS) {
+            if (accountData && Object.prototype.hasOwnProperty.call(accountData, field)) {
+                merged[field] = accountData[field];
+            } else if (rtdbData && Object.prototype.hasOwnProperty.call(rtdbData, field)) {
+                merged[field] = rtdbData[field];
+            } else if (coreData && Object.prototype.hasOwnProperty.call(coreData, field)) {
+                merged[field] = coreData[field];
+            }
+        }
+        return merged;
+    } catch (error) {
+        console.warn('[IIC] Fresh user read failed:', error);
+        return getUserData(userId);
+    }
 };
 
 export const getUserByEmail = async (email: string) => {

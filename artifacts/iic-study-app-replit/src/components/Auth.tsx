@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, SystemSettings } from '../types';
 import { ADMIN_EMAIL } from '../constants';
-import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserData, getUserByLinkedGoogleUid } from '../firebase';
+import { saveUserToLive, auth, getUserByEmail, getUserByMobileOrId, getUserData, getFreshUserData, getUserByLinkedGoogleUid } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signInAnonymously, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Lock, User as UserIcon, Phone, Mail, ShieldCheck, KeyRound, Copy, Check, XCircle, HelpCircle, Eye, EyeOff, ShieldQuestion, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { LoginGuide } from './LoginGuide';
@@ -221,7 +221,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       const userPhoto = firebaseUser.photoURL || '';
       const uid = firebaseUser.uid;
 
-      let appUser: any = await getUserData(uid);
+      let appUser: any = await getFreshUserData(uid);
       if (!appUser && userEmail) appUser = await getUserByEmail(userEmail);
       if (!appUser) appUser = await getUserByLinkedGoogleUid(uid);
 
@@ -237,7 +237,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           profileCompleted: true,
           securityQuestion: appUser.securityQuestion || DEFAULT_QUESTIONS[0],
           securityAnswer: appUser.securityAnswer || 'google',
-          credits: typeof appUser.credits === 'number' && appUser.credits > 0 ? appUser.credits : 50
+          credits: typeof appUser.credits === 'number' ? appUser.credits : 50
         };
 
         if (!await saveUserToLive(appUser)) throw new Error('Account could not be saved to the backend.');
@@ -326,7 +326,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
         try {
           const res = await signInWithEmailAndPassword(auth, input.toLowerCase(), pass);
           const uid = res.user.uid;
-          let appUser: any = await getUserData(uid);
+          let appUser: any = await getFreshUserData(uid);
           if (!appUser) appUser = await getUserByEmail(input.toLowerCase());
 
           const completeUser: User = {
@@ -387,7 +387,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
           if (targetUser.email && !auth.currentUser?.email) {
             await signInWithEmailAndPassword(auth, targetUser.email, pass).catch(() => {});
           }
-          let freshProfile = await getUserData(targetUser.id);
+          let freshProfile = await getFreshUserData(targetUser.id);
           const raw = freshProfile || targetUser;
           const uid = raw.id || raw.uid;
 
@@ -584,7 +584,7 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity, appSettings }) => 
       setLoading(true);
       try {
         const validId = recoveryUserObj.id || recoveryUserObj.uid;
-        let freshProfile = await getUserData(validId);
+        let freshProfile = await getFreshUserData(validId);
         const raw = freshProfile || recoveryUserObj;
 
         const completeUser: User = {
