@@ -843,22 +843,68 @@ export const getScoreLogFromFirebase = async (userId: string): Promise<any[]> =>
 
 // --- DUAL WRITE / SMART READ LOGIC ---
 
+// These fields determine access to paid features and represent account value.
+// They are duplicated in the per-user data document so that a profile write
+// cannot accidentally leave credits/subscriptions behind in a device cache.
+const ACCOUNT_STATE_FIELDS = [
+  'credits',
+  'bonusCredits',
+  'giftedCredits',
+  'giftedCreditsExpiry',
+  'isPremium',
+  'subscriptionTier',
+  'subscriptionLevel',
+  'subscriptionEndDate',
+  'subscriptionPrice',
+  'grantedByAdmin',
+  'customSubscriptionName',
+  'customSubscriptionDuration',
+  'activeSubscriptions',
+  'subscriptionHistory',
+  'pendingRewards',
+  'redeemedCodes',
+  'inbox',
+  'isRewardsUnlocked',
+  'lastRewardClaimDate',
+  'lastLoginRewardDate',
+  'dailyMcqDate',
+  'dailyMcqCount',
+  'dailyMcqCorrect',
+  'dailyMcqRewardClaimed',
+  'totalScore',
+  'scoreBoostPercent',
+  'scoreBoostExpiry',
+  'scoreLimitBoostPercent',
+  'scoreLimitBoostExpiry',
+] as const;
+
+const getAccountState = (user: any): Record<string, any> => {
+  const accountState: Record<string, any> = {};
+  for (const field of ACCOUNT_STATE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(user, field)) {
+      accountState[field] = user[field];
+    }
+  }
+  return accountState;
+};
+
 // 1. User Data Sync
 export const saveUserToLive = async (user: any) => {
-  try {
-    if (!user || !user.id) return;
+  if (!user || !user.id) return false;
 
+  try {
     // Sanitize data before saving
     const sanitizedUser = sanitizeForFirestore(user);
+    const accountState = getAccountState(sanitizedUser);
 
-    // EXTRACT BULKY DATA FOR SEGREGATION
-    const {
-        mcqHistory, usageHistory, progress, testResults, inbox,
-        topicStrength, subscriptionHistory, activeSubscriptions,
-        pendingRewards, redeemedCodes, unlockedContent, timedUnlocks, dailyRoutine,
-        loadingScreenSlotUnlocks, loadingScreenUnlocks, loadingScreenSlotAssignments,
-        ...coreProfile
-    } = sanitizedUser;
+  // EXTRACT BULKY DATA FOR SEGREGATION
+  const {
+      mcqHistory, usageHistory, progress, testResults, inbox,
+      topicStrength, subscriptionHistory, activeSubscriptions,
+      pendingRewards, redeemedCodes, unlockedContent, timedUnlocks, dailyRoutine,
+      loadingScreenSlotUnlocks, loadingScreenUnlocks, loadingScreenSlotAssignments,
+      ...coreProfile
+  } = sanitizedUser;
 
     // ── ROLE PROTECTION ────────────────────────────────────────────────────────
     // Never downgrade a privileged role (ADMIN / SUB_ADMIN) to a lower one via
@@ -879,11 +925,18 @@ export const saveUserToLive = async (user: any) => {
     }
     // ──────────────────────────────────────────────────────────────────────────
 
-    const promises = [];
+    const writes: Array<{ name: string; promise: Promise<unknown> }> = [];
 
-    // 1. Save Core Profile to RTDB & Firestore (users/{uid})
-    promises.push(update(ref(rtdb, `users/${user.id}`), coreProfile).catch(e => console.error("RTDB Core Save Error:", e)));
-    promises.push(setDoc(doc(db, "users", user.id), coreProfile, { merge: true }).catch(e => console.error("Firestore Core Save Error:", e)));
+    // 1. Save the profile and account state to both backend stores.
+    // RTDB is also kept complete enough for fresh-device fallback login.
+    writes.push({
+      name: 'RTDB profile',
+      promise: update(ref(rtdb, `users/${user.id}`), { ...coreProfile, ...accountState }),
+    });
+    writes.push({
+      name: 'Firestore profile',
+      promise: setDoc(doc(db, "users", user.id), coreProfile, { merge: true }),
+    });
 
     // 2. Save Bulky Data to Subcollections or Document Extensions to avoid 1MB document limit
     // Note: To keep things intact for the current frontend without massive refactoring,
@@ -909,14 +962,45 @@ export const saveUserToLive = async (user: any) => {
     if (user.hasOwnProperty('loadingScreenUnlocks')) bulkyData.loadingScreenUnlocks = loadingScreenUnlocks;
     if (user.hasOwnProperty('loadingScreenSlotAssignments')) bulkyData.loadingScreenSlotAssignments = loadingScreenSlotAssignments;
 
-    // Use { merge: true } so we don't delete fields we didn't explicitly pass this time.
+    // Account state is written to the backend data document on every account
+    // mutation. The merge keeps unrelated history/content fields intact.
+    Object.assign(bulkyData, accountState);
     if (Object.keys(bulkyData).length > 0) {
-        promises.push(setDoc(doc(db, "user_data", user.id), sanitizeForFirestore(bulkyData), { merge: true }).catch(e => console.error("Firestore Bulky Data Save Error:", e)));
+        writes.push({
+          name: 'Firestore user data',
+          promise: setDoc(doc(db, "user_data", user.id), sanitizeForFirestore(bulkyData), { merge: true }),
+        });
     }
 
-    await Promise.all(promises);
+    const results = await Promise.allSettled(writes.map(write => write.promise));
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`[saveUserToLive] ${writes[index].name} failed:`, result.reason);
+      }
+    });
+
+    const rtdbProfileSaved = results[0]?.status === 'fulfilled';
+    const firestoreProfileSaved = results[1]?.status === 'fulfilled';
+    const accountDataIndex = writes.findIndex(write => write.name === 'Firestore user data');
+    const accountDataSaved =
+      accountDataIndex === -1 ||
+      rtdbProfileSaved ||
+      results[accountDataIndex]?.status === 'fulfilled';
+
+    // Never report success when the account only exists in local state.
+    if (!rtdbProfileSaved && !firestoreProfileSaved) {
+      throw new Error('Account profile could not be saved to the backend.');
+    }
+    if (Object.keys(accountState).length > 0 && !accountDataSaved) {
+      throw new Error('Account credits and rewards could not be saved to the backend.');
+    }
+    return true;
   } catch (error) {
     console.error("Error saving user:", error);
+    // Most background sync callers intentionally do not await this function.
+    // Return a status instead of creating unhandled promise rejections; the
+    // account-critical flows explicitly check this result before succeeding.
+    return false;
   }
 };
 
@@ -983,6 +1067,13 @@ export const subscribeToUser = (userId: string, callback: (user: any) => void) =
     // (e.g. RTDB-recovered login on a fresh device with no Firebase Auth session).
 
     let unsubRtdb: (() => void) | null = null;
+    let unsubUserData: (() => void) | null = null;
+    let latestCore: any = null;
+    let latestUserData: any = null;
+
+    const emitCombined = () => {
+        if (latestCore) callback({ ...latestCore, ...(latestUserData || {}) });
+    };
 
     const unsubFirestore = onSnapshot(
         doc(db, "users", userId),
@@ -990,7 +1081,8 @@ export const subscribeToUser = (userId: string, callback: (user: any) => void) =
             if (docSnap.exists()) {
                 // Firestore working — cancel any RTDB fallback listener
                 if (unsubRtdb) { unsubRtdb(); unsubRtdb = null; }
-                callback(docSnap.data());
+                latestCore = docSnap.data();
+                emitCombined();
             } else {
                 // Only treat as deleted when we have an active Firebase Auth session.
                 // Without a session, Firestore returns a non-existent snapshot due to
@@ -1008,7 +1100,8 @@ export const subscribeToUser = (userId: string, callback: (user: any) => void) =
                 if (!unsubRtdb) {
                     unsubRtdb = onValue(ref(rtdb, `users/${userId}`), (snap) => {
                         if (snap.exists()) {
-                            callback(snap.val());
+                            latestCore = snap.val();
+                            emitCombined();
                         }
                         // RTDB also missing → user may be deleted; but we don't force-logout
                         // without a confirmed Firestore delete to avoid false positives.
@@ -1020,9 +1113,26 @@ export const subscribeToUser = (userId: string, callback: (user: any) => void) =
         }
     );
 
+    // Account state and bulky data live separately from the profile document.
+    // Listening here prevents a stale local cache from winning over a credit,
+    // subscription, reward, or redemption update made in another device/tab.
+    unsubUserData = onSnapshot(
+        doc(db, "user_data", userId),
+        (dataSnap) => {
+            latestUserData = dataSnap.exists() ? dataSnap.data() : null;
+            emitCombined();
+        },
+        (error) => {
+            if (error.code !== 'permission-denied') {
+                console.warn('[IIC] subscribeToUser user_data error:', error.code);
+            }
+        },
+    );
+
     return () => {
         unsubFirestore();
         if (unsubRtdb) unsubRtdb();
+        if (unsubUserData) unsubUserData();
     };
 };
 
@@ -1030,16 +1140,17 @@ export const getUserData = async (userId: string) => {
     try {
         let coreData: any = null;
 
-        // Try RTDB
-        const snap = await get(ref(rtdb, `users/${userId}`));
-        if (snap.exists()) {
-             coreData = snap.val();
-        } else {
-            // Try Firestore
+        // Firestore is the canonical read for account data. RTDB remains the
+        // fallback required by the app's recovery login on a fresh device.
+        try {
             const docSnap = await getDoc(doc(db, "users", userId));
-            if (docSnap.exists()) {
-                 coreData = docSnap.data();
-            }
+            if (docSnap.exists()) coreData = docSnap.data();
+        } catch {
+            // Firestore can be unavailable before Firebase Auth is restored.
+        }
+        if (!coreData) {
+            const snap = await get(ref(rtdb, `users/${userId}`));
+            if (snap.exists()) coreData = snap.val();
         }
 
         if (coreData) {

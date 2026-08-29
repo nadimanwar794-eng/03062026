@@ -45,6 +45,7 @@ import {
   saveLucentEntryDirect,
   saveHomeworkEntryDirect,
   subscribeMcqLessons,
+  subscribeToUser,
 } from "../firebase";
 import type { ContentTypeStats, ContentIndexMap } from "../firebase";
 import { doc, onSnapshot, updateDoc, deleteField } from "firebase/firestore";
@@ -6067,74 +6068,38 @@ export const StudentDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     if (!user.id) return;
-    const unsub = onSnapshot(doc(db, "users", user.id), (doc) => {
-      if (doc.exists()) {
-        const cloudData = doc.data() as User;
+    const unsub = subscribeToUser(user.id, (cloudData) => {
+      if (cloudData) {
         const currentUser = userRef.current;
+        const accountFields = [
+          "credits",
+          "bonusCredits",
+          "giftedCredits",
+          "giftedCreditsExpiry",
+          "isPremium",
+          "subscriptionTier",
+          "subscriptionLevel",
+          "subscriptionEndDate",
+          "activeSubscriptions",
+          "subscriptionHistory",
+          "pendingRewards",
+          "redeemedCodes",
+          "inbox",
+          "isGameBanned",
+        ];
+        const accountChanged = accountFields.some(
+          (field) =>
+            JSON.stringify((cloudData as any)[field]) !==
+            JSON.stringify((currentUser as any)[field]),
+        );
         const needsUpdate =
-          cloudData.credits !== currentUser.credits ||
-          cloudData.subscriptionTier !== currentUser.subscriptionTier ||
-          cloudData.isPremium !== currentUser.isPremium ||
-          cloudData.isGameBanned !== currentUser.isGameBanned ||
+          accountChanged ||
           (cloudData.mcqHistory?.length || 0) >
             (currentUser.mcqHistory?.length || 0);
         if (needsUpdate) {
-          // Handle expired subscriptions dynamically safely using getTime() to avoid string comparison bugs
-          if (
-            cloudData.isPremium &&
-            cloudData.subscriptionEndDate &&
-            cloudData.subscriptionTier !== "LIFETIME"
-          ) {
-            const expDate = new Date(cloudData.subscriptionEndDate).getTime();
-            if (!isNaN(expDate) && expDate < Date.now()) {
-              cloudData.isPremium = false;
-              cloudData.subscriptionTier = "FREE";
-              cloudData.subscriptionLevel = undefined;
-            }
-          }
-
-          let protectedSub = {
-            tier: cloudData.subscriptionTier,
-            level: cloudData.subscriptionLevel,
-            endDate: cloudData.subscriptionEndDate,
-            isPremium: cloudData.isPremium,
-          };
-          const localTier = currentUser.subscriptionTier || "FREE";
-          const cloudTier = cloudData.subscriptionTier || "FREE";
-          const tierPriority: Record<string, number> = {
-            LIFETIME: 5,
-            YEARLY: 4,
-            "3_MONTHLY": 3,
-            MONTHLY: 2,
-            WEEKLY: 1,
-            FREE: 0,
-            CUSTOM: 0,
-          };
-          if (tierPriority[localTier] > tierPriority[cloudTier]) {
-            const localEnd = currentUser.subscriptionEndDate
-              ? new Date(currentUser.subscriptionEndDate).getTime()
-              : Date.now();
-            if (
-              localTier === "LIFETIME" ||
-              (!isNaN(localEnd) && localEnd > Date.now())
-            ) {
-              console.warn(
-                "⚠️ Prevented Cloud Downgrade! Keeping Local Subscription.",
-                localTier,
-              );
-              protectedSub = {
-                tier: currentUser.subscriptionTier,
-                level: currentUser.subscriptionLevel,
-                endDate: currentUser.subscriptionEndDate,
-                isPremium: true,
-              };
-              saveUserToLive({ ...cloudData, ...protectedSub });
-            }
-          }
           const updated: User = {
             ...currentUser,
             ...cloudData,
-            ...protectedSub,
           };
 
           // PRESERVE ADMIN OVERRIDES (Fix for Admin downgrading to Student)
@@ -6149,8 +6114,8 @@ export const StudentDashboard: React.FC<Props> = ({
             updated.role = "SUB_ADMIN";
           }
 
-          // CRITICAL FIX: The Firestore 'users/{uid}' document DOES NOT contain bulky data.
-          // We must preserve the bulky data from the current state so it doesn't get wiped by the core sync.
+          // The shared subscription now includes user_data/{uid}; these
+          // fallbacks only cover unrelated bulky data that is not account state.
           if (!cloudData.hasOwnProperty("mcqHistory"))
             updated.mcqHistory = currentUser.mcqHistory;
           if (!cloudData.hasOwnProperty("testResults"))
@@ -6159,25 +6124,15 @@ export const StudentDashboard: React.FC<Props> = ({
             updated.progress = currentUser.progress;
           if (!cloudData.hasOwnProperty("usageHistory"))
             updated.usageHistory = currentUser.usageHistory;
-          if (!cloudData.hasOwnProperty("inbox"))
-            updated.inbox = currentUser.inbox;
           if (!cloudData.hasOwnProperty("topicStrength"))
             updated.topicStrength = currentUser.topicStrength;
-          if (!cloudData.hasOwnProperty("subscriptionHistory"))
-            updated.subscriptionHistory = currentUser.subscriptionHistory;
-          if (!cloudData.hasOwnProperty("activeSubscriptions"))
-            updated.activeSubscriptions = currentUser.activeSubscriptions;
-          if (!cloudData.hasOwnProperty("pendingRewards"))
-            updated.pendingRewards = currentUser.pendingRewards;
-          if (!cloudData.hasOwnProperty("redeemedCodes"))
-            updated.redeemedCodes = currentUser.redeemedCodes;
           if (!cloudData.hasOwnProperty("unlockedContent"))
             updated.unlockedContent = currentUser.unlockedContent;
           if (!cloudData.hasOwnProperty("dailyRoutine"))
             updated.dailyRoutine = currentUser.dailyRoutine;
 
-          // SUBSCRIPTION EXPIRY FIX: Always recalculate after building the merged user
-          // so expired activeSubscriptions correctly downgrade the user to FREE.
+          // Recalculate only from backend subscription records. Local cached
+          // subscription fields must not override an admin/device change.
           const recalculated = (updated.role !== 'ADMIN' && updated.role !== 'SUB_ADMIN')
             ? recalculateSubscriptionStatus(updated, settings)
             : updated;
@@ -6230,18 +6185,29 @@ export const StudentDashboard: React.FC<Props> = ({
             subscriptionEndDate: endDate,
             isPremium: true,
           };
-          let storedUsers: User[] = [];
-          try { storedUsers = JSON.parse(localStorage.getItem("nst_users") || "[]"); } catch {}
-          const idx = storedUsers.findIndex((u: User) => u.id === user.id);
-          if (idx !== -1) storedUsers[idx] = updatedUser;
-          localStorage.setItem("nst_users", JSON.stringify(storedUsers));
-          localStorage.setItem("nst_current_user", JSON.stringify(updatedUser));
-          localStorage.setItem(`first_day_ultra_${user.id}`, "true");
-          onRedeemSuccess(updatedUser);
-          showAlert(
-            "🎉 FIRST DAY BONUS: You unlocked 1 Hour Free ULTRA Subscription!",
-            "SUCCESS",
-          );
+          // This is an account reward, so claim it only after the backend
+          // confirms the subscription state was persisted.
+          void saveUserToLive(updatedUser).then((saved) => {
+            if (!saved) {
+              showAlert(
+                "Bonus save nahi ho paya. Internet check karke dobara try karein.",
+                "ERROR",
+              );
+              return;
+            }
+            let storedUsers: User[] = [];
+            try { storedUsers = JSON.parse(localStorage.getItem("nst_users") || "[]"); } catch {}
+            const idx = storedUsers.findIndex((u: User) => u.id === user.id);
+            if (idx !== -1) storedUsers[idx] = updatedUser;
+            localStorage.setItem("nst_users", JSON.stringify(storedUsers));
+            localStorage.setItem("nst_current_user", JSON.stringify(updatedUser));
+            localStorage.setItem(`first_day_ultra_${user.id}`, "true");
+            onRedeemSuccess(updatedUser);
+            showAlert(
+              "🎉 FIRST DAY BONUS: You unlocked 1 Hour Free ULTRA Subscription!",
+              "SUCCESS",
+            );
+          });
         } else {
           // Mark claimed anyway so it doesn't trigger again
           localStorage.setItem(`first_day_ultra_${user.id}`, "true");
@@ -6593,7 +6559,7 @@ export const StudentDashboard: React.FC<Props> = ({
     return true;
   };
 
-  const handleUserUpdate = (updatedUser: User) => {
+  const handleUserUpdate = async (updatedUser: User) => {
     // Detect credit deduction and show toast (compare total credits including bonus/gifted)
     const prevCredits = getTotalCredits(user);
     const newCredits = getTotalCredits(updatedUser);
@@ -6620,8 +6586,14 @@ export const StudentDashboard: React.FC<Props> = ({
     // Ignore nst_users if empty, just save to live and current user directly
     // since the system has moved away from 'nst_users' dependency.
     if (!isImpersonating) {
+      if (!await saveUserToLive(updatedUser)) {
+        showAlert(
+          "Account update save nahi ho paya. Internet check karke dobara try karein.",
+          "ERROR",
+        );
+        return;
+      }
       localStorage.setItem("nst_current_user", JSON.stringify(updatedUser));
-      saveUserToLive(updatedUser);
     }
     onRedeemSuccess(updatedUser);
 
