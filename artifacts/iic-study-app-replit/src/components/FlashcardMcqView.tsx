@@ -94,6 +94,14 @@ export const FlashcardMcqView: React.FC<Props> = ({
   const [showTopMenu, setShowTopMenu] = useState(false);
   // ── Projector Mode ──
   const [isProjectorMode, setIsProjectorMode] = useState(() => startInProjectorMode ?? false);
+  // The lesson tab bar can switch this overlay between Flashcard and Projector
+  // without remounting the component. Keep the local presentation state in
+  // sync with that external mode switch.
+  useEffect(() => {
+    if (typeof startInProjectorMode === 'boolean') {
+      setIsProjectorMode(startInProjectorMode);
+    }
+  }, [startInProjectorMode]);
   const [projectorFontIdx, setProjectorFontIdx] = useState<number>(getStoredProjFontIdx);
   const projectorFontSize = PROJ_FONT_SIZES[projectorFontIdx];
   const changeProjFont = (dir: 1 | -1) => {

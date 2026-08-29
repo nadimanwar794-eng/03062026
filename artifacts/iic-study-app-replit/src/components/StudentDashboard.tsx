@@ -10531,7 +10531,11 @@ export const StudentDashboard: React.FC<Props> = ({
       return (
         <UniversalVideoView
           user={user}
-          onBack={() => onTabChange("HOME")}
+          onBack={() => {
+            onTabChange("HOME");
+            currentLogicalTabRef.current = "HOME";
+            setCurrentLogicalTab("HOME");
+          }}
           settings={settings}
           isAdmin={_isAdminUser}
           onBadgePosChange={handleBadgePosChange}
@@ -18472,7 +18476,12 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
               return !access.isHidden;
             });
             const totalVisible = Math.max(visibleTabs.length, 1);
-            const activeIndex = Math.max(0, visibleTabs.findIndex((t) => t.isActive));
+            // Some full-screen pages (Universal Video and Important Notes) are
+            // opened from Home but are not themselves bottom-nav tabs. In that
+            // state there is intentionally no active tab. Do not fall back to
+            // index 0, otherwise the Home inactive icon and the floating active
+            // Home icon render together.
+            const activeIndex = visibleTabs.findIndex((t) => t.isActive);
             const navActiveColors = Array.isArray((tierTheme as any).navActiveColors) && (tierTheme as any).navActiveColors.length
               ? (tierTheme as any).navActiveColors
               : [((tierTheme as any).navActive || tierTheme.primary), ...DEFAULT_NAV_ACTIVE_COLORS.slice(1)];
@@ -18483,15 +18492,17 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
 
             return (
               <>
-                <MeniscusNavIndicator
-                  activeIndex={activeIndex}
-                  totalTabs={totalVisible}
-                  navBg={_bottomNavBg}
-                  navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
-                  activeColor={getNavActiveColor(activeIndex)}
-                  surfaceBg={_appBg}
-                  ActiveIcon={visibleTabs[activeIndex]?.Icon}
-                />
+                {activeIndex >= 0 && (
+                  <MeniscusNavIndicator
+                    activeIndex={activeIndex}
+                    totalTabs={totalVisible}
+                    navBg={_bottomNavBg}
+                    navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
+                    activeColor={getNavActiveColor(activeIndex)}
+                    surfaceBg={_appBg}
+                    ActiveIcon={visibleTabs[activeIndex]?.Icon}
+                  />
+                )}
                 {visibleTabs.map((tab, tabIndex) => {
                   const access = tab.featureId
                     ? getFeatureAccess(tab.featureId)
@@ -22992,8 +23003,28 @@ RULES:
           showCoinGate(20, modeConfig.label, () => {
             modeConfig.mark();
             action();
-          });
+           }, undefined, undefined, _overlayPageInfo);
         };
+         // Reuse the same per-lesson unlock state and subscription rules as
+         // the normal lesson tab bar. This is important when leaving
+         // Projector Mode: the destination mode must be unlocked before the
+         // overlay closes or changes mode.
+         const _overlayPageInfo = fl ? {
+           pageLabel: flashcardMcqs.title || 'Lesson',
+           availableModes: [
+             { mode: 'READING', label: 'Reading Mode', emoji: '📖', cost: 20, isUnlocked: isPgReadUnlocked(_overlayUnlockId, _overlayUnlockPage), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markPgReadUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+             { mode: 'WRITING', label: 'Writing Mode', emoji: '✍️', cost: 20, isUnlocked: isPgWriteUnlocked(_overlayUnlockId, _overlayUnlockPage), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markPgWriteUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+             { mode: 'PROJECTOR', label: 'Projector Mode', emoji: '📽️', cost: 20, isUnlocked: isProjectorUnlocked(_overlayUnlockId, _overlayUnlockPage), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markProjectorUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+             ...(fl.hasMcq ? [
+               { mode: 'MCQ', label: 'MCQ Practice', emoji: '🧠', cost: 20, isUnlocked: isMcqPageUnlocked(_overlayUnlockId, _overlayUnlockPage), isAccessible: true, requiredTier: 'free' as const, unlockAction: () => markMcqPageUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+               { mode: 'QA', label: 'Q&A Mode', emoji: '💬', cost: 20, isUnlocked: isQaPageUnlocked(_overlayUnlockId, _overlayUnlockPage), isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: () => markQaPageUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+               { mode: 'FLASHCARD', label: 'Flashcard', emoji: '🃏', cost: 20, isUnlocked: isFcPageUnlocked(_overlayUnlockId, _overlayUnlockPage), isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: () => markFcPageUnlocked(_overlayUnlockId, _overlayUnlockPage) },
+             ] : []),
+             ...(fl.hasPdf ? [{ mode: 'PDF', label: 'PDF', emoji: '📄', cost: 0, isUnlocked: true, isAccessible: _isBasicUser || _isUltraUser, requiredTier: 'basic' as const, unlockAction: undefined }] : []),
+             ...(fl.hasVideo ? [{ mode: 'VIDEO', label: 'Video', emoji: '🎬', cost: 0, isUnlocked: true, isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: undefined }] : []),
+             ...(fl.hasAudio ? [{ mode: 'AUDIO', label: 'Audio', emoji: '🎵', cost: 0, isUnlocked: true, isAccessible: _isUltraUser, requiredTier: 'ultra' as const, unlockAction: undefined }] : []),
+           ],
+         } : undefined;
          const _tcls = (active: boolean, _activeBg: string) =>
            `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0 relative` +
            ` ${active ? 'bg-[#17183a] text-white after:content-[\'\'] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[3px] after:w-[calc(100%-16px)] after:rounded-full after:bg-[#d8d2ff] after:shadow-[0_0_9px_2px_rgba(190,172,255,0.9)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
