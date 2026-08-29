@@ -546,7 +546,7 @@ const stripHtmlForPreview = (html: string): string =>
 
 
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
-const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, activeColor, surfaceBg, ActiveIcon }: { activeIndex: number, totalTabs: number, navBg: string, navBorderColor: string, activeColor: string, surfaceBg: string, ActiveIcon?: React.ElementType }) => {
+const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, surfaceBg, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, surfaceBg: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
        {/* A small app-surface ring creates the clean negative space around the
@@ -559,14 +559,16 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, navBg, navBorderColor, a
              willChange: 'left',
           }}
        />
-       {/* The bead floats above the capsule, matching the reference navigation. */}
+        {/* The bead floats above the capsule, matching the reference navigation.
+            Keep its illumination directional so the light falls below the
+            active item instead of creating an outline around it. */}
        <div
           className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
              left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
              backgroundColor: activeColor,
-             border: `2px solid ${navBg}`,
-             boxShadow: `0 8px 22px -5px ${activeColor}, 0 0 0 1px ${navBorderColor}, inset 0 1px 0 rgba(255,255,255,0.28)`,
+              border: 'none',
+              boxShadow: `0 15px 30px -8px ${activeColor}, 0 8px 18px -10px ${activeColor}`,
              willChange: 'left',
           }}
        >
@@ -18468,8 +18470,6 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                   <MeniscusNavIndicator
                     activeIndex={activeIndex}
                     totalTabs={totalVisible}
-                    navBg={_bottomNavBg}
-                    navBorderColor={(tierTheme as any).navBorderColor || tierTheme.primary + '22'}
                     activeColor={getNavActiveColor(activeIndex)}
                     surfaceBg={_appBg}
                     ActiveIcon={visibleTabs[activeIndex]?.Icon}
