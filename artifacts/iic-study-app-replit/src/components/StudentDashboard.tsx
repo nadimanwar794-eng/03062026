@@ -1022,10 +1022,15 @@ export const StudentDashboard: React.FC<Props> = ({
   // Per-page / per-session unlock localStorage helpers
   const _pgReadUnlockKey   = (lid: string, pi: number) => `nst_pg_r_${user.id}_${lid}_${pi}`;
   const _pgWriteUnlockKey  = (lid: string, pi: number) => `nst_pg_w_${user.id}_${lid}_${pi}`;
+  // Projector is a one-time 20 CR unlock for the current lesson/page.
+  // Paying for it also unlocks the other coin-gated modes on that same page.
+  const _projectorUnlockKey = (lid: string, pi: number) => `nst_projector_${user.id}_${lid}_${pi}`;
+  const isProjectorUnlocked = (lid: string, pi: number) => { try { return localStorage.getItem(_projectorUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const markProjectorUnlocked = (lid: string, pi: number) => { try { localStorage.setItem(_projectorUnlockKey(lid, pi), '1'); } catch {} };
   const _mcqSessUnlockKey  = (lid: string)             => `nst_mcq_s_${user.id}_${lid}`;
-  const isPgReadUnlocked   = (lid: string, pi: number) => { try { return localStorage.getItem(_pgReadUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const isPgReadUnlocked   = (lid: string, pi: number) => { try { return localStorage.getItem(_pgReadUnlockKey(lid, pi)) === '1' || isProjectorUnlocked(lid, pi); } catch { return isProjectorUnlocked(lid, pi); } };
   const markPgReadUnlocked = (lid: string, pi: number) => { try { localStorage.setItem(_pgReadUnlockKey(lid, pi), '1'); } catch {} };
-  const isPgWriteUnlocked  = (lid: string, pi: number) => { try { return localStorage.getItem(_pgWriteUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const isPgWriteUnlocked  = (lid: string, pi: number) => { try { return localStorage.getItem(_pgWriteUnlockKey(lid, pi)) === '1' || isProjectorUnlocked(lid, pi); } catch { return isProjectorUnlocked(lid, pi); } };
   const markPgWriteUnlocked = (lid: string, pi: number) => { try { localStorage.setItem(_pgWriteUnlockKey(lid, pi), '1'); } catch {} };
   const isMcqSessUnlocked  = (lid: string) => { try { return localStorage.getItem(_mcqSessUnlockKey(lid)) === '1'; } catch { return false; } };
   const markMcqSessUnlocked = (lid: string) => { try { localStorage.setItem(_mcqSessUnlockKey(lid), '1'); } catch {} };
@@ -1034,15 +1039,24 @@ export const StudentDashboard: React.FC<Props> = ({
   const _mcqPageUnlockKey   = (lid: string, pi: number) => `nst_mcq_p_${user.id}_${lid}_${pi}`;
   const _fcPageUnlockKey    = (lid: string, pi: number) => `nst_fc_p_${user.id}_${lid}_${pi}`;
   const _qaPageUnlockKey    = (lid: string, pi: number) => `nst_qa_p_${user.id}_${lid}_${pi}`;
-  const isMcqPageUnlocked   = (lid: string, pi: number) => { try { return localStorage.getItem(_mcqPageUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const isMcqPageUnlocked   = (lid: string, pi: number) => { try { return localStorage.getItem(_mcqPageUnlockKey(lid, pi)) === '1' || isProjectorUnlocked(lid, pi); } catch { return isProjectorUnlocked(lid, pi); } };
   const markMcqPageUnlocked  = (lid: string, pi: number) => { try { localStorage.setItem(_mcqPageUnlockKey(lid, pi), '1'); } catch {} };
-  const isFcPageUnlocked    = (lid: string, pi: number) => { try { return localStorage.getItem(_fcPageUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const isFcPageUnlocked    = (lid: string, pi: number) => { try { return localStorage.getItem(_fcPageUnlockKey(lid, pi)) === '1' || isProjectorUnlocked(lid, pi); } catch { return isProjectorUnlocked(lid, pi); } };
   const markFcPageUnlocked   = (lid: string, pi: number) => { try { localStorage.setItem(_fcPageUnlockKey(lid, pi), '1'); } catch {} };
   const _qaLessonUnlockKey  = (lid: string) => `nst_qa_l_${user.id}_${lid}`;
   // Q&A is per-LESSON unlock — ek baar kisi bhi page/tab se pay karo, poore lesson ke liye unlock.
   // Old per-page keys bhi check karta hai backward compatibility ke liye.
-  const isQaPageUnlocked    = (lid: string, pi: number) => { try { return localStorage.getItem(_qaLessonUnlockKey(lid)) === '1' || localStorage.getItem(_qaPageUnlockKey(lid, pi)) === '1'; } catch { return false; } };
+  const isQaPageUnlocked    = (lid: string, pi: number) => { try { return localStorage.getItem(_qaLessonUnlockKey(lid)) === '1' || localStorage.getItem(_qaPageUnlockKey(lid, pi)) === '1' || isProjectorUnlocked(lid, pi); } catch { return isProjectorUnlocked(lid, pi); } };
   const markQaPageUnlocked   = (lid: string, _pi: number) => { try { localStorage.setItem(_qaLessonUnlockKey(lid), '1'); } catch {} };
+  const unlockAllModesForPage = (lid: string, pi: number) => {
+    if (!lid) return;
+    markProjectorUnlocked(lid, pi);
+    markPgReadUnlocked(lid, pi);
+    markPgWriteUnlocked(lid, pi);
+    markMcqPageUnlocked(lid, pi);
+    markFcPageUnlocked(lid, pi);
+    markQaPageUnlocked(lid, pi);
+  };
 
   // ── WRITE MODE GATE: now uses coin gate popup (20 coins per page, once) ──
   const _wmAutoSkipKey = `nst_wm_autoskip_${user.id}`;
@@ -1056,6 +1070,22 @@ export const StudentDashboard: React.FC<Props> = ({
     if (_lid && isPgWriteUnlocked(_lid, _pi)) { action(); return; }
     showCoinGate(20, 'Writing Mode', () => {
       if (_lid) markPgWriteUnlocked(_lid, _pi);
+      action();
+    }, undefined, undefined, pgInfo);
+  };
+
+  // Projector costs 20 CR once. Its successful unlock makes all other
+  // coin-gated modes on this lesson/page free as well.
+  const handleProjectorModeGate = (
+    lid: string,
+    pi: number,
+    action: () => void,
+    pgInfo?: Parameters<typeof showCoinGate>[5],
+  ) => {
+    const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
+    if (_isAdm || isProjectorUnlocked(lid, pi)) { action(); return; }
+    showCoinGate(20, 'Projector Mode', () => {
+      unlockAllModesForPage(lid, pi);
       action();
     }, undefined, undefined, pgInfo);
   };
@@ -3139,7 +3169,7 @@ export const StudentDashboard: React.FC<Props> = ({
 
   // ── IMPORTANT: flashcardMcqs declared HERE (before the useEffect below that lists
   // it in its dep array) to avoid production TDZ crash — same reason as hwActiveHwId above.
-  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; hideProjectorLabel?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean; returnMode?: string } } | null>(null);
+  const [flashcardMcqs, setFlashcardMcqs] = useState<{ items: any[]; title: string; subtitle: string; subject?: string; sourceKey?: string; startInProjectorMode?: boolean; hideProjectorLabel?: boolean; fromLesson?: { hasMcq: boolean; isAdmin: boolean; activeMode: 'flashcard' | 'projector'; hasPdf?: boolean; hasVideo?: boolean; hasAudio?: boolean; isCompetition?: boolean; returnMode?: string; unlockId?: string; unlockPageIndex?: number } } | null>(null);
 
   // ── HomeStatsToast — Standalone FlashcardMcqView tracking ─────────────────
   // Only when opened outside an active hw/lucent session (those already track overall pts).
@@ -7775,8 +7805,8 @@ export const StudentDashboard: React.FC<Props> = ({
             {/* Access: Free=Reading+Writing+MCQ | Basic+=Q&A+PDF | Ultra+=Video+Audio+Flashcard | Admin=+Projector */}
             {!hwImmersive && !isLandscapeUiHidden && effectiveMode !== 'flashcard' && (() => {
               const _hwTabCls = (active: boolean, _activeBg: string, _activeText: string) =>
-                `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0` +
-                ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
+                `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0 relative` +
+                ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)] after:content-[\'\'] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[3px] after:w-[calc(100%-16px)] after:rounded-full after:bg-[#d8d2ff] after:shadow-[0_0_9px_2px_rgba(190,172,255,0.9)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
               const _hwTabStyle = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
               const _isReadActive = effectiveMode === 'notes' && hwNotesViewMode === 'chunk';
               const _isWriteActive = effectiveMode === 'notes' && hwNotesViewMode === 'html';
@@ -7798,6 +7828,8 @@ export const StudentDashboard: React.FC<Props> = ({
                     isUnlocked: isPgReadUnlocked(activeHw.id, 0),  isAccessible: true,                           requiredTier: 'free'  as const, unlockAction: () => markPgReadUnlocked(activeHw.id, 0) },
                   { mode: 'WRITING',   label: 'Writing Mode', emoji: '✍️', cost: 20,
                     isUnlocked: isPgWriteUnlocked(activeHw.id, 0), isAccessible: true,                           requiredTier: 'free'  as const, unlockAction: () => markPgWriteUnlocked(activeHw.id, 0) },
+                  { mode: 'PROJECTOR', label: 'Projector Mode', emoji: '📽️', cost: 20,
+                    isUnlocked: isProjectorUnlocked(activeHw.id, 0), isAccessible: true,                           requiredTier: 'free'  as const, unlockAction: () => markProjectorUnlocked(activeHw.id, 0) },
                   ...(hasMcq ? [
                     { mode: 'MCQ',       label: 'MCQ Practice', emoji: '🧠', cost: 20,
                       isUnlocked: isMcqPageUnlocked(activeHw.id, 0), isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markMcqPageUnlocked(activeHw.id, 0) },
@@ -7820,7 +7852,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     // Flashcard is a full-screen overlay, NOT a persistent mode.
                     // Don't set hwViewMode — when overlay closes, previous mode stays intact.
                     // isCompetition:true so the fromLesson tab bar uses setHwViewMode (not setLucentActiveTab).
-                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio, isCompetition: true } });
+                    setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'flashcard', hasPdf, hasVideo, hasAudio, isCompetition: true, unlockId: activeHw.id, unlockPageIndex: 0 } });
                   } else {
                     setHwViewMode(tab); _hwSave(tab);
                   }
@@ -7867,7 +7899,7 @@ export const StudentDashboard: React.FC<Props> = ({
                     {/* Projector — Sab users ke liye */}
                     {hasMcq && _canProjector && (
                       <button style={_hwTabStyle} className={_hwTabCls(false, 'bg-amber-500', 'text-white')}
-                       onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'projector', hasPdf, hasVideo, hasAudio, isCompetition: true, returnMode: hwViewMode } }); }}>
+                       onClick={() => handleProjectorModeGate(activeHw.id, 0, () => { stopSpeech(); setFlashcardMcqs({ items: _hwMcqs, title: activeHw.title || 'MCQs', subtitle: `${_hwMcqs.length} Questions`, subject: activeHw.targetSubject || '', startInProjectorMode: true, fromLesson: { hasMcq: true, isAdmin: _isAdminUser, activeMode: 'projector', hasPdf, hasVideo, hasAudio, isCompetition: true, returnMode: hwViewMode, unlockId: activeHw.id, unlockPageIndex: 0 } }); }, _hwPgInfo)}>
                         📽️ Projector Mode
                       </button>
                     )}
@@ -20171,8 +20203,8 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
               const _isReadActive = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'chunk';
               const _isWriteActive = lucentActiveTab === 'NOTES' && lucentNotesViewMode === 'html';
                const _tabCls = (active: boolean, _activeBg: string, _activeText: string) =>
-                 `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0` +
-                 ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
+                 `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0 relative` +
+                 ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)] after:content-[\'\'] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[3px] after:w-[calc(100%-16px)] after:rounded-full after:bg-[#d8d2ff] after:shadow-[0_0_9px_2px_rgba(190,172,255,0.9)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
               const _tabStyle = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
               const _save = (tab: string, vm?: string) => { try { localStorage.setItem(`iic_tab_${entry.id}`, tab); if (vm) localStorage.setItem(`iic_tabvm_${entry.id}`, vm); } catch {} };
               const _isAdm = user.role === 'ADMIN' || user.role === 'SUB_ADMIN';
@@ -20184,6 +20216,8 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                   isUnlocked: isPgReadUnlocked(entry.id, safeIndex),  isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markPgReadUnlocked(entry.id, safeIndex) },
                 { mode: 'WRITING',  label: 'Writing Mode',  emoji: '✍️', cost: 20,
                   isUnlocked: isPgWriteUnlocked(entry.id, safeIndex), isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markPgWriteUnlocked(entry.id, safeIndex) },
+                { mode: 'PROJECTOR', label: 'Projector Mode', emoji: '📽️', cost: 20,
+                  isUnlocked: isProjectorUnlocked(entry.id, safeIndex), isAccessible: true,                         requiredTier: 'free'  as const, unlockAction: () => markProjectorUnlocked(entry.id, safeIndex) },
                 ...(_hasMcqTb ? [
                   { mode: 'MCQ',      label: 'MCQ Practice',  emoji: '🧠', cost: 20,
                     isUnlocked: isMcqPageUnlocked(entry.id, safeIndex), isAccessible: true,                       requiredTier: 'free'  as const, unlockAction: () => markMcqPageUnlocked(entry.id, safeIndex) },
@@ -20211,7 +20245,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                 const _doSwitch = () => {
                   stopSpeech();
                    if (tab === 'FLASHCARD') {
-                     setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'flashcard', returnMode: lucentActiveTab } });
+                     setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'flashcard', returnMode: lucentActiveTab, unlockId: entry.id, unlockPageIndex: safeIndex } });
                      // Flashcard is an overlay; keep the underlying lesson on
                      // MCQ Practice so closing it cannot expose a stale
                      // inline FLASHCARD state.
@@ -20261,7 +20295,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                       <button
                         style={_tabStyle}
                         className={_tabCls(false, 'bg-amber-500', 'text-white')}
-                         onClick={() => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', sourceKey: getStudyActivityKey(entry.id, safeIndex), startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb, returnMode: lucentActiveTab } }); }}
+                          onClick={() => handleProjectorModeGate(entry.id, safeIndex, () => { stopSpeech(); setFlashcardMcqs({ items: _mcqItemsTb as any[], title: entry.lessonTitle || 'MCQs', subtitle: `Page ${currentPage?.pageNo || safeIndex + 1} · ${_mcqItemsTb.length} Questions`, subject: entry.subject || '', sourceKey: getStudyActivityKey(entry.id, safeIndex), startInProjectorMode: true, fromLesson: { hasMcq: _hasMcqTb, isAdmin: _isAdm, activeMode: 'projector', hasPdf: _hasPdfTb, hasVideo: _hasVideoTb, hasAudio: _hasAudioTb, returnMode: lucentActiveTab, unlockId: entry.id, unlockPageIndex: safeIndex } }); }, _pgInfo)}
                       >
                          📽️ Projector Mode
                       </button>
@@ -22950,8 +22984,8 @@ RULES:
       {flashcardMcqs && (() => {
         const fl = flashcardMcqs.fromLesson;
          const _tcls = (active: boolean, _activeBg: string) =>
-           `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0` +
-           ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
+           `flex items-center justify-center px-2 py-2 shrink-0 transition-all text-center font-bold text-[11px] leading-tight border-r border-white/10 last:border-r-0 relative` +
+           ` ${active ? 'bg-[#5146e5] text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.28)] after:content-[\'\'] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[3px] after:w-[calc(100%-16px)] after:rounded-full after:bg-[#d8d2ff] after:shadow-[0_0_9px_2px_rgba(190,172,255,0.9)]' : 'bg-[#17183a] text-slate-300 hover:bg-[#24234b] active:bg-[#2d2a58]'}`;
         const _ts = { minWidth: 'calc(100vw / 3)' } as React.CSSProperties;
         const tabBarNode = fl ? (
            <div className="border-b border-[#30315a] shadow-[0_2px_8px_rgba(10,12,45,0.22)] shrink-0 overflow-x-auto bg-[#17183a]" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as any}>
@@ -22989,13 +23023,16 @@ RULES:
                   ref={el => { if (el && fl.activeMode === 'projector' && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, inline: 'center', block: 'nearest' }); } }}
                   className={_tcls(fl.activeMode === 'projector', 'bg-amber-500')}
                   onClick={() => {
-                    if (fl.activeMode !== 'projector') {
-                      setFlashcardMcqs(prev => prev ? {
-                        ...prev,
-                        startInProjectorMode: true,
-                        fromLesson: prev.fromLesson ? { ...prev.fromLesson, activeMode: 'projector' } : prev.fromLesson,
-                      } : null);
-                    }
+                     if (fl.activeMode === 'projector') return;
+                     const _projectorId = fl.unlockId || `standalone_${flashcardMcqs.title}`;
+                     const _projectorPage = fl.unlockPageIndex ?? 0;
+                     handleProjectorModeGate(_projectorId, _projectorPage, () => {
+                       setFlashcardMcqs(prev => prev ? {
+                         ...prev,
+                         startInProjectorMode: true,
+                         fromLesson: prev.fromLesson ? { ...prev.fromLesson, activeMode: 'projector' } : prev.fromLesson,
+                       } : null);
+                     });
                   }}>
                   🎯 Premium MCQ
                 </button>
