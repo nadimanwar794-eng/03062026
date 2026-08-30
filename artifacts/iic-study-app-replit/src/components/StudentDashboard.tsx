@@ -78,7 +78,7 @@ import { recalculateSubscriptionStatus } from "../utils/subscriptionUtils";
 import { RewardEngine } from "../utils/engines/rewardEngine";
 import { Button } from "./ui/button";
 import { getActiveChallenges } from "../services/questionBank";
-import { generateDailyChallengeQuestions } from "../utils/challengeGenerator";
+import { generateDailyChallengeQuestions, getChallengeDateKey, isDailyChallenge20 } from "../utils/challengeGenerator";
 import { searchNotesByWords, searchNotesByTitle, type NoteSearchResult } from "../utils/noteSearcher";
 import { computeAllSubjectStats } from "../utils/subjectProgressStore";
 import {
@@ -5619,7 +5619,17 @@ export const StudentDashboard: React.FC<Props> = ({
         setActiveChallenges20([...merged.values()]);
       });
     }
-  }, [activeSessionClass, user.classLevel, settings?.dailyChallenges]);
+  }, [activeSessionClass, user.classLevel, user.board, settings?.dailyChallenges]);
+
+  useEffect(() => {
+    const handler = () => {
+      try {
+        setTestAttempts(JSON.parse(localStorage.getItem(`nst_test_attempts_${user.id}`) || '{}'));
+      } catch {}
+    };
+    window.addEventListener('iic-test-completed', handler);
+    return () => window.removeEventListener('iic-test-completed', handler);
+  }, [user.id]);
 
   // Handle Banner Rotation
   useEffect(() => {
@@ -5630,7 +5640,7 @@ export const StudentDashboard: React.FC<Props> = ({
       (settings?.homework?.length ? 1 : 0) +
       (settings?.globalChallengeMcq?.length ? 1 : 0) +
       (settings?.dailyGk?.length ? 1 : 0) +
-      filteredChallenges.length;
+      filteredChallenges.filter((c) => !isDailyChallenge20(c)).length;
     if (bannerCount > 1) {
       const interval = setInterval(() => {
         setHomeBannerIndex((prev) => (prev + 1) % bannerCount);
@@ -6650,6 +6660,40 @@ export const StudentDashboard: React.FC<Props> = ({
       }
     }
   };
+
+  // Recover the fixed reward for attempts completed before the Challenge 2.0
+  // reward flag was added. This is idempotent and only applies once per day.
+  useEffect(() => {
+    if (!user?.id || user.role === 'ADMIN' || user.role === 'SUB_ADMIN' || activeChallenges20.length === 0) return;
+
+    let attempts: Record<string, any> = {};
+    try {
+      attempts = JSON.parse(localStorage.getItem(`nst_test_attempts_${user.id}`) || '{}');
+    } catch {}
+
+    const today = getChallengeDateKey();
+    const pendingRewardChallenges = activeChallenges20.filter((challenge) => {
+      if (!isDailyChallenge20(challenge)) return false;
+      const attempt = attempts[challenge.id];
+      const wasSubmitted = attempt?.isCompleted === true ||
+        (Boolean(attempt?.submittedAt) && Boolean(attempt?.answers));
+      return wasSubmitted &&
+        localStorage.getItem(`nst_daily_challenge_20_xp_${user.id}_${today}`) !== '1';
+    });
+
+    if (pendingRewardChallenges.length === 0) return;
+
+    const rewardKey = `nst_daily_challenge_20_xp_${user.id}_${today}`;
+    localStorage.setItem(rewardKey, '1');
+    const updatedUser = {
+      ...user,
+      totalScore: (user.totalScore || 0) + pendingRewardChallenges.length * 100,
+    };
+    pendingRewardChallenges.forEach(() => {
+      logScoreActivity(user.id, 'DAILY_CHALLENGE_20_COMPLETE', 100, 'Daily Challenge 2.0 Complete');
+    });
+    void handleUserUpdate(updatedUser);
+  }, [activeChallenges20, user.id, user.role, user.totalScore]);
 
   // Countdown ticker — updates every 30s when inbox is open
   useEffect(() => {
@@ -14830,13 +14874,14 @@ export const StudentDashboard: React.FC<Props> = ({
               );
             }
 
-            // 3. CHALLENGE 2.0
+            // 3. WEEKLY TEST 2.0 — Daily Challenge 2.0 lives in Routine.
             if (activeChallenges20.length > 0) {
               activeChallenges20
                 .filter(
                   (c) =>
-                    !testAttempts[c.id] ||
-                    testAttempts[c.id].isCompleted !== true,
+                    !isDailyChallenge20(c) &&
+                    (!testAttempts[c.id] ||
+                      testAttempts[c.id].isCompleted !== true),
                 )
                 .forEach((challenge, idx) => {
                   banners.push(
@@ -22160,6 +22205,24 @@ RULES:
           onBack={() => setShowMyRoutine(false)}
           onUserUpdate={handleUserUpdate}
           settings={settings}
+          onStartChallenge20={(challenge) => {
+            if (onStartWeeklyTest) {
+              onStartWeeklyTest({
+                id: challenge.id,
+                name: challenge.title,
+                description: challenge.description || "Aaj ka Daily Challenge 2.0",
+                date: new Date().toISOString(),
+                durationMinutes: Math.min(challenge.durationMinutes || 60, 60),
+                isCompleted: false,
+                score: 0,
+                totalQuestions: challenge.questions.length,
+                questions: challenge.questions,
+                classLevel: challenge.classLevel,
+                challengeType: isDailyChallenge20(challenge) ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST',
+              } as any);
+            }
+          }}
+          challenge20s={activeChallenges20}
           onOpenLesson={(lessonId: string) => {
             const lesson = (settings?.lucentNotes || []).find((l: any) => l.id === lessonId);
             if (lesson) {

@@ -1716,9 +1716,11 @@ interface MyRoutineProps {
   onOpenRevisionHub?: (lessonId?: string, lessonTitle?: string, autoStartMcq?: boolean) => void;
   onPracticeMistakes?: (mistakes: any[]) => void;
   onOpenLesson?: (lessonId: string) => void;
+  onStartChallenge20?: (challenge: any) => void;
+  challenge20s?: any[];
 }
 
-export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes, onOpenLesson }) => {
+export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes, onOpenLesson, onStartChallenge20, challenge20s = [] }) => {
   const userId = user?.id || 'guest';
   const mcqHistory: any[] = user?.mcqHistory || [];
   const subTier: UserSubTier = getUserSubTier(user);
@@ -2260,15 +2262,30 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 <button onClick={toggleRoutine} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-black text-sm active:scale-95 transition">Routine ON Karo</button>
               </div>
             ) : categories.length === 0 ? (
-              <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] p-8 text-center">
-                <span className="text-5xl mb-3 block">📚</span>
-                <p className="font-black text-slate-700 mb-1">Koi Category Nahi</p>
-                <p className="text-sm text-slate-500 mb-4">Pehle ek category add karo — phir daily task shuru hoga</p>
-                <button onClick={() => setShowCatManager(true)}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-black text-sm active:scale-95 transition">
-                  + Category Add Karo
-                </button>
-              </div>
+              <>
+                <DailyEventPage
+                  user={user as any}
+                  settings={settings}
+                  onBack={onBack}
+                  onOpenRoutine={() => setActiveView('subjects')}
+                  onOpenRevisionHub={onOpenRevisionHub || (() => {})}
+                  onPracticeMistakes={onPracticeMistakes || (() => {})}
+                  onOpenSubjects={() => setActiveView('subjects')}
+                  onOpenTracking={() => setActiveView('tracking')}
+                  onOpenLesson={onOpenLesson}
+                  challenge20s={challenge20s}
+                  onStartChallenge20={onStartChallenge20}
+                />
+                <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] p-8 text-center">
+                  <span className="text-5xl mb-3 block">📚</span>
+                  <p className="font-black text-slate-700 mb-1">Koi Category Nahi</p>
+                  <p className="text-sm text-slate-500 mb-4">Pehle ek category add karo — phir daily task shuru hoga</p>
+                  <button onClick={() => setShowCatManager(true)}
+                    className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-black text-sm active:scale-95 transition">
+                    + Category Add Karo
+                  </button>
+                </div>
+              </>
             ) : (
               <DailyEventPage
                 user={user as any}
@@ -2280,6 +2297,8 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 onOpenSubjects={() => setActiveView('subjects')}
                 onOpenTracking={() => setActiveView('tracking')}
                 onOpenLesson={onOpenLesson}
+                challenge20s={challenge20s}
+                onStartChallenge20={onStartChallenge20}
               />
             )}
           </div>

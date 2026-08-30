@@ -1582,6 +1582,7 @@ export interface WeeklyTest {
   autoSubmitEnabled?: boolean; // Auto-submit after timeout
   selectedSubjects?: string[]; // Subject IDs included in this test
   selectedChapters?: string[]; // Chapter IDs included in this test (mix from multiple)
+  challengeType?: 'DAILY_CHALLENGE' | 'WEEKLY_TEST';
 }
 
 // 2.0 FEATURES

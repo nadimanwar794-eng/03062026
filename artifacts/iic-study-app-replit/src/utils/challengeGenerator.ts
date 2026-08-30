@@ -7,6 +7,15 @@ const pad = (value: number) => String(value).padStart(2, '0');
 export const getChallengeDateKey = (date = new Date()): string =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
+export const isDailyChallenge20 = (challenge: any): boolean => {
+  const type = String(challenge?.type || challenge?.challengeType || '').toUpperCase();
+  const id = String(challenge?.id || '').toLowerCase();
+  return type === 'DAILY_CHALLENGE' ||
+    type === 'DAILY' ||
+    id.startsWith('daily-') ||
+    id.startsWith('daily-challenge-');
+};
+
 export const getChallengeWeekKey = (date = new Date()): string => {
   const monday = new Date(date);
   const day = monday.getDay();
@@ -188,7 +197,7 @@ export const generateDailyChallengeQuestions = async (
                     id: `${published.id}-${userId}`, // User-specific attempt ID
                     name: published.title,
                     questions: publishedQuestions,
-                    durationMinutes: published.durationMinutes || (isDaily ? 15 : 60)
+                    durationMinutes: Math.min(published.durationMinutes || (isDaily ? 60 : 60), 60)
                 };
             }
         }
@@ -196,7 +205,7 @@ export const generateDailyChallengeQuestions = async (
 
     // CONFIGURATION
     const totalTarget = isDaily ? 30 : 100;
-    const durationMinutes = isDaily ? 15 : 60;
+    const durationMinutes = isDaily ? 60 : 60;
     
     // Date string used as PRNG seed — all users on the same date get the same
     // question order, making the leaderboard a fair comparison.

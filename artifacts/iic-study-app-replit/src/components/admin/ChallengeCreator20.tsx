@@ -50,14 +50,14 @@ export const ChallengeCreator20: React.FC<Props> = ({
   const [questions, setQuestions] = useState<MCQItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'CONFIG' | 'PREVIEW'>('CONFIG');
-  const [durationMinutes, setDurationMinutes] = useState(type === 'DAILY_CHALLENGE' ? 15 : 60);
+  const [durationMinutes, setDurationMinutes] = useState(60);
 
   React.useEffect(() => {
       loadHistory();
   }, []);
 
   React.useEffect(() => {
-      setDurationMinutes(type === 'DAILY_CHALLENGE' ? 15 : 60);
+      setDurationMinutes(60);
       setTitle(getChallengeTitle(type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY'));
   }, [type]);
 
@@ -436,9 +436,10 @@ export const ChallengeCreator20: React.FC<Props> = ({
                        <input 
                           type="number" 
                           value={durationMinutes} 
-                          onChange={e => setDurationMinutes(Number(e.target.value))} 
+                          onChange={e => setDurationMinutes(Math.min(60, Math.max(1, Number(e.target.value) || 1)))}
                           className="w-full p-3 rounded-xl border border-slate-200 mt-1 font-bold"
                           min="1"
+                          max="60"
                         />
                    </div>
                </div>

@@ -61,7 +61,7 @@ import { HomeStatsToast } from './components/HomeStatsToast';
 import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
 import { DailyChallengePopup } from './components/DailyChallengePopup';
 import { recordCreditTx } from './utils/creditHistory';
-import { generateDailyChallengeQuestions, getChallengeDateKey, getChallengeWeekKey } from './utils/challengeGenerator';
+import { generateDailyChallengeQuestions, getChallengeDateKey, getChallengeWeekKey, isDailyChallenge20 } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
@@ -2619,6 +2619,11 @@ const App: React.FC = () => {
   const handleWeeklyTestComplete = async (score: number, total: number, answers: Record<number, number>) => {
     if (!activeWeeklyTest || !state.user) return;
 
+    // Leave the test player immediately after the user confirms submission.
+    // Result persistence and reward calculation can continue asynchronously
+    // without making the player appear stuck until the user presses Back.
+    setActiveWeeklyTest(null);
+
     const attempt = {
         testId: activeWeeklyTest.id,
         testName: activeWeeklyTest.name,
@@ -2628,7 +2633,8 @@ const App: React.FC = () => {
         submittedAt: new Date().toISOString(),
         score: Math.round((score / total) * 100),
         totalQuestions: total,
-        answers: answers
+        answers: answers,
+        isCompleted: true,
     };
 
     const key = `nst_test_attempts_${state.user.id}`;
@@ -2636,12 +2642,14 @@ const App: React.FC = () => {
     try { attempts = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
     attempts[activeWeeklyTest.id] = attempt;
     localStorage.setItem(key, JSON.stringify(attempts));
+    window.dispatchEvent(new CustomEvent('iic-test-completed'));
 
     await saveTestResult(state.user.id, attempt);
 
-    const isDailyChallengeAttempt = activeWeeklyTest.id.startsWith('daily-challenge-') || activeWeeklyTest.id.startsWith('weekly-auto-');
+    const isChallenge20Daily = isDailyChallenge20(activeWeeklyTest);
+    const isDailyChallengeAttempt = isChallenge20Daily || activeWeeklyTest.id.startsWith('weekly-auto-');
     if (isDailyChallengeAttempt && !state.originalAdmin) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getChallengeDateKey();
         const timeTakenStr = localStorage.getItem(`weekly_test_start_${activeWeeklyTest.id}`);
         const timeTaken = timeTakenStr ? Math.round((Date.now() - parseInt(timeTakenStr)) / 1000) : 0;
         saveDailyChallengeScore({
@@ -2664,7 +2672,7 @@ const App: React.FC = () => {
     let rewardMsg = "";
 
     const percentage = (score / total) * 100;
-    const isDailyForReward = activeWeeklyTest.id.startsWith('daily-challenge-');
+    const isDailyForReward = isChallenge20Daily;
     const category = isDailyForReward ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST';
 
     const eligibleRules = (state.settings.prizeRules || [])
@@ -2700,6 +2708,20 @@ const App: React.FC = () => {
              rewardMsg = `Daily Challenge Complete. Score: ${Math.round(percentage)}%.`;
         } else {
              rewardMsg = "Test Submitted!";
+        }
+    }
+
+    // Daily Challenge 2.0 has a fixed completion reward independent of score.
+    // The local claim key makes the +100 XP reward idempotent across reloads.
+    if (isChallenge20Daily && !state.originalAdmin) {
+        const xpKey = `nst_daily_challenge_20_xp_${state.user.id}_${getChallengeDateKey()}`;
+        if (localStorage.getItem(xpKey) !== '1') {
+            updatedUser.totalScore = (updatedUser.totalScore || 0) + 100;
+            logScoreActivity(state.user.id, 'DAILY_CHALLENGE_20_COMPLETE', 100, 'Daily Challenge 2.0 Complete');
+            localStorage.setItem(xpKey, '1');
+            rewardMsg = rewardMsg
+                ? `${rewardMsg} 🎉 Daily Challenge 2.0: +100 XP!`
+                : '🎉 Daily Challenge 2.0 complete: +100 XP!';
         }
     }
 

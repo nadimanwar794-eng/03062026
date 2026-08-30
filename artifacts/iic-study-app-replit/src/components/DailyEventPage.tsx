@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   ArrowLeft, BookOpen, BrainCircuit, CalendarCheck,
-  Clock, Target, ChevronRight, Zap, CheckCircle, Lock,
+  Clock, Target, ChevronRight, Zap, CheckCircle, Lock, Rocket,
 } from 'lucide-react';
 import { loadRoutineData, getUserSubTier, getDailyClaimAmount } from '../utils/routineStorage';
 import { getLevelInfo } from '../utils/levelSystem';
@@ -20,8 +20,9 @@ import { getAutoTrackSnapshot, getLessonStats, isLessonRewarded } from '../utils
 import { RoutineRevisionBadge } from './RoutineRevisionBadge';
 import { getMistakeSessions } from '../utils/mistakeAnalytics';
 import { tryEarnScore, getDailyScoreEarned } from '../utils/scoreSystem';
-import type { User, SystemSettings } from '../types';
+import type { User, SystemSettings, Challenge20 } from '../types';
 import type { MistakeEntry } from '../utils/mistakeBank';
+import { isDailyChallenge20 } from '../utils/challengeGenerator';
 
 interface Props {
   user: User;
@@ -34,6 +35,8 @@ interface Props {
   onOpenTracking?: () => void;
   onOpenLesson?: (lessonId: string) => void;
   onUpdateUser?: (u: User) => void;
+  challenge20s?: Challenge20[];
+  onStartChallenge20?: (challenge: Challenge20) => void;
 }
 
 // ── Small reusable pieces ─────────────────────────────────────────────────────
@@ -96,6 +99,7 @@ const TaskRow: React.FC<{ emoji: string; title: string; sub: string; done: boole
 
 export const DailyEventPage: React.FC<Props> = ({
   user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking, onOpenLesson,
+  challenge20s = [], onStartChallenge20,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = useMemo(() => {
@@ -115,8 +119,29 @@ export const DailyEventPage: React.FC<Props> = ({
   const [revMcqSessionActive, setRevMcqSessionActive] = useState(false);
   const [revMcqTopics, setRevMcqTopics] = useState<TopicItem[]>([]);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [challengeTick, setChallengeTick] = useState(0);
 
   const reloadRevision = useCallback(() => setRefreshTick(t => t + 1), []);
+
+  useEffect(() => {
+    const handler = () => setChallengeTick(t => t + 1);
+    window.addEventListener('iic-test-completed', handler);
+    return () => window.removeEventListener('iic-test-completed', handler);
+  }, []);
+
+  const pendingDailyChallenges = useMemo(() => {
+    let attempts: Record<string, any> = {};
+    try {
+      attempts = JSON.parse(localStorage.getItem(`nst_test_attempts_${user.id}`) || '{}');
+    } catch {}
+    // Challenge 2.0 daily attempts are hidden immediately after submission,
+    // including when the Routine screen remains mounted after returning from
+    // the full-screen test player.
+    return challenge20s.filter(challenge =>
+      isDailyChallenge20(challenge) &&
+      (!attempts[challenge.id] || attempts[challenge.id].isCompleted !== true)
+    );
+  }, [challenge20s, user.id, challengeTick]);
 
   const showClaimOverlay = useCallback((ptsAdded: number) => {
     const todayTotal = getDailyScoreEarned(user.id);
@@ -520,6 +545,42 @@ export const DailyEventPage: React.FC<Props> = ({
     <div>
 
       <div className="px-4 pt-4 space-y-4 pb-6">
+
+        {/* ── DAILY CHALLENGE 2.0 ─────────────────────────────────────────── */}
+        {pendingDailyChallenges.length > 0 && (
+          <SectionCard
+            emoji="🚀"
+            title="Daily Challenge 2.0"
+            subtitle="Aaj ka challenge complete karo aur +100 XP pao"
+            accent="#7c3aed"
+          >
+            <div className="space-y-2.5">
+              {pendingDailyChallenges.map((challenge) => (
+                <div key={challenge.id} className="relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 p-3.5">
+                  <Rocket size={58} className="absolute -right-3 -top-3 text-violet-200 opacity-70" />
+                  <div className="relative z-10">
+                    <p className="text-[13px] font-black text-violet-900">{challenge.title}</p>
+                    {challenge.description && (
+                      <p className="mt-0.5 text-[10px] text-slate-500">{challenge.description}</p>
+                    )}
+                    <div className="mt-2.5 flex items-center gap-2 text-[10px] font-black text-slate-600">
+                      <span className="rounded-full bg-white/80 px-2 py-1">{challenge.questions.length} Questions</span>
+                      <span className="rounded-full bg-white/80 px-2 py-1">Max 60 min</span>
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">+100 XP</span>
+                    </div>
+                    <button
+                      onClick={() => onStartChallenge20?.(challenge)}
+                      disabled={!onStartChallenge20}
+                      className="mt-3 w-full rounded-xl bg-violet-600 py-2.5 text-center text-xs font-black text-white shadow-md shadow-violet-200 transition-colors hover:bg-violet-700 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Start Challenge
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
 
         {/* ── 1. ROUTINE ─────────────────────────────────────────────────── */}
         <SectionCard

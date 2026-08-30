@@ -19,8 +19,8 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, message: string}>({isOpen: false, message: ''});
-  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, message: string, onConfirm: () => void}>({
-      isOpen: false, message: '', onConfirm: () => {}
+  const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({
+      isOpen: false, title: '', message: '', onConfirm: () => {}
   });
   const [postAlertAction, setPostAlertAction] = useState<() => void>(() => {});
 
@@ -28,7 +28,14 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
 
   // Initialize Timer
   useEffect(() => {
-    const DURATION_SECONDS = (test.durationMinutes || 120) * 60;
+    const isDailyChallenge =
+      (test as any).challengeType === 'DAILY_CHALLENGE' ||
+      test.id.startsWith('daily-challenge-');
+    const DURATION_SECONDS = (
+      isDailyChallenge
+        ? Math.min(test.durationMinutes || 60, 60)
+        : (test.durationMinutes || 120)
+    ) * 60;
     const STORAGE_KEY = `weekly_test_start_${test.id}`;
     
     let startTime = localStorage.getItem(STORAGE_KEY);
@@ -133,12 +140,14 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
       />
       <CustomConfirm
           isOpen={confirmConfig.isOpen}
+          title={confirmConfig.title}
           message={confirmConfig.message}
           onConfirm={() => {
-              confirmConfig.onConfirm();
-              setConfirmConfig({...confirmConfig, isOpen: false});
+              const submit = confirmConfig.onConfirm;
+              setConfirmConfig(prev => ({...prev, isOpen: false}));
+              submit();
           }}
-          onCancel={() => setConfirmConfig({...confirmConfig, isOpen: false})}
+          onCancel={() => setConfirmConfig(prev => ({...prev, isOpen: false}))}
       />
       {/* Header */}
       <div className="bg-white border-b border-slate-200 p-4 shadow-sm flex items-center justify-between sticky top-0 z-10">
@@ -206,10 +215,12 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
           onClick={() => {
               setConfirmConfig({
                   isOpen: true,
+                  title: "Submit Test?",
                   message: "Are you sure you want to submit the test?",
                   onConfirm: () => handleSubmit(false)
               });
           }}
+          disabled={isSubmitting}
           className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
         >
           <Trophy size={18} /> Submit Test
