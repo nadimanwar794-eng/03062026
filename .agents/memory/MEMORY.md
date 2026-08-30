@@ -1,3 +1,4 @@
 - [Account persistence](firebase-account-persistence.md) — Firebase is the account source of truth; RTDB mirrors essential state for fresh-device fallback.
 - [Bottom navigation indicator](bottom-nav-indicator.md) — Keep the active spotlight separate from the borderless active button.
 - [MCQ structure tracking](mcq-structure-tracking.md) — Keep question number, labeled statements, four options, answer, and explanation together across parser, tracker, and views.
+- [Challenge scheduling and format](challenge-scheduling-and-format.md) — Shared period keys keep manual and automatic challenges consistent; Challenge 2.0 only publishes crisp four-option MCQs.

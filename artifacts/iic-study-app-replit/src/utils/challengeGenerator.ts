@@ -1,5 +1,25 @@
 import { ClassLevel, Board, Stream, MCQItem, SystemSettings } from '../types';
 import { getSubjectsList } from '../constants';
+import { sanitizeChallengeQuestions } from './challengeMcq';
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+export const getChallengeDateKey = (date = new Date()): string =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+export const getChallengeWeekKey = (date = new Date()): string => {
+  const monday = new Date(date);
+  const day = monday.getDay();
+  monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1));
+  return getChallengeDateKey(monday);
+};
+
+export const getChallengeTitle = (
+  mode: 'DAILY' | 'WEEKLY',
+  date = new Date(),
+): string => mode === 'DAILY'
+  ? `Daily Challenge — ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+  : `Weekly Challenge — Week of ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function _shuffle<T>(arr: T[]): T[] {
@@ -129,7 +149,7 @@ export const buildAutoMixQuestions = (
     }
   } catch { /* ignore */ }
 
-  return _shuffle(pool).slice(0, totalTarget);
+    return sanitizeChallengeQuestions(_shuffle(pool).slice(0, totalTarget));
 };
 
 export const generateDailyChallengeQuestions = async (
@@ -141,40 +161,49 @@ export const generateDailyChallengeQuestions = async (
     mode: 'DAILY' | 'WEEKLY' = 'DAILY'
 ): Promise<{ questions: MCQItem[], name: string, id: string, durationMinutes: number }> => {
     
-    // 0. Check for Published Challenge (Global)
-    if (mode === 'DAILY' && settings.dailyChallenges && settings.dailyChallenges.length > 0) {
-        const todayStr = new Date().toISOString().split('T')[0];
-        // Find challenge matching date, board, class
-        // ID Format: daily-{board}-{classLevel}-{date}
-        const expectedIdPrefix = `daily-${board}-${classLevel}-${todayStr}`;
-        
-        const published = settings.dailyChallenges.find(c => 
-            c.type === 'DAILY_CHALLENGE' &&
-            c.isActive &&
-            c.id.startsWith(expectedIdPrefix)
-        );
+    const isDaily = mode === 'DAILY';
+    const periodKey = isDaily ? getChallengeDateKey() : getChallengeWeekKey();
+    const challengeTitle = getChallengeTitle(mode);
+
+    // 0. Check for a manually published challenge for this exact period.
+    // Manual challenges are stored in system settings so every student sees
+    // the same set, rather than relying on the admin browser's localStorage.
+    if (settings.dailyChallenges && settings.dailyChallenges.length > 0) {
+        const published = settings.dailyChallenges.find(c => {
+            if (c.type !== (isDaily ? 'DAILY_CHALLENGE' : 'WEEKLY_TEST') || !c.isActive || c.classLevel !== classLevel) {
+                return false;
+            }
+            if (c.board && c.board !== board) return false;
+            const legacyPeriodKey = isDaily
+              ? new Date(c.createdAt).toISOString().split('T')[0]
+              : getChallengeWeekKey(new Date(c.createdAt));
+            return (c.periodKey || legacyPeriodKey) === periodKey &&
+              new Date(c.expiryDate).getTime() > Date.now();
+        });
 
         if (published) {
-            return {
-                id: `${published.id}-${userId}`, // User-specific attempt ID
-                name: published.title,
-                questions: published.questions,
-                durationMinutes: published.durationMinutes || 15
-            };
+            const publishedQuestions = sanitizeChallengeQuestions(published.questions);
+            if (publishedQuestions.length > 0) {
+                return {
+                    id: `${published.id}-${userId}`, // User-specific attempt ID
+                    name: published.title,
+                    questions: publishedQuestions,
+                    durationMinutes: published.durationMinutes || (isDaily ? 15 : 60)
+                };
+            }
         }
     }
 
     // CONFIGURATION
-    const isDaily = mode === 'DAILY';
     const totalTarget = isDaily ? 30 : 100;
     const durationMinutes = isDaily ? 15 : 60;
     
     // Date string used as PRNG seed — all users on the same date get the same
     // question order, making the leaderboard a fair comparison.
-    const todayISO = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayISO = getChallengeDateKey();
 
     // ── Source priority 1: globalChallengeMcq (admin-curated syllabus pool) ──
-    const globalPool: MCQItem[] = settings.globalChallengeMcq || [];
+    const globalPool: MCQItem[] = sanitizeChallengeQuestions(settings.globalChallengeMcq || []);
 
     // ── Source priority 2: ALL nst_content_* keys (whole syllabus, not just
     //    chapters the user has already studied) ───────────────────────────────
@@ -233,7 +262,7 @@ export const generateDailyChallengeQuestions = async (
                 ...(content.weeklyTestMcqData || []),
                 ...(content.mcqData || []),
             ];
-            allQs.forEach(q => addQ(q, subjectName));
+            sanitizeChallengeQuestions(allQs).forEach(q => addQ(q, subjectName));
         } catch { /* skip corrupt entries */ }
     }
 
@@ -279,14 +308,14 @@ export const generateDailyChallengeQuestions = async (
         finalQuestions = _seededShuffle(finalQuestions, seed).slice(0, totalTarget);
     }
 
-    // 4. Return Object — challenge ID is board+class+date (same for all users of same cohort)
+    // 4. Return Object — same period + cohort gives every student the same set.
     const idPrefix = isDaily ? 'daily-challenge' : 'weekly-challenge';
-    const challengeId = `${idPrefix}-${board}-${classLevel}-${todayISO}`;
+    const challengeId = `${idPrefix}-${board}-${classLevel}-${periodKey}`;
     
     return {
         id: challengeId,
-        name: isDaily ? `Daily Challenge (${todayISO})` : `Weekly Mega Test (${todayISO})`,
-        questions: finalQuestions,
+        name: challengeTitle,
+        questions: sanitizeChallengeQuestions(finalQuestions),
         durationMinutes: durationMinutes
     };
 };

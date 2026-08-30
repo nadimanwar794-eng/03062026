@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Challenge20, ClassLevel, MCQItem, Subject } from '../../types';
+import { Challenge20, ClassLevel, MCQItem, Subject, SystemSettings } from '../../types';
 import { fetchLessonContent } from '../../services/groq';
 import { parseMCQText } from '../../utils/mcqParser';
 import { saveChallenge20, saveQuestionsToBank, getAllChallenges, deleteChallenge20 } from '../../services/questionBank';
-import { buildAutoMixQuestions } from '../../utils/challengeGenerator';
+import { buildAutoMixQuestions, getChallengeDateKey, getChallengeTitle, getChallengeWeekKey } from '../../utils/challengeGenerator';
+import { sanitizeChallengeQuestions } from '../../utils/challengeMcq';
 import { DEFAULT_SUBJECTS, getSubjectsList } from '../../constants';
 import { Sparkles, Trophy, Calendar, Save, RefreshCw, Plus, Layers, Trash2, History } from 'lucide-react';
 
@@ -13,13 +14,22 @@ interface Props {
   language: 'English' | 'Hindi';
   autoChallengeEnabled?: boolean;
   onToggleAutoChallenge?: () => void;
+  settings?: SystemSettings;
+  onSaveSettings?: (settings: SystemSettings) => Promise<void> | void;
 }
 
-export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChallengeEnabled, onToggleAutoChallenge }) => {
+export const ChallengeCreator20: React.FC<Props> = ({
+  onBack,
+  language,
+  autoChallengeEnabled,
+  onToggleAutoChallenge,
+  settings,
+  onSaveSettings,
+}) => {
   const [viewMode, setViewMode] = useState<'CREATE' | 'HISTORY'>('CREATE');
   const [pastChallenges, setPastChallenges] = useState<Challenge20[]>([]);
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(getChallengeTitle('DAILY'));
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'DAILY_CHALLENGE' | 'WEEKLY_TEST'>('DAILY_CHALLENGE');
   const [classLevel, setClassLevel] = useState<ClassLevel>('10');
@@ -45,6 +55,11 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChal
   React.useEffect(() => {
       loadHistory();
   }, []);
+
+  React.useEffect(() => {
+      setDurationMinutes(type === 'DAILY_CHALLENGE' ? 15 : 60);
+      setTitle(getChallengeTitle(type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY'));
+  }, [type]);
 
   const loadHistory = async () => {
       const all = await getAllChallenges();
@@ -84,7 +99,7 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChal
         );
 
         if (content && content.mcqData) {
-            const newQuestions = content.mcqData;
+            const newQuestions = sanitizeChallengeQuestions(content.mcqData);
             if (append) {
                 setQuestions(prev => [...prev, ...newQuestions]);
                 alert(`Added ${newQuestions.length} more questions!`);
@@ -114,7 +129,7 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChal
 
               // First try parsing using our custom emoji format parser
               const parsed = parseMCQText(rawText);
-              let newQuestions: MCQItem[] = parsed.questions;
+              let newQuestions: MCQItem[] = sanitizeChallengeQuestions(parsed.questions);
 
               // If it didn't find any, fallback to TSV or Vertical blocks
               if (newQuestions.length === 0) {
@@ -174,12 +189,13 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChal
                   }
               }
 
-              if (newQuestions.length === 0) throw new Error("No valid questions found.");
+              const validQuestions = sanitizeChallengeQuestions(newQuestions);
+              if (validQuestions.length === 0) throw new Error("No valid crisp 4-option MCQs found.");
               
-              setQuestions(prev => [...prev, ...newQuestions]);
+              setQuestions(prev => [...prev, ...validQuestions]);
               setStep('PREVIEW');
               setImportText('');
-              alert(`Imported ${newQuestions.length} Questions!`);
+              alert(`Imported ${validQuestions.length} Questions!`);
 
           } catch (error: any) {
               alert("Import Failed: " + error.message);
@@ -206,7 +222,7 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChal
           if (finalPool.length === 0) {
               alert("Koi completed lesson nahi mila! Pehle students kuch chapters padhen.");
           } else {
-              setQuestions(finalPool);
+              setQuestions(sanitizeChallengeQuestions(finalPool));
               setStep('PREVIEW');
           }
       } catch (e) {
@@ -217,38 +233,64 @@ export const ChallengeCreator20: React.FC<Props> = ({ onBack, language, autoChal
   };
 
   const handlePublish = async () => {
-      if (!title || questions.length === 0) {
-          alert("Title and Questions are required.");
+      const finalQuestions = sanitizeChallengeQuestions(questions);
+      if (finalQuestions.length === 0) {
+          alert("At least one valid crisp 4-option MCQ is required.");
           return;
       }
 
       setLoading(true);
-      
+      const now = new Date();
+      const periodKey = type === 'DAILY_CHALLENGE' ? getChallengeDateKey(now) : getChallengeWeekKey(now);
+      const expiryDate = type === 'DAILY_CHALLENGE'
+        ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const newChallenge: Challenge20 = {
-          id: `${type === 'DAILY_CHALLENGE' ? 'dc' : 'wt'}-2.0-${Date.now()}`,
-          title,
+          id: `${type === 'DAILY_CHALLENGE' ? 'daily' : 'weekly'}-${classLevel}-${periodKey}`,
+          title: title.trim() || getChallengeTitle(type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY', now),
           description,
-          questions,
-          createdAt: new Date().toISOString(),
-          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 Hours
+          questions: finalQuestions,
+          createdAt: now.toISOString(),
+          expiryDate: expiryDate.toISOString(),
           type,
           classLevel,
           isAutoGenerated: mode === 'AUTO',
           isActive: true,
-          durationMinutes: durationMinutes
+          durationMinutes: durationMinutes,
+          periodKey,
       };
 
-      // 1. Save Challenge
       const success = await saveChallenge20(newChallenge);
+      if (success && onSaveSettings && settings) {
+          const samePeriod = (challenge: Challenge20) =>
+            challenge.type === newChallenge.type &&
+            challenge.classLevel === newChallenge.classLevel &&
+            (challenge.periodKey || (
+              challenge.type === 'DAILY_CHALLENGE'
+                ? getChallengeDateKey(new Date(challenge.createdAt))
+                : getChallengeWeekKey(new Date(challenge.createdAt))
+            )) === periodKey;
+          const cloudHistoryCutoff = now.getTime() - 35 * 24 * 60 * 60 * 1000;
+          await onSaveSettings({
+            ...settings,
+            dailyChallenges: [
+              ...(settings.dailyChallenges || []).filter((challenge) =>
+                !samePeriod(challenge) &&
+                new Date(challenge.expiryDate).getTime() > cloudHistoryCutoff,
+              ),
+              newChallenge,
+            ],
+          });
+      }
       
       // 2. If AI Mode, Save to Bank
       if (success && mode === 'AI' && subject) {
-          await saveQuestionsToBank(questions, subject.name, classLevel, 'AI');
+          await saveQuestionsToBank(finalQuestions, subject.name, classLevel, 'AI');
       }
 
       setLoading(false);
       if (success) {
-          alert(`✅ ${type === 'DAILY_CHALLENGE' ? 'Daily Challenge' : 'Weekly Test'} 2.0 Published!\nIt will expire automatically in 24 hours.`);
+          alert(`✅ ${type === 'DAILY_CHALLENGE' ? 'Daily Challenge' : 'Weekly Challenge'} 2.0 Published!\n${type === 'DAILY_CHALLENGE' ? 'It runs for today.' : 'It runs once this week.'}`);
           onBack();
       } else {
           alert("Failed to save.");

@@ -10972,6 +10972,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
       {activeTab === 'CHALLENGE_CREATOR_20' && (
           <ChallengeCreator20
+              settings={localSettings}
+              onSaveSettings={handleSaveSettings}
               onBack={() => setActiveTab('DASHBOARD')}
               language={localSettings.aiModel?.includes('Hindi') ? 'Hindi' : 'English'}
               autoChallengeEnabled={localSettings.dailyChallengeConfig?.autoChallengeEnabled !== false}

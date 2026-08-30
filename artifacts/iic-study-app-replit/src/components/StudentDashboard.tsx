@@ -5606,9 +5606,20 @@ export const StudentDashboard: React.FC<Props> = ({
   useEffect(() => {
     const currentClass = activeSessionClass || user.classLevel;
     if (currentClass) {
-      getActiveChallenges(currentClass as any).then(setActiveChallenges20);
+      getActiveChallenges(currentClass as any).then((localChallenges) => {
+        const now = Date.now();
+        const cloudChallenges = (settings?.dailyChallenges || []).filter((challenge) =>
+          challenge.isActive &&
+          challenge.classLevel === currentClass &&
+          (!challenge.board || challenge.board === user.board) &&
+          new Date(challenge.expiryDate).getTime() > now,
+        );
+        const merged = new Map<string, Challenge20>();
+        [...localChallenges, ...cloudChallenges].forEach((challenge) => merged.set(challenge.id, challenge));
+        setActiveChallenges20([...merged.values()]);
+      });
     }
-  }, [activeSessionClass, user.classLevel]);
+  }, [activeSessionClass, user.classLevel, settings?.dailyChallenges]);
 
   // Handle Banner Rotation
   useEffect(() => {

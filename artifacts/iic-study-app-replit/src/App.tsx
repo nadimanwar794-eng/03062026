@@ -61,7 +61,7 @@ import { HomeStatsToast } from './components/HomeStatsToast';
 import { DailyChallengeRankCard } from './components/DailyChallengeRankCard';
 import { DailyChallengePopup } from './components/DailyChallengePopup';
 import { recordCreditTx } from './utils/creditHistory';
-import { buildAutoMixQuestions, generateDailyChallengeQuestions } from './utils/challengeGenerator';
+import { generateDailyChallengeQuestions, getChallengeDateKey, getChallengeWeekKey } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff, Cloud, ArrowLeft, ExternalLink } from 'lucide-react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { SUPPORT_EMAIL, APP_VERSION } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
@@ -1747,32 +1747,43 @@ const App: React.FC = () => {
             setTimeout(() => setShowDailyRankCard(true), 800);
         }
 
-        const isSunday = new Date().getDay() === 0;
-        const lastWeeklyAuto = localStorage.getItem('nst_last_weekly_auto_date');
-        if (isSunday && lastWeeklyAuto !== new Date().toDateString()) {
-            const weeklyQs = buildAutoMixQuestions(
-                state.user.classLevel || '10',
-                state.user.board || 'CBSE',
+        // Weekly challenge is available once per local calendar week. It is
+        // intentionally not tied to Sunday: a student opening the app later
+        // in the week still gets this week's challenge.
+        const weekKey = getChallengeWeekKey();
+        const lastWeeklyAuto = localStorage.getItem('nst_last_weekly_auto_week');
+        if (lastWeeklyAuto !== weekKey) {
+            const classLevel = state.user.classLevel || '10';
+            const board = state.user.board || 'CBSE';
+            generateDailyChallengeQuestions(
+                classLevel,
+                board,
                 state.user.stream || null,
-                'WEEKLY'
-            );
-            if (weeklyQs.length > 0) {
+                state.settings,
+                state.user.id,
+                'WEEKLY',
+            ).then((result) => {
+                if (!result || result.questions.length === 0) return;
                 const weeklyTest: WeeklyTest = {
-                    id: `weekly-auto-${Date.now()}`,
-                    name: `Weekly Test — ${new Date().toLocaleDateString()}`,
-                    description: "Sunday ka weekly mega test — 100 sawaal completed lessons se!",
+                    id: result.id,
+                    name: result.name,
+                    description: "Is hafte ka weekly challenge — syllabus ke sabhi chapters se!",
                     isActive: true,
-                    classLevel: state.user.classLevel || '10',
-                    questions: weeklyQs,
-                    totalQuestions: weeklyQs.length,
-                    passingScore: Math.ceil(0.6 * weeklyQs.length),
+                    classLevel,
+                    questions: result.questions,
+                    totalQuestions: result.questions.length,
+                    passingScore: Math.ceil(0.6 * result.questions.length),
                     createdAt: new Date().toISOString(),
-                    durationMinutes: 60,
-                    autoSubmitEnabled: true
+                    durationMinutes: result.durationMinutes,
+                    autoSubmitEnabled: true,
                 };
-                localStorage.setItem('nst_last_weekly_auto_date', new Date().toDateString());
+                localStorage.setItem('nst_last_weekly_auto_week', weekKey);
+                // Keep the old key harmlessly readable for older sessions.
+                localStorage.setItem('nst_last_weekly_auto_date', getChallengeDateKey());
                 setTimeout(() => setActiveWeeklyTest(weeklyTest), 1500);
-            }
+            }).catch((error) => {
+                console.warn('[IIC] Weekly challenge generation skipped:', error);
+            });
         }
     }
   }, [state.user?.id, state.view, state.settings]);
@@ -1857,7 +1868,7 @@ const App: React.FC = () => {
     'nst_daily_study_seconds', 'nst_hidden_notifs', 'nst_display_level',
     'nst_last_daily_challenge_completed', 'nst_last_daily_challenge_date',
     'nst_last_daily_tracker_date', 'nst_last_read_update',
-    'nst_last_refresh_ts', 'nst_last_reload_at', 'nst_last_weekly_auto_date',
+    'nst_last_refresh_ts', 'nst_last_reload_at', 'nst_last_weekly_auto_date', 'nst_last_weekly_auto_week',
     'nst_leaderboard', 'nst_morning_banner', 'nst_pending_sync_results',
     'nst_recycle_bin', 'nst_revision_tracker_v2', 'nst_seen_notif_ids',
     'nst_seen_notifs_v1', 'nst_starred_notes_v1', 'nst_store_last_visit',
@@ -2852,7 +2863,8 @@ const App: React.FC = () => {
           autoSubmitEnabled: true
       };
       setActiveWeeklyTest(test);
-      localStorage.setItem('nst_last_weekly_auto_date', new Date().toDateString());
+      localStorage.setItem('nst_last_weekly_auto_week', getChallengeWeekKey());
+      localStorage.setItem('nst_last_weekly_auto_date', getChallengeDateKey());
   };
 
   const goBack = () => {
