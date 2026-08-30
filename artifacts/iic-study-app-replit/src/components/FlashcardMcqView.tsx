@@ -534,143 +534,135 @@ export const FlashcardMcqView: React.FC<Props> = ({
           ⭐ +{mcqScorePopup} pts
         </div>
       )}
-      {/* Top Bar */}
-      <div className="shrink-0 px-3 py-2.5 flex items-center gap-2.5 border-b border-white/10">
-        <div className="min-w-0 flex-1">
-          {hardReviewMode ? (
-            <>
-              <p className="text-[10px] font-black text-red-300 uppercase tracking-widest truncate flex items-center gap-1">
-                <span>🔴</span> Hard Cards Review
-              </p>
-              <h2 className="text-sm font-black text-white truncate">{hardQueue.length} Hard Card{hardQueue.length !== 1 ? 's' : ''} dobara dekho</h2>
-            </>
-          ) : (
-            <>
-              <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest truncate">
-                🃏 Flashcards · {total} cards
-                {hardQueueRef.current.length > 0 && (
-                  <span className="ml-1 text-red-300">· {hardQueueRef.current.length} Hard</span>
-                )}
-              </p>
-              <h2 className="text-sm font-black text-white truncate">{title || 'Flashcards'}</h2>
-              {subtitle && <p className="text-[10px] text-white/50 truncate">{subtitle}</p>}
-            </>
-          )}
-        </div>
-        {/* Live session score chip — always visible */}
-        <div className="relative shrink-0" style={{ zIndex: 50 }}>
-          <span
-            onClick={() => { setScoreTooltip(true); setTimeout(() => setScoreTooltip(false), 2500); }}
-            style={{ fontSize: '10px', fontWeight: 900, color: '#4ade80', background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 99, padding: '2px 8px', cursor: 'pointer', display: 'block' }}>
-            📖 {sessionScore}
-          </span>
+      {/* Top Bar — title/actions stay separate from session stats on mobile */}
+      <div className="shrink-0 px-4 pt-3 pb-2.5 border-b border-white/10">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            {hardReviewMode ? (
+              <>
+                <p className="text-[10px] font-black text-red-300 uppercase tracking-widest truncate flex items-center gap-1">
+                  <span>🔴</span> Hard Cards Review
+                </p>
+                <h2 className="text-sm font-black text-white truncate">{hardQueue.length} Hard Card{hardQueue.length !== 1 ? 's' : ''} dobara dekho</h2>
+              </>
+            ) : (
+              <>
+                <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest truncate">
+                  🃏 Flashcards · {total} cards
+                  {hardQueueRef.current.length > 0 && (
+                    <span className="ml-1 text-red-300">· {hardQueueRef.current.length} Hard</span>
+                  )}
+                </p>
+                <h2 className="text-sm font-black text-white truncate">{title || 'Flashcards'}</h2>
+                {subtitle && <p className="text-[10px] text-white/50 truncate">{subtitle}</p>}
+              </>
+            )}
           </div>
-        <div className="bg-white/10 px-2.5 py-1 rounded-full shrink-0">
-          <span className="text-[10px] font-black text-white/70">
-            {getTodayCount(userId)}/{isAdmin ? '∞' : dailyLimit}
-          </span>
-        </div>
-        {/* 💡 Suggestions button — directly in top bar */}
-        <button
-          onClick={() => { setFlipped(true); setShowSuggestion(true); setSuggestionNote(''); setSuggestionSaved(false); }}
-          className={`shrink-0 p-2 rounded-full active:scale-95 transition ${showSuggestion ? 'bg-amber-400 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
-          title="Suggestions & Corrections"
-        >
-          <Lightbulb size={16} />
-        </button>
-        {/* 📽️ Projector Mode — directly in top bar */}
-        {questions.length > 0 && (
-          <button
-            onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorRotated(false); setProjectorAnswered(new Set()); setProjectorCorrect(0); setProjectorWrong(0); setProjectorSelections({}); setProjectorShowReview(false); setIsProjectorMode(true); }}
-            className="shrink-0 p-2 rounded-full bg-white/10 hover:bg-amber-500 text-amber-300 hover:text-white active:scale-95 transition"
-            title="Projector Mode"
-          >
-            <Tv size={16} />
-          </button>
-        )}
-        {/* 3-dot menu */}
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setShowTopMenu(v => !v)}
-            className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full active:scale-95 transition"
-            title="More"
-          >
-            <MoreVertical size={16} />
-          </button>
-          {showTopMenu && (
-            <>
-              {/* Backdrop */}
-              <div className="fixed inset-0 z-[300]" onClick={() => setShowTopMenu(false)} />
-              <div className="absolute right-0 top-10 z-[301] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 w-52 overflow-hidden">
-                {/* Reshuffle — only in normal mode */}
-                {!hardReviewMode && (
-                  <button
-                    onClick={() => { setShowTopMenu(false); reshuffle(); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
-                  >
-                    <Shuffle size={15} className="text-indigo-500 shrink-0" />
-                    Cards Shuffle karo
-                  </button>
-                )}
-                {/* Restart from beginning */}
-                <button
-                  onClick={() => { setShowTopMenu(false); setPos(0); setFlipped(false); setHardReviewMode(false); setHardReviewPos(0); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
-                >
-                  <RefreshCw size={15} className="text-slate-500 shrink-0" />
-                  Shuru se dekho
-                </button>
-                {/* Hard review toggle */}
-                {hardQueueRef.current.length > 0 && (
-                  <button
-                    onClick={() => { setShowTopMenu(false); setHardReviewMode(v => !v); setHardReviewPos(0); setFlipped(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors text-red-600 hover:bg-red-50"
-                  >
-                    <BookOpen size={15} className="text-red-500 shrink-0" />
-                    {hardReviewMode ? 'Normal mode mein jao' : `Hard Cards (${hardQueueRef.current.length}) dekho`}
-                  </button>
-                )}
-                {/* Projector Mode */}
-                {questions.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setShowTopMenu(false);
-                      setProjectorQIndex(0);
-                      setProjectorReveal(false);
-                      setProjectorAnswered(new Set());
-                      setProjectorCorrect(0);
-                      setProjectorWrong(0);
-                      setProjectorSelections({});
-                      setProjectorShowReview(false);
-                      setIsProjectorMode(true);
-                      onProjectorModeChange?.(true);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors text-amber-700 hover:bg-amber-50"
-                  >
-                    <Tv size={15} className="text-amber-500 shrink-0" />
-                    📽️ Projector Mode
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
-      {/* Progress */}
-      <div className="px-4 mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-black text-white/70">
-            <span className="text-white">{activePos + 1}</span> / {activeTotal}
-          </span>
-          <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 rounded-full ${hardReviewMode ? 'bg-red-400' : 'bg-white/70'}`}
-              style={{ width: `${((activePos + 1) / activeTotal) * 100}%` }}
-            />
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Projector Mode */}
+            {questions.length > 0 && (
+              <button
+                onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorRotated(false); setProjectorAnswered(new Set()); setProjectorCorrect(0); setProjectorWrong(0); setProjectorSelections({}); setProjectorShowReview(false); setIsProjectorMode(true); }}
+                className="p-2 rounded-full bg-white/10 hover:bg-amber-500 text-amber-300 hover:text-white active:scale-95 transition"
+                title="Projector Mode"
+                aria-label="Projector Mode"
+              >
+                <Tv size={16} />
+              </button>
+            )}
+            {/* 3-dot menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowTopMenu(v => !v)}
+                className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full active:scale-95 transition"
+                title="More"
+                aria-label="More options"
+              >
+                <MoreVertical size={16} />
+              </button>
+              {showTopMenu && (
+                <>
+                  <div className="fixed inset-0 z-[300]" onClick={() => setShowTopMenu(false)} />
+                  <div className="absolute right-0 top-10 z-[301] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 w-52 overflow-hidden">
+                    {/* Suggestions & Corrections */}
+                    <button
+                      onClick={() => { setShowTopMenu(false); setFlipped(true); setShowSuggestion(true); setSuggestionNote(''); setSuggestionSaved(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
+                    >
+                      <Lightbulb size={15} className="text-amber-500 shrink-0" />
+                      Suggestions & Corrections
+                    </button>
+                    {/* Reshuffle — only in normal mode */}
+                    {!hardReviewMode && (
+                      <button
+                        onClick={() => { setShowTopMenu(false); reshuffle(); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
+                      >
+                        <Shuffle size={15} className="text-indigo-500 shrink-0" />
+                        Cards Shuffle karo
+                      </button>
+                    )}
+                    {/* Restart from beginning */}
+                    <button
+                      onClick={() => { setShowTopMenu(false); setPos(0); setFlipped(false); setHardReviewMode(false); setHardReviewPos(0); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-semibold"
+                    >
+                      <RefreshCw size={15} className="text-slate-500 shrink-0" />
+                      Shuru se dekho
+                    </button>
+                    {/* Hard review toggle */}
+                    {hardQueueRef.current.length > 0 && (
+                      <button
+                        onClick={() => { setShowTopMenu(false); setHardReviewMode(v => !v); setHardReviewPos(0); setFlipped(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors text-red-600 hover:bg-red-50"
+                      >
+                        <BookOpen size={15} className="text-red-500 shrink-0" />
+                        {hardReviewMode ? 'Normal mode mein jao' : `Hard Cards (${hardQueueRef.current.length}) dekho`}
+                      </button>
+                    )}
+                    {/* Projector Mode */}
+                    {questions.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setShowTopMenu(false);
+                          setProjectorQIndex(0);
+                          setProjectorReveal(false);
+                          setProjectorAnswered(new Set());
+                          setProjectorCorrect(0);
+                          setProjectorWrong(0);
+                          setProjectorSelections({});
+                          setProjectorShowReview(false);
+                          setIsProjectorMode(true);
+                          onProjectorModeChange?.(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors text-amber-700 hover:bg-amber-50"
+                      >
+                        <Tv size={15} className="text-amber-500 shrink-0" />
+                        📽️ Projector Mode
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* Compact session stats — one row instead of mixing with actions */}
+        <div className="mt-3 flex items-center gap-2 overflow-x-auto">
+          <span className="shrink-0 rounded-lg bg-white/10 px-2.5 py-1.5 text-[10px] font-black text-white/70">
+            Today <strong className="text-white">{getTodayCount(userId)}/{isAdmin ? '∞' : dailyLimit}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => { setScoreTooltip(true); setTimeout(() => setScoreTooltip(false), 2500); }}
+            className="shrink-0 rounded-lg border border-emerald-300/30 bg-emerald-400/15 px-2.5 py-1.5 text-[10px] font-black text-emerald-200"
+          >
+            Score <strong className="text-emerald-100">+{sessionScore}</strong>
+          </button>
           {!hardReviewMode && confidenceMap[pos] && (
-            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+            <span className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-black ${
               confidenceMap[pos] === 'easy' ? 'bg-emerald-500/30 text-emerald-200' :
               confidenceMap[pos] === 'medium' ? 'bg-amber-500/30 text-amber-200' :
               'bg-red-500/30 text-red-200'
@@ -678,6 +670,21 @@ export const FlashcardMcqView: React.FC<Props> = ({
               {confidenceMap[pos] === 'easy' ? '✓ Easy' : confidenceMap[pos] === 'medium' ? '~ Med' : '✗ Hard'}
             </span>
           )}
+        </div>
+      </div>
+
+      {/* Single question progress row */}
+      <div className="shrink-0 px-4 pt-2.5 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-[11px] font-black text-white/70">
+            Q <span className="text-white">{activePos + 1}</span> of {activeTotal}
+          </span>
+          <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 rounded-full ${hardReviewMode ? 'bg-red-400' : 'bg-white/70'}`}
+              style={{ width: `${((activePos + 1) / activeTotal) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
 
