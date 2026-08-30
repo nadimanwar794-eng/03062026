@@ -104,7 +104,9 @@ const MCQBuilder: React.FC<{
       }
       const mapped: LessonMCQ[] = parsed.questions.map(q => ({
         id: generateId(),
+        questionNumber: q.questionNumber,
         question: (q.question || "").replace(/<br\/?>/g, "\n").trim(),
+        statements: q.statements?.length ? q.statements : undefined,
         options: (q.options || ["", "", "", ""]).slice(0, 4).map(o =>
           o.replace(/<br\/?>/g, " ").trim()
         ),

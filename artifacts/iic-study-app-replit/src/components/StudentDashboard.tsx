@@ -3726,6 +3726,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const _ts = Date.now();
         const _parsed = (_result?.questions || []).map((q: any, i: number) => ({
           id: `mcq_${_ts}_${i}_${Math.random().toString(36).slice(2)}`,
+          questionNumber: q.questionNumber,
           question: (q.question || '').replace(/<br\/?>/g, '\n').replace(/^Q?\s*\d+[.)]\s*/i, '').trim(),
           options: (q.options || ['', '', '', '']).slice(0, 4),
           correctAnswer: q.correctAnswer ?? 0,
@@ -3804,6 +3805,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const _ts = Date.now();
         const _parsed = (_result?.questions || []).map((q: any, i: number) => ({
           id: `mcq_${_ts}_${i}_${Math.random().toString(36).slice(2)}`,
+          questionNumber: q.questionNumber,
           question: (q.question || '').replace(/<br\/?>/g, '\n').replace(/^Q?\s*\d+[.)]\s*/i, '').trim(),
           options: (q.options || ['', '', '', '']).slice(0, 4),
           correctAnswer: q.correctAnswer ?? 0,

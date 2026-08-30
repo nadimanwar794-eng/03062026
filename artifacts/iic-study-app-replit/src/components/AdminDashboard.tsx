@@ -9746,9 +9746,12 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                                       }
                                                       const added = parsed.questions.map(q => ({
                                                           id: `mcq_${Date.now()}_${Math.random()}`,
+                                                          questionNumber: q.questionNumber,
                                                           question: (q.question || '').replace(/<br\/?>/g, '\n').trim(),
                                                           options: (q.options || ['', '', '', '']).slice(0, 4),
                                                           correctAnswer: q.correctAnswer ?? 0,
+                                                          statements: q.statements?.length ? q.statements : undefined,
+                                                          explanation: q.explanation?.trim() || undefined,
                                                       }));
                                                       setNewHomeworkMcqs(prev => [...prev, ...added]);
                                                       setNewHomeworkBulk(undefined);

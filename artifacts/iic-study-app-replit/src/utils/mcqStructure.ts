@@ -110,6 +110,18 @@ export function normalizeMcqForTracking(q: Partial<MCQItem>, fallbackIndex?: num
   };
 }
 
+export function normalizeMcqForStorage(q: Partial<MCQItem>, fallbackIndex = 0) {
+  const tracked = normalizeMcqForTracking(q, fallbackIndex);
+  return {
+    question: tracked.question,
+    questionNumber: tracked.questionNumber,
+    statements: tracked.statements.length ? tracked.statements : undefined,
+    options: tracked.allOptions,
+    correctAnswer: tracked.correctAnswer,
+    explanation: tracked.explanation || undefined,
+  };
+}
+
 export function getTrackedQuestionKey(q: Pick<TrackedMcq, 'question' | 'questionNumber'>): string {
   return q.questionNumber ? `Q${q.questionNumber}` : q.question.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }

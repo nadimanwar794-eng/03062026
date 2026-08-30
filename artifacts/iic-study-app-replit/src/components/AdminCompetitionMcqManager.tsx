@@ -100,6 +100,7 @@ export const AdminCompetitionMcqManager: React.FC<Props> = ({ onBack }) => {
       const ts = Date.now();
       const parsed = (result?.questions || []).map((q: any, i: number) => ({
         id: `mcq_${ts}_${i}_${Math.random().toString(36).slice(2)}`,
+        questionNumber: q.questionNumber,
         question: (q.question || '').replace(/<br\/?>/g, '\n').replace(/^Q?\s*\d+[.)]\s*/i, '').trim(),
         options: (q.options || ['', '', '', '']).slice(0, 4),
         correctAnswer: q.correctAnswer ?? 0,
