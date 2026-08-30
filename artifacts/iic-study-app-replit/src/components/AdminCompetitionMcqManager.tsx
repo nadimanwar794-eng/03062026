@@ -10,8 +10,8 @@ function normalizeMcqPaste(raw: string): string {
   txt = txt.replace(/\r\n/g, '\n');
   txt = txt.replace(/^---+\s*$/gm, '');
   txt = txt.replace(/^###\s+.+$/gm, '');
-  txt = txt.replace(/^[ \t]*(?:\*{1,2})?\s*सही\s*उत्तर\s*:\s*(?:\*{1,2})?\s*$/gm, '');
-  txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?))/gi, '');
+  txt = txt.replace(/^[ \t]*(?:\*{1,2})?\s*(?:सही\s*उत्तर|उत्तर)\s*:\s*(?:\*{1,2})?\s*$/gm, '');
+  txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?))/gi, '');
   txt = txt.replace(/^\s*\[(?:[⚡🔥💡🎯⭐✨🏆⚠️🌟][^\]]*?|[^\]]{1,10})\]\s*/gm, '');
   txt = txt.replace(/^\*\*\s*कूट\s*:?\s*\*?\*?\s*$/gm, '');
   txt = txt.replace(/\*\*Q\s*(\d+)\s*[:.]\s*([\s\S]*?)\*\*/gi, (_m, n, q) =>
@@ -25,10 +25,10 @@ function normalizeMcqPaste(raw: string): string {
   txt = txt.replace(/(?:^|\n)[ \t]*(?:\*\*\s*)?(?:प्रश्न|Question)\s*(\d+)\s*[:.\-]\s*/gi, (_m, n) => `\n**Question ${n}**\n❓ Question: `);
   txt = txt.replace(/\*\*प्रश्न\s*[:：]?\*\*/gi, '__PRASHNA__');
   txt = txt.replace(/\*\*Question\s*[:：]?\*\*/gi, '__PRASHNA__');
-  txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*([^*]+?)\s*\*\*/gi,
+  txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*([^*]+?)\s*\*\*/gi,
     (_m, val) => `\n✅ Correct Answer: ${String(val).trim()}`);
-  txt = txt.replace(/\*\*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]?\*\*\s*/gi, '✅ Correct Answer: ');
-  txt = txt.replace(/(?:^|\n)\s*(?:Ans(?:wer)?|सही\s*उत्तर)\s*[:：]\s*/gi, '\n✅ Correct Answer: ');
+  txt = txt.replace(/\*\*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]?\*\*\s*/gi, '✅ Correct Answer: ');
+  txt = txt.replace(/(?:^|\n)\s*(?:Ans(?:wer)?|सही\s*उत्तर|उत्तर)\s*[:：]\s*/gi, '\n✅ Correct Answer: ');
   txt = txt.replace(/\*\*/g, '');
   let qNum = 0;
   txt = txt.replace(/__PRASHNA__\s*/g, () => { qNum += 1; return `\n**Question ${qNum}**\n❓ Question: `; });

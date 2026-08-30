@@ -12,11 +12,11 @@ export function normalizeMcqPaste(raw: string): string {
     // **सही उत्तर:
     // **सही उत्तर:** B) ...
     text = text.replace(
-        /^[ \t]*(?:\*{1,2})?\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*(?:\*{1,2})?\s*$/gim,
+        /^[ \t]*(?:\*{1,2})?\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*(?:\*{1,2})?\s*$/gim,
         '',
     );
     text = text.replace(
-        /\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?))/gi,
+        /\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?))/gi,
         '',
     );
 
@@ -159,7 +159,7 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
         return !!m && m[3].trim().length <= 100;
     };
     // Also handles **सही उत्तर: (bold markdown prefix used in some paste formats)
-    const isAnswerLine   = (l: string) => /^(?:\*{1,2}\s*)?(?:Ans|Answer|सही\s*उत्तर)\s*:/i.test(l) || /^✅\s*Correct\s+Answer\s*:/i.test(l);
+    const isAnswerLine   = (l: string) => /^(?:\*{1,2}\s*)?(?:Ans|Answer|सही\s*उत्तर|उत्तर)\s*:/i.test(l) || /^✅\s*Correct\s+Answer\s*:/i.test(l);
     const isExplainLine  = (l: string) => /^(?:Explanation|Exp|व्याख्या)\s*:/i.test(l);
 
     let bodyStart = 1; // index of first option/answer/explanation line
@@ -198,9 +198,9 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
             continue;
         }
 
-        // Answer line: Ans: / Answer: / ✅ Correct Answer: / सही उत्तर: / **सही उत्तर:
-        if (/^(?:\*{1,2}\s*)?(?:Ans|Answer|सही\s*उत्तर)\s*:/i.test(line) || /^✅\s*Correct\s+Answer\s*:/i.test(line)) {
-            answerLine = line.replace(/^(?:\*{1,2}\s*)?(?:✅\s*)?(?:Correct\s+)?(?:Answer|Ans|सही\s*उत्तर)\s*:\s*/i, '').trim();
+        // Answer line: Ans: / Answer: / ✅ Correct Answer: / सही उत्तर: / उत्तर: / **सही उत्तर:
+        if (/^(?:\*{1,2}\s*)?(?:Ans|Answer|सही\s*उत्तर|उत्तर)\s*:/i.test(line) || /^✅\s*Correct\s+Answer\s*:/i.test(line)) {
+            answerLine = line.replace(/^(?:\*{1,2}\s*)?(?:✅\s*)?(?:Correct\s+)?(?:Answer|Ans|सही\s*उत्तर|उत्तर)\s*:\s*/i, '').trim();
             continue;
         }
 

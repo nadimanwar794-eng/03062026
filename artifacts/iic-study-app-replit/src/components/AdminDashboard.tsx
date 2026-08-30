@@ -878,7 +878,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
     // ── Step 0: Fix double-answer lines ──────────────────────────────────────
     // Pattern: **सही उत्तर:\n**सही उत्तर:** B) ... → drop the first empty line
-    txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?))/gi, '');
+    txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*\n+\s*(?=\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?))/gi, '');
 
     // ── Step 1: Strip [⚡], [🔥], [💡] etc. difficulty/category tags ─────────
     // These appear at the start of a question line like: [⚡] question text
@@ -919,10 +919,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
     // ── Step 6: Answer lines ─────────────────────────────────────────────────
     // **सही उत्तर: B) text** (answer INSIDE bold) → ✅ Correct Answer: B) text.
-    txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]\s*([^*]+?)\s*\*\*/gi, (_m, val) => `\n✅ Correct Answer: ${String(val).trim()}`);
+    txt = txt.replace(/\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*([^*]+?)\s*\*\*/gi, (_m, val) => `\n✅ Correct Answer: ${String(val).trim()}`);
     // **सही उत्तर:** (empty bold, value follows on same line) → ✅ Correct Answer:
-    txt = txt.replace(/\*\*(?:सही\s*उत्तर|Ans(?:wer)?)\s*[:：]?\*\*\s*/gi, '✅ Correct Answer: ');
-    txt = txt.replace(/(?:^|\n)\s*(?:Ans(?:wer)?|सही\s*उत्तर)\s*[:：]\s*/gi, '\n✅ Correct Answer: ');
+    txt = txt.replace(/\*\*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]?\*\*\s*/gi, '✅ Correct Answer: ');
+    txt = txt.replace(/(?:^|\n)\s*(?:Ans(?:wer)?|सही\s*उत्तर|उत्तर)\s*[:：]\s*/gi, '\n✅ Correct Answer: ');
 
     // ── Step 7: Strip any remaining stray ** bold markers ────────────────────
     txt = txt.replace(/\*\*/g, '');
