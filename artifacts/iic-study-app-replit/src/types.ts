@@ -1329,6 +1329,8 @@ export interface Chapter {
 
 export interface MCQItem {
   question: string;
+  /** Stable exam question number used by Revision Hub tracking (Q1, Q2...). */
+  questionNumber?: string | number;
   statements?: string[];
   options: string[];
   correctAnswer: number; // Index 0-3

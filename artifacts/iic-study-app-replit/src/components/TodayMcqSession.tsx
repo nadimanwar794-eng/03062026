@@ -16,6 +16,9 @@ import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/sc
 import { hapticCorrect, hapticWrong } from '../utils/haptic';
 import { loadRoutineData } from '../utils/routineStorage';
 import { deferStudyCoins } from '../utils/studyRewards';
+import McqQuestionDisplay from './McqQuestionDisplay';
+import { getMcqOptions, normalizeMcqForTracking } from '../utils/mcqStructure';
+import { parseMcqQuestion } from '../utils/mcqRender';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -323,7 +326,11 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     topicAnalysis[t].correct += 1;
                     removeMistakeByQuestion(q.question, q.correctAnswer);
                 } else if (selected !== -1) {
-                    wrongQuestions.push({ question: q.question, qIndex: localIdx, explanation: q.explanation, correctAnswer: q.correctAnswer });
+                    const tracked = normalizeMcqForTracking(q, localIdx);
+                    wrongQuestions.push({
+                        ...tracked,
+                        qIndex: localIdx,
+                    });
                 }
             });
 
@@ -373,11 +380,14 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     .map((q, localIdx) => {
                         const selected = ans[localIdx];
                         if (selected !== undefined && selected !== q.correctAnswer) {
+                            const tracked = normalizeMcqForTracking(q, localIdx);
                             return {
-                                question: q.question,
-                                options: q.options || [],
-                                correctAnswer: q.correctAnswer,
-                                explanation: q.explanation,
+                                question: tracked.question,
+                                questionNumber: tracked.questionNumber,
+                                statements: tracked.statements,
+                                options: tracked.allOptions,
+                                correctAnswer: tracked.correctAnswer,
+                                explanation: tracked.explanation,
                                 topic: q.topic || meta._topicName,
                                 chapterTitle: meta._chapterName,
                                 subjectName: meta._subjectName,
@@ -882,18 +892,15 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 </div>
 
                 <div className="text-lg font-bold text-slate-800 mb-8 leading-relaxed">
-                    <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(question.question) }} />
-                    {question.statements && question.statements.length > 0 && (
-                        <div className="mt-3 mb-2 flex flex-col space-y-1">
-                            {question.statements.map((stmt: string, sIdx: number) => (
-                                <div key={sIdx} className="text-slate-800 text-base font-medium leading-snug" dangerouslySetInnerHTML={{ __html: renderMathInHtml(stmt) }} />
-                            ))}
-                        </div>
-                    )}
+                    <McqQuestionDisplay
+                        q={question}
+                        showQuestionNumber
+                        questionClassName="text-lg font-bold text-slate-800 leading-relaxed"
+                    />
                 </div>
 
                 <div className="space-y-2">
-                    {question.options.map((opt: string, idx: number) => {
+                    {getMcqOptions(question).map((opt: string, idx: number) => {
                         const isSelected = answers[qIndex] === idx;
                         const answered = answers[qIndex] !== undefined;
                         let bg = 'bg-slate-50'; let border = 'border-slate-200'; let text = 'text-slate-800';
@@ -923,6 +930,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             {isProjectorMode && interleavedQuestions.length > 0 && createPortal((() => {
                 const pq = interleavedQuestions[projectorQIdx];
                 if (!pq) return null;
+                const parsedProjectorQuestion = parseMcqQuestion(pq);
                 const total = interleavedQuestions.length;
                 const optionLetters = ['A','B','C','D','E'];
                 const overlayStyle: React.CSSProperties = {
@@ -970,10 +978,16 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px' : '18px 24px 12px', display:'flex', flexDirection:'column', gap:14, minHeight:0 }}>
                             <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                                 <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIdx + 1}</span>
-                                <p style={{ fontSize:20, fontWeight:800, color:'#1e293b', lineHeight:1.45, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
+                                <div style={{ fontSize:20, fontWeight:800, color:'#1e293b', lineHeight:1.45, flex:1 }}>
+                                    {parsedProjectorQuestion.questionHtml && <div dangerouslySetInnerHTML={{ __html: parsedProjectorQuestion.questionHtml }} />}
+                                    {parsedProjectorQuestion.statements.map((statement, statementIndex) => (
+                                        <div key={statementIndex} dangerouslySetInnerHTML={{ __html: statement }} />
+                                    ))}
+                                    {parsedProjectorQuestion.suffixHtml && <div dangerouslySetInnerHTML={{ __html: parsedProjectorQuestion.suffixHtml }} />}
+                                </div>
                             </div>
                             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                                {pq.options.map((opt: string, oi: number) => {
+                                {getMcqOptions(pq).map((opt: string, oi: number) => {
                                     const isCorrect = pq.correctAnswer === oi;
                                     const isSelected = projectorSelected === oi;
                                     const answered = projectorSelected !== null;

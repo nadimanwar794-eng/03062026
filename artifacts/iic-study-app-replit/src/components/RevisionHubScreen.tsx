@@ -19,6 +19,7 @@ import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
 import { renderMathInHtml } from '../utils/mathUtils';
+import McqQuestionDisplay from './McqQuestionDisplay';
 
 type HubTab = 'MCQ' | 'REVISION' | 'PERFORMANCE';
 
@@ -535,9 +536,13 @@ export const RevisionHubScreen: React.FC<Props> = ({
             {/* Question */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
               <div className="flex items-start gap-2">
-                <p className="font-bold text-slate-800 text-sm leading-relaxed flex-1"
-                  dangerouslySetInnerHTML={{ __html: renderMathInHtml((currentQ.question || '').replace(/<br\/?>/g, '\n')) }}
-                />
+                <div className="font-bold text-slate-800 text-sm leading-relaxed flex-1">
+                  <McqQuestionDisplay
+                    q={currentQ}
+                    showQuestionNumber
+                    questionClassName="font-bold text-slate-800 text-sm leading-relaxed"
+                  />
+                </div>
                 {onSendToMcqCommunity && (
                   <button
                     onClick={(e) => {

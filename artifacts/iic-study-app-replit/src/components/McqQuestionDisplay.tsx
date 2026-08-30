@@ -10,10 +10,13 @@
 import React from 'react';
 import { MCQItem } from '../types';
 import { inlineMd, parseMcqQuestion, shouldShowMcqOptions } from '../utils/mcqRender';
+import { getMcqOptions } from '../utils/mcqStructure';
 import { renderMathInHtml } from '../utils/mathUtils';
 
 interface Props {
   q: MCQItem;
+  /** Show the stable exam number when the item carries one. */
+  showQuestionNumber?: boolean;
   /** Extra class applied to every text line (stem, statements, suffix) */
   questionClassName?: string;
   /** Unused — kept for API compatibility */
@@ -26,6 +29,7 @@ interface Props {
 
 const McqQuestionDisplay: React.FC<Props> = ({
   q,
+  showQuestionNumber = false,
   questionClassName = '',
   variant: _variant,
   showOptions = false,
@@ -34,6 +38,11 @@ const McqQuestionDisplay: React.FC<Props> = ({
 
   return (
     <>
+      {showQuestionNumber && q.questionNumber !== undefined && (
+        <div className={`${questionClassName} mb-1 font-black`}>
+          Q{q.questionNumber}.
+        </div>
+      )}
       {/* Question stem */}
       {questionHtml && (
         <div
@@ -61,7 +70,7 @@ const McqQuestionDisplay: React.FC<Props> = ({
 
       {showOptions && shouldShowMcqOptions(q) && q.options?.length > 0 && (
         <div className="mt-3 flex flex-col gap-2">
-          {q.options.map((option, index) => (
+          {getMcqOptions(q).map((option, index) => (
             <div
               key={index}
               className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-snug text-slate-800"

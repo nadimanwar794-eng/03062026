@@ -144,6 +144,7 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
 
     let questionText = questionLineMatch[1].trim();
     if (!questionText) return null;
+    const questionNumberMatch = lines[0].match(/^\*{0,2}\s*(?:Q(?:uestion)?|प्रश्न)\s*([0-9]+)/i);
 
     // ── Collect multi-line question body ─────────────────────────────────────
     // Lines between the Q-marker and the first option/answer may contain:
@@ -239,10 +240,11 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
 
     if (correctAnswer === undefined || correctAnswer < 0) return null;
 
-    const allOptions = Object.values(optionMap);
+    const allOptions = [0, 1, 2, 3].map(index => optionMap[index] || '');
 
     const q: Partial<MCQItem> = {
         topic,
+        ...(questionNumberMatch ? { questionNumber: questionNumberMatch[1] } : {}),
         question: questionText.replace(/\n/g, '<br/>'),
         options: allOptions,
         correctAnswer,
@@ -352,10 +354,25 @@ export function parseMCQText(text: string): { questions: MCQItem[], notes: {titl
   // ── STRUCTURED/EMOJI FORMAT PARSER (original logic) ─────────────────────
   let activeMainTopic: string | null = null;
 
-  const blocks = cleanText.split(/(?:\*\*Question \d+\*\*|Question \d+:?)/ig).filter(b => b.trim().length > 0);
+  const markerRegex = /(?:\*\*Question\s+(\d+)\*\*|Question\s+(\d+):?)/ig;
+  const markers = [...cleanText.matchAll(markerRegex)];
+  const blocks: { content: string; questionNumber?: string }[] = [];
+  if (markers.length > 0) {
+    markers.forEach((marker, index) => {
+      const start = (marker.index || 0) + marker[0].length;
+      const end = index + 1 < markers.length ? (markers[index + 1].index || cleanText.length) : cleanText.length;
+      blocks.push({
+        content: cleanText.slice(start, end),
+        questionNumber: marker[1] || marker[2],
+      });
+    });
+  } else {
+    blocks.push({ content: cleanText });
+  }
 
-  blocks.forEach((block, blockIndex) => {
+  blocks.forEach(({ content: block, questionNumber }, blockIndex) => {
     let q: Partial<MCQItem> = {};
+    if (questionNumber) q.questionNumber = questionNumber;
 
     const allTopicMatches = [...block.matchAll(/<TOPIC:\s*(.*?)>/ig)];
     if (blockIndex === 0 && allTopicMatches.length > 0) {
@@ -448,7 +465,11 @@ export function parseMCQText(text: string): { questions: MCQItem[], notes: {titl
       const optionLines = optionsText.split(/\n/).map(line => line.trim()).filter(line => /^(?:[A-D]|[1-4])[\)\.](?:\s|$)/i.test(line));
 
       if (optionLines.length >= 2) {
-          q.options = optionLines.map(opt => opt.replace(/^(?:[A-D]|[1-4])[\)\.]\s*/i, '').trim());
+          q.options = [0, 1, 2, 3].map(index => (
+            optionLines[index]
+              ? optionLines[index].replace(/^(?:[A-D]|[1-4])[\)\.]\s*/i, '').trim()
+              : ''
+          ));
       }
     }
 

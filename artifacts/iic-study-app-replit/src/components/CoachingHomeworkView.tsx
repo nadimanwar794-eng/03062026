@@ -9,6 +9,7 @@ import { hapticMedium, hapticStrong } from '../utils/haptic';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { tryEarnScore, getActiveBoost } from '../utils/scoreSystem';
 import { inlineMd } from '../utils/mcqRender';
+import { getStatementLabel, getStatementText } from '../utils/mcqStructure';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 
 interface CoachingNote {
@@ -176,8 +177,10 @@ function QuestionText({ question, accent, statements }: { question: string; acce
               className="rounded-lg border px-2.5 py-2 text-[11px] font-medium leading-relaxed text-slate-700"
               style={{ borderColor: `${accent}25`, background: '#fff' }}
             >
-              <span className="mr-1 font-black" style={{ color: accent }}>{index + 1}.</span>
-              <span dangerouslySetInnerHTML={{ __html: render(statement) }} />
+              <span className="mr-1 font-black" style={{ color: accent }}>
+                {getStatementLabel(statement, index)}
+              </span>
+              <span dangerouslySetInnerHTML={{ __html: render(getStatementText(statement)) }} />
             </div>
           ))}
         </div>
@@ -347,6 +350,7 @@ type McqCommunityDraft = { question: string; options: [string,string,string,stri
 function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq: CoachingMcq; accent: string; onSendToMcqCommunity?: (draft: McqCommunityDraft) => void; user?: any; onAnswered?: (id: string) => void }) {
   const correctSet = getCorrectSet(mcq);
   const isMultiple = correctSet.size > 1;
+  const displayOptions = [...(mcq.options || []), '', '', '', ''].slice(0, 4);
 
   // For single-answer mode: track one selected index
   const [selected, setSelected] = useState<number | null>(null);
@@ -429,7 +433,7 @@ function McqCard({ mcq, accent, onSendToMcqCommunity, user, onAnswered }: { mcq:
         </div>
 
         <div className="space-y-1.5">
-          {mcq.options.map((opt, i) => {
+          {displayOptions.map((opt, i) => {
             const isCorrect = correctSet.has(i);
 
             if (isMultiple) {

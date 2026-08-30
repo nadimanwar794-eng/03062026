@@ -38,6 +38,8 @@ import {
 import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { searchNotesByWords, type NoteSearchResult } from '../utils/noteSearcher';
 import { loadRoutineData } from '../utils/routineStorage';
+import McqQuestionDisplay from './McqQuestionDisplay';
+import { normalizeMcqForTracking } from '../utils/mcqStructure';
 
 interface Props {
   user: User;
@@ -56,6 +58,25 @@ interface Props {
 }
 
 type ActiveTab = 'daily' | 'results';
+
+function trackedQuestionAsMcq(q: any): any {
+  const normalized = normalizeMcqForTracking({
+    question: q.question,
+    questionNumber: q.questionNumber,
+    statements: q.statements,
+    options: q.allOptions,
+    correctAnswer: q.correctAnswer,
+    explanation: q.explanation,
+  });
+  return {
+    question: normalized.question,
+    questionNumber: normalized.questionNumber,
+    statements: normalized.statements,
+    options: normalized.allOptions,
+    correctAnswer: normalized.correctAnswer,
+    explanation: normalized.explanation,
+  };
+}
 
 function daysUntil(ts: number): string {
   const diff = ts - Date.now();
@@ -176,7 +197,17 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   }, [revMcqSessionActive]);
 
   // ── Inline "Practice All" MCQ session state ──────────────────────────────
-  type PracticeQ = { question: string; correctOption: string; allOptions?: string[]; topic: string; bucketKey: string };
+  type PracticeQ = {
+    question: string;
+    questionNumber?: string;
+    statements?: string[];
+    correctOption: string;
+    correctAnswer?: number;
+    allOptions?: string[];
+    explanation?: string;
+    topic: string;
+    bucketKey: string;
+  };
   const [practiceActive, setPracticeActive] = useState(false);
   const [practiceQs, setPracticeQs] = useState<PracticeQ[]>([]);
   const [practiceIdx, setPracticeIdx] = useState(0);
@@ -330,7 +361,17 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
       const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
       const qs: PracticeQ[] = b.wrongQuestions
         .filter(q => q.question && q.correctOption)
-        .map(q => ({ question: q.question, correctOption: q.correctOption!, allOptions: q.allOptions, topic: b.topic, bucketKey: bk }));
+        .map(q => ({
+          question: q.question,
+          questionNumber: q.questionNumber,
+          statements: q.statements,
+          correctOption: q.correctOption!,
+          correctAnswer: q.correctAnswer,
+          allOptions: q.allOptions,
+          explanation: q.explanation,
+          topic: b.topic,
+          bucketKey: bk,
+        }));
       // Fisher-Yates shuffle within each topic bucket
       for (let i = qs.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -360,7 +401,17 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
     const topicQs: PracticeQ[] = b.wrongQuestions
       .filter(q => q.question && q.correctOption)
-      .map(q => ({ question: q.question, correctOption: q.correctOption!, allOptions: q.allOptions, topic: b.topic, bucketKey: bk }));
+      .map(q => ({
+        question: q.question,
+        questionNumber: q.questionNumber,
+        statements: q.statements,
+        correctOption: q.correctOption!,
+        correctAnswer: q.correctAnswer,
+        allOptions: q.allOptions,
+        explanation: q.explanation,
+        topic: b.topic,
+        bucketKey: bk,
+      }));
     if (topicQs.length === 0) return;
     setPracticeQs(topicQs);
     setPracticeIdx(0);
@@ -520,7 +571,11 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
           <div className="mt-2 space-y-1.5">
             {b.wrongQuestions.slice(0, 2).map((q, i) => (
               <div key={i} className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2">
-                <p className="text-[11px] text-slate-700" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
+                <McqQuestionDisplay
+                  q={trackedQuestionAsMcq(q)}
+                  showQuestionNumber
+                  questionClassName="text-[11px] text-slate-700"
+                />
                 {q.correctOption && (
                   <p className="text-[10px] text-emerald-700 font-bold mt-0.5">✓ <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.correctOption) }} /></p>
                 )}
@@ -712,12 +767,18 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
 
                   {/* Question card */}
                   <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm p-5">
-                    <p className="font-bold text-slate-800 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
+                    <McqQuestionDisplay
+                      q={trackedQuestionAsMcq(q)}
+                      showQuestionNumber
+                      questionClassName="font-bold text-slate-800 text-sm leading-relaxed"
+                    />
                   </div>
 
                   {/* Options — A/B/C/D if available, else reveal-only */}
                   {q.allOptions && q.allOptions.length > 0 ? (() => {
-                    const correctIdx = q.allOptions.findIndex(o => o === q.correctOption);
+                    const correctIdx = Number.isInteger(q.correctAnswer)
+                      ? q.correctAnswer!
+                      : q.allOptions.findIndex(o => o === q.correctOption);
                     return (
                       <div className="space-y-2.5">
                         {q.allOptions.map((opt, oi) => {
