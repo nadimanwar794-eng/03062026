@@ -549,17 +549,32 @@ const stripHtmlForPreview = (html: string): string =>
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+       {/* Soft halo ring behind the button. This is intentionally a glow
+           rather than a button border, so the active control stays clean
+           while still reading as a lifted, selected element. */}
+       <div
+          aria-hidden="true"
+          className="absolute top-[-36px] w-16 h-16 rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 32px)`,
+             background: `radial-gradient(circle, transparent 54%, ${activeColor}30 59%, ${activeColor}9c 66%, ${activeColor}38 74%, transparent 84%)`,
+             filter: 'blur(1.5px)',
+             boxShadow: `0 0 16px 3px ${activeColor}5c, 0 16px 26px -8px ${activeColor}`,
+             opacity: 0.95,
+             willChange: 'left',
+          }}
+       />
        {/* Dedicated soft light layer: it sits below the active button so the
            downward spotlight remains visible even when the button has no
            border or outline. */}
         <div
           aria-hidden="true"
-          className="absolute top-[12px] w-[68px] h-8 rounded-[50%] z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[14px] w-[78px] h-10 rounded-[50%] z-10 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 34px)`,
-             background: `radial-gradient(ellipse at center, ${activeColor} 0%, ${activeColor}99 28%, ${activeColor}35 52%, transparent 78%)`,
-             filter: 'blur(5px)',
-             opacity: 0.9,
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 39px)`,
+             background: `radial-gradient(ellipse at center, ${activeColor} 0%, ${activeColor}b8 25%, ${activeColor}55 48%, transparent 78%)`,
+             filter: 'blur(6px)',
+             opacity: 1,
              willChange: 'left',
           }}
        />
