@@ -549,6 +549,24 @@ const stripHtmlForPreview = (html: string): string =>
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+       {/* A restrained ring halo keeps the lifted button readable without
+           recreating the large colored haze that used to spill across the
+           navigation bar. */}
+       <div
+          aria-hidden="true"
+          className="absolute top-[-34px] w-[60px] h-[60px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 30px)`,
+             border: `2px solid color-mix(in srgb, ${activeColor} 62%, white)`,
+             boxShadow: [
+               `0 0 0 2px color-mix(in srgb, ${activeColor} 22%, transparent)`,
+               `0 0 12px 1px color-mix(in srgb, ${activeColor} 48%, transparent)`,
+               `0 9px 14px -11px color-mix(in srgb, ${activeColor} 72%, transparent)`,
+             ].join(', '),
+             opacity: 0.92,
+             willChange: 'left',
+          }}
+       />
        {/* The active button floats cleanly above the bar. Keep it borderless:
            the raised position itself communicates the selected state without
            adding the distracting colored haze below the navigation. */}
