@@ -569,14 +569,15 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon 
            soft instead of becoming an unwanted hard outline. */}
        <div
           aria-hidden="true"
-          className="absolute top-[-34px] w-[60px] h-[60px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[-30px] w-[52px] h-[52px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
-             left: `calc(${activeCenter}% - 30px)`,
+             left: `calc(${activeCenter}% - 26px)`,
+             backgroundColor: activeColor,
              border: '2px solid rgba(240, 248, 247, 0.9)',
              boxShadow: [
                '0 0 0 1px rgba(12, 20, 36, 0.62)',
-               '0 0 8px 1px rgba(255, 255, 255, 0.32)',
-               '0 6px 10px -9px rgba(255, 255, 255, 0.52)',
+               '0 0 7px 1px rgba(255, 255, 255, 0.28)',
+               '0 5px 9px -9px rgba(255, 255, 255, 0.42)',
              ].join(', '),
              opacity: 0.95,
              willChange: 'left',
