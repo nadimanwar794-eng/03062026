@@ -10203,18 +10203,24 @@ export const StudentDashboard: React.FC<Props> = ({
             return (
               <div className="rounded-2xl px-3 pt-2.5 pb-2" style={{ background: tierTheme.cardBg || '#ffffff', border: `1.5px solid ${tierTheme.primary}22`, boxShadow: `0 2px 12px ${tierTheme.primary}0d` }}>
                 {/* Header */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded-lg text-white flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg,${tierTheme.btnStart || tierTheme.primary},${tierTheme.btnEnd || tierTheme.primary})` }}>
                       <BookOpen size={10} />
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: tierTheme.primary }}>Continue Reading</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => clearAllResumes()} className="text-[9px] font-bold px-2 py-0.5 rounded-full text-white bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all">Clear All</button>
+                  <div className="flex items-center gap-1.5">
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: tierTheme.primary, background: `${tierTheme.primary}10` }}>
                       {allMerged.length}
                     </span>
+                    <button
+                      onClick={() => clearAllResumes()}
+                      aria-label="Clear all continue reading items"
+                      className="text-[9px] font-bold px-1.5 py-1 rounded-md text-rose-500 hover:bg-rose-50 active:scale-95 transition-all"
+                    >
+                      Clear all
+                    </button>
                   </div>
                 </div>
                 {/* Filter chips */}
