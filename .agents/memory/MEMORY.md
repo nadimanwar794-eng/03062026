@@ -1,1 +1,2 @@
 - [Account persistence](firebase-account-persistence.md) — Firebase is the account source of truth; RTDB mirrors essential state for fresh-device fallback.
+- [Bottom navigation indicator](bottom-nav-indicator.md) — Keep the active spotlight separate from the borderless active button.

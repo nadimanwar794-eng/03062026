@@ -549,16 +549,30 @@ const stripHtmlForPreview = (html: string): string =>
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
-        {/* The bead floats above the capsule, matching the reference navigation.
-            Keep its illumination directional so the light falls below the
-            active item instead of creating an outline around it. */}
+       {/* Dedicated soft light layer: it sits below the active button so the
+           downward spotlight remains visible even when the button has no
+           border or outline. */}
+        <div
+          aria-hidden="true"
+          className="absolute top-[12px] w-[68px] h-8 rounded-[50%] z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 34px)`,
+             background: `radial-gradient(ellipse at center, ${activeColor} 0%, ${activeColor}99 28%, ${activeColor}35 52%, transparent 78%)`,
+             filter: 'blur(5px)',
+             opacity: 0.9,
+             willChange: 'left',
+          }}
+       />
+       {/* The bead floats above the capsule. Keep its illumination
+           directional so the light falls below the active item instead of
+           creating an outline around it. */}
        <div
-          className="absolute top-[-14px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
+          className="absolute top-[-28px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
              left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 24px)`,
              backgroundColor: activeColor,
               border: 'none',
-              boxShadow: `0 15px 30px -8px ${activeColor}, 0 8px 18px -10px ${activeColor}`,
+              boxShadow: `0 18px 32px -7px ${activeColor}, 0 9px 20px -8px ${activeColor}`,
              willChange: 'left',
           }}
        >
