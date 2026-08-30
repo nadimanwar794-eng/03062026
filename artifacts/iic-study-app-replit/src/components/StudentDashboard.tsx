@@ -549,6 +549,19 @@ const stripHtmlForPreview = (html: string): string =>
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, ActiveIcon?: React.ElementType }) => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+       {/* Small downward spill under the bead, matching the reference's
+           curved light without creating a full-width footer haze. */}
+       <div
+          aria-hidden="true"
+          className="absolute top-[-2px] w-[52px] h-[52px] rounded-[50%] z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+             left: `calc(${((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100}% - 26px)`,
+             background: `radial-gradient(ellipse at 50% 0%, color-mix(in srgb, ${activeColor} 48%, transparent) 0%, color-mix(in srgb, ${activeColor} 28%, transparent) 34%, transparent 73%)`,
+             filter: 'blur(4px)',
+             opacity: 0.72,
+             willChange: 'left',
+          }}
+       />
        {/* A restrained ring halo keeps the lifted button readable without
            recreating the large colored haze that used to spill across the
            navigation bar. */}
@@ -560,8 +573,8 @@ const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon 
              border: `2px solid color-mix(in srgb, ${activeColor} 62%, white)`,
              boxShadow: [
                `0 0 0 2px color-mix(in srgb, ${activeColor} 22%, transparent)`,
-               `0 0 12px 1px color-mix(in srgb, ${activeColor} 48%, transparent)`,
-               `0 9px 14px -11px color-mix(in srgb, ${activeColor} 72%, transparent)`,
+               `0 0 10px 1px color-mix(in srgb, ${activeColor} 42%, transparent)`,
+               `0 7px 12px -11px color-mix(in srgb, ${activeColor} 60%, transparent)`,
              ].join(', '),
              opacity: 0.92,
              willChange: 'left',
