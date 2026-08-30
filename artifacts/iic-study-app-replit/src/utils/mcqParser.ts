@@ -138,7 +138,7 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
     if (lines.length < 3) return null;
 
     // First line: **Q1:** / Q1. / Q1) / **प्रश्न 1:** / प्रश्न 1. / plain question text
-    const questionLineMatch = lines[0].match(/^\*{0,2}\s*(?:Q\s*\d*\s*[:.)\s]|प्रश्न\s*\d*\s*[:.])\*{0,2}\s*([\s\S]+)/i)
+    const questionLineMatch = lines[0].match(/^\*{0,2}\s*(?:Q(?:uestion)?\s*\d*\s*[:.)-]|प्रश्न\s*\d*\s*[:.)-])\*{0,2}\s*([\s\S]+)/i)
         || lines[0].match(/^(?:Q\s*\d+[\.\)]\s*)?([\s\S]+)/i);
     if (!questionLineMatch) return null;
 
@@ -155,12 +155,11 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
     // A line is treated as an MCQ option only when its content is ≤100 chars.
     // Statement labels (A. Statement one full sentence…) are longer and must NOT
     // stop the question-body collection early.
-    const isOptionLine   = (l: string) => {
-        const m = l.match(/^(\*?)\s*([A-D])[:.)\s]\s*(.+)/i);
-        return !!m && m[3].trim().length <= 100;
-    };
+    const isOptionLine = (l: string) => /^(\*?)\s*([A-D])[:.)\s]\s*(.+)/i.test(l);
     // Also handles **सही उत्तर: (bold markdown prefix used in some paste formats)
-    const isAnswerLine   = (l: string) => /^(?:\*{1,2}\s*)?(?:Ans|Answer|सही\s*उत्तर|उत्तर)\s*:/i.test(l) || /^✅\s*Correct\s+Answer\s*:/i.test(l);
+    const isAnswerLine = (l: string) =>
+      /^(?:\*{1,2}\s*)?(?:(?:Correct\s+)?Answer|Ans|सही\s*उत्तर|उत्तर)\s*:/i.test(l)
+      || /^✅\s*Correct\s+Answer\s*:/i.test(l);
     const isExplainLine  = (l: string) => /^(?:Explanation|Exp|व्याख्या)\s*:/i.test(l);
 
     let bodyStart = 1; // index of first option/answer/explanation line
@@ -227,12 +226,12 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
     if (starCorrects.length > 0) {
         correctAnswer = starCorrects[0];
     } else if (answerLine) {
-        const answerLetterMatch = answerLine.match(/^([A-D])[\)\.:\s]/i);
+    const answerLetterMatch = answerLine.match(/^(?:Option\s*)?[\(\[]?([A-D])(?:[\)\].:\s]|$)/i);
         if (answerLetterMatch) {
             correctAnswer = ['A', 'B', 'C', 'D'].indexOf(answerLetterMatch[1].toUpperCase());
         } else {
             const clean = answerLine.trim();
-            const allOpts = Object.values(optionMap);
+            const allOpts = [0, 1, 2, 3].map(index => optionMap[index] || '').filter(Boolean);
             const idx = allOpts.findIndex(o => clean.includes(o) || o.includes(clean));
             if (idx !== -1) correctAnswer = idx;
         }
@@ -285,7 +284,7 @@ export function parseMCQText(text: string): { questions: MCQItem[], notes: {titl
   }
 
   // ── Detect if text contains simple Q1./Q2. or **प्रश्न 1.** format ──────
-  const hasSimpleFormat = /^\s*(?:\*{0,2}\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)])|<TOPIC:)/im.test(cleanText);
+  const hasSimpleFormat = /^\s*(?:\*{0,2}\s*(?:Q(?:uestion)?\s*\d*\s*[:.)-]|प्रश्न\s*\d+\s*[:.)-])|<TOPIC:)/im.test(cleanText);
 
   if (hasSimpleFormat) {
     // ── SIMPLE FORMAT PARSER ─────────────────────────────────────────────────
@@ -326,14 +325,14 @@ export function parseMCQText(text: string): { questions: MCQItem[], notes: {titl
     // For each topic section, split by Q1. / Q2. / प्रश्न 1. markers and parse each block
     for (const { topic, content } of topicParts) {
       // Split by Q<number>. or Q<number>) or **प्रश्न <number>: markers
-      const qBlocks = content.split(/(?=^\s*\*{0,2}\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)]))/im).filter(b => b.trim());
+      const qBlocks = content.split(/(?=^\s*\*{0,2}\s*(?:Q(?:uestion)?\s*\d*\s*[:.)-]|प्रश्न\s*\d+\s*[:.)-]))/im).filter(b => b.trim());
 
       for (const block of qBlocks) {
         const trimmed = block.trim();
         if (!trimmed) continue;
 
         // Skip if this block doesn't start with Q<number> or (optional **) प्रश्न <number>
-        if (!/^\*{0,2}\s*(?:Q\s*\d+[\.\)]|प्रश्न\s*\d+\s*[:.)])/i.test(trimmed)) continue;
+        if (!/^\*{0,2}\s*(?:Q(?:uestion)?\s*\d*\s*[:.)-]|प्रश्न\s*\d+\s*[:.)-])/i.test(trimmed)) continue;
 
         const parsed = parseSimpleFormatBlock(trimmed, topic);
         if (parsed && parsed.question && parsed.options && parsed.options.length >= 2 && parsed.correctAnswer !== undefined) {
