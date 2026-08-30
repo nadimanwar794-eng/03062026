@@ -18591,7 +18591,7 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                       <span
                         className={`relative z-10 text-[10.5px] leading-none tracking-wide transition-all duration-300 ${
                           tab.isActive
-                            ? "font-bold translate-y-[2px] opacity-100"
+                            ? "font-bold translate-y-[2px] opacity-100 scale-[1.2]"
                             : "font-medium translate-y-0 opacity-100 scale-100"
                         }`}
                         style={{ color: tab.isActive ? getNavActiveColor(tabIndex) : getNavInactiveColor() }}
