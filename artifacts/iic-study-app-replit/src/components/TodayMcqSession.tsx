@@ -950,44 +950,26 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                 </div>
                             </div>
                         )}
-                        <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px' : '18px 24px 12px', display:'flex', flexDirection:'column', gap:14, minHeight:0 }}>
-                            <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
-                                <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIdx + 1}</span>
-                                <div style={{ fontSize:20, fontWeight:800, color:'#1e293b', lineHeight:1.45, flex:1 }}>
-                                    {parsedProjectorQuestion.questionHtml && <div dangerouslySetInnerHTML={{ __html: parsedProjectorQuestion.questionHtml }} />}
-                                    {parsedProjectorQuestion.statements.map((statement, statementIndex) => (
-                                        <div key={statementIndex} dangerouslySetInnerHTML={{ __html: statement }} />
-                                    ))}
-                                    {parsedProjectorQuestion.suffixHtml && <div dangerouslySetInnerHTML={{ __html: parsedProjectorQuestion.suffixHtml }} />}
-                                </div>
-                            </div>
-                            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                                {getMcqOptions(pq).map((opt: string, oi: number) => {
-                                    const isCorrect = pq.correctAnswer === oi;
-                                    const isSelected = projectorSelected === oi;
-                                    const answered = projectorSelected !== null;
-                                    let bg = '#f8fafc'; let borderCol = '#e2e8f0'; let color = '#1e293b';
-                                    let radioBorder = '#94a3b8'; let radioFill = 'transparent';
-                                    if (answered) {
-                                        if (isCorrect) { bg='#f0fdf4'; borderCol='#4ade80'; color='#166534'; radioBorder='#4ade80'; radioFill='#4ade80'; }
-                                        else if (isSelected) { bg='#fef2f2'; borderCol='#f87171'; color='#991b1b'; radioBorder='#f87171'; radioFill='#f87171'; }
-                                    } else if (isSelected) { bg='#eff6ff'; borderCol='#3b82f6'; radioBorder='#3b82f6'; radioFill='#3b82f6'; }
-                                    return (
-                                        <button key={oi}
-                                            onClick={() => {
-                                                if (answered || projectorAnswered.has(projectorQIdx)) return;
-                                                setProjectorSelected(oi);
-                                                const newA = new Set(projectorAnswered); newA.add(projectorQIdx); setProjectorAnswered(newA);
-                                                if (isCorrect) setProjectorCorrect(c => c + 1); else setProjectorWrong(w => w + 1);
-                                            }}
-                                            style={{ textAlign:'left', padding:'12px 16px', borderRadius:14, border:`1px solid ${borderCol}`, background:bg, color, fontSize:17, fontWeight:500, cursor: answered ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:12, transition:'all 0.15s' }}>
-                                            <span style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${radioBorder}`, background: radioFill, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                                {radioFill !== 'transparent' && <span style={{ width:10, height:10, borderRadius:'50%', background:'#fff' }} />}
-                                            </span>
-                                            <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
-                                        </button>
-                                    );
-                                })}
+                        <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px' : '18px 24px 12px', minHeight:0 }}>
+                            <div style={{ maxWidth: 980, margin: '0 auto' }}>
+                                <McqPracticeCard
+                                    q={{ ...pq, options: getMcqOptions(pq) } as any}
+                                    questionNumber={pq.questionNumber ?? projectorQIdx + 1}
+                                    selectedOption={projectorSelected}
+                                    answered={projectorSelected !== null}
+                                    showResult={projectorSelected !== null}
+                                    variant="projector"
+                                    fontSize={projectorFocused ? 28 : 20}
+                                    onSelect={(oi) => {
+                                        if (projectorSelected !== null || projectorAnswered.has(projectorQIdx)) return;
+                                        setProjectorSelected(oi);
+                                        const newA = new Set(projectorAnswered);
+                                        newA.add(projectorQIdx);
+                                        setProjectorAnswered(newA);
+                                        if (pq.correctAnswer === oi) setProjectorCorrect(c => c + 1);
+                                        else setProjectorWrong(w => w + 1);
+                                    }}
+                                />
                             </div>
                             {pq.explanation && projectorSelected !== null && (
                                 <div style={{ fontSize:14, color:'#64748b', marginTop:4 }} dangerouslySetInnerHTML={{ __html: formatExplanationHtml(pq.explanation) }} />

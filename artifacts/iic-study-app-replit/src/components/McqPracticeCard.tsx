@@ -12,6 +12,8 @@ interface Props {
   disabled?: boolean;
   onSelect?: (optionIndex: number) => void;
   actions?: React.ReactNode;
+  variant?: 'default' | 'projector';
+  fontSize?: number;
 }
 
 /**
@@ -28,30 +30,37 @@ const McqPracticeCard: React.FC<Props> = ({
   disabled = false,
   onSelect,
   actions,
+  variant = 'default',
+  fontSize,
 }) => {
   const number = questionNumber ?? q.questionNumber;
   const canSelect = Boolean(onSelect) && !disabled && !answered;
+  const isProjector = variant === 'projector';
 
   return (
     <div className="space-y-3">
-      <div className="bg-white border-2 border-[#d9eef4] rounded-[22px] p-4 shadow-sm">
+      <div className={`bg-white border-2 border-[#d9eef4] rounded-[22px] shadow-sm ${isProjector ? 'p-6' : 'p-4'}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             {number !== undefined && number !== null && (
-              <div className="text-base font-black text-slate-800 mb-2">
+              <div className={`${isProjector ? 'text-2xl' : 'text-base'} font-black text-slate-800 mb-2`}>
                 Q{number}.
               </div>
             )}
-            <McqQuestionDisplay
-              q={q}
-              questionClassName="text-[15px] font-bold text-slate-800 leading-relaxed"
-            />
+            <div style={fontSize ? { fontSize } : undefined}>
+              <McqQuestionDisplay
+                q={q}
+                questionClassName={isProjector
+                  ? "font-bold text-slate-900 leading-relaxed"
+                  : "text-[15px] font-bold text-slate-800 leading-relaxed"}
+              />
+            </div>
           </div>
           {actions && <div className="shrink-0 flex items-center gap-1">{actions}</div>}
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className={isProjector ? 'space-y-3' : 'space-y-2'}>
         {(q.options || []).map((opt, optionIndex) => {
           const isSelected = selectedOption === optionIndex;
           const isCorrect = optionIndex === q.correctAnswer;
@@ -78,10 +87,10 @@ const McqPracticeCard: React.FC<Props> = ({
               key={optionIndex}
               onClick={() => onSelect?.(optionIndex)}
               disabled={!canSelect}
-              className={`w-full text-left px-4 py-3 rounded-2xl border-2 transition-all flex items-center gap-3 font-medium ${optionClass} ${canSelect ? 'active:scale-[0.99] cursor-pointer' : 'cursor-default'}`}
+              className={`w-full text-left ${isProjector ? 'px-5 py-4 rounded-[18px]' : 'px-4 py-3 rounded-2xl'} border-2 transition-all flex items-center gap-3 font-medium ${optionClass} ${canSelect ? 'active:scale-[0.99] cursor-pointer' : 'cursor-default'}`}
             >
               <span
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-black shrink-0 ${
+                className={`${isProjector ? 'w-7 h-7 text-sm' : 'w-5 h-5 text-[10px]'} rounded-full border-2 flex items-center justify-center font-black shrink-0 ${
                   showResult && answered && isCorrect
                     ? 'bg-emerald-500 border-emerald-500 text-white'
                     : showResult && answered && isSelected
@@ -94,7 +103,8 @@ const McqPracticeCard: React.FC<Props> = ({
                 {String.fromCharCode(65 + optionIndex)}
               </span>
               <span
-                className="flex-1 leading-snug"
+                className={`flex-1 leading-snug ${isProjector ? 'text-lg' : 'text-sm'}`}
+                style={fontSize ? { fontSize } : undefined}
                 dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }}
               />
               {showResult && answered && isCorrect && <span className="text-emerald-600 font-black">✓</span>}

@@ -2503,52 +2503,23 @@ export const LessonView: React.FC<Props> = ({
                                ><Eye size={13} /> {projectorReveal ? 'Hide Ans' : 'Show Ans'}</button>
                            </div>
 
-                           {/* Question */}
-                           <div style={{ flex:1, overflowY:'auto', padding:'40px 48px 24px', display:'flex', flexDirection:'column', gap:28 }}>
-                               <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:20, padding:'32px 36px' }}>
-                                   <div style={{ display:'flex', alignItems:'flex-start', gap:16 }}>
-                                       <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
-                                       <div style={{ fontSize:28, fontWeight:700, color:'#0f172a', lineHeight:1.5 }}
-                                           dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
-                                   </div>
-                               </div>
-
-                               {/* Options */}
-                               <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                                   {(pq.options || []).map((opt, oi) => {
-                                       const isCorrect = oi === pq.correctAnswer;
-                                       const isSelected = projectorSelected === oi;
-                                       const answered = projectorSelected !== null;
-
-                                       let bg = '#f8fafc';
-                                       let border = '1px solid #e2e8f0';
-                                       let textColor = '#1e293b';
-                                       let radioBorder = '2px solid #94a3b8';
-                                       let radioFill = 'transparent';
-                                       let icon: React.ReactNode = null;
-
-                                       if (projectorReveal) {
-                                           if (isCorrect) { bg = '#dcfce7'; border = '2px solid #22c55e'; textColor = '#15803d'; radioBorder = '2px solid #22c55e'; radioFill = '#22c55e'; icon = <CheckCircle size={28} color="#22c55e" />; }
-                                       } else if (answered) {
-                                           if (isSelected && isCorrect) { bg = '#dcfce7'; border = '2px solid #22c55e'; textColor = '#15803d'; radioBorder = '2px solid #22c55e'; radioFill = '#22c55e'; icon = <CheckCircle size={28} color="#22c55e" />; }
-                                           else if (isSelected && !isCorrect) { bg = '#fef2f2'; border = '2px solid #ef4444'; textColor = '#991b1b'; radioBorder = '2px solid #ef4444'; radioFill = '#ef4444'; icon = <span style={{ fontSize:24, fontWeight:900, color:'#ef4444' }}>✗</span>; }
-                                           else if (isCorrect) { bg = '#dcfce7'; border = '2px solid #22c55e'; textColor = '#15803d'; radioBorder = '2px solid #22c55e'; radioFill = '#22c55e'; icon = <CheckCircle size={28} color="#22c55e" />; }
-                                       }
-
-                                       return (
-                                           <div key={oi}
-                                               onClick={() => { if (!answered && !projectorReveal) setProjectorSelected(oi); }}
-                                               style={{ display:'flex', alignItems:'center', gap:16, background:bg, border, borderRadius:14, padding:'16px 20px', cursor: (answered || projectorReveal) ? 'default' : 'pointer', transition:'background 0.2s, border 0.2s' }}>
-                                               <span style={{ width:24, height:24, borderRadius:'50%', border: radioBorder, background: radioFill, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                                   {radioFill !== 'transparent' && <span style={{ width:10, height:10, borderRadius:'50%', background:'#fff' }} />}
-                                               </span>
-                                               <div style={{ fontSize:22, fontWeight:500, color:textColor, lineHeight:1.4, flex:1 }}
-                                                   dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
-                                               {icon}
-                                           </div>
-                                       );
-                                   })}
-                               </div>
+                            {/* Shared Revision Hub-style projector question and options */}
+                            <div style={{ flex:1, overflowY:'auto', padding:'40px 48px 24px', minHeight:0 }}>
+                                <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+                                    <McqPracticeCard
+                                        q={pq}
+                                        questionNumber={pq.questionNumber ?? projectorQIndex + 1}
+                                        selectedOption={projectorSelected}
+                                        answered={answered || projectorReveal}
+                                        showResult={answered || projectorReveal}
+                                        disabled={projectorReveal}
+                                        variant="projector"
+                                        fontSize={28}
+                                        onSelect={(oi) => {
+                                            if (!answered && !projectorReveal) setProjectorSelected(oi);
+                                        }}
+                                    />
+                                </div>
 
                                {/* Explanation after answering */}
                                {projectorSelected !== null && pq.explanation && (

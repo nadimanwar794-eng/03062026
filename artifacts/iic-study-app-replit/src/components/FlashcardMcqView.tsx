@@ -19,6 +19,7 @@ import { fireSessionComplete } from '../utils/sessionNotify';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { inlineMd, parseMcqQuestion } from '../utils/mcqRender';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import McqPracticeCard from './McqPracticeCard';
 import { deferStudyCoins } from '../utils/studyRewards';
 
 interface Props {
@@ -1076,94 +1077,52 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 </button>
               </div>
             )}
-            {/* Scrollable content — flex:1 + overflowY:auto keeps bottom bar always visible */}
-            <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px 24px 24px' : '18px 24px 12px', display:'flex', flexDirection:'column', gap:14, minHeight:0 }}>
-              {/* Question */}
-              <div style={{ background:'#f8fafc', border:'3px solid #cbd5e1', borderRadius:14, padding:'16px 20px', flexShrink:0 }}>
-                <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
-                  <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIndex + 1}</span>
-                  <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', fontSize: projectorFontSize }}>
-                    <McqQuestionDisplay
-                      q={pq}
-                      questionClassName="font-bold text-slate-900 leading-snug"
-                      variant="default"
-                      stmtClassName="bg-indigo-50 border-l-4 border-indigo-400 px-4 py-3 rounded-xl text-slate-800 font-semibold leading-snug"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* Options */}
-              {(pq.options || []).length > 0 && <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {(pq.options || []).map((opt, oi) => {
-                  const isCorrect = oi === pq.correctAnswer;
-                  const isSelected = projectorSelected === oi;
-                  const answered = projectorSelected !== null;
-
-                  let bg = '#f8fafc';
-                  let border = '1px solid #e2e8f0';
-                  let textColor = '#1e293b';
-                  let radioBorder = '2px solid #94a3b8';
-                  let radioFill = 'transparent';
-                  let icon: React.ReactNode = null;
-
-                  if (answered) {
-                    if (isSelected && isCorrect) { bg = '#dcfce7'; border = '2px solid #22c55e'; textColor = '#15803d'; radioBorder = '2px solid #22c55e'; radioFill = '#22c55e'; icon = <CheckCircle size={20} color="#22c55e" />; }
-                    else if (isSelected && !isCorrect) { bg = '#fef2f2'; border = '2px solid #ef4444'; textColor = '#991b1b'; radioBorder = '2px solid #ef4444'; radioFill = '#ef4444'; icon = <span style={{ fontSize:18, fontWeight:900, color:'#ef4444' }}>✗</span>; }
-                    else if (isCorrect) { bg = '#dcfce7'; border = '2px solid #22c55e'; textColor = '#15803d'; radioBorder = '2px solid #22c55e'; radioFill = '#22c55e'; icon = <CheckCircle size={20} color="#22c55e" />; }
-                  }
-
-                  return (
-                    <div key={oi}
-                      onClick={() => {
-                        if (!answered && !projectorAnswered.has(projectorQIndex)) {
-                          setProjectorSelected(oi);
-                          setProjectorSelections(prev => ({ ...prev, [projectorQIndex]: oi }));
-                          const newAnswered = new Set(projectorAnswered);
-                          newAnswered.add(projectorQIndex);
-                          setProjectorAnswered(newAnswered);
-                          const isCorrect = oi === pq.correctAnswer;
-                          const elapsedSec = Math.round((Date.now() - projectorQStartTimeRef.current) / 1000);
-                          // Track projector attempt in activity store
-                          if (user?.id && sourceKey) {
-                            recordProjectorAnswer(user.id, sourceKey, `proj_${projectorQIndex}`, isCorrect, elapsedSec);
-                          }
-                          if (isCorrect) {
-                            setProjectorCorrect(c => c + 1);
-                            if (user?.id && !isAdmin) {
-                              const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');
-                              if (pts > 0) {
-                                showMcqScore(pts);
-                                if (onUpdateUser) {
-                                  const _routineOn  = loadRoutineData(user.id).enabled;
-                                  const _coinMult   = _routineOn ? (1 / 6) : (1 / 8);
-                                  const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
-                                  deferStudyCoins(user.id, _coinEarned);
-                                  const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
-                                  onUpdateUser(updated);
-                                  saveUserToLive(updated);
-                                }
-                              }
-                            }
-                          } else {
-                            setProjectorWrong(w => w + 1);
+            {/* Scrollable content — shared Revision Hub card, scaled for projection */}
+            <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px 24px 24px' : '18px 24px 12px', minHeight:0 }}>
+              <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+                <McqPracticeCard
+                  q={pq}
+                  questionNumber={pq.questionNumber ?? projectorQIndex + 1}
+                  selectedOption={projectorSelected}
+                  answered={projectorSelected !== null}
+                  showResult={projectorSelected !== null}
+                  variant="projector"
+                  fontSize={projectorFontSize}
+                  onSelect={(oi) => {
+                    if (projectorSelected !== null || projectorAnswered.has(projectorQIndex)) return;
+                    setProjectorSelected(oi);
+                    setProjectorSelections(prev => ({ ...prev, [projectorQIndex]: oi }));
+                    const newAnswered = new Set(projectorAnswered);
+                    newAnswered.add(projectorQIndex);
+                    setProjectorAnswered(newAnswered);
+                    const isCorrect = oi === pq.correctAnswer;
+                    const elapsedSec = Math.round((Date.now() - projectorQStartTimeRef.current) / 1000);
+                    if (user?.id && sourceKey) {
+                      recordProjectorAnswer(user.id, sourceKey, `proj_${projectorQIndex}`, isCorrect, elapsedSec);
+                    }
+                    if (isCorrect) {
+                      setProjectorCorrect(c => c + 1);
+                      if (user?.id && !isAdmin) {
+                        const pts = tryEarnScore(user.id, 1, userTier, userTier !== 'FREE', 0, 'FLASHCARD_MCQ_CORRECT');
+                        if (pts > 0) {
+                          showMcqScore(pts);
+                          if (onUpdateUser) {
+                            const _routineOn  = loadRoutineData(user.id).enabled;
+                            const _coinMult   = _routineOn ? (1 / 6) : (1 / 8);
+                            const _coinEarned = Math.max(1, Math.floor(pts * _coinMult));
+                            deferStudyCoins(user.id, _coinEarned);
+                            const updated = { ...user, totalScore: (user.totalScore || 0) + pts };
+                            onUpdateUser(updated);
+                            saveUserToLive(updated);
                           }
                         }
-                      }}
-                      style={{
-                        display:'flex', alignItems:'center', gap:12,
-                        background: bg, border, borderRadius:14, padding:'12px 16px',
-                        cursor: answered ? 'default' : 'pointer',
-                        transition:'background 0.2s, border 0.2s'
-                      }}>
-                      <span style={{ width:22, height:22, borderRadius:'50%', border: radioBorder, background: radioFill, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {radioFill !== 'transparent' && <span style={{ width:10, height:10, borderRadius:'50%', background:'#fff' }} />}
-                      </span>
-                      <div style={{ fontSize: projectorFontSize, fontWeight:500, color: textColor, lineHeight:1.35, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
-                      {icon}
-                    </div>
-                  );
-                })}
-              </div>}
+                      }
+                    } else {
+                      setProjectorWrong(w => w + 1);
+                    }
+                  }}
+                />
+              </div>
               {/* Explanation after answering */}
               {projectorSelected !== null && pq.explanation && (
                 <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize: projectorFontSize, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>
