@@ -3,7 +3,7 @@
  * Renders an MCQ question with:
  *  - Inline markdown (** bold **, * italic *)
  *  - Math/formula rendering (KaTeX)
- *  - Question stem + numbered statements + suffix — all same styling, no boxes
+ *  - Question stem + numbered statements + suffix
  *  - Optional options list (radio circles)
  */
 
@@ -17,9 +17,9 @@ interface Props {
   q: MCQItem;
   /** Show the stable exam number when the item carries one. */
   showQuestionNumber?: boolean;
-  /** Extra class applied to every text line (stem, statements, suffix) */
+  /** Extra class applied to the question stem and suffix */
   questionClassName?: string;
-  /** Unused — kept for API compatibility */
+  /** Optional custom class for each numbered statement */
   stmtClassName?: string;
   /** Visual variant: 'default' (light) | 'dark' (projector) */
   variant?: 'default' | 'dark';
@@ -32,9 +32,12 @@ const McqQuestionDisplay: React.FC<Props> = ({
   showQuestionNumber = false,
   questionClassName = '',
   variant: _variant,
+  stmtClassName,
   showOptions = false,
 }) => {
   const { questionHtml, statements, suffixHtml } = parseMcqQuestion(q);
+  const statementClassName = stmtClassName ||
+    `${questionClassName} bg-sky-50 border-l-4 border-sky-300 rounded-xl px-3 py-2 mb-1`;
 
   return (
     <>
@@ -51,11 +54,11 @@ const McqQuestionDisplay: React.FC<Props> = ({
         />
       )}
 
-      {/* Numbered statements — same className as stem, no box/border */}
+      {/* Numbered statements — subtle highlight separates them from the stem */}
       {statements.map((s, i) => (
         <div
           key={i}
-          className={questionClassName}
+          className={statementClassName}
           dangerouslySetInnerHTML={{ __html: s }}
         />
       ))}
