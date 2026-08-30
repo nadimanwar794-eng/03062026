@@ -37,6 +37,7 @@ interface Props {
   onUpdateUser?: (u: User) => void;
   challenge20s?: Challenge20[];
   onStartChallenge20?: (challenge: Challenge20) => void;
+  onClaimChallenge20?: (challenge: Challenge20) => void | Promise<void>;
 }
 
 // ── Small reusable pieces ─────────────────────────────────────────────────────
@@ -99,7 +100,7 @@ const TaskRow: React.FC<{ emoji: string; title: string; sub: string; done: boole
 
 export const DailyEventPage: React.FC<Props> = ({
   user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking, onOpenLesson,
-  challenge20s = [], onStartChallenge20,
+  onUpdateUser, challenge20s = [], onStartChallenge20, onClaimChallenge20,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = useMemo(() => {
@@ -120,6 +121,7 @@ export const DailyEventPage: React.FC<Props> = ({
   const [revMcqTopics, setRevMcqTopics] = useState<TopicItem[]>([]);
   const [refreshTick, setRefreshTick] = useState(0);
   const [challengeTick, setChallengeTick] = useState(0);
+  const [claimingChallengeId, setClaimingChallengeId] = useState<string | null>(null);
 
   const reloadRevision = useCallback(() => setRefreshTick(t => t + 1), []);
 
@@ -129,19 +131,46 @@ export const DailyEventPage: React.FC<Props> = ({
     return () => window.removeEventListener('iic-test-completed', handler);
   }, []);
 
-  const pendingDailyChallenges = useMemo(() => {
+  const dailyChallengeStatuses = useMemo(() => {
     let attempts: Record<string, any> = {};
     try {
       attempts = JSON.parse(localStorage.getItem(`nst_test_attempts_${user.id}`) || '{}');
     } catch {}
-    // Challenge 2.0 daily attempts are hidden immediately after submission,
-    // including when the Routine screen remains mounted after returning from
-    // the full-screen test player.
-    return challenge20s.filter(challenge =>
-      isDailyChallenge20(challenge) &&
-      (!attempts[challenge.id] || attempts[challenge.id].isCompleted !== true)
-    );
+
+    const statuses = new Map<string, { completed: boolean; claimed: boolean }>();
+    challenge20s
+      .filter(challenge => isDailyChallenge20(challenge))
+      .forEach(challenge => {
+        const attempt = attempts[challenge.id];
+        const completed = attempt?.isCompleted === true ||
+          (Boolean(attempt?.submittedAt) && Boolean(attempt?.answers));
+        // The date-based key was used by the old auto-award flow. Treat it as
+        // claimed for existing users, while new claims use the challenge id so
+        // each published challenge is independently idempotent.
+        const legacyClaimKey = `nst_daily_challenge_20_xp_${user.id}_${todayStr}`;
+        const claimKey = `nst_daily_challenge_20_xp_claimed_${user.id}_${challenge.id}`;
+        const claimed = localStorage.getItem(claimKey) === '1' ||
+          localStorage.getItem(legacyClaimKey) === '1';
+        statuses.set(challenge.id, { completed, claimed });
+      });
+    return statuses;
   }, [challenge20s, user.id, challengeTick]);
+
+  const dailyChallenges = useMemo(
+    () => challenge20s.filter(challenge => isDailyChallenge20(challenge)),
+    [challenge20s],
+  );
+
+  const handleChallengeClaim = useCallback(async (challenge: Challenge20) => {
+    if (!onClaimChallenge20 || claimingChallengeId) return;
+    setClaimingChallengeId(challenge.id);
+    try {
+      await onClaimChallenge20(challenge);
+      setChallengeTick(t => t + 1);
+    } finally {
+      setClaimingChallengeId(null);
+    }
+  }, [claimingChallengeId, onClaimChallenge20]);
 
   const showClaimOverlay = useCallback((ptsAdded: number) => {
     const todayTotal = getDailyScoreEarned(user.id);
@@ -547,7 +576,7 @@ export const DailyEventPage: React.FC<Props> = ({
       <div className="px-4 pt-4 space-y-4 pb-6">
 
         {/* ── DAILY CHALLENGE 2.0 ─────────────────────────────────────────── */}
-        {pendingDailyChallenges.length > 0 && (
+        {dailyChallenges.length > 0 && (
           <SectionCard
             emoji="🚀"
             title="Daily Challenge 2.0"
@@ -555,7 +584,10 @@ export const DailyEventPage: React.FC<Props> = ({
             accent="#7c3aed"
           >
             <div className="space-y-2.5">
-              {pendingDailyChallenges.map((challenge) => (
+              {dailyChallenges.map((challenge) => {
+                const status = dailyChallengeStatuses.get(challenge.id) || { completed: false, claimed: false };
+                const isClaiming = claimingChallengeId === challenge.id;
+                return (
                 <div key={challenge.id} className="relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 p-3.5">
                   <Rocket size={58} className="absolute -right-3 -top-3 text-violet-200 opacity-70" />
                   <div className="relative z-10">
@@ -568,16 +600,33 @@ export const DailyEventPage: React.FC<Props> = ({
                       <span className="rounded-full bg-white/80 px-2 py-1">Max 60 min</span>
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">+100 XP</span>
                     </div>
-                    <button
-                      onClick={() => onStartChallenge20?.(challenge)}
-                      disabled={!onStartChallenge20}
-                      className="mt-3 w-full rounded-xl bg-violet-600 py-2.5 text-center text-xs font-black text-white shadow-md shadow-violet-200 transition-colors hover:bg-violet-700 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Start Challenge
-                    </button>
+                    {status.completed ? (
+                      status.claimed ? (
+                        <div className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-center text-xs font-black text-emerald-700">
+                          ✅ +100 XP Claim Ho Gaya
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => void handleChallengeClaim(challenge)}
+                          disabled={!onClaimChallenge20 || isClaiming}
+                          className="mt-3 w-full rounded-xl bg-amber-500 py-2.5 text-center text-xs font-black text-white shadow-md shadow-amber-200 transition-colors hover:bg-amber-600 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isClaiming ? 'Claim ho raha hai…' : '🎁 Claim +100 XP'}
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => onStartChallenge20?.(challenge)}
+                        disabled={!onStartChallenge20}
+                        className="mt-3 w-full rounded-xl bg-violet-600 py-2.5 text-center text-xs font-black text-white shadow-md shadow-violet-200 transition-colors hover:bg-violet-700 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Start Challenge
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </SectionCard>
         )}

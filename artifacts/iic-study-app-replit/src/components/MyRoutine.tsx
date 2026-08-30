@@ -1717,10 +1717,11 @@ interface MyRoutineProps {
   onPracticeMistakes?: (mistakes: any[]) => void;
   onOpenLesson?: (lessonId: string) => void;
   onStartChallenge20?: (challenge: any) => void;
+  onClaimChallenge20?: (challenge: any) => void | Promise<void>;
   challenge20s?: any[];
 }
 
-export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes, onOpenLesson, onStartChallenge20, challenge20s = [] }) => {
+export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], onBack, onUserUpdate, onGoToRevision, settings, onOpenRevisionHub, onPracticeMistakes, onOpenLesson, onStartChallenge20, onClaimChallenge20, challenge20s = [] }) => {
   const userId = user?.id || 'guest';
   const mcqHistory: any[] = user?.mcqHistory || [];
   const subTier: UserSubTier = getUserSubTier(user);
@@ -2273,8 +2274,10 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                   onOpenSubjects={() => setActiveView('subjects')}
                   onOpenTracking={() => setActiveView('tracking')}
                   onOpenLesson={onOpenLesson}
+                   onUpdateUser={onUserUpdate}
                   challenge20s={challenge20s}
                   onStartChallenge20={onStartChallenge20}
+                   onClaimChallenge20={onClaimChallenge20}
                 />
                 <div className="bg-[#f5f2eb] rounded-3xl border border-[#e8e4db] p-8 text-center">
                   <span className="text-5xl mb-3 block">📚</span>
@@ -2297,8 +2300,10 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
                 onOpenSubjects={() => setActiveView('subjects')}
                 onOpenTracking={() => setActiveView('tracking')}
                 onOpenLesson={onOpenLesson}
+                 onUpdateUser={onUserUpdate}
                 challenge20s={challenge20s}
                 onStartChallenge20={onStartChallenge20}
+                 onClaimChallenge20={onClaimChallenge20}
               />
             )}
           </div>

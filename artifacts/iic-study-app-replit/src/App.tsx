@@ -2711,18 +2711,12 @@ const App: React.FC = () => {
         }
     }
 
-    // Daily Challenge 2.0 has a fixed completion reward independent of score.
-    // The local claim key makes the +100 XP reward idempotent across reloads.
+    // Daily Challenge 2.0's fixed +100 XP is deliberately claimable from
+    // Routine after submission. Do not award it while submitting the test.
     if (isChallenge20Daily && !state.originalAdmin) {
-        const xpKey = `nst_daily_challenge_20_xp_${state.user.id}_${getChallengeDateKey()}`;
-        if (localStorage.getItem(xpKey) !== '1') {
-            updatedUser.totalScore = (updatedUser.totalScore || 0) + 100;
-            logScoreActivity(state.user.id, 'DAILY_CHALLENGE_20_COMPLETE', 100, 'Daily Challenge 2.0 Complete');
-            localStorage.setItem(xpKey, '1');
-            rewardMsg = rewardMsg
-                ? `${rewardMsg} 🎉 Daily Challenge 2.0: +100 XP!`
-                : '🎉 Daily Challenge 2.0 complete: +100 XP!';
-        }
+        rewardMsg = rewardMsg
+            ? `${rewardMsg} +100 XP claim karne ke liye Routine kholo.`
+            : 'Daily Challenge 2.0 complete. +100 XP claim karne ke liye Routine kholo.';
     }
 
     if (!state.originalAdmin) {
