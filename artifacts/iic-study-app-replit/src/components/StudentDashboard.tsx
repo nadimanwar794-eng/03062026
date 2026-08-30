@@ -252,6 +252,7 @@ import { McqSpeakButtons } from "./McqSpeakButtons";
 import { FlashcardMcqView } from "./FlashcardMcqView";
 import { shouldShowMcqOptions } from "../utils/mcqRender";
 import McqQuestionDisplay from "./McqQuestionDisplay";
+import McqPracticeCard from "./McqPracticeCard";
 import { deferStudyCoins } from "../utils/studyRewards";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
 import { WriteModeCorrection } from "./WriteModeCorrection";
@@ -8591,14 +8592,15 @@ export const StudentDashboard: React.FC<Props> = ({
                         return s !== undefined && s === m.correctAnswer ? acc + 1 : acc;
                       }, 0);
                       const wrong = attempted - right;
-                      const submitThreshold = Math.min(20, totalQ);
+                       // No fixed 20-question lock: submit after any one answer.
+                       const submitThreshold = 1;
                       const allSubmitted = attempted >= submitThreshold;
                       // Scoring: Sahi = 2 pts, Galat = 1 pt
                       const totalScore = right * 2 + wrong * 1;
 
                       // ── REVIEW MODE (shown after all submitted) ──
                       if (allSubmitted && hwShowAnalysis === hwKey) {
-                        const pct = Math.round((right / totalQ) * 100);
+                         const pct = attempted > 0 ? Math.round((right / attempted) * 100) : 0;
                         const grade = pct >= 80 ? { label: 'Excellent! 🌟', color: 'from-emerald-500 to-green-600', ring: 'ring-emerald-200' }
                                     : pct >= 60 ? { label: 'Good Job! 👍', color: 'from-blue-500 to-indigo-600', ring: 'ring-blue-200' }
                                     : pct >= 40 ? { label: 'Keep Practising 💪', color: 'from-amber-500 to-orange-500', ring: 'ring-amber-200' }
@@ -8698,7 +8700,7 @@ export const StudentDashboard: React.FC<Props> = ({
                       // ── PRACTICE MODE: one question at a time ──
                       // Show score card only when user manually submits
                       if (hwManualSubmitted[hwKey]) {
-                        const pct = Math.round((right / totalQ) * 100);
+                         const pct = attempted > 0 ? Math.round((right / attempted) * 100) : 0;
                         const grade = pct >= 80 ? { label: 'Excellent! 🌟', color: 'from-emerald-500 to-green-600', ring: 'ring-emerald-200' }
                                     : pct >= 60 ? { label: 'Good Job! 👍', color: 'from-blue-500 to-indigo-600', ring: 'ring-blue-200' }
                                     : pct >= 40 ? { label: 'Keep Practising 💪', color: 'from-amber-500 to-orange-500', ring: 'ring-amber-200' }
@@ -8838,55 +8840,31 @@ export const StudentDashboard: React.FC<Props> = ({
                               className="mb-3 w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition animate-pulse"
                             >🏁 Submit Quiz — Result Dekho</button>
                           )}
-                          {/* Question card */}
-                          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">Q {ci + 1}</span>
-                                  {(mcq as any).topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{(mcq as any).topic}</span>}
-                                </div>
-                                <McqQuestionDisplay q={mcq as any} questionClassName="text-sm font-bold text-slate-800 leading-snug" />
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (mcq.options||[]).length===4 ? mcq.options as [string,string,string,string] : ([...(mcq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:mcq.question,options:opts,correctAnswer:mcq.correctAnswer,explanation:(mcq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
-                                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
-                                  title="MCQ Community mein bhejo"
-                                ><Plus size={13} strokeWidth={2.5} /></button>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              {mcq.options.map((opt, oi) => {
-                                const isPending = pendingOpt === oi;
-                                let cls = 'w-full text-left text-sm px-4 py-2.5 rounded-xl border-2 transition-all font-medium flex items-center gap-2 ';
-                                if (isAnswered) {
-                                  cls += 'bg-slate-50 border-slate-200 text-slate-400 opacity-70 cursor-default';
-                                } else if (isPending) {
-                                  cls += 'bg-indigo-50 border-indigo-500 text-indigo-800 font-bold';
-                                } else {
-                                  cls += 'bg-slate-50 border-slate-200 text-slate-700 active:bg-indigo-50 active:border-indigo-300';
-                                }
-                                return (
-                                  <button key={oi} disabled={isAnswered} onClick={() => {
-                                    if (isAnswered) return;
-                                    setHwPendingAnswers(prev => ({ ...prev, [ansKey]: oi }));
-                                  }} className={cls}>
-                                    <span className="font-black shrink-0">{String.fromCharCode(65+oi)}.</span>
-                                    <span className="flex-1">{opt}</span>
-                                    {!isAnswered && isPending && <span className="w-3 h-3 rounded-full bg-indigo-500 shrink-0" />}
-                                    {isAnswered && <span className="text-slate-400 text-xs shrink-0">Submitted</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
+                           {/* Shared Revision Hub-style question + options */}
+                           <McqPracticeCard
+                             q={mcq as any}
+                             questionNumber={(mcq as any).questionNumber ?? ci + 1}
+                             selectedOption={pendingOpt ?? selected ?? null}
+                             answered={isAnswered}
+                             onSelect={(oi) => {
+                               if (!isAnswered) setHwPendingAnswers(prev => ({ ...prev, [ansKey]: oi }));
+                             }}
+                             actions={(
+                               <>
+                                 <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
+                                 <button
+                                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (mcq.options||[]).length===4 ? mcq.options as [string,string,string,string] : ([...(mcq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:mcq.question,options:opts,correctAnswer:mcq.correctAnswer,explanation:(mcq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
+                                   className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                                   title="MCQ Community mein bhejo"
+                                 ><Plus size={13} strokeWidth={2.5} /></button>
+                               </>
+                             )}
+                           />
                             {isAnswered && (
                               <div className="mt-3 px-3 py-2 rounded-xl text-[11px] font-black bg-slate-100 text-slate-500 text-center">
                                 ✅ Answer locked — go to next question
                               </div>
                             )}
-                          </div>
                           {/* Navigation */}
                           <div className="mt-3 flex gap-2">
                             {ci > 0 ? (
@@ -21019,7 +20997,8 @@ RULES:
                         return (s !== undefined && s === q2.correctAnswer) ? acc + 1 : acc;
                       }, 0);
                       const wrong = attempted - right;
-                      const submitThreshold = Math.min(20, totalQ);
+                       // No fixed 20-question lock: submit after any one answer.
+                       const submitThreshold = 1;
                       const canShowReview = attempted >= submitThreshold;
 
                       // ── Initialise session/question start times (first render of this pageKey) ──
@@ -21291,52 +21270,27 @@ RULES:
                           {canShowReview && (
                             <button
                               onClick={() => {
-                                // ── Time gate: each question needs ≥5s total ──
+                                // Submit at any point after the first answer.
+                                // Partial sessions are valid and are scored from
+                                // the questions the student actually attempted.
                                 const _sessStart = lucentMcqSessionStartTsRef.current[pageKey] || (Date.now() - 1000);
                                 const _totalElapsed = (Date.now() - _sessStart) / 1000;
-                                const _minTotalSec = totalQ * 5;
-                                // ── Hurried check: flag questions answered in <3s ──
-                                const _timings = lucentMcqTimingsRef.current[pageKey] || [];
-                                const _hurriedIdx: number[] = [];
-                                let _hurriedCorrect = 0;
-                                mcqs.forEach((q: any, qi: number) => {
-                                  if (!lucentMcqSubmitted[`${pageKey}_${qi}`]) return;
-                                  const t = _timings[qi] !== undefined ? _timings[qi] : 999;
-                                  if (t < 3) {
-                                    _hurriedIdx.push(qi);
-                                    if (lucentMcqAnswers[`${pageKey}_${qi}`] === q.correctAnswer) _hurriedCorrect++;
+                                // Mark the page complete immediately; no
+                                // minimum-time gate or rushed-answer popup.
+                                try {
+                                  if (isRoutineMcqDone(entry.id)) markRoutinePageMcqDone(entry.id, safeIndex);
+                                  const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
+                                  const _rd = loadRoutineData(_fu.id);
+                                  const _td = new Date().toISOString().split('T')[0];
+                                  const _tt = _rd.dailyTasks[_td];
+                                  if (_tt) {
+                                    let _tu = { ..._tt };
+                                    if (_tt.scienceLessonId === entry.id) _tu.scienceComplete = true;
+                                    if (_tt.socialScienceLessonId === entry.id) _tu.socialScienceComplete = true;
+                                    if (JSON.stringify(_tu) !== JSON.stringify(_tt))
+                                      saveRoutineData(_fu.id, { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_td]: _tu } });
                                   }
-                                });
-                                if (_hurriedIdx.length > 0) {
-                                  // Show hurried popup — must decide before review
-                                  setLucentMcqHurriedPopup({
-                                    pageKey, lessonId: entry.id, pageIdx: safeIndex,
-                                    hurriedIndices: _hurriedIdx, hurriedCorrectCount: _hurriedCorrect,
-                                    mcqs, totalElapsed: _totalElapsed, totalQ,
-                                  });
-                                  return;
-                                }
-                                // No hurried — check total time gate
-                                if (_totalElapsed >= _minTotalSec) {
-                                  // ✅ Time ok — mark page MCQ done for routine
-                                  try {
-                                    if (isRoutineMcqDone(entry.id)) markRoutinePageMcqDone(entry.id, safeIndex);
-                                    const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
-                                    const _rd = loadRoutineData(_fu.id);
-                                    const _td = new Date().toISOString().split('T')[0];
-                                    const _tt = _rd.dailyTasks[_td];
-                                    if (_tt) {
-                                      let _tu = { ..._tt };
-                                      if (_tt.scienceLessonId === entry.id) _tu.scienceComplete = true;
-                                      if (_tt.socialScienceLessonId === entry.id) _tu.socialScienceComplete = true;
-                                      if (JSON.stringify(_tu) !== JSON.stringify(_tt))
-                                        saveRoutineData(_fu.id, { ..._rd, dailyTasks: { ..._rd.dailyTasks, [_td]: _tu } });
-                                    }
-                                  } catch {}
-                                } else {
-                                  // ⏱ Too fast — warn, don't mark routine complete
-                                  showAlert(`⚠️ MCQ bahut jaldi complete kiya (${Math.round(_totalElapsed)}s). Minimum ${_minTotalSec}s chahiye — Routine mein count nahi hoga.`, 'WARNING');
-                                }
+                                } catch {}
                                 // ── Record MCQ session score to activityTracker ──
                                 try {
                                   const _correct = mcqs.reduce((acc: number, q: any, qi: number) => {
@@ -21353,57 +21307,24 @@ RULES:
                             </button>
                           )}
 
-                          {/* Single question card */}
-                          <div className="bg-white border border-purple-100 rounded-2xl p-4 shadow-sm">
-                            <div className="flex items-start gap-2 mb-2">
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">Q {ci + 1}</span>
-                              {cq.topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{cq.topic}</span>}
-                              {cq.difficulty && (
-                                <span className={`ml-auto text-[10px] font-black px-2 py-0.5 rounded-full ${
-                                  cq.difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700' :
-                                  cq.difficulty === 'HARD' ? 'bg-rose-100 text-rose-700' :
-                                  'bg-amber-100 text-amber-700'
-                                }`}>{cq.difficulty}</span>
-                              )}
-                            </div>
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="text-sm font-black text-slate-800 leading-snug flex-1">
-                                <McqQuestionDisplay q={cq as any} questionClassName="text-sm font-black text-slate-800 leading-snug" />
-                              </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (cq.options||[]).length===4 ? cq.options as [string,string,string,string] : ([...(cq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:cq.question,options:opts,correctAnswer:cq.correctAnswer,explanation:(cq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
-                                className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
-                                title="MCQ Community mein bhejo"
-                              ><Plus size={13} strokeWidth={2.5} /></button>
-                            </div>
-                            <div className="space-y-1.5 mb-3">
-                              {(cq.options || []).map((opt: string, oi: number) => {
-                                const isSel = selected === oi;
-                                let cls = 'px-3 py-2.5 rounded-xl text-xs font-bold border-2 transition-all flex items-center gap-2 w-full text-left ';
-                                if (isAnswered) {
-                                  if (isSel) cls += 'bg-indigo-50 border-indigo-400 text-indigo-800';
-                                  else cls += 'bg-slate-50 border-slate-200 text-slate-400 opacity-60';
-                                } else {
-                                  cls += 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 active:scale-95 cursor-pointer';
-                                }
-                                return (
-                                  <button
-                                    type="button"
-                                    key={oi}
-                                    disabled={isAnswered}
-                                    onClick={() => handleOptionClick(oi)}
-                                    className={cls}
-                                  >
-                                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-black shrink-0 ${isAnswered && isSel ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 text-slate-500'}`}>
-                                      {String.fromCharCode(65 + oi)}
-                                    </span>
-                                    <span className="flex-1">{opt}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {/* No explanation during quiz — shown only in Review screen */}
-                          </div>
+                           {/* Shared Revision Hub-style question + options */}
+                           <div className="mb-3">
+                             {cq.topic && <div className="mb-2 inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{cq.topic}</div>}
+                             <McqPracticeCard
+                               q={cq as any}
+                               questionNumber={(cq as any).questionNumber ?? ci + 1}
+                               selectedOption={selected ?? null}
+                               answered={isAnswered}
+                               onSelect={handleOptionClick}
+                               actions={(
+                                 <button
+                                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (cq.options||[]).length===4 ? cq.options as [string,string,string,string] : ([...(cq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:cq.question,options:opts,correctAnswer:cq.correctAnswer,explanation:(cq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
+                                   className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                                   title="MCQ Community mein bhejo"
+                                 ><Plus size={13} strokeWidth={2.5} /></button>
+                               )}
+                             />
+                           </div>
 
                           {/* Navigation: Prev | Skip | Next */}
                           <div className="mt-3 flex gap-2">
@@ -23219,7 +23140,8 @@ RULES:
           return compMcqAnswers[qi] === mcqs[qi]?.correctAnswer ? acc + 1 : acc;
         }, 0);
         const wrong = attempted - right;
-        const submitThreshold = Math.min(20, totalQ);
+                       // No fixed 20-question lock: submit after any one answer.
+                       const submitThreshold = 1;
         const canShowReview = attempted >= submitThreshold;
 
         const handleCompOption = (oi: number) => {
@@ -23374,37 +23296,17 @@ RULES:
                     </button>
                   )}
 
-                  {/* Question card */}
-                  <div className="bg-white border border-purple-100 rounded-2xl p-4 shadow-sm">
-                    <div className="flex items-start gap-2 mb-2">
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">Q {ci + 1}</span>
-                      {cq.topic && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate">{cq.topic}</span>}
-                      {cq.difficulty && (
-                        <span className={`ml-auto text-[10px] font-black px-2 py-0.5 rounded-full ${cq.difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700' : cq.difficulty === 'HARD' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{cq.difficulty}</span>
-                      )}
-                    </div>
-                    <div className="text-sm font-black text-slate-800 leading-snug mb-3">
-                      <McqQuestionDisplay q={cq as any} questionClassName="text-sm font-black text-slate-800 leading-snug" />
-                    </div>
-                    <div className="space-y-1.5">
-                      {(cq.options || []).map((opt: string, oi: number) => {
-                        const isSel = selected === oi;
-                        let cls = 'px-3 py-2.5 rounded-xl text-xs font-bold border-2 transition-all flex items-center gap-2 w-full text-left ';
-                        if (isAnswered) {
-                          if (isSel) cls += 'bg-indigo-50 border-indigo-400 text-indigo-800';
-                          else cls += 'bg-slate-50 border-slate-200 text-slate-400 opacity-60';
-                        } else {
-                          cls += 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 active:scale-95 cursor-pointer';
-                        }
-                        return (
-                          <button type="button" key={oi} disabled={isAnswered} onClick={() => handleCompOption(oi)} className={cls}>
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-black shrink-0 ${isAnswered && isSel ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 text-slate-500'}`}>{String.fromCharCode(65 + oi)}</span>
-                            <span className="flex-1">{opt}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                   {/* Shared Revision Hub-style question + options */}
+                   <div className="mb-3">
+                     {cq.topic && <div className="mb-2 inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{cq.topic}</div>}
+                     <McqPracticeCard
+                       q={cq as any}
+                       questionNumber={(cq as any).questionNumber ?? ci + 1}
+                       selectedOption={selected ?? null}
+                       answered={isAnswered}
+                       onSelect={handleCompOption}
+                     />
+                   </div>
 
                   {/* Navigation */}
                   <div className="mt-3 flex gap-2">

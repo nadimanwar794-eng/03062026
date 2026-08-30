@@ -1173,7 +1173,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
             </div>
             {/* Bottom bar — hidden in focus mode */}
             {!projectorFocused && (() => {
-              const submitThreshold = Math.min(20, total);
+               // Projector quiz can be submitted after any one answered MCQ.
+               const submitThreshold = 1;
               const canSubmit = projectorAnswered.size >= submitThreshold;
               return (
                 <div style={{ display:'flex', alignItems:'center', padding:'10px 20px', borderTop:'3px solid #e2e8f0', background:'#f8fafc', flexShrink:0, gap:10 }}>
@@ -1242,8 +1243,8 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 ) : (
                   <button
                     onClick={() => {
-                      const submitThreshold = Math.min(20, total);
-                      if (projectorAnswered.size >= submitThreshold) {
+                       const submitThreshold = 1;
+                       if (projectorAnswered.size >= submitThreshold) {
                         setReviewSnapshot({
                           answered: Array.from(projectorAnswered).sort((a, b) => a - b),
                           selections: { ...projectorSelections },
@@ -1255,7 +1256,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                       }
                     }}
                     style={{ background: 'rgba(30,41,59,0.85)', color: '#fff', border:'none', borderRadius:10, padding:'10px 20px', fontSize:15, fontWeight:900, cursor: 'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', gap:6 }}>
-                    {projectorAnswered.size >= Math.min(20, total) ? (
+                     {projectorAnswered.size >= 1 ? (
                       <><CheckCircle size={18} /> Submit</>
                     ) : (
                       <><Minimize2 size={18} /> Exit Focus</>

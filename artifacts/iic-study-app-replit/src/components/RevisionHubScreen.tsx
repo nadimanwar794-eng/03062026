@@ -20,6 +20,7 @@ import { applyDeduction, getTotalCredits } from '../utils/creditSystem';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
 import { renderMathInHtml } from '../utils/mathUtils';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import McqPracticeCard from './McqPracticeCard';
 
 type HubTab = 'MCQ' | 'REVISION' | 'PERFORMANCE';
 
@@ -511,7 +512,9 @@ export const RevisionHubScreen: React.FC<Props> = ({
           const correct    = sessionAnswers.filter((a, i) => a !== null && a !== undefined && a === sessionMcqs[i]?.correctAnswer).length;
           const wrong      = answered - correct;
           const isAnswered = sessionAnswers[sessionQIndex] !== null && sessionAnswers[sessionQIndex] !== undefined;
-          const minRequired = Math.min(100, sessionMcqs.length);
+           // Submit is available after the first answered question; there is
+           // no fixed 20/30/100-question gate in Revision Hub.
+           const minRequired = 1;
           const ready      = answered >= minRequired;
 
           return (
@@ -533,55 +536,29 @@ export const RevisionHubScreen: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Question */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-              <div className="flex items-start gap-2">
-                <div className="font-bold text-slate-800 text-sm leading-relaxed flex-1">
-                  <McqQuestionDisplay
-                    q={currentQ}
-                    showQuestionNumber
-                    questionClassName="font-bold text-slate-800 text-sm leading-relaxed"
-                  />
-                </div>
-                {onSendToMcqCommunity && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      const opts = (currentQ.options || []).length === 4
-                        ? currentQ.options as [string,string,string,string]
-                        : ([...(currentQ.options || []), '', '', '', ''].slice(0, 4) as [string,string,string,string]);
-                      onSendToMcqCommunity({ question: currentQ.question, options: opts, correctAnswer: currentQ.correctAnswer ?? 0, explanation: currentQ.explanation || '' });
-                    }}
-                    className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
-                    title="MCQ Community mein bhejo"
-                  >
-                    <Plus size={13} strokeWidth={2.5} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Options — blue highlight only, no green/red until submit */}
-            <div className="space-y-2.5">
-              {(currentQ.options || []).map((opt: string, oi: number) => {
-                const isSelected = selectedOption === oi;
-                let cls = 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-indigo-200 active:scale-[0.99]';
-                if (isSelected) cls = 'bg-blue-50 border-blue-400 text-blue-800';
-                else if (isAnswered) cls = 'bg-slate-50 border-slate-100 text-slate-400 opacity-60';
-                return (
-                  <button
-                    key={oi}
-                    onClick={() => handleOptionSelect(oi)}
-                    disabled={isAnswered}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium border-2 transition-all ${cls}`}
-                  >
-                    <span className="font-black mr-2">{String.fromCharCode(65 + oi)}.</span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
-                  </button>
-                );
-              })}
-            </div>
+             <McqPracticeCard
+               q={currentQ}
+               questionNumber={currentQ.questionNumber ?? sessionQIndex + 1}
+               selectedOption={selectedOption}
+               answered={isAnswered}
+               onSelect={handleOptionSelect}
+               actions={onSendToMcqCommunity ? (
+                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     e.preventDefault();
+                     const opts = (currentQ.options || []).length === 4
+                       ? currentQ.options as [string,string,string,string]
+                       : ([...(currentQ.options || []), '', '', '', ''].slice(0, 4) as [string,string,string,string]);
+                     onSendToMcqCommunity({ question: currentQ.question, options: opts, correctAnswer: currentQ.correctAnswer ?? 0, explanation: currentQ.explanation || '' });
+                   }}
+                   className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
+                   title="MCQ Community mein bhejo"
+                 >
+                   <Plus size={13} strokeWidth={2.5} />
+                 </button>
+               ) : undefined}
+             />
 
             {/* Bottom navigation row */}
             <div className="space-y-2 pt-1">

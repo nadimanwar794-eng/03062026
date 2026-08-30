@@ -17,6 +17,7 @@ import { hapticCorrect, hapticWrong } from '../utils/haptic';
 import { loadRoutineData } from '../utils/routineStorage';
 import { deferStudyCoins } from '../utils/studyRewards';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import McqPracticeCard from './McqPracticeCard';
 import { getMcqOptions, normalizeMcqForTracking } from '../utils/mcqStructure';
 import { parseMcqQuestion } from '../utils/mcqRender';
 
@@ -891,39 +892,13 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     {question._topicName}
                 </div>
 
-                <div className="text-lg font-bold text-slate-800 mb-8 leading-relaxed">
-                    <McqQuestionDisplay
-                        q={question}
-                        showQuestionNumber
-                        questionClassName="text-lg font-bold text-slate-800 leading-relaxed"
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    {getMcqOptions(question).map((opt: string, idx: number) => {
-                        const isSelected = answers[qIndex] === idx;
-                        const answered = answers[qIndex] !== undefined;
-                        let bg = 'bg-slate-50'; let border = 'border-slate-200'; let text = 'text-slate-800';
-                        let radioBorder = 'border-slate-400'; let radioFill = false;
-                        if (answered) {
-                            if (isSelected) { bg = 'bg-blue-50'; border = 'border-blue-400'; text = 'text-blue-800'; radioBorder = 'border-blue-500'; radioFill = true; }
-                            else { bg = 'bg-white'; border = 'border-slate-100'; text = 'text-slate-400'; }
-                        }
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => handleAnswer(idx)}
-                                disabled={answered}
-                                className={`w-full px-4 py-3 rounded-xl border text-left font-medium transition-all flex items-center gap-3 ${bg} ${border} ${text}`}
-                            >
-                                <span className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${radioBorder} ${radioFill ? 'bg-blue-500' : 'bg-transparent'}`}>
-                                    {radioFill && <span className="w-2 h-2 rounded-full bg-white" />}
-                                </span>
-                                <span className="flex-1" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
-                            </button>
-                        );
-                    })}
-                </div>
+                <McqPracticeCard
+                    q={question}
+                    questionNumber={question.questionNumber ?? qIndex + 1}
+                    selectedOption={answers[qIndex] ?? null}
+                    answered={answers[qIndex] !== undefined}
+                    onSelect={handleAnswer}
+                />
             </div>
 
             {/* ── Projector Mode Overlay ── */}

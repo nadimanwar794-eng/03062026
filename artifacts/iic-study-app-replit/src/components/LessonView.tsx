@@ -20,6 +20,7 @@ import { McqSpeakButtons } from './McqSpeakButtons';
 import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import McqPracticeCard from './McqPracticeCard';
 import { stopSpeaking } from '../utils/ttsHighlighter';
 import { speakText, stripHtml } from '../utils/textToSpeech';
 import jsPDF from 'jspdf';
@@ -1853,8 +1854,10 @@ export const LessonView: React.FC<Props> = ({
       const currentCorrect = score;
       const currentWrong = Object.keys(mcqState).length - currentCorrect;
       const attemptedCount = Object.keys(mcqState).length;
-      const minRequired = Math.min(30, displayData.length);
-      const canSubmit = attemptedCount >= minRequired;
+       // A student may submit as soon as at least one question is answered.
+       // There is intentionally no 20/30-question threshold here.
+       const minRequired = 1;
+       const canSubmit = attemptedCount >= minRequired;
 
       const currentBatchAttemptedCount = currentBatchData.reduce((acc, _, localIdx) => {
           const idx = (batchIndex * BATCH_SIZE) + localIdx;
@@ -3192,92 +3195,57 @@ export const LessonView: React.FC<Props> = ({
                                const showExplanation = (showResults && isAnswered) || isRevealed;
                                const fullQuestionText = `${q.question}. Options are: ${q.options.map((opt, i) => `Option ${i+1}: ${opt}`).join('. ')}`;
 
-                               return (
-                                   <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
-                                       <div className="flex justify-between items-start mb-4 gap-3">
-                                           <div className="font-bold text-slate-800 flex gap-3 leading-relaxed flex-1">
-                                               <span className="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 font-bold mt-0.5">{idx + 1}</span>
-                                               <div className="w-full">
-                                                   <McqQuestionDisplay q={q} questionClassName="prose prose-sm max-w-none" />
-                                               </div>
-                                           </div>
-                                           <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                               <McqSpeakButtons
-                                                   question={q.question}
-                                                   options={q.options}
-                                                   correctAnswer={q.correctAnswer}
-                                                   allQuestions={currentBatchData as any}
-                                                   index={localIdx}
-                                               />
-                                               {onSendToMcqCommunity && (
-                                                   <button
-                                                       onPointerDown={(e) => {
-                                                           e.stopPropagation();
-                                                           const opts = q.options.length === 4
-                                                               ? q.options as [string,string,string,string]
-                                                               : ([...q.options, '', '', '', ''].slice(0, 4) as [string,string,string,string]);
-                                                           onSendToMcqCommunity({ question: q.question, options: opts, correctAnswer: q.correctAnswer, explanation: (q as any).explanation || '' });
-                                                       }}
-                                                       className="w-6 h-6 rounded-full flex items-center justify-center active:scale-90 transition-all bg-violet-100 text-violet-600"
-                                                       title="MCQ Community mein bhejo"
-                                                   >
-                                                       <Plus size={13} strokeWidth={2.5} />
-                                                   </button>
-                                               )}
-                                               {autoReadEnabled && !showResults && !showSubmitModal && (
-                                                   <SpeakButton
-                                                       text={fullQuestionText}
-                                                       className="hidden"
-                                                       settings={settings}
-                                                       autoPlay={autoReadEnabled && !showResults && !showSubmitModal}
-                                                       onToggleAutoTts={onToggleAutoTts}
-                                                   />
-                                               )}
-                                           </div>
-                                       </div>
-                                       <div className="space-y-2">
-                                           {q.options.map((opt, oIdx) => {
-                                               let btnClass = "w-full text-left p-3 rounded-xl border transition-all text-sm font-medium relative overflow-hidden ";
-
-                                               const showColors = showResults || isRevealed;
-
-                                               if (showColors) {
-                                                   if (oIdx === q.correctAnswer) {
-                                                       btnClass += "bg-green-100 border-green-300 text-green-800";
-                                                   } else if (userAnswer === oIdx) {
-                                                       btnClass += "bg-red-100 border-red-300 text-red-800";
-                                                   } else {
-                                                       btnClass += "bg-slate-50 border-slate-100 opacity-60 text-slate-800";
-                                                   }
-                                               }
-                                               else if (isAnswered) {
-                                                    if (userAnswer === oIdx) {
-                                                         btnClass += "bg-blue-100 border-blue-300 text-blue-800";
-                                                    } else {
-                                                         btnClass += "bg-slate-50 border-slate-100 opacity-60 text-slate-800";
-                                                    }
-                                               } else {
-                                                   btnClass += "bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-200 text-slate-800";
-                                               }
-
-                                               return (
-                                                   <button
-                                                       key={oIdx}
-                                                       disabled={isAnswered || showResults}
-                                                       onClick={() => handleOptionSelect(idx, oIdx)}
-                                                       className={btnClass}
-                                                   >
-                                                       <span className="relative z-10 flex justify-between items-center w-full gap-2">
-                                                           <div dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} className="flex-1" />
-                                                           <div className="flex items-center gap-2 shrink-0">
-                                                              {showColors && oIdx === q.correctAnswer && <CheckCircle size={16} className="text-green-600" />}
-                                                              {showColors && userAnswer === oIdx && userAnswer !== q.correctAnswer && <XCircle size={16} className="text-red-500" />}
-                                                           </div>
-                                                       </span>
-                                                   </button>
-                                               );
-                                           })}
-                                       </div>
+                                return (
+                                    <div key={idx} className="transition-all">
+                                        {q.topic && (
+                                            <div className="mb-2 inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                                {q.topic}
+                                            </div>
+                                        )}
+                                        <McqPracticeCard
+                                            q={q}
+                                            questionNumber={q.questionNumber ?? idx + 1}
+                                            selectedOption={userAnswer ?? null}
+                                            answered={isAnswered || isRevealed}
+                                            showResult={showResults || isRevealed}
+                                            disabled={showResults}
+                                            onSelect={(oIdx) => handleOptionSelect(idx, oIdx)}
+                                            actions={(
+                                                <>
+                                                    <McqSpeakButtons
+                                                        question={q.question}
+                                                        options={q.options}
+                                                        correctAnswer={q.correctAnswer}
+                                                        allQuestions={currentBatchData as any}
+                                                        index={localIdx}
+                                                    />
+                                                    {onSendToMcqCommunity && (
+                                                        <button
+                                                            onPointerDown={(e) => {
+                                                                e.stopPropagation();
+                                                                const opts = q.options.length === 4
+                                                                    ? q.options as [string,string,string,string]
+                                                                    : ([...q.options, '', '', '', ''].slice(0, 4) as [string,string,string,string]);
+                                                                onSendToMcqCommunity({ question: q.question, options: opts, correctAnswer: q.correctAnswer, explanation: (q as any).explanation || '' });
+                                                            }}
+                                                            className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-all bg-violet-100 text-violet-600"
+                                                            title="MCQ Community mein bhejo"
+                                                        >
+                                                            <Plus size={13} strokeWidth={2.5} />
+                                                        </button>
+                                                    )}
+                                                    {autoReadEnabled && !showResults && !showSubmitModal && (
+                                                        <SpeakButton
+                                                            text={fullQuestionText}
+                                                            className="hidden"
+                                                            settings={settings}
+                                                            autoPlay={autoReadEnabled && !showResults && !showSubmitModal}
+                                                            onToggleAutoTts={onToggleAutoTts}
+                                                        />
+                                                    )}
+                                                </>
+                                            )}
+                                        />
 
                                        {/* ── MCQ Suggestion Button ── */}
                                        <div className="mt-3 flex justify-end">
@@ -3501,7 +3469,7 @@ export const LessonView: React.FC<Props> = ({
                                <div className="flex-[2]"></div> // Spacer if no next button on last page
                            )}
 
-                           {/* Submit Button - Always visible; disabled with hint until threshold met */}
+                            {/* Submit Button - available after the first answered question */}
                            <button
                                onClick={handleSubmitRequest}
                                disabled={!canSubmit}
@@ -3510,7 +3478,7 @@ export const LessonView: React.FC<Props> = ({
                                <span className="flex items-center gap-1.5">Submit <Trophy size={18} /></span>
                                {!canSubmit && (
                                    <span className="text-[9px] font-black leading-none opacity-70">
-                                       {minRequired - attemptedCount} more to go
+                                        1 question answer karo
                                    </span>
                                )}
                            </button>

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import McqPracticeCard from './McqPracticeCard';
 import { User, SystemSettings, MCQItem } from '../types';
 import { X, BookOpen, Zap, CheckCircle, AlertCircle, ChevronRight, Check, RotateCcw, Loader2, Volume2, FileText } from 'lucide-react';
 import { getChapterData, saveUserToLive } from '../firebase';
@@ -515,44 +516,13 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                                             <span>Topic: {subTopic}</span>
                                         </div>
 
-                                        {/* QUESTION CARD */}
-                                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex-1 flex flex-col">
-                                            <div className="mb-6">
-                                                <McqQuestionDisplay
-                                                    q={mcqData[currentQIndex] as any}
-                                                    questionClassName="text-lg font-bold text-slate-800 leading-relaxed"
-                                                />
-                                            </div>
-
-                                            <div className="space-y-3 flex-1">
-                                                {mcqData[currentQIndex].options.map((opt, idx) => {
-                                                    const isSelected = selectedOption === idx;
-                                                    const stateClass = isSelected
-                                                        ? "bg-purple-100 border-purple-500 text-purple-800 font-bold"
-                                                        : selectedOption !== null
-                                                            ? "opacity-50 border-slate-100 text-slate-500"
-                                                            : "border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-600";
-
-                                                    return (
-                                                        <button
-                                                            key={idx}
-                                                            onClick={() => handleOptionSelect(idx)}
-                                                            disabled={selectedOption !== null}
-                                                            className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${stateClass}`}
-                                                        >
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border ${
-                                                                isSelected
-                                                                    ? 'bg-purple-500 border-purple-600 text-white'
-                                                                    : 'bg-white border-slate-300 text-slate-600'
-                                                            }`}>
-                                                                {['A','B','C','D'][idx]}
-                                                            </div>
-                                                            <span className="flex-1 text-sm" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
+                                         <McqPracticeCard
+                                             q={mcqData[currentQIndex]}
+                                             questionNumber={mcqData[currentQIndex].questionNumber ?? currentQIndex + 1}
+                                             selectedOption={selectedOption}
+                                             answered={selectedOption !== null}
+                                             onSelect={handleOptionSelect}
+                                         />
 
                                         {/* NEXT & SUBMIT BUTTONS */}
                                         <div className="space-y-3 pb-8 animate-in slide-in-from-bottom-4">
@@ -566,7 +536,8 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
                                             )}
                                             {(() => {
                                                 const answered = Object.keys(userAnswers).length;
-                                                const minRequired = Math.min(100, mcqData.length);
+                                                 // Submit is available after any one answered question.
+                                                 const minRequired = 1;
                                                 const ready = answered >= minRequired;
                                                 return (
                                                     <button

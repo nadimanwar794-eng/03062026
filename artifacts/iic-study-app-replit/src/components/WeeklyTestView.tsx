@@ -6,6 +6,7 @@ import { Clock, AlertTriangle, CheckCircle, Trophy, ArrowLeft } from 'lucide-rea
 import { CustomAlert, CustomConfirm } from './CustomDialogs';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { renderMathInHtml } from '../utils/mathUtils';
+import McqQuestionDisplay from './McqQuestionDisplay';
 
 interface Props {
   test: WeeklyTest;
@@ -168,20 +169,25 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
           safeQuestions.map((q, idx) => (
             <div key={idx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <h4 className="font-bold text-slate-800 mb-4 flex gap-3">
-                <span className="bg-slate-100 text-slate-600 w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 font-bold mt-0.5">{idx + 1}</span>
-                <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
+                <span className="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 font-bold mt-0.5">{idx + 1}</span>
+                <span className="flex-1">
+                  <McqQuestionDisplay q={q} questionClassName="text-sm font-bold text-slate-800 leading-relaxed" />
+                </span>
               </h4>
               <div className="space-y-2">
                 {q.options && q.options.map((opt, oIdx) => (
                   <button
                     key={oIdx}
                     onClick={() => setAnswers(prev => ({ ...prev, [idx]: oIdx }))}
-                    className={`w-full text-left p-3 rounded-lg border transition-all text-sm font-medium flex items-center justify-between
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-all text-sm font-medium flex items-center gap-3
                       ${answers[idx] === oIdx 
                         ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500' 
                         : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}
                   >
-                    <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-black shrink-0 ${answers[idx] === oIdx ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-300 text-slate-500'}`}>
+                      {String.fromCharCode(65 + oIdx)}
+                    </span>
+                    <span className="flex-1" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
                     {answers[idx] === oIdx && <CheckCircle size={16} className="text-blue-600" />}
                   </button>
                 ))}
