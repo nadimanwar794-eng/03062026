@@ -548,50 +548,42 @@ const stripHtmlForPreview = (html: string): string =>
 // ── MENISCUS NAV INDICATOR ───────────────────────────────────────────────
 const MeniscusNavIndicator = ({ activeIndex, totalTabs, activeColor, ActiveIcon }: { activeIndex: number, totalTabs: number, activeColor: string, ActiveIcon?: React.ElementType }) => {
   const activeCenter = ((activeIndex + 0.5) / Math.max(totalTabs, 1)) * 100;
-  const notchStart = Math.max(2, activeCenter - 8);
-  const notchEnd = Math.min(98, activeCenter + 8);
-  const notchPath = [
-    `M 0 1 H ${notchStart - 2}`,
-    `C ${notchStart - 0.5} 1 ${notchStart - 0.5} 16 ${activeCenter - 5} 19`,
-    `C ${activeCenter - 2.5} 22 ${activeCenter + 2.5} 22 ${activeCenter + 5} 19`,
-    `C ${notchEnd + 0.5} 16 ${notchEnd + 0.5} 1 ${notchEnd + 2} 1`,
-    'H 100',
-  ].join(' ');
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
-       {/* The reference uses a curved top edge around the raised bead, not a
-           circular outline around it. */}
-       <svg
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 w-full h-8 z-10 pointer-events-none overflow-visible"
-          viewBox="0 0 100 32"
-          preserveAspectRatio="none"
-       >
-          <path
-             d={notchPath}
-             fill="none"
-             stroke="rgba(255,255,255,0.42)"
-             strokeWidth="1.15"
-             strokeLinecap="round"
-             vectorEffect="non-scaling-stroke"
-          />
-       </svg>
-       {/* Small downward spill under the bead, matching the reference while
-           staying local to the active item instead of tinting the whole bar. */}
+       {/* Keep only a small, local shadow under the bead. The selected state
+           is defined by the white ring below, not by a curved nav edge. */}
        <div
           aria-hidden="true"
           className="absolute top-[8px] w-[58px] h-10 rounded-[50%] z-10 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
              left: `calc(${activeCenter}% - 29px)`,
-             background: `radial-gradient(ellipse at 50% 0%, color-mix(in srgb, ${activeColor} 34%, transparent) 0%, color-mix(in srgb, ${activeColor} 18%, transparent) 38%, transparent 74%)`,
+             background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.07) 38%, transparent 74%)',
              filter: 'blur(4px)',
-             opacity: 0.62,
+             opacity: 0.7,
              willChange: 'left',
           }}
        />
-       {/* The active button floats cleanly above the bar. Keep it borderless:
-           the raised position and curved nav edge communicate selection. */}
+       {/* White/light ring from the reference. It is separate from the
+           button itself, so the button stays borderless and the ring remains
+           soft instead of becoming an unwanted hard outline. */}
+       <div
+          aria-hidden="true"
+          className="absolute top-[-34px] w-[60px] h-[60px] rounded-full z-10 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+             left: `calc(${activeCenter}% - 30px)`,
+             border: '2px solid rgba(240, 248, 247, 0.9)',
+             boxShadow: [
+               '0 0 0 1px rgba(12, 20, 36, 0.62)',
+               '0 0 8px 1px rgba(255, 255, 255, 0.32)',
+               '0 6px 10px -9px rgba(255, 255, 255, 0.52)',
+             ].join(', '),
+             opacity: 0.95,
+             willChange: 'left',
+          }}
+       />
+       {/* The active button floats cleanly above the bar and remains
+           borderless; the raised position plus white ring communicate state. */}
        <div
           className="absolute top-[-28px] w-12 h-12 rounded-full flex items-center justify-center z-20 pointer-events-none transition-[left] duration-300 ease-out"
           style={{
