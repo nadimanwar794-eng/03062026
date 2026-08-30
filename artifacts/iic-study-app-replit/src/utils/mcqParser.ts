@@ -199,7 +199,7 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
         }
 
         // Answer line: Ans: / Answer: / ✅ Correct Answer: / सही उत्तर: / उत्तर: / **सही उत्तर:
-        if (/^(?:\*{1,2}\s*)?(?:Ans|Answer|सही\s*उत्तर|उत्तर)\s*:/i.test(line) || /^✅\s*Correct\s+Answer\s*:/i.test(line)) {
+        if (/^(?:\*{1,2}\s*)?(?:(?:Correct\s+)?Answer|Ans|सही\s*उत्तर|उत्तर)\s*:/i.test(line) || /^✅\s*Correct\s+Answer\s*:/i.test(line)) {
             answerLine = line.replace(/^(?:\*{1,2}\s*)?(?:✅\s*)?(?:Correct\s+)?(?:Answer|Ans|सही\s*उत्तर|उत्तर)\s*:\s*/i, '').trim();
             continue;
         }
