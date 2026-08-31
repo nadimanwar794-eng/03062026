@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { LessonContent, Subject, ClassLevel, Chapter, MCQItem, ContentType, User, SystemSettings } from '../types';
-import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe, Lightbulb, FileText, BrainCircuit, Grip, CheckSquare, List, Download, BarChart3, RotateCcw, Monitor, CloudOff, MoreVertical, EyeOff, Eye, LayoutGrid, Pencil, Send, Plus, Tv } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Minimize2, Volume2, Square, Zap, StopCircle, Globe, Lightbulb, FileText, BrainCircuit, Grip, CheckSquare, List, Download, BarChart3, RotateCcw, Monitor, CloudOff, MoreVertical, EyeOff, Eye, LayoutGrid, Pencil, Send, Plus, Tv } from 'lucide-react';
 import { CustomConfirm, CustomAlert } from './CustomDialogs';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
 import { CustomPlayer } from './CustomPlayer';
@@ -708,7 +708,9 @@ export const LessonView: React.FC<Props> = ({
 
   // Full Screen Ref
   const containerRef = useRef<HTMLDivElement>(null);
+  const projectorContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isProjectorFullscreen, setIsProjectorFullscreen] = useState(false);
   const [showSuggestionPanel, setShowSuggestionPanel] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [mcqSuggestionOpen, setMcqSuggestionOpen] = useState<Record<number, boolean>>({});
@@ -728,9 +730,9 @@ export const LessonView: React.FC<Props> = ({
 
   const toggleFullScreen = () => {
       if (!document.fullscreenElement) {
-          containerRef.current?.requestFullscreen().then(() => {
-              setIsFullscreen(true);
-          }).catch(e => console.error(e));
+          const request = containerRef.current?.requestFullscreen();
+          if (!request) return;
+          request.then(() => setIsFullscreen(true)).catch(e => console.error(e));
       } else {
           document.exitFullscreen().then(() => {
               setIsFullscreen(false);
@@ -738,13 +740,53 @@ export const LessonView: React.FC<Props> = ({
       }
   };
 
+  const toggleProjectorFullscreen = async () => {
+      const projectorElement = projectorContainerRef.current;
+      if (!projectorElement) return;
+
+      try {
+          if (document.fullscreenElement === projectorElement) {
+              await document.exitFullscreen();
+          } else {
+              // A different fullscreen target can be left behind when the
+              // projector is opened from an already immersive lesson.
+              if (document.fullscreenElement) {
+                  await document.exitFullscreen();
+              }
+              await projectorElement.requestFullscreen();
+          }
+      } catch (error) {
+          console.error('Unable to toggle projector fullscreen', error);
+      }
+  };
+
+  const closeProjectorMode = async () => {
+      if (document.fullscreenElement === projectorContainerRef.current) {
+          try {
+              await document.exitFullscreen();
+          } catch (error) {
+              console.error('Unable to exit projector fullscreen', error);
+          }
+      }
+      setIsProjectorMode(false);
+  };
+
   useEffect(() => {
       const handleFullscreenChange = () => {
-          setIsFullscreen(!!document.fullscreenElement);
+           setIsFullscreen(document.fullscreenElement === containerRef.current);
+           setIsProjectorFullscreen(document.fullscreenElement === projectorContainerRef.current);
       };
       document.addEventListener('fullscreenchange', handleFullscreenChange);
       return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+      if (isProjectorMode) return;
+      if (document.fullscreenElement === projectorContainerRef.current) {
+          document.exitFullscreen().catch(() => {});
+      }
+      setIsProjectorFullscreen(false);
+  }, [isProjectorMode]);
 
   // TIMER STATE
   const [sessionTime, setSessionTime] = useState(0); // Total seconds
@@ -2290,7 +2332,7 @@ export const LessonView: React.FC<Props> = ({
       };
 
       return (
-          <div className="flex flex-col h-full bg-slate-50 relative mcq-container overflow-y-auto">
+          <div ref={containerRef} className="flex flex-col h-full bg-slate-50 relative mcq-container overflow-y-auto">
                {/* MCQ Score Popup */}
                {mcqScorePopup !== null && (
                    <div style={{
@@ -2471,13 +2513,13 @@ export const LessonView: React.FC<Props> = ({
                    const projectorCorrectCount = Object.entries(projectorSelections).reduce((count, [key, value]) => (
                        count + (displayData[Number(key)]?.correctAnswer === value ? 1 : 0)
                    ), 0);
-                   return createPortal(
-                       <div style={{ position:'fixed', inset:0, zIndex:99999, background:'#ffffff', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+                    return createPortal(
+                        <div ref={projectorContainerRef} style={{ position:'fixed', inset:0, zIndex:99999, background:'#ffffff', display:'flex', flexDirection:'column', overflow:'hidden' }}>
                            {/* Top bar — clean, matches MCQ Practice bar style */}
                            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderBottom:'1px solid #f1f5f9', background:'#ffffff', flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
                                {/* Close */}
                                <button
-                                   onClick={() => setIsProjectorMode(false)}
+                                    onClick={closeProjectorMode}
                                    style={{ flexShrink:0, padding:'8px', background:'#f8fafc', border:'none', borderRadius:12, color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center' }}
                                ><X size={18} /></button>
                                {/* Title block */}
@@ -2487,6 +2529,27 @@ export const LessonView: React.FC<Props> = ({
                                        <Tv size={10} /> PROJECTOR MODE
                                    </div>
                                </div>
+                                {/* Screen controls — kept together so fullscreen exit is always visible */}
+                                <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                                    <button
+                                        type="button"
+                                        onClick={handleRotate}
+                                        aria-label="Rotate screen"
+                                        title="Landscape / Rotate screen"
+                                        style={{ width:34, height:34, border:'1px solid #e2e8f0', borderRadius:12, background:'#f8fafc', color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+                                    >
+                                        <RotateCcw size={16} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={toggleProjectorFullscreen}
+                                        aria-label={isProjectorFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                                        title={isProjectorFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                                        style={{ width:34, height:34, border:`1px solid ${isProjectorFullscreen ? '#fca5a5' : '#e2e8f0'}`, borderRadius:12, background:isProjectorFullscreen ? '#fff1f2' : '#f8fafc', color:isProjectorFullscreen ? '#e11d48' : '#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+                                    >
+                                        {isProjectorFullscreen ? <Minimize2 size={16} /> : <Maximize size={16} />}
+                                    </button>
+                                </div>
                                {/* Q counter pill */}
                                <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, padding:'6px 10px' }}>
                                    <span style={{ fontSize:11, fontWeight:900, color:'#1e293b' }}>{projectorQIndex + 1}</span>
@@ -2702,6 +2765,13 @@ export const LessonView: React.FC<Props> = ({
                        className="shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white border border-white/20 transition-colors active:scale-90" title="Screen Rotate">
                        <RotateCcw size={17} />
                    </button>
+                    {/* Fullscreen toggle stays beside rotate so the exit control is always reachable */}
+                    <button onClick={toggleFullScreen}
+                        className={`shrink-0 p-2 rounded-xl text-white border transition-colors active:scale-90 ${isFullscreen ? 'bg-rose-500/80 hover:bg-rose-500 border-rose-300/50' : 'bg-white/10 hover:bg-white/20 border-white/20'}`}
+                        title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+                        {isFullscreen ? <Minimize2 size={17} /> : <Maximize size={17} />}
+                    </button>
                    {/* Admin Edit button — only for admin/subadmin */}
                    {isAdmin && onAdminEdit && (
                        <button onClick={onAdminEdit} className="shrink-0 p-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-300 border border-amber-400/30 transition-colors" title="Edit / Delete MCQ (Admin)">

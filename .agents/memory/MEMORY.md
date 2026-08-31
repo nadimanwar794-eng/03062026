@@ -2,3 +2,4 @@
 - [Bottom navigation indicator](bottom-nav-indicator.md) — Keep the active spotlight separate from the borderless active button.
 - [MCQ structure tracking](mcq-structure-tracking.md) — Keep question number, labeled statements, four options, answer, and explanation together across parser, tracker, and views.
 - [Challenge scheduling and format](challenge-scheduling-and-format.md) — Shared period keys keep manual and automatic challenges consistent; Challenge 2.0 preserves the Class 6–12 structured MCQ shape.
+- [Imported workspace preview setup](imported-workspace-preview.md) — Install the lockfile dependencies and use the registered artifact workflow for proxied previews.
