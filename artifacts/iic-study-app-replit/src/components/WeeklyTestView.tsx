@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { WeeklyTest, MCQItem } from '../types';
-import { Clock, AlertTriangle, CheckCircle, Trophy, ArrowLeft } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Trophy, ArrowLeft, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 import { CustomAlert, CustomConfirm } from './CustomDialogs';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { renderMathInHtml } from '../utils/mathUtils';
 import McqQuestionDisplay from './McqQuestionDisplay';
+import McqQuestionNavigator from './McqQuestionNavigator';
 
 interface Props {
   test: WeeklyTest;
@@ -23,6 +24,8 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
       isOpen: false, title: '', message: '', onConfirm: () => {}
   });
   const [postAlertAction, setPostAlertAction] = useState<() => void>(() => {});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [skipped, setSkipped] = useState<Set<number>>(new Set());
 
   const safeQuestions = Array.isArray(test.questions) ? test.questions : [];
 
@@ -168,15 +171,27 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
         Do not close the app. Test will auto-submit when timer ends.
       </div>
 
-      {/* Questions List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-w-3xl mx-auto w-full pb-24">
+      {/* Question palette + one-question navigator */}
+      <div className="flex-1 overflow-y-auto p-4 max-w-3xl mx-auto w-full pb-24">
         {safeQuestions.length === 0 ? (
            <div className="text-center py-20">
                <p className="text-slate-600">No questions found in this test.</p>
            </div>
         ) : (
-          safeQuestions.map((q, idx) => (
-            <div key={idx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <>
+            <McqQuestionNavigator
+              total={safeQuestions.length}
+              currentIndex={currentIndex}
+              answers={answers}
+              skipped={skipped}
+              onJump={setCurrentIndex}
+              className="mb-4"
+            />
+            {(() => {
+              const idx = currentIndex;
+              const q = safeQuestions[idx];
+              return (
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <h4 className="font-bold text-slate-800 mb-4 flex gap-3">
                 <span className="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0 font-bold mt-0.5">{q.questionNumber ?? idx + 1}</span>
                 <span className="flex-1">
@@ -187,7 +202,10 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
                 {q.options && q.options.map((opt, oIdx) => (
                   <button
                     key={oIdx}
-                    onClick={() => setAnswers(prev => ({ ...prev, [idx]: oIdx }))}
+                    onClick={() => {
+                      setAnswers(prev => ({ ...prev, [idx]: oIdx }));
+                      setSkipped(prev => { const next = new Set(prev); next.delete(idx); return next; });
+                    }}
                     className={`w-full text-left p-3 rounded-xl border-2 transition-all text-sm font-medium flex items-center gap-3
                       ${answers[idx] === oIdx 
                         ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500' 
@@ -202,14 +220,42 @@ export const WeeklyTestView: React.FC<Props> = ({ test, onComplete, onExit }) =>
                 ))}
               </div>
             </div>
-          ))
+              );
+            })()}
+          </>
         )}
       </div>
 
       {/* Footer */}
       <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0 z-10 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <div className="text-xs text-slate-600 font-medium">
+        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setCurrentIndex(index => Math.max(0, index - 1))}
+          disabled={currentIndex === 0 || isSubmitting}
+          className="rounded-xl border border-slate-200 p-2 text-slate-600 disabled:opacity-30"
+          aria-label="Previous question"
+        ><ChevronLeft size={16} /></button>
+        <button
+          type="button"
+          onClick={() => {
+            if (currentIndex >= safeQuestions.length - 1) return;
+            setSkipped(prev => answers[currentIndex] === undefined ? new Set(prev).add(currentIndex) : prev);
+            setCurrentIndex(index => Math.min(safeQuestions.length - 1, index + 1));
+          }}
+          disabled={currentIndex >= safeQuestions.length - 1 || isSubmitting}
+          className="flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2 py-2 text-[10px] font-black text-amber-700 disabled:opacity-30"
+        ><SkipForward size={14} /> Skip</button>
+        <button
+          type="button"
+          onClick={() => setCurrentIndex(index => Math.min(safeQuestions.length - 1, index + 1))}
+          disabled={currentIndex >= safeQuestions.length - 1 || isSubmitting}
+          className="rounded-xl border border-slate-200 p-2 text-slate-600 disabled:opacity-30"
+          aria-label="Next question"
+        ><ChevronRight size={16} /></button>
+        <div className="ml-1 text-xs text-slate-600 font-medium">
           {Object.keys(answers).length} of {safeQuestions.length} Answered
+        </div>
         </div>
         <button
           onClick={() => {

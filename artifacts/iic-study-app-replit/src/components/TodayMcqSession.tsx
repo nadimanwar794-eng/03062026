@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, MCQItem, MCQResult, TopicItem, SystemSettings } from '../types';
-import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
+import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, ChevronLeft, SkipForward, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
@@ -20,6 +20,7 @@ import McqQuestionDisplay from './McqQuestionDisplay';
 import McqPracticeCard from './McqPracticeCard';
 import { getMcqOptions, normalizeMcqForTracking } from '../utils/mcqStructure';
 import { parseMcqQuestion } from '../utils/mcqRender';
+import McqQuestionNavigator from './McqQuestionNavigator';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -70,6 +71,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
     const [interleavedQuestions, setInterleavedQuestions] = useState<InterleavedQ[]>([]);
     const [qIndex, setQIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, number>>({});
+    const [skipped, setSkipped] = useState<Set<number>>(new Set());
     const [showSidebar, setShowSidebar] = useState(false);
     const [totalTime, setTotalTime] = useState(0);
     const [noMcqTopics, setNoMcqTopics] = useState<string[]>([]);
@@ -207,70 +209,9 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
 
     // ── Answer handler ────────────────────────────────────────────────────
     const handleAnswer = (optionIdx: number) => {
-        if (answers[qIndex] !== undefined) return;
-
-        // Today Revision Hub MCQs — NO daily MCQ limit applies here
-        const isCorrect = interleavedQuestions[qIndex]?.correctAnswer === optionIdx;
-        if (onTrackAnswer) {
-            if (!onTrackAnswer(isCorrect)) return;
-        }
-
-        // ── MCQ Scoring: +2 correct, -1 wrong, streak bonuses ─────────────────
-        if (user.id) {
-            const _subValid = SubscriptionEngine.isPremium(user);
-            const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
-                          _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
-            if (isCorrect) {
-                hapticCorrect();
-                const newStreak = mcqStreak + 1;
-                setMcqStreak(newStreak);
-                const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
-                const bonus = getMcqStreakBonus(newStreak);
-                const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`) : 0;
-                const totalPts = pts + bonusPts;
-                // Credits = ⅙ (routine on) ya ⅛ (routine off) of pts earned
-                const _routineOn = loadRoutineData(user.id).enabled;
-                const _creditRatio = _routineOn ? (1 / 6) : (1 / 8);
-                const _creditsEarned = totalPts > 0 ? Math.max(1, Math.floor(totalPts * _creditRatio)) : 0;
-                if (totalPts > 0) {
-                    const _u = userRef.current;
-                    if (_u && onUpdateUser) {
-                        deferStudyCoins(_u.id, _creditsEarned);
-                        const updated = {
-                            ..._u,
-                            totalScore: (_u.totalScore || 0) + totalPts,
-                        };
-                        onUpdateUser(updated);
-                        saveUserToLive(updated);
-                        // Home-sync key update — yahi pts ab credit sync se skip honge
-                        try { localStorage.setItem(`nst_credit_sync_score_${_u.id}`, String((_u.totalScore || 0) + totalPts)); } catch {}
-                    }
-                    showMcqScore(totalPts, _creditsEarned);
-                }
-            } else {
-                hapticWrong();
-                setMcqStreak(0);
-                subtractDailyScore(user.id, 1);
-                const _u = userRef.current;
-                if (_u && onUpdateUser) {
-                    const updated = { ..._u, totalScore: Math.max(0, (_u.totalScore || 0) - 1) };
-                    onUpdateUser(updated);
-                    saveUserToLive(updated);
-                }
-                showMcqScore(-1);
-            }
-        }
-
-        const newAnswers = { ...answers, [qIndex]: optionIdx };
-        setAnswers(newAnswers);
-
-        setTimeout(() => {
-            if (qIndex < interleavedQuestions.length - 1) {
-                setQIndex(prev => prev + 1);
-            } else {
-                finishSession(newAnswers);
-            }
-        }, 500);
+        // Answers stay editable until the user submits the complete session.
+        setAnswers(prev => ({ ...prev, [qIndex]: optionIdx }));
+        setSkipped(prev => { const next = new Set(prev); next.delete(qIndex); return next; });
     };
 
     // ── Finish: reconstruct per-topic results + mega result ───────────────
@@ -278,6 +219,44 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
         if (interleavedQuestions.length === 0) {
             onClose();
             return;
+        }
+
+        // Score once, from the final answer map, so changing an answer never
+        // awards points twice or leaves the result different from the UI.
+        if (user.id) {
+            let earnedPoints = 0;
+            let streak = 0;
+            const _subValid = SubscriptionEngine.isPremium(user);
+            const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+                          _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+            interleavedQuestions.forEach((q, index) => {
+                const selected = finalAnswers[index];
+                if (selected === undefined) return;
+                const isCorrect = selected === q.correctAnswer;
+                onTrackAnswer?.(isCorrect);
+                if (isCorrect) {
+                    streak += 1;
+                    earnedPoints += tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
+                    const bonus = getMcqStreakBonus(streak);
+                    if (bonus > 0) earnedPoints += tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${streak}`);
+                } else {
+                    streak = 0;
+                    subtractDailyScore(user.id, 1);
+                }
+            });
+            setMcqStreak(streak);
+            if (earnedPoints > 0) {
+                const _routineOn = loadRoutineData(user.id).enabled;
+                const credits = Math.max(1, Math.floor(earnedPoints * (_routineOn ? 1 / 6 : 1 / 8)));
+                const _u = userRef.current;
+                if (_u && onUpdateUser) {
+                    deferStudyCoins(_u.id, credits);
+                    const updated = { ..._u, totalScore: (_u.totalScore || 0) + earnedPoints };
+                    onUpdateUser(updated);
+                    saveUserToLive(updated);
+                }
+                showMcqScore(earnedPoints, credits);
+            }
         }
 
         const thresholds = settings?.revisionConfig?.thresholds ?? { strong: 65, average: 50, mastery: 80 };
@@ -884,8 +863,16 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 />
             </div>
 
-            {/* Question */}
-            <div className="flex-1 overflow-y-auto p-6 pb-24">
+            {/* Question palette + current question */}
+            <div className="flex-1 overflow-y-auto p-4 pb-24">
+                <McqQuestionNavigator
+                    total={interleavedQuestions.length}
+                    currentIndex={qIndex}
+                    answers={answers}
+                    skipped={skipped}
+                    onJump={setQIndex}
+                    className="mb-4"
+                />
                 {/* Topic badge */}
                 <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold mb-4 ${topicColor}`}>
                     <Tag size={10} />
@@ -899,6 +886,36 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     answered={answers[qIndex] !== undefined}
                     onSelect={handleAnswer}
                 />
+                <div className="mt-4 flex items-center justify-between gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setQIndex(index => Math.max(0, index - 1))}
+                        disabled={qIndex === 0}
+                        className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:opacity-30"
+                    >
+                        <ChevronLeft size={15} /> Pichla
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (qIndex >= interleavedQuestions.length - 1) return;
+                            setSkipped(prev => answers[qIndex] === undefined ? new Set(prev).add(qIndex) : prev);
+                            setQIndex(index => Math.min(interleavedQuestions.length - 1, index + 1));
+                        }}
+                        disabled={qIndex >= interleavedQuestions.length - 1}
+                        className="flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700 disabled:opacity-30"
+                    >
+                        Skip <SkipForward size={15} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setQIndex(index => Math.min(interleavedQuestions.length - 1, index + 1))}
+                        disabled={qIndex >= interleavedQuestions.length - 1}
+                        className="flex items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-white disabled:opacity-30"
+                    >
+                        Agla <ChevronRight size={15} />
+                    </button>
+                </div>
             </div>
 
             {/* ── Projector Mode Overlay ── */}
