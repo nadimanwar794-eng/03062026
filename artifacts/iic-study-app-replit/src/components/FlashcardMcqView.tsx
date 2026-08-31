@@ -1082,6 +1082,14 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   <RotateCw size={13} />
                   {projectorRotated ? 'Portrait' : 'Landscape'}
                 </button>
+                 {/* Focus / fullscreen button */}
+                 <button
+                   onClick={() => setProjectorFocused(true)}
+                   title="Focus Mode"
+                   aria-label="Open Focus Mode"
+                   style={{ flexShrink:0, width:36, height:36, background:'#f0fdf4', border:'2px solid #bbf7d0', borderRadius:12, color:'#16a34a', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                   <Maximize2 size={18} />
+                 </button>
               </div>
             )}
             {/* Scrollable content — shared Revision Hub card, scaled for projection */}
@@ -1148,12 +1156,6 @@ export const FlashcardMcqView: React.FC<Props> = ({
                     disabled={projectorQIndex === 0}
                     style={{ background: projectorQIndex===0 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex===0 ? '#94a3b8' : '#fff', border:'none', borderRadius:10, padding:'10px 18px', fontSize:15, fontWeight:900, cursor: projectorQIndex===0 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                     <ChevronLeft size={18} /> Prev
-                  </button>
-                  <button
-                    onClick={() => setProjectorFocused(true)}
-                    title="Focus Mode"
-                    style={{ background:'#f0fdf4', border:'2px solid #bbf7d0', borderRadius:10, color:'#16a34a', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding: '10px 14px', flexShrink: 0 }}>
-                    <Maximize2 size={20} />
                   </button>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {canSubmit ? (
