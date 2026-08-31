@@ -253,6 +253,7 @@ import { FlashcardMcqView } from "./FlashcardMcqView";
 import { shouldShowMcqOptions } from "../utils/mcqRender";
 import McqQuestionDisplay from "./McqQuestionDisplay";
 import McqPracticeCard from "./McqPracticeCard";
+import McqQuestionNavigator from "./McqQuestionNavigator";
 import { deferStudyCoins } from "../utils/studyRewards";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
 import { WriteModeCorrection } from "./WriteModeCorrection";
@@ -2747,6 +2748,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [compMcqSubmitted, setCompMcqSubmitted] = useState<Record<number, boolean>>({});
   const [compMcqCurrentIdx, setCompMcqCurrentIdx] = useState(0);
   const [compMcqShowReview, setCompMcqShowReview] = useState(false);
+  const [compMcqNavigatorOpen, setCompMcqNavigatorOpen] = useState(false);
+  const [compMcqSkipped, setCompMcqSkipped] = useState<Set<number>>(new Set());
   const [class612SubjectView, setClass612SubjectView] = useState<{ classLevel: string; subject: Subject } | null>(null);
   const [lucentCategoryView, setLucentCategoryView] = useState(false);
   // Which book is selected inside the Lucent category view (null = book-selection screen)
@@ -3236,6 +3239,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [hwAnswers, setHwAnswers] = useState<Record<string, number>>({});
   const [hwPendingAnswers, setHwPendingAnswers] = useState<Record<string, number>>({});
   const [hwManualSubmitted, setHwManualSubmitted] = useState<Record<string, boolean>>({});
+  const [hwMcqNavigatorOpen, setHwMcqNavigatorOpen] = useState<Record<string, boolean>>({});
+  const [hwMcqSkipped, setHwMcqSkipped] = useState<Record<string, Set<number>>>({});
 
   // ---- COMPETITION CUSTOM MCQ HUB (admin + student created practice MCQs) ----
   const [showCompMcqHub, setShowCompMcqHub] = useState(false);
@@ -3247,6 +3252,10 @@ export const StudentDashboard: React.FC<Props> = ({
   });
   const [compMcqIndex, setCompMcqIndex] = useState(0);
   const [compMcqSelected, setCompMcqSelected] = useState<number | null>(null);
+  const [compHubAnswers, setCompHubAnswers] = useState<Record<number, number>>({});
+  const [compHubSkipped, setCompHubSkipped] = useState<Set<number>>(new Set());
+  const [compHubNavigatorOpen, setCompHubNavigatorOpen] = useState(false);
+  const [compHubSubmitted, setCompHubSubmitted] = useState(false);
   // Practice MCQ display mode: 'mcq' (interactive single-question) | 'qa' (all
   // questions Q&A reveal-on-tap, jaisa Homework Q&A mode hota hai). Flashcard
   // mode FlashcardMcqView overlay launch karta hai (same shared component).
@@ -3640,6 +3649,8 @@ export const StudentDashboard: React.FC<Props> = ({
   const [lucentMcqAnswers, setLucentMcqAnswers] = useState<Record<string, number>>({});
   // One-at-a-time index for interactive MCQ mode (per pageKey)
   const [lucentMcqCurrentIdx, setLucentMcqCurrentIdx] = useState<Record<string, number>>({});
+  const [lucentMcqNavigatorOpen, setLucentMcqNavigatorOpen] = useState<Record<string, boolean>>({});
+  const [lucentMcqSkipped, setLucentMcqSkipped] = useState<Record<string, Set<number>>>({});
   // Submitted state per pageKey — colors/explanation only shown after submit
   const [lucentMcqSubmitted, setLucentMcqSubmitted] = useState<Record<string, boolean>>({});
   // Show review/result screen (per pageKey) — triggered by "Submit & Review" button
@@ -8881,6 +8892,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                     setHwPendingAnswers({});
                                     setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: 0 }));
                                     setHwManualSubmitted(prev => { const n = { ...prev }; delete n[hwKey]; return n; });
+                                  setHwMcqNavigatorOpen(prev => ({ ...prev, [hwKey]: false }));
+                                  setHwMcqSkipped(prev => ({ ...prev, [hwKey]: new Set() }));
                                   }}
                                   className={`flex-1 text-[13px] font-black ${theme.text} ${theme.bgSoft} py-3 rounded-2xl active:scale-95 transition-all`}
                                 >🔄 Try Again</button>
@@ -8899,6 +8912,11 @@ export const StudentDashboard: React.FC<Props> = ({
                       const selected = hwAnswers[ansKey];
                       const isAnswered = selected !== undefined;
                       const pendingOpt = hwPendingAnswers[ansKey];
+                      const hwNavigatorAnswers = mcqs.reduce((acc: Record<number, number>, _q: any, i: number) => {
+                        const value = hwPendingAnswers[`${hwKey}_${i}`] ?? hwAnswers[`${hwKey}_${i}`];
+                        if (value !== undefined) acc[i] = value;
+                        return acc;
+                      }, {});
 
                       return (
                         <div>
@@ -8911,6 +8929,26 @@ export const StudentDashboard: React.FC<Props> = ({
                               <div className="h-full bg-indigo-500 transition-all rounded-full" style={{ width: `${((ci + 1) / Math.max(1, totalQ)) * 100}%` }} />
                             </div>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setHwMcqNavigatorOpen(prev => ({ ...prev, [hwKey]: !prev[hwKey] }))}
+                            className="w-full mb-3 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
+                          >
+                            <List size={15} /> {hwMcqNavigatorOpen[hwKey] ? 'Hide' : 'All Questions'} · {Object.keys(hwNavigatorAnswers).length}/{totalQ} attempted
+                          </button>
+                          {hwMcqNavigatorOpen[hwKey] && (
+                            <McqQuestionNavigator
+                              total={totalQ}
+                              currentIndex={ci}
+                              answers={hwNavigatorAnswers}
+                              skipped={hwMcqSkipped[hwKey] || new Set<number>()}
+                              onJump={(index) => {
+                                setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: index }));
+                                setHwMcqNavigatorOpen(prev => ({ ...prev, [hwKey]: false }));
+                              }}
+                              className="mb-3"
+                            />
+                          )}
                           {/* Threshold indicator */}
                           {attempted < submitThreshold ? (
                             <div className="mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
@@ -8925,9 +8963,14 @@ export const StudentDashboard: React.FC<Props> = ({
                           ) : (
                             <button
                               onClick={() => {
+                                const answersForSubmit = { ...hwAnswers };
+                                Object.entries(hwPendingAnswers).forEach(([key, value]) => {
+                                  if (key.startsWith(`${hwKey}_`)) answersForSubmit[key] = value;
+                                });
+                                setHwAnswers(answersForSubmit);
                                 try {
                                   const wrongEntries = mcqs.reduce((acc: any[], q: any, qi: number) => {
-                                    const sel = hwAnswers[`${hwKey}_${qi}`];
+                                    const sel = answersForSubmit[`${hwKey}_${qi}`];
                                     if (sel !== undefined && sel !== q.correctAnswer) {
                                       acc.push({
                                         question: q.question,
@@ -8945,8 +8988,8 @@ export const StudentDashboard: React.FC<Props> = ({
                                   if (wrongEntries.length > 0) addMistakes(wrongEntries).catch(() => {});
                                 } catch {}
                                 // Award MCQ pts on submit: 2 pts correct, 1 pt wrong (base before multiplier)
-                                const _hwRight = mcqs.reduce((a: number, m: any, i: number) => { const s = hwAnswers[`${hwKey}_${i}`]; return (s !== undefined && s === m.correctAnswer) ? a + 1 : a; }, 0);
-                                const _hwAttempted = mcqs.reduce((a: number, _m: any, i: number) => hwAnswers[`${hwKey}_${i}`] !== undefined ? a + 1 : a, 0);
+                                const _hwRight = mcqs.reduce((a: number, m: any, i: number) => { const s = answersForSubmit[`${hwKey}_${i}`]; return (s !== undefined && s === m.correctAnswer) ? a + 1 : a; }, 0);
+                                const _hwAttempted = mcqs.reduce((a: number, _m: any, i: number) => answersForSubmit[`${hwKey}_${i}`] !== undefined ? a + 1 : a, 0);
                                 const _hwBaseScore = _hwRight * 2 + (_hwAttempted - _hwRight) * 1;
                                 if (_hwBaseScore > 0) {
                                   const _freshU = userRef.current;
@@ -8973,7 +9016,9 @@ export const StudentDashboard: React.FC<Props> = ({
                              selectedOption={pendingOpt ?? selected ?? null}
                              answered={isAnswered}
                              onSelect={(oi) => {
-                               if (!isAnswered) setHwPendingAnswers(prev => ({ ...prev, [ansKey]: oi }));
+                               // Keep the latest choice as a pending edit until
+                               // Next or the final submit commits it.
+                               setHwPendingAnswers(prev => ({ ...prev, [ansKey]: oi }));
                              }}
                              actions={(
                                <>
@@ -8988,7 +9033,7 @@ export const StudentDashboard: React.FC<Props> = ({
                            />
                             {isAnswered && (
                               <div className="mt-3 px-3 py-2 rounded-xl text-[11px] font-black bg-slate-100 text-slate-500 text-center">
-                                ✅ Answer locked — go to next question
+                                ✏️ Selected answer — you can change it before final submit
                               </div>
                             )}
                           {/* Navigation */}
@@ -9002,15 +9047,20 @@ export const StudentDashboard: React.FC<Props> = ({
                             {/* Skip — only when not answered and not last question */}
                             {!isAnswered && ci < totalQ - 1 && (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: ci + 1 })); }}
+                                onClick={() => {
+                                  if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current);
+                                  setHwMcqSkipped(prev => ({ ...prev, [hwKey]: new Set([...(prev[hwKey] || new Set<number>()), ci]) }));
+                                  setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: ci + 1 }));
+                                }}
                                 className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition"
                               >Skip <ChevronRight size={13} /></button>
                             )}
                             {ci < totalQ - 1 ? (
                               <button onClick={() => {
                                 if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current);
-                                // Auto-submit pending answer if any
-                                if (!isAnswered && pendingOpt !== undefined) {
+                                // Commit the latest choice, including an edit,
+                                // before moving to the next question.
+                                if (pendingOpt !== undefined) {
                                   const isCorrect = mcq.correctAnswer === pendingOpt;
                                   if (!trackDailyMcqAnswer(isCorrect)) return;
                                   setHwAnswers(prev => ({ ...prev, [ansKey]: pendingOpt }));
@@ -16113,11 +16163,18 @@ export const StudentDashboard: React.FC<Props> = ({
         const allMcqs = [...adminMcqs, ...userMcqs];
         const safeIdx = Math.min(compMcqIndex, Math.max(0, allMcqs.length - 1));
         const current = allMcqs[safeIdx];
+        const hubSelected = compHubAnswers[safeIdx] ?? null;
+        const hubAttempted = Object.keys(compHubAnswers).length;
+        const hubCorrect = Object.entries(compHubAnswers).reduce((count, [key, value]) => (
+          count + (allMcqs[Number(key)]?.correctAnswer === value ? 1 : 0)
+        ), 0);
 
         const closeHub = () => {
           setShowCompMcqHub(false);
           setCompMcqSelected(null);
           setCompMcqIndex(0);
+          setCompHubSubmitted(false);
+          setCompHubNavigatorOpen(false);
         };
 
         const saveDraft = () => {
@@ -16141,12 +16198,21 @@ export const StudentDashboard: React.FC<Props> = ({
           setCompMcqTab('PRACTICE');
           setCompMcqIndex((user.customMcqs?.length || 0) + adminMcqs.length);
           setCompMcqSelected(null);
+          setCompHubSubmitted(false);
         };
 
         const deleteUserMcq = (userMcqIndex: number) => {
           const updated = (user.customMcqs || []).filter((_, i) => i !== userMcqIndex);
           handleUserUpdate({ ...user, customMcqs: updated });
           setCompMcqSelected(null);
+          setCompHubAnswers(prev => {
+            const next: Record<number, number> = {};
+            Object.entries(prev).forEach(([key, value]) => {
+              const index = Number(key);
+              if (index < allMcqs.length - 1) next[index] = value;
+            });
+            return next;
+          });
           setCompMcqIndex(prev => Math.max(0, prev - 1));
         };
 
@@ -16358,6 +16424,45 @@ export const StudentDashboard: React.FC<Props> = ({
                           </span>
                         </div>
 
+                        <button
+                          type="button"
+                          onClick={() => setCompHubNavigatorOpen(open => !open)}
+                          className="w-full py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
+                        >
+                          <List size={15} /> {compHubNavigatorOpen ? 'Hide' : 'All Questions'} · {hubAttempted}/{allMcqs.length} attempted
+                        </button>
+                        {compHubNavigatorOpen && (
+                          <McqQuestionNavigator
+                            total={allMcqs.length}
+                            currentIndex={safeIdx}
+                            answers={compHubAnswers}
+                            skipped={compHubSkipped}
+                            onJump={(index) => {
+                              setCompMcqIndex(index);
+                              setCompMcqSelected(compHubAnswers[index] ?? null);
+                              setCompHubNavigatorOpen(false);
+                            }}
+                            className="mb-1"
+                          />
+                        )}
+
+                        {compHubSubmitted && (
+                          <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white shadow-md">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/70">Quiz Result</p>
+                            <div className="flex items-end gap-3 mt-1">
+                              <span className="text-3xl font-black">{hubCorrect}/{hubAttempted}</span>
+                              <span className="text-xs font-bold text-white/80 mb-1">correct · {hubAttempted}/{allMcqs.length} attempted</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setCompHubSubmitted(false)}
+                              className="mt-3 rounded-xl bg-white/20 px-3 py-2 text-[11px] font-black active:scale-95 transition"
+                            >
+                              Edit Answers
+                            </button>
+                          </div>
+                        )}
+
                         {/* Question Card */}
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                           <div className="flex items-start gap-2 mb-5">
@@ -16383,9 +16488,9 @@ export const StudentDashboard: React.FC<Props> = ({
                           </div>
                           <div className="space-y-2.5">
                             {current.options.map((opt, oi) => {
-                              const isSelected = compMcqSelected === oi;
+                              const isSelected = hubSelected === oi;
                               const isCorrect = oi === current.correctAnswer;
-                              const showResult = compMcqSelected !== null;
+                              const showResult = compHubSubmitted;
                               let cls = 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
                               if (showResult) {
                                 if (isCorrect) cls = 'border-emerald-400 bg-emerald-50 text-emerald-800';
@@ -16397,8 +16502,14 @@ export const StudentDashboard: React.FC<Props> = ({
                                   key={oi}
                                   disabled={showResult}
                                   onClick={() => {
-                                    if (!trackDailyMcqAnswer(oi === current.correctAnswer)) return;
+                                    if (compHubAnswers[safeIdx] === undefined && !trackDailyMcqAnswer(oi === current.correctAnswer)) return;
+                                    setCompHubAnswers(prev => ({ ...prev, [safeIdx]: oi }));
                                     setCompMcqSelected(oi);
+                                    setCompHubSkipped(prev => {
+                                      const next = new Set(prev);
+                                      next.delete(safeIdx);
+                                      return next;
+                                    });
                                   }}
                                   className={`w-full text-left p-3.5 rounded-xl border-2 font-semibold text-sm transition-colors flex items-start gap-3 ${cls}`}
                                 >
@@ -16417,15 +16528,11 @@ export const StudentDashboard: React.FC<Props> = ({
                           </div>
 
                           {/* Feedback */}
-                          {compMcqSelected !== null && (
+                          {hubSelected !== null && !compHubSubmitted && (
                             <div className={`mt-4 p-3 rounded-xl text-sm font-bold ${
-                              compMcqSelected === current.correctAnswer
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : 'bg-rose-100 text-rose-800 border border-rose-200'
+                              'bg-blue-50 text-blue-800 border border-blue-200'
                             }`}>
-                              {compMcqSelected === current.correctAnswer
-                                ? '✅ Correct answer!'
-                                : `❌ Wrong. Correct answer: Option ${String.fromCharCode(65 + current.correctAnswer)}`}
+                              ✏️ Selected answer — tap another option to change it before submit
                             </div>
                           )}
                         </div>
@@ -16433,7 +16540,11 @@ export const StudentDashboard: React.FC<Props> = ({
                         {/* Nav */}
                         <div className="flex items-center justify-between gap-3">
                           <button
-                            onClick={() => { setCompMcqIndex(Math.max(0, safeIdx - 1)); setCompMcqSelected(null); }}
+                            onClick={() => {
+                              const index = Math.max(0, safeIdx - 1);
+                              setCompMcqIndex(index);
+                              setCompMcqSelected(compHubAnswers[index] ?? null);
+                            }}
                             disabled={safeIdx === 0}
                             className="flex-1 py-3 rounded-xl bg-white border border-slate-200 font-bold text-sm text-slate-700 disabled:opacity-40 active:scale-95 transition-transform"
                           >
@@ -16452,13 +16563,39 @@ export const StudentDashboard: React.FC<Props> = ({
                             </button>
                           )}
                           <button
-                            onClick={() => { setCompMcqIndex(Math.min(allMcqs.length - 1, safeIdx + 1)); setCompMcqSelected(null); }}
+                            onClick={() => {
+                              if (safeIdx >= allMcqs.length - 1) return;
+                              if (hubSelected === null) setCompHubSkipped(prev => new Set([...prev, safeIdx]));
+                              const index = Math.min(allMcqs.length - 1, safeIdx + 1);
+                              setCompMcqIndex(index);
+                              setCompMcqSelected(compHubAnswers[index] ?? null);
+                            }}
+                            disabled={safeIdx >= allMcqs.length - 1 || compHubSubmitted}
+                            className="px-3 py-3 rounded-xl bg-amber-50 border border-amber-200 font-bold text-xs text-amber-700 disabled:opacity-40 active:scale-95 transition-transform"
+                          >
+                            Skip
+                          </button>
+                          <button
+                            onClick={() => {
+                              const index = Math.min(allMcqs.length - 1, safeIdx + 1);
+                              setCompMcqIndex(index);
+                              setCompMcqSelected(compHubAnswers[index] ?? null);
+                            }}
                             disabled={safeIdx >= allMcqs.length - 1}
                             className="flex-1 py-3 rounded-xl bg-orange-600 text-white font-bold text-sm disabled:opacity-40 active:scale-95 transition-transform"
                           >
                             Next →
                           </button>
                         </div>
+                        {hubAttempted > 0 && !compHubSubmitted && (
+                          <button
+                            type="button"
+                            onClick={() => setCompHubSubmitted(true)}
+                            className="w-full py-3 rounded-xl bg-emerald-600 text-white font-black text-sm shadow-md active:scale-95 transition"
+                          >
+                            Submit Quiz · See Result ({hubAttempted}/{allMcqs.length})
+                          </button>
+                        )}
                           </>
                         )}
                       </div>
@@ -21134,10 +21271,15 @@ RULES:
                         lucentMcqQStartTsRef.current[pageKey] = Date.now();
                       }
 
-                      // Auto-submit + auto-advance on option click
+                      // Select an option without locking it or moving away.
                       const handleOptionClick = (oi: number) => {
-                        if (isAnswered) return;
                         const key = `${pageKey}_${realIdx}`;
+                        // A second click is an edit, not a second attempt. Keep
+                        // the existing attempt count and scoring unchanged.
+                        if (isAnswered) {
+                          setLucentMcqAnswers(prev => ({ ...prev, [key]: oi }));
+                          return;
+                        }
                         const isCorrectAns = oi === cq.correctAnswer;
                         if (!trackDailyMcqAnswer(isCorrectAns)) return;
 
@@ -21189,21 +21331,6 @@ RULES:
                               source: 'Competition',
                             }]);
                           } catch {}
-                        }
-                        // Auto-advance after 400ms if not in review mode and more questions remain
-                        if (!showReview && ci < totalQ - 1) {
-                          if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current);
-                          lucentAutoNextTimerRef.current = setTimeout(() => {
-                            const _nextCi = ci + 1;
-                            lucentMcqQStartTsRef.current[pageKey] = Date.now(); // reset Q start for next
-                            setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _nextCi }));
-                            if (lucentMcqAutoTts && effectiveMcqs[_nextCi]) {
-                              const _nq = effectiveMcqs[_nextCi];
-                              stopSpeech();
-                              const _nopts = (_nq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
-                              speakText(`Question ${_nextCi + 1}: ${_nq.question}. Options: ${_nopts}.`, null, 1.0, 'hi-IN', () => {}, () => {});
-                            }
-                          }, 400);
                         }
                       };
 
@@ -21394,6 +21521,31 @@ RULES:
                           </div>
 
                           {/* Submit & Review banner — appears after submitThreshold questions answered */}
+                          <button
+                            type="button"
+                            onClick={() => setLucentMcqNavigatorOpen(prev => ({ ...prev, [pageKey]: !prev[pageKey] }))}
+                            className="w-full mb-3 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
+                          >
+                            <List size={15} /> {lucentMcqNavigatorOpen[pageKey] ? 'Hide' : 'All Questions'} · {attempted}/{totalQ} attempted
+                          </button>
+                          {lucentMcqNavigatorOpen[pageKey] && (
+                            <McqQuestionNavigator
+                              total={totalQ}
+                              currentIndex={ci}
+                              answers={effectiveMcqs.reduce((acc: Record<number, number>, _q: any, i: number) => {
+                                const rIdx = _hurriedFilter ? _hurriedFilter[i] : i;
+                                const value = lucentMcqAnswers[`${pageKey}_${rIdx}`];
+                                if (lucentMcqSubmitted[`${pageKey}_${rIdx}`] && value !== undefined) acc[i] = value;
+                                return acc;
+                              }, {})}
+                              skipped={lucentMcqSkipped[pageKey] || new Set<number>()}
+                              onJump={(index) => {
+                                setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: index }));
+                                setLucentMcqNavigatorOpen(prev => ({ ...prev, [pageKey]: false }));
+                              }}
+                              className="mb-3"
+                            />
+                          )}
                           {canShowReview && (
                             <button
                               onClick={() => {
@@ -21470,7 +21622,18 @@ RULES:
                             {/* Skip — only when not answered and not last question */}
                             {!isAnswered && ci < totalQ - 1 && (
                               <button
-                                onClick={() => { if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current); const _sci = ci + 1; setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _sci })); if (lucentMcqAutoTts && effectiveMcqs[_sci]) { const _sq = effectiveMcqs[_sci]; stopSpeech(); const _sopts = (_sq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. '); speakText(`Question ${_sci + 1}: ${_sq.question}. Options: ${_sopts}.`, null, 1.0, 'hi-IN', () => {}, () => {}); } }}
+                                onClick={() => {
+                                  if (lucentAutoNextTimerRef.current) clearTimeout(lucentAutoNextTimerRef.current);
+                                  setLucentMcqSkipped(prev => ({ ...prev, [pageKey]: new Set([...(prev[pageKey] || new Set<number>()), ci]) }));
+                                  const _sci = ci + 1;
+                                  setLucentMcqCurrentIdx(prev => ({ ...prev, [pageKey]: _sci }));
+                                  if (lucentMcqAutoTts && effectiveMcqs[_sci]) {
+                                    const _sq = effectiveMcqs[_sci];
+                                    stopSpeech();
+                                    const _sopts = (_sq.options || []).map((o: string, i: number) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
+                                    speakText(`Question ${_sci + 1}: ${_sq.question}. Options: ${_sopts}.`, null, 1.0, 'hi-IN', () => {}, () => {});
+                                  }
+                                }}
                                 className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition"
                               >
                                 Skip <ChevronRight size={13} />
@@ -23310,15 +23473,8 @@ RULES:
         const canShowReview = attempted >= submitThreshold;
 
         const handleCompOption = (oi: number) => {
-          if (isAnswered) return;
           setCompMcqAnswers(prev => ({ ...prev, [ansKey]: oi }));
           setCompMcqSubmitted(prev => ({ ...prev, [ansKey]: true }));
-          if (ci < totalQ - 1) {
-            if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current);
-            compMcqAutoNextRef.current = setTimeout(() => {
-              setCompMcqCurrentIdx(prev => prev + 1);
-            }, 400);
-          }
         };
 
         const doCompRestart = () => {
@@ -23327,6 +23483,8 @@ RULES:
           setCompMcqSubmitted({});
           setCompMcqCurrentIdx(0);
           setCompMcqShowReview(false);
+          setCompMcqNavigatorOpen(false);
+          setCompMcqSkipped(new Set());
         };
 
         return (
@@ -23454,6 +23612,27 @@ RULES:
                     {attempted > 0 && <span className="text-[10px] font-bold text-slate-500 shrink-0">{attempted} done</span>}
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={() => setCompMcqNavigatorOpen(open => !open)}
+                    className="w-full mb-3 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
+                  >
+                    <List size={15} /> {compMcqNavigatorOpen ? 'Hide' : 'All Questions'} · {attempted}/{totalQ} attempted
+                  </button>
+                  {compMcqNavigatorOpen && (
+                    <McqQuestionNavigator
+                      total={totalQ}
+                      currentIndex={ci}
+                      answers={compMcqAnswers}
+                      skipped={compMcqSkipped}
+                      onJump={(index) => {
+                        setCompMcqCurrentIdx(index);
+                        setCompMcqNavigatorOpen(false);
+                      }}
+                      className="mb-3"
+                    />
+                  )}
+
                   {/* Submit & Review button */}
                   {canShowReview && (
                     <button onClick={() => setCompMcqShowReview(true)} className="w-full mb-3 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-md">
@@ -23483,7 +23662,11 @@ RULES:
                       <div className="py-3 px-4 rounded-2xl bg-slate-50 border-2 border-slate-100 text-slate-300 font-bold text-sm flex items-center gap-1 select-none"><ChevronLeft size={15} /> Prev</div>
                     )}
                     {!isAnswered && ci < totalQ - 1 && (
-                      <button onClick={() => { if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current); setCompMcqCurrentIdx(ci + 1); }} className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition">
+                      <button onClick={() => {
+                        if (compMcqAutoNextRef.current) clearTimeout(compMcqAutoNextRef.current);
+                        setCompMcqSkipped(prev => new Set([...prev, ci]));
+                        setCompMcqCurrentIdx(ci + 1);
+                      }} className="py-3 px-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 font-black text-xs flex items-center justify-center gap-1 active:scale-95 transition">
                         Skip <ChevronRight size={13} />
                       </button>
                     )}

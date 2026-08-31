@@ -608,6 +608,7 @@ export const LessonView: React.FC<Props> = ({
   const [showQuestionDrawer, setShowQuestionDrawer] = useState(false);
   const [showTopicSidebar, setShowTopicSidebar] = useState(false);
   const [batchIndex, setBatchIndex] = useState(0);
+  const [skippedQuestions, setSkippedQuestions] = useState<Set<number>>(new Set());
   const [comparisonMsg, setComparisonMsg] = useState('');
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<'CHAPTER_ANALYSIS' | 'OVERVIEW' | 'QUESTIONS' | 'MISTAKES'>('CHAPTER_ANALYSIS');
   // Auto-enable TTS for Premium Instant Explanation Mode
@@ -1815,6 +1816,7 @@ export const LessonView: React.FC<Props> = ({
           const key = `nst_mcq_progress_${chapter.id}`;
           storage.removeItem(key);
           setMcqState({});
+          setSkippedQuestions(new Set());
           setBatchIndex(0);
           setLocalMcqData([...(content.mcqData || [])].sort(() => Math.random() - 0.5));
           setShowResumePrompt(false);
@@ -1832,6 +1834,7 @@ export const LessonView: React.FC<Props> = ({
                   const shuffled = [...(content.mcqData || [])].sort(() => Math.random() - 0.5);
                   setLocalMcqData(shuffled);
                   setMcqState({});
+                  setSkippedQuestions(new Set());
                   setBatchIndex(0);
                   setShowResults(false);
                   setAnalysisUnlocked(false);
@@ -1872,12 +1875,18 @@ export const LessonView: React.FC<Props> = ({
       };
 
       const handleOptionSelect = (qIdx: number, oIdx: number) => {
-          if (mcqState[qIdx] !== undefined && mcqState[qIdx] !== null) return;
+          // Answers stay editable until the final submit.
+          const wasAnswered = mcqState[qIdx] !== undefined && mcqState[qIdx] !== null;
           setMcqState(prev => ({ ...prev, [qIdx]: oIdx }));
+          setSkippedQuestions(prev => {
+              const next = new Set(prev);
+              next.delete(qIdx);
+              return next;
+          });
           const isCorrect = oIdx === displayData[qIdx].correctAnswer;
 
           // ── MCQ Scoring: +2 correct, -1 wrong, streak bonuses ────────────────
-          if (user?.id && !showResults) {
+          if (user?.id && !showResults && !wasAnswered) {
               const _subValid = !!(user.isPremium || (user.subscriptionTier && user.subscriptionTier !== 'FREE'));
               const _tier = user.subscriptionTier || 'FREE';
               if (isCorrect) {
@@ -1914,34 +1923,8 @@ export const LessonView: React.FC<Props> = ({
               }
           }
 
-          // Auto-Next Logic — only for instantExplanation (premium) mode
-          if (!showResults && (batchIndex + 1) * BATCH_SIZE < displayData.length) {
-              if (instantExplanation) {
-                  // PREMIUM FLOW
-                  if (isCorrect) {
-                      // Correct: Short delay then next
-                      setTimeout(nextQuestion, 1000);
-                  } else {
-                      // Wrong: Speak feedback then next
-                      const correctOpt = displayData[qIdx].options[displayData[qIdx].correctAnswer];
-                      const explanation = displayData[qIdx].explanation || "";
-
-                      const feedback = `Wrong Answer. The correct answer is ${stripHtml(correctOpt)}. ${stripHtml(explanation)}`;
-
-                      speakText(
-                          feedback,
-                          null,
-                          1.0,
-                          language === 'Hindi' ? 'hi-IN' : 'en-US',
-                          undefined,
-                          () => {
-                              nextQuestion();
-                          }
-                      );
-                  }
-              }
-              // STANDARD FLOW: No auto-next. User clicks Next button manually.
-          }
+          // Deliberately do not auto-advance. This lets students review and
+          // change an answer before submitting the quiz.
       };
 
       const handleSubmitRequest = () => {
@@ -2436,6 +2419,8 @@ export const LessonView: React.FC<Props> = ({
                                             btnClass += "bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-200 scale-105 ring-4 ring-amber-100";
                                         } else if (isAnswered) {
                                             btnClass += "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 ring-1 ring-emerald-100/50";
+                                        } else if (skippedQuestions.has(idx)) {
+                                            btnClass += "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200";
                                         } else {
                                             btnClass += "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300";
                                         }
@@ -2457,8 +2442,9 @@ export const LessonView: React.FC<Props> = ({
                             </div>
                             <div className="p-4 border-t bg-[#FDFBF7] text-sm font-medium text-slate-600 flex justify-center gap-4 flex-wrap rounded-b-xl border-amber-100">
                                 <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-emerald-50 border border-emerald-200 shadow-sm"></div> <span className="text-emerald-700">Answered</span></div>
+                                <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-amber-100 border border-amber-300 shadow-sm"></div> <span className="text-amber-700">Skipped</span></div>
                                 <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-amber-500 border border-amber-600 shadow-sm"></div> <span className="text-amber-700">Current</span></div>
-                                <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-white border border-slate-200 shadow-sm"></div> <span>Unattempted</span></div>
+                                <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-white border border-slate-200 shadow-sm"></div> <span className="text-slate-500">Unattempted</span></div>
                             </div>
                         </div>
                    </div>
@@ -2611,9 +2597,13 @@ export const LessonView: React.FC<Props> = ({
                        </div>
                    </div>
                    {/* All Questions button */}
-                   <button onClick={() => setShowQuestionDrawer(true)}
+                   <button
+                       onClick={() => setShowQuestionDrawer(true)}
+                       aria-label="Open all questions"
+                       title="All Questions"
                        className="shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/20 hover:bg-white/20 text-white font-black text-[11px] px-2.5 py-1.5 rounded-xl transition-colors">
                        <Grip size={14} />
+                       <span className="text-[10px] font-black text-white/90">Questions</span>
                        <span className="text-[10px] font-black text-white/70">{attemptedCount}/{displayData.length}</span>
                    </button>
                    {/* Projector Mode button — admin/subadmin only */}
@@ -3428,6 +3418,20 @@ export const LessonView: React.FC<Props> = ({
                    {/* Logic for Single Question Navigation */}
                    {!showResults && (
                        <>
+                           {hasMore && (
+                               <button
+                                   onClick={() => {
+                                       const qIdx = batchIndex * BATCH_SIZE;
+                                       if (mcqState[qIdx] === undefined || mcqState[qIdx] === null) {
+                                           setSkippedQuestions(prev => new Set([...prev, qIdx]));
+                                       }
+                                       handleNextPage();
+                                   }}
+                                   className="flex-1 py-3 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-2"
+                               >
+                                   Skip <ChevronRight size={18} />
+                               </button>
+                           )}
                            {hasMore ? (
                                 <button
                                    onClick={handleNextPage}
