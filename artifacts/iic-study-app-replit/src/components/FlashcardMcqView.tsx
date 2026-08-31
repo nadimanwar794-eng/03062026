@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ChevronRight, ChevronLeft, RotateCw, Volume2, Square, Shuffle, Lightbulb, Edit2, X, MoreVertical, RefreshCw, BookOpen, Tv, CheckCircle, Maximize2, Minimize2, List } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronLeft, RotateCw, Volume2, Square, Shuffle, Lightbulb, Edit2, X, MoreVertical, RefreshCw, BookOpen, Tv, CheckCircle, Maximize2, Minimize2, LayoutGrid } from 'lucide-react';
 import type { MCQItem } from '../types';
 import type { User, SystemSettings } from '../types';
 import { speakText, stopSpeech } from '../utils/textToSpeech';
@@ -1037,6 +1037,28 @@ export const FlashcardMcqView: React.FC<Props> = ({
         return createPortal(
           <div style={overlayStyle}>
             {tabBar}
+             {projectorFocused && (
+               <div style={{ position:'absolute', top:12, right:12, zIndex:30, display:'flex', alignItems:'center', gap:8 }}>
+                 <button
+                   onClick={async () => {
+                     const result = await rotateScreen();
+                     if (result !== null) { setProjectorRotated(result === 'landscape'); }
+                     else { alert('📱 Phone ko physically rotate karein — landscape ke liye sideways, portrait ke liye seedha.'); }
+                   }}
+                   title={projectorRotated ? 'Portrait mode' : 'Landscape mode'}
+                   aria-label={projectorRotated ? 'Portrait mode' : 'Landscape mode'}
+                   style={{ width:36, height:36, background:'rgba(248,250,252,0.94)', border: projectorRotated ? '1px solid #c4b5fd' : '1px solid #e2e8f0', borderRadius:12, color: projectorRotated ? '#7c3aed' : '#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(15,23,42,0.12)' }}>
+                   <RotateCw size={15} />
+                 </button>
+                 <button
+                   onClick={() => setProjectorNavigatorOpen(open => !open)}
+                   title="All Questions"
+                   aria-label="All Questions"
+                   style={{ width:36, height:36, background: projectorNavigatorOpen ? '#e0e7ff' : 'rgba(248,250,252,0.94)', border: projectorNavigatorOpen ? '1px solid #a5b4fc' : '1px solid #e2e8f0', borderRadius:12, color:'#4338ca', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 14px rgba(15,23,42,0.12)' }}>
+                   <LayoutGrid size={17} />
+                 </button>
+               </div>
+             )}
             {/* Header — hidden in focus mode */}
             {!projectorFocused && (
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderBottom:'1px solid #f1f5f9', background:'#ffffff', flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
@@ -1090,7 +1112,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   style={{ flexShrink:0, padding:'7px 10px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:12, color: projectorFontIdx === PROJ_FONT_SIZES.length - 1 ? '#cbd5e1' : '#475569', fontSize:13, fontWeight:900, cursor: projectorFontIdx === PROJ_FONT_SIZES.length - 1 ? 'not-allowed' : 'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:1, minWidth:36 }}>
                   <span style={{ lineHeight:1 }}>A+</span>
                 </button>
-                {/* Rotate button */}
+                 {/* Rotate button — icon-only to keep the projector toolbar compact */}
                 <button
                   onClick={async () => {
                     const result = await rotateScreen();
@@ -1098,10 +1120,18 @@ export const FlashcardMcqView: React.FC<Props> = ({
                     else { alert('📱 Phone ko physically rotate karein — landscape ke liye sideways, portrait ke liye seedha.'); }
                   }}
                   title={projectorRotated ? 'Portrait mode' : 'Landscape mode'}
-                  style={{ flexShrink:0, padding:'7px 10px', background: projectorRotated ? '#ede9fe' : '#f8fafc', border: projectorRotated ? '1px solid #c4b5fd' : '1px solid #e2e8f0', borderRadius:12, color: projectorRotated ? '#7c3aed' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+                   aria-label={projectorRotated ? 'Portrait mode' : 'Landscape mode'}
+                   style={{ flexShrink:0, width:36, height:36, background: projectorRotated ? '#ede9fe' : '#f8fafc', border: projectorRotated ? '1px solid #c4b5fd' : '1px solid #e2e8f0', borderRadius:12, color: projectorRotated ? '#7c3aed' : '#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <RotateCw size={13} />
-                  {projectorRotated ? 'Portrait' : 'Landscape'}
                 </button>
+                 {/* All questions — compact 9-dot button beside rotate */}
+                 <button
+                   onClick={() => setProjectorNavigatorOpen(open => !open)}
+                   title="All Questions"
+                   aria-label="All Questions"
+                   style={{ flexShrink:0, width:36, height:36, background: projectorNavigatorOpen ? '#e0e7ff' : '#f8fafc', border: projectorNavigatorOpen ? '1px solid #a5b4fc' : '1px solid #e2e8f0', borderRadius:12, color:'#4338ca', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                   <LayoutGrid size={17} />
+                 </button>
                  {/* Focus / fullscreen button */}
                  <button
                    onClick={() => setProjectorFocused(true)}
@@ -1115,32 +1145,23 @@ export const FlashcardMcqView: React.FC<Props> = ({
             {/* Scrollable content — shared Revision Hub card, scaled for projection */}
             <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px 24px 24px' : '18px 24px 12px', minHeight:0 }}>
               <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-                {!projectorFocused && (
-                  <div style={{ marginBottom: 14 }}>
-                    <button
-                      type="button"
-                      onClick={() => setProjectorNavigatorOpen(open => !open)}
-                      style={{ width:'100%', background:'#eef2ff', color:'#4338ca', border:'1px solid #c7d2fe', borderRadius:12, padding:'9px 12px', fontSize:13, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}
-                    >
-                      <List size={16} /> {projectorNavigatorOpen ? 'Hide' : 'All Questions'} · {projectorAnswered.size}/{total} attempted
-                    </button>
-                    {projectorNavigatorOpen && (
-                      <div style={{ marginTop: 8 }}>
-                        <McqQuestionNavigator
-                          total={total}
-                          currentIndex={projectorQIndex}
-                          answers={projectorSelections}
-                          skipped={projectorSkipped}
-                          onJump={(index) => {
-                            setProjectorQIndex(index);
-                            setProjectorSelected(projectorSelections[index] ?? null);
-                            setProjectorNavigatorOpen(false);
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
+                 {projectorNavigatorOpen && (
+                   <div style={projectorFocused
+                     ? { position:'absolute', top:58, right:12, zIndex:40, width:'min(360px, calc(100% - 24px))', padding:10, background:'#ffffff', border:'1px solid #c7d2fe', borderRadius:16, boxShadow:'0 12px 32px rgba(15,23,42,0.18)' }
+                     : { marginBottom:14 }}>
+                     <McqQuestionNavigator
+                       total={total}
+                       currentIndex={projectorQIndex}
+                       answers={projectorSelections}
+                       skipped={projectorSkipped}
+                       onJump={(index) => {
+                         setProjectorQIndex(index);
+                         setProjectorSelected(projectorSelections[index] ?? null);
+                         setProjectorNavigatorOpen(false);
+                       }}
+                     />
+                   </div>
+                 )}
                 <McqPracticeCard
                   q={pq}
                   questionNumber={pq.questionNumber ?? projectorQIndex + 1}
@@ -1292,11 +1313,6 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   onClick={() => setProjectorFocused(false)}
                   style={{ background:'rgba(239,68,68,0.9)', color:'#fff', border:'2px solid #fca5a5', borderRadius:10, padding:'10px 14px', fontSize:15, fontWeight:900, cursor:'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center' }}>
                   <Minimize2 size={16} />
-                </button>
-                <button
-                  onClick={() => { setProjectorFocused(false); setProjectorNavigatorOpen(true); }}
-                  style={{ background:'rgba(30,41,59,0.85)', color:'#fff', border:'none', borderRadius:10, padding:'10px 12px', fontSize:12, fontWeight:900, cursor:'pointer', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', gap:5 }}>
-                  <List size={15} /> All Q
                 </button>
                 {projectorQIndex < total - 1 ? (
                   <button
