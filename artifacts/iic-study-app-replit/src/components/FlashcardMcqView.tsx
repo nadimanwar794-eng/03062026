@@ -22,6 +22,7 @@ import McqQuestionDisplay from './McqQuestionDisplay';
 import McqPracticeCard from './McqPracticeCard';
 import McqQuestionNavigator from './McqQuestionNavigator';
 import { deferStudyCoins } from '../utils/studyRewards';
+import { McqAnalysisOverlay } from './McqAnalysisOverlay';
 
 interface Props {
   questions: MCQItem[];
@@ -1339,6 +1340,38 @@ export const FlashcardMcqView: React.FC<Props> = ({
       {/* ── Projector Review Screen ── shown after Submit */}
       {projectorShowReview && isProjectorMode && reviewSnapshot && createPortal(
         (() => {
+          if (user) {
+            const analysisAnswers = { ...reviewSnapshot.selections };
+            const analysisSubmitted = reviewSnapshot.answered.reduce((acc, qIndex) => {
+              acc[qIndex] = true;
+              return acc;
+            }, {} as Record<number, boolean>);
+            return (
+              <McqAnalysisOverlay
+                questions={reviewSnapshot.questions}
+                answers={analysisAnswers}
+                submitted={analysisSubmitted}
+                title={title || 'MCQ Practice'}
+                subtitle={subtitle}
+                subject={subject || 'MCQ Practice'}
+                user={user}
+                settings={settings}
+                onClose={() => setProjectorShowReview(false)}
+                onRestart={() => {
+                  setProjectorQIndex(0);
+                  setProjectorReveal(false);
+                  setProjectorAnswered(new Set());
+                  setProjectorCorrect(0);
+                  setProjectorWrong(0);
+                  setProjectorSkipped(new Set());
+                  setProjectorNavigatorOpen(false);
+                  setProjectorSelections({});
+                  setProjectorShowReview(false);
+                  setIsProjectorMode(true);
+                }}
+              />
+            );
+          }
           const _total   = reviewSnapshot.answered.length;
           const _pct     = _total > 0 ? Math.round((projectorCorrect / _total) * 100) : 0;
           const _grade   = _pct >= 80

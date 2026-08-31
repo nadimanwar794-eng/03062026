@@ -79,6 +79,7 @@ interface Props {
   onPublish?: () => void;
   questions?: any[];
   onUpdateUser?: (user: User) => void;
+  onRestart?: () => void;
   initialView?: "ANALYSIS" | "RECOMMEND";
   onLaunchContent?: (content: any) => void;
   mcqMode?: "FREE" | "PREMIUM"; // NEW: Mode Check
@@ -93,6 +94,7 @@ export const MarksheetCard: React.FC<Props> = ({
   onPublish,
   questions,
   onUpdateUser,
+  onRestart,
   initialView,
   onLaunchContent,
   mcqMode = "FREE",
@@ -1948,6 +1950,16 @@ export const MarksheetCard: React.FC<Props> = ({
               </button>
             )}
 
+            {onRestart && (
+              <button
+                onClick={onRestart}
+                className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
+                title="Try Again"
+              >
+                <RefreshCw size={18} />
+              </button>
+            )}
+
             <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
             <button
@@ -2026,7 +2038,7 @@ export const MarksheetCard: React.FC<Props> = ({
                   user,
                   settings || {},
                 );
-                if (!access.hasAccess) return null;
+                if (!access.hasAccess && mcqMode !== "PREMIUM") return null;
                 return (
                   <button
                     onClick={() => setActiveTab("ANALYSIS_TOPIC")}
@@ -2045,7 +2057,7 @@ export const MarksheetCard: React.FC<Props> = ({
                   user,
                   settings || {},
                 );
-                if (!access.hasAccess) return null;
+                if (!access.hasAccess && mcqMode !== "PREMIUM") return null;
                 return (
                   <button
                     onClick={() => setActiveTab("OMR")}

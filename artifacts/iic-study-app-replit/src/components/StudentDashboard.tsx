@@ -250,6 +250,7 @@ import { ReferralPopup } from "./ReferralPopup";
 import { SpeakButton } from "./SpeakButton";
 import { McqSpeakButtons } from "./McqSpeakButtons";
 import { FlashcardMcqView } from "./FlashcardMcqView";
+import { McqAnalysisOverlay } from "./McqAnalysisOverlay";
 import { shouldShowMcqOptions } from "../utils/mcqRender";
 import McqQuestionDisplay from "./McqQuestionDisplay";
 import McqPracticeCard from "./McqPracticeCard";
@@ -8737,6 +8738,41 @@ export const StudentDashboard: React.FC<Props> = ({
 
                       // ── REVIEW MODE (shown after all submitted) ──
                       if (allSubmitted && hwShowAnalysis === hwKey) {
+                         const analysisAnswers = mcqs.reduce((acc: Record<number, number>, _q: any, i: number) => {
+                           const value = hwAnswers[`${hwKey}_${i}`];
+                           if (value !== undefined) acc[i] = value;
+                           return acc;
+                         }, {});
+                         const analysisSubmitted = mcqs.reduce((acc: Record<number, boolean>, _q: any, i: number) => {
+                           acc[i] = hwAnswers[`${hwKey}_${i}`] !== undefined;
+                           return acc;
+                         }, {});
+                         return (
+                           <McqAnalysisOverlay
+                             questions={mcqs}
+                             answers={analysisAnswers}
+                             submitted={analysisSubmitted}
+                             title={(activeHw as any).title || 'Homework MCQ'}
+                             subtitle="Homework · Full Analysis"
+                             subject={(activeHw as any).targetSubject || 'Homework'}
+                             user={user}
+                             settings={settings}
+                             onClose={() => setHwShowAnalysis(null)}
+                             onRestart={() => {
+                               setHwShowAnalysis(null);
+                               setHwAnswers(prev => {
+                                 const next = { ...prev };
+                                 mcqs.forEach((_m: any, qi: number) => { delete next[`${hwKey}_${qi}`]; });
+                                 return next;
+                               });
+                               setHwPendingAnswers({});
+                               setHwManualSubmitted(prev => { const next = { ...prev }; delete next[hwKey]; return next; });
+                               setHwMcqCurrentIdx(prev => ({ ...prev, [hwKey]: 0 }));
+                               setHwMcqNavigatorOpen(prev => ({ ...prev, [hwKey]: false }));
+                               setHwMcqSkipped(prev => ({ ...prev, [hwKey]: new Set() }));
+                             }}
+                           />
+                         );
                          const pct = attempted > 0 ? Math.round((right / attempted) * 100) : 0;
                         const grade = pct >= 80 ? { label: 'Excellent! 🌟', color: 'from-emerald-500 to-green-600', ring: 'ring-emerald-200' }
                                     : pct >= 60 ? { label: 'Good Job! 👍', color: 'from-blue-500 to-indigo-600', ring: 'ring-blue-200' }
@@ -8998,6 +9034,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   }
                                 }
                                 setHwManualSubmitted(prev => ({ ...prev, [hwKey]: true }));
+                                 setHwShowAnalysis(hwKey);
                               }}
                               className="mb-3 w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition animate-pulse"
                             >🏁 Submit Quiz — Result Dekho</button>
@@ -21373,6 +21410,31 @@ RULES:
 
                       // ── REVIEW SCREEN ──
                       if (showReview) {
+                         const analysisAnswers = effectiveMcqs.reduce((acc: Record<number, number>, _q2: any, i: number) => {
+                           const rIdx = _hurriedFilter ? _hurriedFilter[i] : i;
+                           const qKey = `${pageKey}_${rIdx}`;
+                           if (lucentMcqSubmitted[qKey] && lucentMcqAnswers[qKey] !== undefined) acc[i] = lucentMcqAnswers[qKey];
+                           return acc;
+                         }, {});
+                         const analysisSubmitted = effectiveMcqs.reduce((acc: Record<number, boolean>, _q2: any, i: number) => {
+                           const rIdx = _hurriedFilter ? _hurriedFilter[i] : i;
+                           acc[i] = lucentMcqSubmitted[`${pageKey}_${rIdx}`] === true;
+                           return acc;
+                         }, {});
+                         return (
+                           <McqAnalysisOverlay
+                             questions={effectiveMcqs}
+                             answers={analysisAnswers}
+                             submitted={analysisSubmitted}
+                             title={(entry as any).title || (currentPage as any)?.title || 'Lucent Competition MCQ'}
+                             subtitle="Lucent Competition · MCQ Analysis"
+                             subject="Lucent Competition"
+                             user={user}
+                             settings={settings}
+                             onClose={() => setLucentMcqShowReview(prev => ({ ...prev, [pageKey]: false }))}
+                             onRestart={doRestart}
+                           />
+                         );
                         const pct = attempted > 0 ? Math.round((right / attempted) * 100) : 0;
                         const grade = pct >= 80 ? { label: '🏆 Excellent!', color: 'text-emerald-700', bg: 'from-emerald-400 to-teal-500' }
                           : pct >= 60 ? { label: '👍 Good Job!', color: 'text-indigo-700', bg: 'from-indigo-400 to-blue-500' }
@@ -23403,6 +23465,20 @@ RULES:
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6">
               {compMcqShowReview ? (() => {
+                   return (
+                     <McqAnalysisOverlay
+                       questions={mcqs}
+                       answers={compMcqAnswers}
+                       submitted={compMcqSubmitted}
+                       title={compMcqSession.title}
+                       subtitle={compMcqSession.subtitle}
+                       subject="Competition"
+                       user={user}
+                       settings={settings}
+                       onClose={() => setCompMcqShowReview(false)}
+                       onRestart={doCompRestart}
+                     />
+                   );
                 const pct = attempted > 0 ? Math.round((right / attempted) * 100) : 0;
                 const grade = pct >= 80 ? { label: '🏆 Excellent!', color: 'text-emerald-700', bg: 'from-emerald-400 to-teal-500' }
                   : pct >= 60 ? { label: '👍 Good Job!', color: 'text-indigo-700', bg: 'from-indigo-400 to-blue-500' }
