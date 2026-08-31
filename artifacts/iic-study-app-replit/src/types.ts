@@ -1367,6 +1367,10 @@ export interface MCQResult {
   performanceTag: PerformanceTag; // Overall Tag
   
   questionTimes?: number[]; // Array of seconds taken per question (optional detail)
+  /** Questions and selected answers are kept so an old analysis can be reopened. */
+  questions?: MCQItem[];
+  userAnswers?: Record<number, number>;
+  createdAt?: string;
   
   // OMR DATA
   classLevel?: string;

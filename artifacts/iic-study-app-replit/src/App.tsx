@@ -1971,6 +1971,7 @@ const App: React.FC = () => {
         subjectName: state.selectedSubject?.title || '',
         classLevel: state.selectedClass || '',
         userAnswers: answers,
+         questions: displayData,
         wrongQuestions: wrongQuestions,
         topicAnalysis: topicAnalysis
     };
@@ -2764,6 +2765,8 @@ const App: React.FC = () => {
         averageTimePerQuestion: total > 0 ? timeTaken / total : 0,
         performanceTag: (score / total) >= 0.8 ? 'EXCELLENT' : (score / total) >= 0.5 ? 'GOOD' : 'BAD',
         classLevel: activeWeeklyTest.classLevel,
+         questions: activeWeeklyTest.questions,
+         userAnswers: answers,
         omrData: omrData,
         wrongQuestions: wrongQuestions
     };
@@ -3385,6 +3388,10 @@ const App: React.FC = () => {
                               }}
                               onOpenSchool={() => setState(prev => ({...prev, view: 'SCHOOL_ECOSYSTEM' as any}))}
                               onOpenCoaching={() => setState(prev => ({...prev, view: 'COACHING_ECOSYSTEM' as any}))}
+                              onOpenMcqAnalysis={(result) => {
+                                  setLastTestResult(result);
+                                  setLastTestQuestions(result.questions || null);
+                              }}
                           />
                         </ErrorBoundary>
                         </>

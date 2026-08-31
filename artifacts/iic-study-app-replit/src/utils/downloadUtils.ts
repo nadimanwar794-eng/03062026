@@ -45,20 +45,27 @@ export const downloadAsHTML = (
 <html lang="hi-IN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Keep saved reports in desktop layout even when opened on a phone. -->
+  <meta name="viewport" content="width=1024, initial-scale=1.0">
   <title>${pageTitle} — ${appName}</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; max-width: 900px; margin: 0 auto; background: #f8fafc; color: #1e293b; }
+     html, body { width: 1024px !important; min-width: 1024px !important; }
+     body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; width: 1024px !important; min-width: 1024px !important; max-width: none !important; margin: 0; background: #f8fafc; color: #1e293b; overflow-x: visible; }
     .iic-header { background: ${brandColor}; color: white; padding: 12px 16px; border-radius: 8px 8px 0 0; }
     .iic-header strong { font-size: 15px; display: block; }
     .iic-header small { font-size: 11px; opacity: 0.85; margin-top: 3px; display: block; }
     .iic-content { background: white; padding: 16px; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0; border-top: none; min-height: 200px; }
     .iic-footer { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 12px; padding: 8px; }
-    ${cssText}
+     ${cssText}
+     /* Re-apply these after the app stylesheet so mobile media queries cannot
+        collapse a downloaded report back into the phone layout. */
+     html.desktop-export, body.desktop-export { width: 1024px !important; min-width: 1024px !important; max-width: none !important; }
+     body.desktop-export { margin: 0 !important; padding: 24px !important; overflow-x: visible !important; }
+     body.desktop-export .iic-content { width: 976px !important; min-width: 976px !important; max-width: none !important; }
   </style>
 </head>
-<body>
+<body class="desktop-export">
   <div class="iic-header">
     <strong>${appName} — ${pageTitle}</strong>
     <small>${subtitle ? subtitle + ' · ' : ''}Downloaded: ${date}</small>
@@ -163,6 +170,9 @@ export const downloadAsMHTML = async (
       element.style.pointerEvents = 'none';
       element.style.zIndex = '-1';
     }
+    // Always render the export target at desktop width. This is especially
+    // important when the report is downloaded from a mobile browser.
+    element.style.width = '1024px';
     element.style.overflow = 'visible';
     element.style.maxHeight = 'none';
 
@@ -249,7 +259,7 @@ export const downloadAsMHTML = async (
     // silent no-op.
     try {
       downloadAsHTML(element.innerHTML, filename, branding);
-      alert('PDF generate nahi ho saka, isliye report HTML format mein download kar di gayi.');
+      alert('Report MHTML/Webpage format mein successfully download ho gayi.');
     } catch (fallbackError) {
       console.error('[download] HTML fallback failed:', fallbackError);
       alert('Download fail hua. Please try again.');

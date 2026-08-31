@@ -416,6 +416,7 @@ interface Props {
   onUpdateSettings?: (s: SystemSettings) => void;
   onOpenSchool?: () => void;
   onOpenCoaching?: () => void;
+  onOpenMcqAnalysis?: (result: import('../types').MCQResult) => void;
 }
 
 const DashboardSectionWrapper = ({
@@ -625,6 +626,7 @@ export const StudentDashboard: React.FC<Props> = ({
   onUpdateSettings,
   onOpenSchool,
   onOpenCoaching,
+  onOpenMcqAnalysis,
 }) => {
   const analysisLogs = (() => { try { return JSON.parse(localStorage.getItem("nst_universal_analysis_logs") || "[]"); } catch { return []; } })();
   const isGameEnabled = settings?.isGameEnabled !== false;
@@ -5551,6 +5553,13 @@ export const StudentDashboard: React.FC<Props> = ({
           score >= 80 ? 'EXCELLENT' : score >= 60 ? 'GOOD' : score >= 40 ? 'BAD' : 'VERY_BAD',
         omrData: omr,
         topic: hw.title,
+         questions: mcqs,
+         userAnswers: Object.fromEntries(
+           mcqs.map((_, qi) => {
+             const answer = hwAnswers[`${hwKey}_${qi}`] ?? hwAnswers[`hw_${hw.id}_${qi}`];
+             return [qi, answer];
+           }).filter(([, answer]) => answer !== undefined)
+         ),
       };
       newResults.push(result);
 
@@ -10658,7 +10667,7 @@ export const StudentDashboard: React.FC<Props> = ({
                         { label: 'Reading',     sub: 'Continue where left',  icon: '📖',  onClick: () => onTabChange('READING_PAGE' as any) },
                         { label: 'Flashcards',  sub: 'Session history',      icon: '🃏',  onClick: () => onTabChange('FLASHCARDS_PAGE' as any) },
                         { label: 'Offline',     sub: 'Saved content',        icon: '💾',  onClick: () => onTabChange('OFFLINE_PAGE' as any) },
-                        { label: 'Login',       sub: 'Session log',          icon: '👤',  onClick: () => onTabChange('LOGIN_HISTORY_PAGE' as any) },
+                        { label: 'Activity',    sub: 'MCQ analysis',         icon: '📊',  onClick: () => onTabChange('LOGIN_HISTORY_PAGE' as any) },
                         { label: 'Credits',     sub: 'Earn & spend log',     icon: '💰',  onClick: () => onTabChange('CREDITS_PAGE' as any) },
                         { label: 'My Mistakes', sub: `${mistakeCount} galtiyan`, icon: '❌', onClick: () => onTabChange('MY_MISTAKES_PAGE' as any) },
                       ];
@@ -10924,6 +10933,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key={historyInitialTab}
           user={user}
+           onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab={historyInitialTab}
@@ -10941,6 +10951,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key="reading_page"
           user={user}
+          onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab="READING"
@@ -10955,6 +10966,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key="flashcards_page"
           user={user}
+          onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab="FLASHCARDS"
@@ -10966,6 +10978,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key="offline_page"
           user={user}
+          onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab="OFFLINE"
@@ -10977,6 +10990,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key="login_history_page"
           user={user}
+          onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab="LOGIN_HISTORY"
@@ -10988,6 +11002,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key="credits_page"
           user={user}
+          onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab="CREDIT_HISTORY"
@@ -10999,6 +11014,7 @@ export const StudentDashboard: React.FC<Props> = ({
         <HistoryPage
           key="my_mistakes_page"
           user={user}
+          onOpenMcqAnalysis={onOpenMcqAnalysis}
           onUpdateUser={handleUserUpdate}
           settings={settings}
           initialTab="MISTAKE"
@@ -16227,10 +16243,12 @@ export const StudentDashboard: React.FC<Props> = ({
             return;
           }
           const newMcq: any = {
+             id: `custom-mcq-${Date.now()}`,
             question: compMcqDraft.question.trim(),
             options: filledOpts,
             correctAnswer: compMcqDraft.correctAnswer,
             explanation: '',
+             createdAt: new Date().toISOString(),
           };
           handleUserUpdate({ ...user, customMcqs: [...(user.customMcqs || []), newMcq] });
           setCompMcqDraft({ question: '', options: ['', '', '', ''], correctAnswer: 0 });
@@ -16254,6 +16272,62 @@ export const StudentDashboard: React.FC<Props> = ({
           });
           setCompMcqIndex(prev => Math.max(0, prev - 1));
         };
+
+         const saveCustomMcqAnalysis = () => {
+           if (userMcqs.length === 0) return;
+
+           const customQuestions = userMcqs.map(({ _src, _key, ...mcq }) => mcq);
+           const customAnswers: Record<number, number> = {};
+           const customOmr = customQuestions.map((mcq: any, index: number) => {
+             const allIndex = adminMcqs.length + index;
+             const selected = compHubAnswers[allIndex];
+             if (selected !== undefined) customAnswers[index] = selected;
+             return {
+               qIndex: index,
+               selected: selected ?? -1,
+               correct: mcq.correctAnswer,
+             };
+           });
+           const correctCount = customOmr.filter(item => item.selected === item.correct).length;
+           const attemptedWrong = customOmr.filter(item => item.selected !== -1 && item.selected !== item.correct).length;
+           const totalQuestions = customQuestions.length;
+           const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+           const createdDates = customQuestions
+             .map((mcq: any) => mcq.createdAt)
+             .filter(Boolean)
+             .map((value: string) => new Date(value).getTime())
+             .filter((value: number) => !isNaN(value));
+
+           const result: import('../types').MCQResult = {
+             id: `custom-mcq-analysis-${Date.now()}`,
+             userId: user.id,
+             chapterId: 'custom-mcq-set',
+             subjectId: 'CUSTOM_MCQ',
+             subjectName: 'My MCQs',
+             chapterTitle: 'My MCQ Practice',
+             topic: 'User-created MCQs',
+             date: new Date().toISOString(),
+             createdAt: createdDates.length > 0 ? new Date(Math.min(...createdDates)).toISOString() : new Date().toISOString(),
+             totalQuestions,
+             correctCount,
+             wrongCount: attemptedWrong,
+             score,
+             totalTimeSeconds: 0,
+             averageTimePerQuestion: 0,
+             performanceTag: score >= 80 ? 'EXCELLENT' : score >= 50 ? 'GOOD' : 'BAD',
+             questions: customQuestions as any,
+             userAnswers: customAnswers,
+             omrData: customOmr,
+             wrongQuestions: customQuestions
+               .map((mcq: any, index: number) => ({ ...mcq, qIndex: index }))
+               .filter((mcq: any) => customAnswers[mcq.qIndex] !== undefined && customAnswers[mcq.qIndex] !== mcq.correctAnswer),
+             topicAnalysis: {
+               'User-created MCQs': { correct: correctCount, total: totalQuestions, percentage: score },
+             },
+           };
+
+           handleUserUpdate({ ...user, mcqHistory: [result, ...(user.mcqHistory || [])] });
+         };
 
         return (
           <div className="fixed inset-0 z-[100] flex flex-col animate-in fade-in pb-20" style={{ background: tierTheme.profileBg }}>
@@ -16639,7 +16713,10 @@ export const StudentDashboard: React.FC<Props> = ({
                         {hubAttempted > 0 && !compHubSubmitted && (
                           <button
                             type="button"
-                            onClick={() => setCompHubSubmitted(true)}
+                             onClick={() => {
+                               saveCustomMcqAnalysis();
+                               setCompHubSubmitted(true);
+                             }}
                             className="w-full py-3 rounded-xl bg-emerald-600 text-white font-black text-sm shadow-md active:scale-95 transition"
                           >
                             Submit Quiz · See Result ({hubAttempted}/{allMcqs.length})
