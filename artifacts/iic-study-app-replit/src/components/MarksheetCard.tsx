@@ -2084,7 +2084,7 @@ export const MarksheetCard: React.FC<Props> = ({
         )}
 
         {/* Report tabs */}
-        <div className="px-4 pt-2 pb-0 bg-white border-b border-slate-100 flex gap-2 overflow-x-auto shrink-0 scrollbar-hide items-center">
+        <div className="px-3 pt-1 pb-0 bg-white border-b border-slate-100 flex gap-1 overflow-x-auto shrink-0 scrollbar-hide items-center">
           {(() => {
             const access = checkFeatureAccess(
               "MS_OFFICIAL",
@@ -2096,7 +2096,7 @@ export const MarksheetCard: React.FC<Props> = ({
             return (
               <button
                 onClick={() => setActiveTab("OFFICIAL_MARKSHEET")}
-                className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "OFFICIAL_MARKSHEET" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+                className={`px-3 py-1.5 text-[11px] leading-tight font-black rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "OFFICIAL_MARKSHEET" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
               >
                 <FileText size={14} className="inline mr-1 mb-0.5" /> Official
                 Marksheet
@@ -2106,7 +2106,7 @@ export const MarksheetCard: React.FC<Props> = ({
 
           <button
             onClick={() => setActiveTab("SOLUTION")}
-            className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "SOLUTION" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+            className={`px-3 py-1.5 text-[11px] leading-tight font-black rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "SOLUTION" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
           >
             <BookOpen size={14} className="inline mr-1 mb-0.5" /> Solutions
           </button>
@@ -2114,7 +2114,7 @@ export const MarksheetCard: React.FC<Props> = ({
           {!isAnalysisUnlocked ? (
             <button
               onClick={unlockFreeAnalysis}
-              className="px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-600 flex items-center gap-1 bg-slate-50/50 whitespace-nowrap"
+              className="px-3 py-1.5 text-[11px] leading-tight font-black rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-600 flex items-center gap-1 bg-slate-50/50 whitespace-nowrap"
             >
               <Lock size={12} /> Full Analysis (Locked)
             </button>
@@ -2130,7 +2130,7 @@ export const MarksheetCard: React.FC<Props> = ({
                 return (
                   <button
                     onClick={() => setActiveTab("ANALYSIS_TOPIC")}
-                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "ANALYSIS_TOPIC" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+                    className={`px-3 py-1.5 text-[11px] leading-tight font-black rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "ANALYSIS_TOPIC" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
                   >
                     <FileSearch size={14} className="inline mr-1 mb-0.5" /> Full
                     Analysis
