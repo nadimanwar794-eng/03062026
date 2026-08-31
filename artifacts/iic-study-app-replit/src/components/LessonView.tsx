@@ -21,6 +21,7 @@ import { ChunkedNotesReader } from './ChunkedNotesReader';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import McqQuestionDisplay from './McqQuestionDisplay';
 import McqPracticeCard from './McqPracticeCard';
+import McqQuestionNavigator from './McqQuestionNavigator';
 import { stopSpeaking } from '../utils/ttsHighlighter';
 import { speakText, stripHtml } from '../utils/textToSpeech';
 import jsPDF from 'jspdf';
@@ -720,6 +721,10 @@ export const LessonView: React.FC<Props> = ({
   const [projectorReveal, setProjectorReveal] = useState(false);
   const [projectorSelected, setProjectorSelected] = useState<number | null>(null);
   const [projectorFocused, setProjectorFocused] = useState(false);
+  const [projectorSelections, setProjectorSelections] = useState<Record<number, number>>({});
+  const [projectorSkipped, setProjectorSkipped] = useState<Set<number>>(new Set());
+  const [projectorNavigatorOpen, setProjectorNavigatorOpen] = useState(false);
+  const [projectorShowReview, setProjectorShowReview] = useState(false);
 
   const toggleFullScreen = () => {
       if (!document.fullscreenElement) {
@@ -863,7 +868,7 @@ export const LessonView: React.FC<Props> = ({
           </button>
           {isAdmin && displayData && displayData.length > 0 && (
             <button
-              onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setIsProjectorMode(true); setFabOpen(false); }}
+              onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelections({}); setProjectorSkipped(new Set()); setProjectorNavigatorOpen(false); setProjectorShowReview(false); setIsProjectorMode(true); setFabOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '24px', padding: '8px 14px', fontSize: '12px', fontWeight: 900, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               📽️ Projector Mode
@@ -2461,6 +2466,11 @@ export const LessonView: React.FC<Props> = ({
                    if (!pq) return null;
                    const total = displayData.length;
                    const optionLetters = ['A','B','C','D','E'];
+                   const currentProjectorSelection = projectorSelections[projectorQIndex] ?? null;
+                   const projectorAttempted = Object.keys(projectorSelections).length;
+                   const projectorCorrectCount = Object.entries(projectorSelections).reduce((count, [key, value]) => (
+                       count + (displayData[Number(key)]?.correctAnswer === value ? 1 : 0)
+                   ), 0);
                    return createPortal(
                        <div style={{ position:'fixed', inset:0, zIndex:99999, background:'#ffffff', display:'flex', flexDirection:'column', overflow:'hidden' }}>
                            {/* Top bar — clean, matches MCQ Practice bar style */}
@@ -2487,30 +2497,67 @@ export const LessonView: React.FC<Props> = ({
                                    onClick={() => setProjectorReveal(r => !r)}
                                    style={{ flexShrink:0, padding:'7px 10px', background: projectorReveal ? '#dcfce7' : '#f8fafc', border: projectorReveal ? '1px solid #86efac' : '1px solid #e2e8f0', borderRadius:12, color: projectorReveal ? '#16a34a' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
                                ><Eye size={13} /> {projectorReveal ? 'Hide Ans' : 'Show Ans'}</button>
+                               <button
+                                   onClick={() => setProjectorNavigatorOpen(open => !open)}
+                                   aria-label="Open all projector questions"
+                                   style={{ flexShrink:0, padding:'7px 10px', background:'#eef2ff', border:'1px solid #c7d2fe', borderRadius:12, color:'#4338ca', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
+                               ><List size={13} /> All Questions</button>
                            </div>
 
                             {/* Shared Revision Hub-style projector question and options */}
                             <div style={{ flex:1, overflowY:'auto', padding:'40px 48px 24px', minHeight:0 }}>
                                 <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+                                    {projectorNavigatorOpen && (
+                                        <div style={{ marginBottom: 16 }}>
+                                            <McqQuestionNavigator
+                                                total={total}
+                                                currentIndex={projectorQIndex}
+                                                answers={projectorSelections}
+                                                skipped={projectorSkipped}
+                                                onJump={(index) => {
+                                                    setProjectorQIndex(index);
+                                                    setProjectorSelected(projectorSelections[index] ?? null);
+                                                    setProjectorReveal(false);
+                                                    setProjectorNavigatorOpen(false);
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                     <McqPracticeCard
                                         q={pq}
                                         questionNumber={pq.questionNumber ?? projectorQIndex + 1}
-                                        selectedOption={projectorSelected}
-                                        answered={answered || projectorReveal}
-                                        showResult={answered || projectorReveal}
-                                        disabled={projectorReveal}
+                                        selectedOption={currentProjectorSelection}
+                                        answered={currentProjectorSelection !== null || projectorReveal}
+                                        showResult={projectorShowReview || projectorReveal}
+                                        disabled={projectorReveal || projectorShowReview}
                                         variant="projector"
                                         fontSize={28}
                                         onSelect={(oi) => {
-                                            if (!answered && !projectorReveal) setProjectorSelected(oi);
+                                            if (projectorReveal || projectorShowReview) return;
+                                            setProjectorSelected(oi);
+                                            setProjectorSelections(prev => ({ ...prev, [projectorQIndex]: oi }));
+                                            setProjectorSkipped(prev => {
+                                                const next = new Set(prev);
+                                                next.delete(projectorQIndex);
+                                                return next;
+                                            });
                                         }}
                                     />
                                 </div>
 
                                {/* Explanation after answering */}
-                               {projectorSelected !== null && pq.explanation && (
+                               {(projectorShowReview || projectorReveal) && currentProjectorSelection !== null && pq.explanation && (
                                    <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:16, padding:'20px 24px', fontSize:20, color:'#713f12', lineHeight:1.5 }}>
                                        💡 <strong>Explanation:</strong> {pq.explanation}
+                                   </div>
+                               )}
+                               {projectorShowReview && (
+                                   <div style={{ marginTop:16, background:'linear-gradient(135deg,#4f46e5,#7c3aed)', borderRadius:16, padding:'16px 20px', color:'#fff', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+                                       <div>
+                                           <div style={{ fontSize:11, fontWeight:900, textTransform:'uppercase', letterSpacing:'0.08em', opacity:0.75 }}>Quiz Result</div>
+                                           <div style={{ fontSize:24, fontWeight:900 }}>{projectorCorrectCount}/{projectorAttempted} correct</div>
+                                       </div>
+                                       <button onClick={() => setProjectorShowReview(false)} style={{ background:'rgba(255,255,255,0.18)', color:'#fff', border:'none', borderRadius:10, padding:'9px 13px', fontSize:12, fontWeight:900, cursor:'pointer' }}>Edit Answers</button>
                                    </div>
                                )}
                            </div>
@@ -2518,13 +2565,46 @@ export const LessonView: React.FC<Props> = ({
                            {/* Bottom action bar */}
                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderTop:'3px solid #e2e8f0', background:'#f8fafc', flexShrink:0, gap:16 }}>
                                <button
-                                   onClick={() => { setProjectorQIndex(i => Math.max(0, i-1)); setProjectorReveal(false); setProjectorSelected(null); }}
+                                   onClick={() => {
+                                       const index = Math.max(0, projectorQIndex - 1);
+                                       setProjectorQIndex(index);
+                                       setProjectorReveal(false);
+                                       setProjectorSelected(projectorSelections[index] ?? null);
+                                   }}
                                    disabled={projectorQIndex === 0}
                                    style={{ background: projectorQIndex === 0 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex === 0 ? '#94a3b8' : '#fff', border:'none', borderRadius:14, padding:'14px 32px', fontSize:20, fontWeight:900, cursor: projectorQIndex === 0 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:8 }}
                                ><ChevronLeft size={24} /> Pichla</button>
 
                                <button
-                                   onClick={() => { setProjectorQIndex(i => Math.min(total-1, i+1)); setProjectorReveal(false); setProjectorSelected(null); }}
+                                   onClick={() => {
+                                       if (projectorQIndex < total - 1) {
+                                           setProjectorSkipped(prev => new Set([...prev, projectorQIndex]));
+                                           const index = projectorQIndex + 1;
+                                           setProjectorQIndex(index);
+                                           setProjectorSelected(projectorSelections[index] ?? null);
+                                           setProjectorReveal(false);
+                                       } else if (currentProjectorSelection === null) {
+                                           setProjectorSkipped(prev => new Set([...prev, projectorQIndex]));
+                                       }
+                                   }}
+                                   disabled={projectorShowReview || (projectorQIndex === total - 1 && currentProjectorSelection !== null)}
+                                   style={{ background:'#fffbeb', color:'#b45309', border:'1px solid #fcd34d', borderRadius:14, padding:'14px 18px', fontSize:16, fontWeight:900, cursor:'pointer' }}
+                               >Skip</button>
+
+                               {!projectorShowReview && projectorAttempted > 0 && (
+                                   <button
+                                       onClick={() => setProjectorShowReview(true)}
+                                       style={{ background:'linear-gradient(135deg,#16a34a,#15803d)', color:'#fff', border:'none', borderRadius:14, padding:'14px 22px', fontSize:18, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}
+                                   ><CheckCircle size={22} /> Submit ({projectorAttempted})</button>
+                               )}
+
+                               <button
+                                   onClick={() => {
+                                       const index = Math.min(total - 1, projectorQIndex + 1);
+                                       setProjectorQIndex(index);
+                                       setProjectorReveal(false);
+                                       setProjectorSelected(projectorSelections[index] ?? null);
+                                   }}
                                    disabled={projectorQIndex === total - 1}
                                    style={{ background: projectorQIndex === total-1 ? '#e2e8f0' : '#3b82f6', color: projectorQIndex === total-1 ? '#94a3b8' : '#fff', border:'none', borderRadius:14, padding:'14px 32px', fontSize:20, fontWeight:900, cursor: projectorQIndex === total-1 ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:8 }}
                                >Agla <ChevronRight size={24} /></button>
@@ -2608,7 +2688,7 @@ export const LessonView: React.FC<Props> = ({
                    </button>
                    {/* Projector Mode button — admin/subadmin only */}
                    {isAdmin && (
-                   <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelected(null); setIsProjectorMode(true); }}
+                   <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelected(null); setProjectorSelections({}); setProjectorSkipped(new Set()); setProjectorNavigatorOpen(false); setProjectorShowReview(false); setIsProjectorMode(true); }}
                        className="shrink-0 p-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-300 border border-amber-400/30 transition-colors" title="Projector Mode">
                        <Tv size={17} />
                    </button>
@@ -2666,7 +2746,7 @@ export const LessonView: React.FC<Props> = ({
                                    <Maximize size={15} className="text-slate-400 shrink-0" /> Fullscreen
                                </button>
                                {isAdmin && (
-                               <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setIsProjectorMode(true); setShowMoreMenu(false); }}
+                               <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelections({}); setProjectorSkipped(new Set()); setProjectorNavigatorOpen(false); setProjectorShowReview(false); setIsProjectorMode(true); setShowMoreMenu(false); }}
                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 font-semibold transition-colors">
                                    <Tv size={15} className="text-amber-500 shrink-0" /> 📽️ Projector Mode
                                </button>
