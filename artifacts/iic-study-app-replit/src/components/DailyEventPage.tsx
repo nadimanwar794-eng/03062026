@@ -165,8 +165,12 @@ export const DailyEventPage: React.FC<Props> = ({
     if (!onClaimChallenge20 || claimingChallengeId) return;
     setClaimingChallengeId(challenge.id);
     try {
-      await onClaimChallenge20(challenge);
+      // The claim callback writes the idempotency key before its async save.
+      // Refresh immediately so a slow Firebase response cannot make the
+      // button look like it did nothing.
+      const claimPromise = onClaimChallenge20(challenge);
       setChallengeTick(t => t + 1);
+      await claimPromise;
     } finally {
       setClaimingChallengeId(null);
     }
@@ -607,7 +611,12 @@ export const DailyEventPage: React.FC<Props> = ({
                         </div>
                       ) : (
                         <button
-                          onClick={() => void handleChallengeClaim(challenge)}
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleChallengeClaim(challenge);
+                          }}
                           disabled={!onClaimChallenge20 || isClaiming}
                           className="mt-3 w-full rounded-xl bg-amber-500 py-2.5 text-center text-xs font-black text-white shadow-md shadow-amber-200 transition-colors hover:bg-amber-600 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60"
                         >
