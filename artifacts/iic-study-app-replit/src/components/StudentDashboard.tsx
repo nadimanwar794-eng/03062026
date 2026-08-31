@@ -8929,13 +8929,6 @@ export const StudentDashboard: React.FC<Props> = ({
                               <div className="h-full bg-indigo-500 transition-all rounded-full" style={{ width: `${((ci + 1) / Math.max(1, totalQ)) * 100}%` }} />
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setHwMcqNavigatorOpen(prev => ({ ...prev, [hwKey]: !prev[hwKey] }))}
-                            className="w-full mb-3 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
-                          >
-                            <List size={15} /> {hwMcqNavigatorOpen[hwKey] ? 'Hide' : 'All Questions'} · {Object.keys(hwNavigatorAnswers).length}/{totalQ} attempted
-                          </button>
                           {hwMcqNavigatorOpen[hwKey] && (
                             <McqQuestionNavigator
                               total={totalQ}
@@ -9022,7 +9015,16 @@ export const StudentDashboard: React.FC<Props> = ({
                              }}
                              actions={(
                                <>
-                                 <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
+                              <McqSpeakButtons question={mcq.question} options={mcq.options} correctAnswer={mcq.correctAnswer} className="shrink-0" mode="all" />
+                              <button
+                                type="button"
+                                onClick={() => setHwMcqNavigatorOpen(prev => ({ ...prev, [hwKey]: !prev[hwKey] }))}
+                                aria-label="Open all questions"
+                                title="All Questions"
+                                className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-colors ${hwMcqNavigatorOpen[hwKey] ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                              >
+                                <LayoutGrid size={15} />
+                              </button>
                                  <button
                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); const opts = (mcq.options||[]).length===4 ? mcq.options as [string,string,string,string] : ([...(mcq.options||[]),'','','',''].slice(0,4) as [string,string,string,string]); setMcqCommunityDraft({question:mcq.question,options:opts,correctAnswer:mcq.correctAnswer,explanation:(mcq as any).explanation||''}); setShowMcqCommunityPopup(true); }}
                                    className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-all bg-indigo-100 text-indigo-600"
@@ -16424,13 +16426,6 @@ export const StudentDashboard: React.FC<Props> = ({
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setCompHubNavigatorOpen(open => !open)}
-                          className="w-full py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
-                        >
-                          <List size={15} /> {compHubNavigatorOpen ? 'Hide' : 'All Questions'} · {hubAttempted}/{allMcqs.length} attempted
-                        </button>
                         {compHubNavigatorOpen && (
                           <McqQuestionNavigator
                             total={allMcqs.length}
@@ -16472,6 +16467,23 @@ export const StudentDashboard: React.FC<Props> = ({
                                 questionClassName="text-base font-bold text-slate-800 leading-relaxed"
                               />
                             </div>
+                            <div className="shrink-0">
+                              <McqSpeakButtons
+                                question={current.question}
+                                options={current.options}
+                                correctAnswer={current.correctAnswer}
+                                mode="all"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setCompHubNavigatorOpen(open => !open)}
+                              aria-label="Open all questions"
+                              title="All Questions"
+                              className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-colors ${compHubNavigatorOpen ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                            >
+                              <LayoutGrid size={15} />
+                            </button>
                             <button
                               onClick={() => {
                                 const opts = current.options.length === 4
@@ -20683,6 +20695,17 @@ isActive: !showStarredPage && !showRevisionHubScreen && !showMyRoutine && !showP
                       >
                         <Volume2 size={12} />
                       </button>
+                      <button
+                        onClick={() => {
+                          const _pk = `${entry.id}_${safeIndex}`;
+                          setLucentMcqNavigatorOpen(prev => ({ ...prev, [_pk]: !prev[_pk] }));
+                        }}
+                        aria-label="Open all questions"
+                        title="All Questions"
+                        className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${lucentMcqNavigatorOpen[`${entry.id}_${safeIndex}`] ? 'bg-indigo-100 border-indigo-400 text-indigo-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}
+                      >
+                        <LayoutGrid size={12} />
+                      </button>
                       <button onClick={handleRotate} className={`w-7 h-7 flex items-center justify-center rounded-lg border active:scale-90 transition shrink-0 ${isLandscape ? 'bg-emerald-50 border-emerald-300 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-500'}`} title="Rotate"><RotateCcw size={12} /></button>
                     </>
                   )}
@@ -21440,18 +21463,6 @@ RULES:
                         );
                       }
 
-                      // ── Past-session stats from activityTracker ──
-                      const _actKey = getStudyActivityKey(entry.id, safeIndex);
-                      const _actData = getStudyActivity(user.id, _actKey);
-                      const _mcqAct = _actData['MCQ'];
-                      const _scoreHistory = _mcqAct?.scoreHistory || [];
-                      const _lastSession = _scoreHistory.at(-1);
-                      const _prevSession = _scoreHistory.at(-2);
-                      // Avg time per question from current session timings
-                      const _currTimings = lucentMcqTimingsRef.current[pageKey] || [];
-                      const _timedQ = _currTimings.filter((t: number) => t > 0);
-                      const _avgTime = _timedQ.length > 0 ? (_timedQ.reduce((a: number, b: number) => a + b, 0) / _timedQ.length) : 0;
-
                       return (
                         <div>
                           {/* Progress */}
@@ -21465,69 +21476,7 @@ RULES:
                             {attempted > 0 && <span className="text-[10px] font-bold text-slate-500 shrink-0">{attempted} done</span>}
                           </div>
 
-                          {/* ── MCQ Stats Bar ── */}
-                          <div className="mb-3 px-3 py-2 bg-slate-50 rounded-2xl border border-slate-200">
-                            {/* Row 1: Current session live stats */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Abhi</span>
-                              <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                                ✅ {right} sahi
-                              </span>
-                              <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-700">
-                                ❌ {wrong} galat
-                              </span>
-                              {_avgTime > 0 && (
-                                <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
-                                  ⏱ avg {_avgTime < 60 ? `${Math.round(_avgTime)}s` : `${Math.floor(_avgTime/60)}m ${Math.round(_avgTime%60)}s`}/Q
-                                </span>
-                              )}
-                              {attempted > 0 && totalQ > 0 && (
-                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 ml-auto">
-                                  {Math.round((right / Math.max(attempted, 1)) * 100)}%
-                                </span>
-                              )}
-                            </div>
-                            {/* Row 2: Last session history */}
-                            {_lastSession && (
-                              <div className="flex items-center gap-2 flex-wrap mt-1.5 pt-1.5 border-t border-slate-200">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Pichla</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                                  _lastSession.correct / Math.max(_lastSession.total, 1) >= 0.7 ? 'bg-emerald-50 text-emerald-700'
-                                  : _lastSession.correct / Math.max(_lastSession.total, 1) >= 0.4 ? 'bg-amber-50 text-amber-700'
-                                  : 'bg-rose-50 text-rose-700'
-                                }`}>
-                                  {_lastSession.correct}/{_lastSession.total} ({Math.round((_lastSession.correct / Math.max(_lastSession.total, 1)) * 100)}%)
-                                </span>
-                                {_lastSession.seconds > 0 && (
-                                  <span className="text-[10px] font-bold text-slate-500">
-                                    ⏱ {_lastSession.seconds < 60 ? `${Math.round(_lastSession.seconds)}s` : `${Math.floor(_lastSession.seconds/60)}m ${Math.round(_lastSession.seconds%60)}s`}
-                                  </span>
-                                )}
-                                {_lastSession.attemptedAt && (
-                                  <span className="text-[9px] text-slate-400 ml-auto">
-                                    {new Date(_lastSession.attemptedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                  </span>
-                                )}
-                                {_prevSession && (
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                                    _lastSession.correct / Math.max(_lastSession.total, 1) > _prevSession.correct / Math.max(_prevSession.total, 1)
-                                      ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'
-                                  }`}>
-                                    {_lastSession.correct / Math.max(_lastSession.total, 1) > _prevSession.correct / Math.max(_prevSession.total, 1) ? '↑ Improve' : '↓ Drop'}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
                           {/* Submit & Review banner — appears after submitThreshold questions answered */}
-                          <button
-                            type="button"
-                            onClick={() => setLucentMcqNavigatorOpen(prev => ({ ...prev, [pageKey]: !prev[pageKey] }))}
-                            className="w-full mb-3 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
-                          >
-                            <List size={15} /> {lucentMcqNavigatorOpen[pageKey] ? 'Hide' : 'All Questions'} · {attempted}/{totalQ} attempted
-                          </button>
                           {lucentMcqNavigatorOpen[pageKey] && (
                             <McqQuestionNavigator
                               total={totalQ}
@@ -23006,76 +22955,6 @@ RULES:
                   </div>
                 );
               })}
-              {/* Score Summary — only in 'mcq' (interactive) mode, only after
-                  at least one MCQ has been attempted. Mirrors the Lucent /
-                  Homework MCQ list summary card so the experience is identical. */}
-              {playerMode === 'mcq' && (() => {
-                const mcqChunks = playerChunks
-                  .map((c, i) => c.kind === 'mcq' ? { chunk: c, idx: i } : null)
-                  .filter((x): x is { chunk: typeof playerChunks[number]; idx: number } => x !== null);
-                const total = mcqChunks.length;
-                if (total === 0) return null;
-                let attempted = 0, correct = 0;
-                mcqChunks.forEach(({ chunk, idx }) => {
-                  const sel = playerMcqAnswers[idx];
-                  if (sel !== undefined) {
-                    attempted++;
-                    if (sel === (chunk as any).mcq?.correctAnswer) correct++;
-                  }
-                });
-                if (attempted === 0) return null;
-                const wrong = attempted - correct;
-                const pct = Math.round((correct / total) * 100);
-                const allDone = attempted === total;
-                const grade = pct >= 80 ? { label: 'Excellent! 🌟', color: 'from-emerald-500 to-green-500', ring: 'ring-emerald-200' }
-                            : pct >= 60 ? { label: 'Good 👍',       color: 'from-blue-500 to-indigo-500',    ring: 'ring-blue-200' }
-                            : pct >= 40 ? { label: 'Keep practising 💪', color: 'from-amber-500 to-orange-500', ring: 'ring-amber-200' }
-                            :              { label: 'Need more practice 📚', color: 'from-rose-500 to-red-500', ring: 'ring-rose-200' };
-                return (
-                  <div className={`mt-2 bg-white rounded-3xl border-2 ring-4 ${grade.ring} border-slate-200 shadow-lg overflow-hidden`}>
-                    <div className={`bg-gradient-to-r ${grade.color} px-5 py-3 text-white`}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-90">📊 Score Summary</p>
-                        {allDone && <span className="text-[10px] font-black bg-white/25 px-2 py-0.5 rounded-full">Complete</span>}
-                      </div>
-                      <div className="flex items-end gap-2 mt-1">
-                        <span className="text-4xl font-black leading-none">{pct}%</span>
-                        <span className="text-sm font-bold opacity-90 mb-1">({correct}/{total})</span>
-                      </div>
-                      <p className="text-xs font-bold opacity-90 mt-1">{grade.label}</p>
-                    </div>
-                    <div className="grid grid-cols-3 divide-x divide-slate-100">
-                      <div className="px-3 py-3 text-center">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Attempted</p>
-                        <p className="text-lg font-black text-slate-800 mt-0.5">{attempted}<span className="text-xs text-slate-400">/{total}</span></p>
-                      </div>
-                      <div className="px-3 py-3 text-center">
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">✓ Correct</p>
-                        <p className="text-lg font-black text-emerald-700 mt-0.5">{correct}</p>
-                      </div>
-                      <div className="px-3 py-3 text-center">
-                        <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider">✗ Wrong</p>
-                        <p className="text-lg font-black text-rose-700 mt-0.5">{wrong}</p>
-                      </div>
-                    </div>
-                    {!allDone && (
-                      <div className="px-4 py-2 bg-slate-50 border-t border-slate-100">
-                        <p className="text-[11px] font-bold text-slate-500 text-center">{total - attempted} question{total - attempted === 1 ? '' : 's'} left — try them all!</p>
-                      </div>
-                    )}
-                    {allDone && (
-                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
-                        <button
-                          onClick={() => setPlayerMcqAnswers({})}
-                          className="w-full text-[12px] font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 py-2 rounded-xl active:scale-95 transition-all"
-                        >
-                          🔄 Try Again
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
             </div>
           </div>
 
@@ -23612,13 +23491,6 @@ RULES:
                     {attempted > 0 && <span className="text-[10px] font-bold text-slate-500 shrink-0">{attempted} done</span>}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setCompMcqNavigatorOpen(open => !open)}
-                    className="w-full mb-3 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-black text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition"
-                  >
-                    <List size={15} /> {compMcqNavigatorOpen ? 'Hide' : 'All Questions'} · {attempted}/{totalQ} attempted
-                  </button>
                   {compMcqNavigatorOpen && (
                     <McqQuestionNavigator
                       total={totalQ}
@@ -23649,6 +23521,25 @@ RULES:
                        selectedOption={selected ?? null}
                        answered={isAnswered}
                        onSelect={handleCompOption}
+                        actions={(
+                          <>
+                            <McqSpeakButtons
+                              question={cq.question}
+                              options={cq.options}
+                              correctAnswer={cq.correctAnswer}
+                              mode="all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setCompMcqNavigatorOpen(open => !open)}
+                              aria-label="Open all questions"
+                              title="All Questions"
+                              className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-colors ${compMcqNavigatorOpen ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                            >
+                              <LayoutGrid size={15} />
+                            </button>
+                          </>
+                        )}
                      />
                    </div>
 

@@ -2497,11 +2497,6 @@ export const LessonView: React.FC<Props> = ({
                                    onClick={() => setProjectorReveal(r => !r)}
                                    style={{ flexShrink:0, padding:'7px 10px', background: projectorReveal ? '#dcfce7' : '#f8fafc', border: projectorReveal ? '1px solid #86efac' : '1px solid #e2e8f0', borderRadius:12, color: projectorReveal ? '#16a34a' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
                                ><Eye size={13} /> {projectorReveal ? 'Hide Ans' : 'Show Ans'}</button>
-                               <button
-                                   onClick={() => setProjectorNavigatorOpen(open => !open)}
-                                   aria-label="Open all projector questions"
-                                   style={{ flexShrink:0, padding:'7px 10px', background:'#eef2ff', border:'1px solid #c7d2fe', borderRadius:12, color:'#4338ca', fontSize:11, fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}
-                               ><List size={13} /> All Questions</button>
                            </div>
 
                             {/* Shared Revision Hub-style projector question and options */}
@@ -2542,6 +2537,25 @@ export const LessonView: React.FC<Props> = ({
                                                 return next;
                                             });
                                         }}
+                                         actions={(
+                                             <>
+                                                 <McqSpeakButtons
+                                                     question={pq.question}
+                                                     options={pq.options}
+                                                     correctAnswer={pq.correctAnswer}
+                                                     mode="all"
+                                                 />
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => setProjectorNavigatorOpen(open => !open)}
+                                                     aria-label="Open all projector questions"
+                                                     title="All Questions"
+                                                     style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 999, border: 'none', background: projectorNavigatorOpen ? '#e0e7ff' : '#eef2ff', color: '#4338ca', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                 >
+                                                     <LayoutGrid size={15} />
+                                                 </button>
+                                             </>
+                                         )}
                                     />
                                 </div>
 
@@ -2676,16 +2690,6 @@ export const LessonView: React.FC<Props> = ({
                            </span>
                        </div>
                    </div>
-                   {/* All Questions button */}
-                   <button
-                       onClick={() => setShowQuestionDrawer(true)}
-                       aria-label="Open all questions"
-                       title="All Questions"
-                       className="shrink-0 flex items-center gap-1.5 bg-white/10 border border-white/20 hover:bg-white/20 text-white font-black text-[11px] px-2.5 py-1.5 rounded-xl transition-colors">
-                       <Grip size={14} />
-                       <span className="text-[10px] font-black text-white/90">Questions</span>
-                       <span className="text-[10px] font-black text-white/70">{attemptedCount}/{displayData.length}</span>
-                   </button>
                    {/* Projector Mode button — admin/subadmin only */}
                    {isAdmin && (
                    <button onClick={() => { setProjectorQIndex(0); setProjectorReveal(false); setProjectorSelected(null); setProjectorSelections({}); setProjectorSkipped(new Set()); setProjectorNavigatorOpen(false); setProjectorShowReview(false); setIsProjectorMode(true); }}
@@ -3147,6 +3151,15 @@ export const LessonView: React.FC<Props> = ({
                                                                    allQuestions={group.questions as any}
                                                                    index={localI}
                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowQuestionDrawer(true)}
+                                                                    aria-label="Open all questions"
+                                                                    title="All Questions"
+                                                                    className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 active:scale-95 transition-colors"
+                                                                >
+                                                                    <LayoutGrid size={15} />
+                                                                </button>
                                                                {onSendToMcqCommunity && (
                                                                    <button
                                                                        onPointerDown={(e) => {
@@ -3260,6 +3273,15 @@ export const LessonView: React.FC<Props> = ({
                                                         allQuestions={currentBatchData as any}
                                                         index={localIdx}
                                                     />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowQuestionDrawer(true)}
+                                                        aria-label="Open all questions"
+                                                        title="All Questions"
+                                                        className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 active:scale-95 transition-colors"
+                                                    >
+                                                        <LayoutGrid size={15} />
+                                                    </button>
                                                     {onSendToMcqCommunity && (
                                                         <button
                                                             onPointerDown={(e) => {
