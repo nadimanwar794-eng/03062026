@@ -1,4 +1,5 @@
 import type { MCQItem } from '../types';
+import { normalizeMcqForTracking } from './mcqStructure';
 
 const MAX_OPTION_CHARS = 180;
 
@@ -11,16 +12,14 @@ const plainTextLength = (value: string): number =>
 const isMatchQuestion = (question: string): boolean =>
   /match\s+(?:the\s+)?(?:following\s+)?(?:pairs|columns)|मिलान|सुमेलित|सुमेलित\s*कीजिए|कूट/i.test(question);
 
-const hasStatementQuestion = (question: string, statements?: string[]): boolean =>
-  Boolean(statements?.some(Boolean)) ||
-  /(?:statement|कथन)\s*(?:1|2|i|ii)\s*[\).:-]/i.test(question);
-
 /**
- * Challenge 2.0 accepts only the latest four-option MCQ shape.
+ * Challenge 2.0 accepts the same structured MCQ data as Class 6–12:
+ * question number, stem, optional numbered statements, four options,
+ * correct answer, and explanation.
  *
- * Statement/matching questions are intentionally rejected for challenge
- * publishing. The shared McqQuestionDisplay still supports those fields for
- * legacy/non-challenge surfaces.
+ * Matching questions are still excluded because their options are not a
+ * standard four-option MCQ. Statement-based MCQs are valid and must retain
+ * their structured statement data through publishing and playback.
  */
 export function sanitizeChallengeQuestion(q: Partial<MCQItem>): MCQItem | null {
   const question = typeof q.question === 'string' ? q.question.trim() : '';
@@ -31,20 +30,30 @@ export function sanitizeChallengeQuestion(q: Partial<MCQItem>): MCQItem | null {
   const correctAnswer = Number(q.correctAnswer);
 
   if (!question || rawOptions.length !== 4) return null;
-  if (hasStatementQuestion(question, q.statements) || isMatchQuestion(question)) return null;
+  if (isMatchQuestion(question)) return null;
   if (options.some((option) => !option || option.includes('\n') || plainTextLength(option) > MAX_OPTION_CHARS)) {
     return null;
   }
   if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer > 3) return null;
 
-  return {
+  // Use the same normalization used by Class 6–12 tracking/revision flows.
+  // This extracts legacy inline statement blocks when `q.statements` is
+  // missing, while preserving an explicitly parsed statement array.
+  const tracked = normalizeMcqForTracking({
     ...q,
     question,
     options,
     correctAnswer,
+  });
+
+  return {
+    ...q,
+    question: tracked.question,
+    questionNumber: tracked.questionNumber,
+    options,
+    correctAnswer,
     explanation: typeof q.explanation === 'string' ? q.explanation.trim() : '',
-    // A challenge question has no statement block in the latest format.
-    statements: undefined,
+    statements: tracked.statements.length > 0 ? tracked.statements : undefined,
   } as MCQItem;
 }
 

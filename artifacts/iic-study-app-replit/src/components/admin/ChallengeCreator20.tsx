@@ -6,6 +6,7 @@ import { parseMCQText } from '../../utils/mcqParser';
 import { saveChallenge20, saveQuestionsToBank, getAllChallenges, deleteChallenge20 } from '../../services/questionBank';
 import { buildAutoMixQuestions, getChallengeDateKey, getChallengeExpiryDate, getChallengeTitle, getChallengeWeekKey } from '../../utils/challengeGenerator';
 import { sanitizeChallengeQuestions } from '../../utils/challengeMcq';
+import McqQuestionDisplay from '../McqQuestionDisplay';
 import { DEFAULT_SUBJECTS, getSubjectsList } from '../../constants';
 import { Sparkles, Trophy, Calendar, Save, RefreshCw, Plus, Layers, Trash2, History } from 'lucide-react';
 
@@ -596,7 +597,19 @@ export const ChallengeCreator20: React.FC<Props> = ({
                    {questions.map((q, i) => (
                        <div key={i} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm group">
                            <div className="flex justify-between items-start mb-2">
-                               <p className="font-bold text-slate-800 text-sm">Q{i+1}. {q.question}</p>
+                                <div className="font-bold text-slate-800 text-sm leading-relaxed flex-1">
+                                    <McqQuestionDisplay
+                                        q={q}
+                                        showQuestionNumber
+                                        questionClassName="text-sm font-bold text-slate-800 leading-relaxed"
+                                    />
+                                    {q.explanation && (
+                                        <p className="mt-2 text-xs font-medium text-slate-500">
+                                            <span className="font-black text-amber-700">Explanation:</span>{' '}
+                                            {q.explanation}
+                                        </p>
+                                    )}
+                                </div>
                                <button 
                                   onClick={() => setQuestions(questions.filter((_, idx) => idx !== i))}
                                   className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
