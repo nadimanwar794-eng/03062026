@@ -1352,7 +1352,7 @@ export const MarksheetCard: React.FC<Props> = ({
     );
   };
 
-  const renderMarksheetStyle1 = () => {
+  const renderMarksheetStyle1 = (elementId = "marksheet-style-1") => {
     const totalQ = result.totalQuestions || 1;
     const scorePercent = Math.round((result.score / totalQ) * 100);
     const correct = result.correctCount || 0;
@@ -1376,7 +1376,7 @@ export const MarksheetCard: React.FC<Props> = ({
     }
     return (
       <div
-        id="marksheet-style-1" style={{ fontFamily: "Inter, sans-serif" }}
+        id={elementId} style={{ fontFamily: "Inter, sans-serif" }}
         className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border border-slate-200 relative overflow-hidden break-inside-avoid"
       >
         {/* App Logo & Name Header */}
@@ -1847,7 +1847,7 @@ export const MarksheetCard: React.FC<Props> = ({
 
   const renderFullReport = () => (
     <div className="p-8 bg-white max-w-7xl mx-auto space-y-8">
-      {renderMarksheetStyle1()}
+      {renderMarksheetStyle1("marksheet-style-1-print")}
       <div className="border-t-2 border-dashed border-slate-300 my-8"></div>
       {renderAnalysisContent()}
       {renderTopicBreakdown()}
