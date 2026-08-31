@@ -1970,8 +1970,12 @@ export const LessonView: React.FC<Props> = ({
               }
           }
 
-          // Deliberately do not auto-advance. This lets students review and
-          // change an answer before submitting the quiz.
+           // This flow shows one question at a time (BATCH_SIZE is 1), so
+           // choosing an option immediately opens the next question. The
+           // final question remains available for the existing submit flow.
+           if (!showResults && qIdx === batchIndex && batchIndex < displayData.length - 1) {
+               nextQuestion();
+           }
       };
 
       const handleSubmitRequest = () => {
@@ -2599,6 +2603,15 @@ export const LessonView: React.FC<Props> = ({
                                                 next.delete(projectorQIndex);
                                                 return next;
                                             });
+                                             // Keep projector mode sequential:
+                                             // selecting an option opens the
+                                             // next question immediately.
+                                             if (projectorQIndex < total - 1) {
+                                                 const nextIndex = projectorQIndex + 1;
+                                                 setProjectorQIndex(nextIndex);
+                                                 setProjectorSelected(projectorSelections[nextIndex] ?? null);
+                                                 setProjectorReveal(false);
+                                             }
                                         }}
                                          actions={(
                                              <>
@@ -3580,67 +3593,93 @@ export const LessonView: React.FC<Props> = ({
                    onDownloadMhtml={() => handleConfirmDownload('MHTML')}
                />
 
-               <div className={`fixed bottom-0 left-0 right-0 w-full mx-auto p-4 pb-safe sm:pb-4 bg-white border-t border-slate-200 flex gap-3 z-[9999] shadow-[0_-4px_10px_rgba(0,0,0,0.05)]${isImmersive ? ' hidden' : ''}`}>
-                   {batchIndex > 0 && (
-                       <button onClick={handlePrevPage} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2">
-                           <ChevronLeft size={20} /> Back
-                       </button>
-                   )}
-
-                   {/* Logic for Single Question Navigation */}
-                   {!showResults && (
-                       <>
-                           {hasMore && (
-                               <button
-                                   onClick={() => {
-                                       const qIdx = batchIndex * BATCH_SIZE;
-                                       if (mcqState[qIdx] === undefined || mcqState[qIdx] === null) {
-                                           setSkippedQuestions(prev => new Set([...prev, qIdx]));
-                                       }
-                                       handleNextPage();
-                                   }}
-                                   className="flex-1 py-3 bg-amber-50 border border-amber-200 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-2"
-                               >
-                                   Skip <ChevronRight size={18} />
-                               </button>
-                           )}
-                           {hasMore ? (
+               <div className={`fixed bottom-0 left-0 right-0 w-full mx-auto z-[9999] border-t border-slate-200/90 bg-white/95 px-3 pt-2.5 pb-safe shadow-[0_-8px_24px_rgba(15,23,42,0.09)] backdrop-blur-md sm:px-4 sm:pt-3 sm:pb-4${isImmersive ? ' hidden' : ''}`}>
+                    <div className="mx-auto flex w-full max-w-3xl items-center gap-2 sm:gap-3">
+                        {showResults && !hasMore ? (
+                            <button
+                                onClick={handleBack}
+                                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-[0.98]"
+                            >
+                                Finish Review <ArrowLeft size={18} />
+                            </button>
+                        ) : (
+                            <>
                                 <button
-                                   onClick={handleNextPage}
-                                   disabled={!canGoNext}
-                                   className={`flex-[2] py-3 font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg ${canGoNext ? 'bg-blue-600 text-white shadow-blue-100' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                               >
-                                   Next <ChevronRight size={20} />
-                               </button>
-                           ) : (
-                               <div className="flex-[2]"></div> // Spacer if no next button on last page
-                           )}
+                                    type="button"
+                                    onClick={handlePrevPage}
+                                    disabled={batchIndex === 0}
+                                    aria-label="Go to previous question"
+                                    title="Back"
+                                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 max-[380px]:h-11 max-[380px]:w-11 sm:h-14 sm:w-14"
+                                >
+                                    <ChevronLeft size={20} strokeWidth={2.5} />
+                                </button>
 
-                            {/* Submit Button - available after the first answered question */}
-                           <button
-                               onClick={handleSubmitRequest}
-                               disabled={!canSubmit}
-                               className={`flex-[2] py-3 font-bold rounded-xl flex flex-col items-center justify-center gap-0.5 shadow-lg transition-all ${canSubmit ? 'bg-green-600 text-white shadow-green-100' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}
-                           >
-                               <span className="flex items-center gap-1.5">Submit <Trophy size={18} /></span>
-                               {!canSubmit && (
-                                   <span className="text-[9px] font-black leading-none opacity-70">
-                                        1 question answer karo
-                                   </span>
-                               )}
-                           </button>
-                       </>
-                   )}
+                                {!showResults && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const qIdx = batchIndex * BATCH_SIZE;
+                                                if (mcqState[qIdx] === undefined || mcqState[qIdx] === null) {
+                                                    setSkippedQuestions(prev => new Set([...prev, qIdx]));
+                                                }
+                                                if (hasMore) handleNextPage();
+                                            }}
+                                            disabled={!hasMore}
+                                            className="flex h-12 min-w-[68px] shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-amber-200 bg-amber-50 px-3 text-[11px] font-black text-amber-700 shadow-sm transition-all hover:border-amber-300 hover:bg-amber-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 max-[380px]:h-11 max-[380px]:min-w-[58px] max-[380px]:gap-1 max-[380px]:px-2 max-[380px]:text-[10px] sm:h-14 sm:min-w-[78px] sm:text-xs"
+                                        >
+                                            <SkipForward size={15} strokeWidth={2.5} />
+                                            <span>Skip</span>
+                                        </button>
 
-                   {showResults && !hasMore && (
-                       <button 
-                           onClick={handleBack}
-                           className="flex-[2] py-3 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg"
-                       >
-                           Finish Review <ArrowLeft size={20} />
-                       </button>
-                   )}
-               </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleNextPage}
+                                            disabled={!hasMore || !canGoNext}
+                                            aria-label="Go to next question"
+                                            title={!canGoNext ? 'Choose an option first' : 'Next'}
+                                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-all active:scale-95 max-[380px]:h-11 max-[380px]:w-11 sm:h-14 sm:w-14 ${hasMore && canGoNext
+                                                ? 'border-blue-600 bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700'
+                                                : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300'
+                                            }`}
+                                        >
+                                            <ChevronRight size={20} strokeWidth={2.5} />
+                                        </button>
+
+                                        <div className="min-w-0 flex-1 text-center leading-tight">
+                                            <p className="truncate text-[11px] font-black text-slate-700 sm:text-xs">
+                                                <span className="max-[380px]:hidden">Question </span>{batchIndex + 1} <span className="font-bold text-slate-400">of {displayData.length}</span>
+                                            </p>
+                                            <p className="mt-1 text-[10px] font-bold text-slate-400 max-[380px]:hidden">
+                                                {attemptedCount} answered
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleSubmitRequest}
+                                            disabled={!canSubmit}
+                                            className={`flex h-12 min-w-[112px] shrink-0 flex-col items-center justify-center rounded-2xl px-3 text-xs font-black leading-tight shadow-lg transition-all active:scale-[0.98] max-[380px]:h-11 max-[380px]:min-w-[96px] max-[380px]:px-2 max-[380px]:text-[11px] sm:h-14 sm:min-w-[138px] sm:text-sm ${canSubmit
+                                                ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-green-200 hover:from-emerald-600 hover:to-green-700'
+                                                : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 shadow-none'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                Submit Test <Trophy size={16} strokeWidth={2.5} />
+                                            </span>
+                                            {!canSubmit && (
+                                                <span className="mt-0.5 text-[9px] font-bold opacity-75">
+                                                    Answer 1 question
+                                                </span>
+                                            )}
+                                        </button>
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
           </div>
       );
   }

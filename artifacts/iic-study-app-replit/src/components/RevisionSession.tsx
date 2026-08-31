@@ -320,6 +320,13 @@ export const RevisionSession: React.FC<Props> = ({ user, settings, chapterId, su
         setSelectedOption(idx);
         setUserAnswers(prev => ({ ...prev, [currentQIndex]: idx }));
         setSkipped(prev => { const next = new Set(prev); next.delete(currentQIndex); return next; });
+        // Revision practice is sequential: selecting an option opens the next
+        // question immediately. The last question keeps the Submit button.
+        if (currentQIndex < mcqData.length - 1) {
+            const nextIndex = currentQIndex + 1;
+            setCurrentQIndex(nextIndex);
+            setSelectedOption(userAnswers[nextIndex] ?? null);
+        }
     };
 
     const nextQuestion = () => {

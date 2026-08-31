@@ -613,6 +613,12 @@ function McqFullPage({ mcqs, accent, label, onClose, onSendToMcqCommunity, user 
               onAnswerChange={(option) => {
                 setAnswers(prev => ({ ...prev, [index]: option }));
                 setSkipped(prev => { const next = new Set(prev); next.delete(index); return next; });
+                // Single-answer homework questions move forward as soon as an
+                // option is chosen. Multiple-correct questions stay manual so
+                // the student can select every correct option.
+                if (getCorrectSet(m).size <= 1 && index < mcqs.length - 1) {
+                  setCurrentIndex(current => current === index ? index + 1 : current);
+                }
               }}
               onMultiAnswerChange={(option) => {
                 setMultiAnswers(prev => {

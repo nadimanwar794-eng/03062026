@@ -209,9 +209,14 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
 
     // ── Answer handler ────────────────────────────────────────────────────
     const handleAnswer = (optionIdx: number) => {
-        // Answers stay editable until the user submits the complete session.
+        const answeredIndex = qIndex;
         setAnswers(prev => ({ ...prev, [qIndex]: optionIdx }));
         setSkipped(prev => { const next = new Set(prev); next.delete(qIndex); return next; });
+        // Move to the next question immediately after an option is chosen.
+        // The final question still uses the existing Submit action.
+        if (answeredIndex < interleavedQuestions.length - 1) {
+            setQIndex(current => current === answeredIndex ? answeredIndex + 1 : current);
+        }
     };
 
     // ── Finish: reconstruct per-topic results + mega result ───────────────
@@ -985,6 +990,15 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                         setProjectorAnswered(newA);
                                         if (pq.correctAnswer === oi) setProjectorCorrect(c => c + 1);
                                         else setProjectorWrong(w => w + 1);
+                                         // Keep projector mode consistent with
+                                         // the regular session: selecting an
+                                         // option immediately opens the next
+                                         // question. The final question stays
+                                         // selected for the existing Submit.
+                                         if (projectorQIdx < total - 1) {
+                                             setProjectorQIdx(i => i + 1);
+                                             setProjectorSelected(null);
+                                         }
                                     }}
                                 />
                             </div>

@@ -1848,11 +1848,6 @@ export const MarksheetCard: React.FC<Props> = ({
   const renderFullReport = (marksheetId = "marksheet-style-1-print") => (
     <div className="p-8 bg-white max-w-7xl mx-auto space-y-8">
       {renderMarksheetStyle1(marksheetId)}
-      <div className="border-t-2 border-dashed border-slate-300 my-8"></div>
-      {renderAnalysisContent()}
-      {renderTopicBreakdown()}
-      {renderFullOMR()}
-      {renderDetailedSolutions()}
     </div>
   );
 
@@ -1898,7 +1893,7 @@ export const MarksheetCard: React.FC<Props> = ({
                 {settings?.appName || "RESULT"}
               </h1>
               <p className="text-[10px] font-bold text-slate-500">
-                Official Marksheet & Analysis
+                Official Marksheet
               </p>
             </div>
           </div>
@@ -1932,32 +1927,8 @@ export const MarksheetCard: React.FC<Props> = ({
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50 relative"
         >
-          <div className="animate-in slide-in-from-bottom-4 space-y-8">
+          <div className="animate-in slide-in-from-bottom-4">
             {renderMarksheetStyle1("marksheet-style-1")}
-            {!isAnalysisUnlocked ? (
-              <div className="bg-white p-6 rounded-2xl border-2 border-indigo-100 text-center shadow-lg">
-                <Lock className="mx-auto text-indigo-400 mb-3" size={48} />
-                <h3 className="text-xl font-black text-slate-800 mb-2">
-                  Analysis Locked
-                </h3>
-                <p className="text-slate-600 text-sm mb-6 max-w-xs mx-auto">
-                  Unlock detailed answers and weak concept analysis.
-                </p>
-                <button
-                  onClick={unlockFreeAnalysis}
-                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto"
-                >
-                  <BrainCircuit size={20} /> Unlock Now (20 Coins)
-                </button>
-              </div>
-            ) : (
-              <>
-                {renderWeakAreasSummary()}
-                {renderGranularAnalysis()}
-                {hasOMR && renderFullOMR()}
-                {questions && questions.length > 0 && renderDetailedSolutions()}
-              </>
-            )}
           </div>
         </div>
       </div>
