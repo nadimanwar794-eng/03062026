@@ -28,11 +28,11 @@ export function normalizeMcqPaste(raw: string): string {
     );
     text = text.replace(/^\*\*\s*कूट\s*:?\s*\*?\*?\s*$/gm, '');
 
-    // Convert the common bold question variants to the canonical structured
-    // format. This prevents numbered statements from being mistaken for new
-    // question boundaries by the fallback parser.
+    // Convert the common bold question variants to the canonical simple
+    // format. Using one boundary format is important when a paste mixes
+    // ordinary Q1. blocks with bold Question 2: blocks.
     text = text.replace(/\*\*Q\s*(\d+)\s*[:.]\s*([\s\S]*?)\*\*/gi, (_m, n, q) =>
-        `**Question ${n}**\n❓ Question: ${q.trim()}`,
+        `\nQ${n}. ${q.trim()}`,
     );
     text = text.replace(
         /\*\*\s*(?:प्रश्न|Question)\s*(\d+)\s*[:.\-]\s*([\s\S]*?)\*\*([^\n]*)/gi,
@@ -43,12 +43,12 @@ export function normalizeMcqPaste(raw: string): string {
                 .replace(/\s*\((?:Easy|Medium|Hard|आसान|मध्यम|कठिन)[^)]*\)\s*$/i, '')
                 .replace(/^\[.*?\]\s*/g, '')
                 .trim();
-            return `\n**Question ${n}**\n❓ Question: ${combined}`;
+            return `\nQ${n}. ${combined}`;
         },
     );
     text = text.replace(
         /(?:^|\n)[ \t]*(?:\*\*\s*)?(?:प्रश्न|Question)\s*(\d+)\s*[:.\-]\s*/gi,
-        (_m, n) => `\n**Question ${n}**\n❓ Question: `,
+        (_m, n) => `\nQ${n}. `,
     );
     text = text.replace(/\*\*प्रश्न\s*[:：]?\*\*/gi, '__PRASHNA__');
     text = text.replace(/\*\*Question\s*[:：]?\*\*/gi, '__PRASHNA__');
@@ -73,7 +73,7 @@ export function normalizeMcqPaste(raw: string): string {
     let questionNumber = 0;
     text = text.replace(/__PRASHNA__\s*/g, () => {
         questionNumber += 1;
-        return `\n**Question ${questionNumber}**\n❓ Question: `;
+        return `\nQ${questionNumber}. `;
     });
     const alreadySimpleFormat =
         /<TOPIC:/i.test(text) || /^\s*Q\s*\d+[\.\)]/im.test(text);

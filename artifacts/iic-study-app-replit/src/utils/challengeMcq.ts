@@ -1,13 +1,8 @@
 import type { MCQItem } from '../types';
 import { normalizeMcqForTracking } from './mcqStructure';
 
-const MAX_OPTION_CHARS = 180;
-
 const stripOptionLabel = (value: string): string =>
-  value.trim().replace(/^(?:[A-Da-d]|[1-4])\s*[\).:-]\s*/, '').trim();
-
-const plainTextLength = (value: string): number =>
-  value.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().length;
+  value.trim().replace(/^(?:[A-Da-d]|[1-4])\s*[\).:-]\s*/, '').replace(/\s+/g, ' ').trim();
 
 const isMatchQuestion = (question: string): boolean =>
   /match\s+(?:the\s+)?(?:following\s+)?(?:pairs|columns)|मिलान|सुमेलित|सुमेलित\s*कीजिए|कूट/i.test(question);
@@ -31,7 +26,7 @@ export function sanitizeChallengeQuestion(q: Partial<MCQItem>): MCQItem | null {
 
   if (!question || rawOptions.length !== 4) return null;
   if (isMatchQuestion(question)) return null;
-  if (options.some((option) => !option || option.includes('\n') || plainTextLength(option) > MAX_OPTION_CHARS)) {
+  if (options.some((option) => !option)) {
     return null;
   }
   if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer > 3) return null;
