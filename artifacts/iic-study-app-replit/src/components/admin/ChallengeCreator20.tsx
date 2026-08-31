@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Challenge20, ClassLevel, MCQItem, Subject, SystemSettings } from '../../types';
 import { fetchLessonContent } from '../../services/groq';
-import { parseMCQText } from '../../utils/mcqParser';
+import { normalizeMcqPaste, parseMCQText } from '../../utils/mcqParser';
 import { saveChallenge20, saveQuestionsToBank, getAllChallenges, deleteChallenge20 } from '../../services/questionBank';
 import { buildAutoMixQuestions, getChallengeDateKey, getChallengeExpiryDate, getChallengeTitle, getChallengeWeekKey } from '../../utils/challengeGenerator';
 import { sanitizeChallengeQuestions } from '../../utils/challengeMcq';
@@ -129,7 +129,9 @@ export const ChallengeCreator20: React.FC<Props> = ({
               const rawText = importText.trim();
 
               // First try parsing using our custom emoji format parser
-              const parsed = parseMCQText(rawText);
+              // Use the same Lucent/structured-paste normalization as the
+              // Class 6–12 manager before parsing the challenge questions.
+              const parsed = parseMCQText(normalizeMcqPaste(rawText));
               let newQuestions: MCQItem[] = sanitizeChallengeQuestions(parsed.questions);
 
               // If it didn't find any, fallback to TSV or Vertical blocks

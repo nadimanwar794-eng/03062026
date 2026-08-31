@@ -7,10 +7,11 @@ import { MCQItem } from '../types';
  */
 export function normalizeMcqPaste(raw: string): string {
     let text = raw.replace(/\r\n/g, '\n');
+    text = text.replace(/^---+\s*$/gm, '');
+    text = text.replace(/^###\s+.+$/gm, '');
 
-    // Remove empty duplicate answer labels such as:
-    // **सही उत्तर:
-    // **सही उत्तर:** B) ...
+    // Remove duplicate/orphan answer labels before parsing. Lucent copies
+    // sometimes put the answer label on one line and the answer on the next.
     text = text.replace(
         /^[ \t]*(?:\*{1,2})?\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*(?:\*{1,2})?\s*$/gim,
         '',
@@ -25,10 +26,87 @@ export function normalizeMcqPaste(raw: string): string {
         /^\s*\[(?:[⚡🔥💡🎯⭐✨🏆⚠️🌟][^\]]*?|[^\]]{1,10})\]\s*/gm,
         '',
     );
+    text = text.replace(/^\*\*\s*कूट\s*:?\s*\*?\*?\s*$/gm, '');
 
-    // Markdown bold is presentation-only here. Removing it also turns
-    // **सही उत्तर:** B) ... into the parser-friendly सही उत्तर: B) ...
+    // Convert the common bold question variants to the canonical structured
+    // format. This prevents numbered statements from being mistaken for new
+    // question boundaries by the fallback parser.
+    text = text.replace(/\*\*Q\s*(\d+)\s*[:.]\s*([\s\S]*?)\*\*/gi, (_m, n, q) =>
+        `**Question ${n}**\n❓ Question: ${q.trim()}`,
+    );
+    text = text.replace(
+        /\*\*\s*(?:प्रश्न|Question)\s*(\d+)\s*[:.\-]\s*([\s\S]*?)\*\*([^\n]*)/gi,
+        (_m, n, q, rest) => {
+            const combined = (String(q).trim() + ' ' + String(rest).trim())
+                .trim()
+                .replace(/\*\*$/, '')
+                .replace(/\s*\((?:Easy|Medium|Hard|आसान|मध्यम|कठिन)[^)]*\)\s*$/i, '')
+                .replace(/^\[.*?\]\s*/g, '')
+                .trim();
+            return `\n**Question ${n}**\n❓ Question: ${combined}`;
+        },
+    );
+    text = text.replace(
+        /(?:^|\n)[ \t]*(?:\*\*\s*)?(?:प्रश्न|Question)\s*(\d+)\s*[:.\-]\s*/gi,
+        (_m, n) => `\n**Question ${n}**\n❓ Question: `,
+    );
+    text = text.replace(/\*\*प्रश्न\s*[:：]?\*\*/gi, '__PRASHNA__');
+    text = text.replace(/\*\*Question\s*[:：]?\*\*/gi, '__PRASHNA__');
+
+    // Normalize bold answer labels before stripping presentation markdown.
+    text = text.replace(
+        /\*\*\s*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]\s*([^*]+?)\s*\*\*/gi,
+        (_m, value) => `\n✅ Correct Answer: ${String(value).trim()}`,
+    );
+    text = text.replace(
+        /\*\*(?:सही\s*उत्तर|उत्तर|Ans(?:wer)?)\s*[:：]?\*\*\s*/gi,
+        '✅ Correct Answer: ',
+    );
+    text = text.replace(
+        /(?:^|\n)\s*(?:Ans(?:wer)?|सही\s*उत्तर|उत्तर)\s*[:：]\s*/gi,
+        '\n✅ Correct Answer: ',
+    );
     text = text.replace(/\*\*/g, '');
+
+    // For unnumbered Lucent blocks, turn a line followed by A/B/C/D into a
+    // canonical question marker. Do not run this over an already-simple paste.
+    let questionNumber = 0;
+    text = text.replace(/__PRASHNA__\s*/g, () => {
+        questionNumber += 1;
+        return `\n**Question ${questionNumber}**\n❓ Question: `;
+    });
+    const alreadySimpleFormat =
+        /<TOPIC:/i.test(text) || /^\s*Q\s*\d+[\.\)]/im.test(text);
+    if (
+        questionNumber === 0 &&
+        !text.includes('**Question') &&
+        !text.includes('❓') &&
+        !alreadySimpleFormat
+    ) {
+        const lines = text.split('\n');
+        const output: string[] = [];
+        let counter = 0;
+        for (let i = 0; i < lines.length; i += 1) {
+            const line = lines[i];
+            const next = (lines[i + 1] || '').trim();
+            const looksLikeOptionStart = /^\s*[A-Da-d1-4][\)\.]/i.test(next);
+            const isQuestionLine =
+                looksLikeOptionStart &&
+                line.trim().length > 0 &&
+                !/✅|Correct Answer/i.test(line) &&
+                !/^\s*[A-D][\)\.]/i.test(line);
+            if (isQuestionLine) {
+                counter += 1;
+                output.push(`**Question ${counter}**`);
+                output.push(
+                    `❓ Question: ${line.trim().replace(/^Q?\d+[.)]\s*/i, '')}`,
+                );
+            } else {
+                output.push(line);
+            }
+        }
+        text = output.join('\n');
+    }
 
     return text;
 }
