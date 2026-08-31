@@ -104,7 +104,6 @@ export const MarksheetCard: React.FC<Props> = ({
     | "OFFICIAL_MARKSHEET"
     | "SOLUTION"
     | "ANALYSIS_TOPIC"
-    | "OMR"
     | "RECOMMEND"
     | "MISTAKES"
     | "AI_ANALYSIS"
@@ -1851,6 +1850,98 @@ export const MarksheetCard: React.FC<Props> = ({
     </div>
   );
 
+  const renderAnswerReview = () => (
+    <div className="mt-2">
+      <h3 className="font-black text-slate-800 text-xl mb-6 flex items-center gap-2 border-b-2 border-slate-100 pb-3">
+        <BookOpen size={24} className="text-blue-600" /> Answer Review
+      </h3>
+      <div className="space-y-4">
+        {questions?.map((q, idx) => {
+          const omrEntry = result.omrData?.find((d) => d.qIndex === idx);
+          const userSelected = omrEntry ? omrEntry.selected : -1;
+          const isSkipped = userSelected === -1;
+          const isCorrect = userSelected === q.correctAnswer;
+
+          return (
+            <div
+              key={idx}
+              className={`bg-white rounded-2xl border-2 p-4 shadow-sm ${isCorrect ? "border-green-100" : isSkipped ? "border-slate-200" : "border-red-100"}`}
+            >
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex-1 text-sm font-bold text-slate-800 leading-relaxed">
+                  <span className="text-blue-600 mr-2">Q{idx + 1}.</span>
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: renderMathInHtml(q.question),
+                    }}
+                  />
+                  {q.statements && q.statements.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-2">
+                      {q.statements.map((stmt, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="bg-slate-50 p-2 rounded-lg border-l-4 border-indigo-200 text-slate-700 text-xs"
+                          dangerouslySetInnerHTML={{
+                            __html: renderMathInHtml(stmt),
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span
+                  className={`shrink-0 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${isCorrect ? "bg-green-100 text-green-700" : isSkipped ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-700"}`}
+                >
+                  {isCorrect ? "Correct" : isSkipped ? "Skipped" : "Incorrect"}
+                </span>
+              </div>
+
+              {q.options && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {q.options.map((opt, optIdx) => {
+                    const isAnswer = optIdx === q.correctAnswer;
+                    const isSelected = optIdx === userSelected;
+                    const optionClass = isAnswer
+                      ? "bg-green-50 border-green-400 text-green-800"
+                      : isSelected
+                        ? "bg-red-50 border-red-300 text-red-800"
+                        : "bg-slate-50 border-slate-200 text-slate-600";
+
+                    return (
+                      <div
+                        key={optIdx}
+                        className={`p-3 rounded-xl border flex items-start gap-3 ${optionClass}`}
+                      >
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isAnswer ? "bg-green-500 text-white" : isSelected ? "bg-red-500 text-white" : "bg-white border border-slate-300 text-slate-500"}`}
+                        >
+                          {String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <div
+                          className="text-xs font-medium"
+                          dangerouslySetInnerHTML={{
+                            __html: renderMathInHtml(opt),
+                          }}
+                        />
+                        <span className="ml-auto shrink-0 text-[9px] font-black uppercase">
+                          {isAnswer
+                            ? "Correct"
+                            : isSelected
+                              ? "Your answer"
+                              : ""}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const renderFullReport = (marksheetId = "marksheet-style-1-print") => (
     <div className="p-8 bg-white max-w-7xl mx-auto space-y-8">
       {renderMarksheetStyle1(marksheetId)}
@@ -2017,7 +2108,7 @@ export const MarksheetCard: React.FC<Props> = ({
             onClick={() => setActiveTab("SOLUTION")}
             className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "SOLUTION" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
           >
-            <BookOpen size={14} className="inline mr-1 mb-0.5" /> Explanations
+            <BookOpen size={14} className="inline mr-1 mb-0.5" /> Solutions
           </button>
 
           {!isAnalysisUnlocked ? (
@@ -2047,22 +2138,6 @@ export const MarksheetCard: React.FC<Props> = ({
                 );
               })()}
 
-              {(() => {
-                const access = checkFeatureAccess(
-                  "MS_OMR",
-                  user,
-                  settings || {},
-                );
-                if (!access.hasAccess) return null;
-                return (
-                  <button
-                    onClick={() => setActiveTab("OMR")}
-                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "OMR" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
-                  >
-                    <Grid size={14} className="inline mr-1 mb-0.5" /> OMR
-                  </button>
-                );
-              })()}
             </>
           )}
         </div>
@@ -2117,7 +2192,7 @@ export const MarksheetCard: React.FC<Props> = ({
           {activeTab === "SOLUTION" && (
             <div className="animate-in slide-in-from-bottom-4">
               {questions && questions.length > 0 ? (
-                renderDetailedSolutions()
+                renderAnswerReview()
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
                   <BookOpen className="mx-auto text-slate-400 mb-3" size={32} />
@@ -2129,49 +2204,6 @@ export const MarksheetCard: React.FC<Props> = ({
             </div>
           )}
 
-          {activeTab === "OMR" && isAnalysisUnlocked && (
-            <div className="animate-in slide-in-from-bottom-4">
-              {renderWeakAreasSummary()}
-              {renderTopicBreakdown()}
-              <div className="bg-white rounded-2xl p-6 shadow-xl border border-slate-200 mt-6 relative overflow-hidden" data-export-hide="true">
-                <h3 className="font-black text-slate-800 text-lg mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Grid size={20} className="text-blue-600" /> OMR Response
-                  Sheet
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
-                  {currentData.map((data) =>
-                    renderOMRRow(data.qIndex, data.selected, data.correct),
-                  )}
-                </div>
-                {hasOMR && (
-                  <div className="flex justify-between items-center mt-4">
-                    <button
-                      disabled={page === 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="p-2 rounded-lg bg-slate-100 disabled:opacity-50 hover:bg-slate-200"
-                      aria-label="Previous OMR page"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <span className="text-xs font-bold text-slate-600">
-                      Page {page} of {totalPages}
-                    </span>
-                    <button
-                      disabled={page === totalPages}
-                      onClick={() =>
-                        setPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      className="p-2 rounded-lg bg-slate-100 disabled:opacity-50 hover:bg-slate-200"
-                      aria-label="Next OMR page"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

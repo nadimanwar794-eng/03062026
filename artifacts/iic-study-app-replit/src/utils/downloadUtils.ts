@@ -243,7 +243,17 @@ export const downloadAsMHTML = async (
 
   } catch (err) {
     console.error('[download] PDF generation failed:', err);
-    alert('Download fail hua. Please try again.');
+    // A PDF capture can fail on mobile browsers when a canvas contains a
+    // cross-origin logo, a very tall report, or an unsupported CSS rule.
+    // Keep the user's report downloadable instead of leaving the button as a
+    // silent no-op.
+    try {
+      downloadAsHTML(element.innerHTML, filename, branding);
+      alert('PDF generate nahi ho saka, isliye report HTML format mein download kar di gayi.');
+    } catch (fallbackError) {
+      console.error('[download] HTML fallback failed:', fallbackError);
+      alert('Download fail hua. Please try again.');
+    }
   } finally {
     element.style.position = originalStyles.position;
     element.style.top = originalStyles.top;
