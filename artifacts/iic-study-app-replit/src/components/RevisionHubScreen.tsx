@@ -518,6 +518,10 @@ export const RevisionHubScreen: React.FC<Props> = ({
           const isAnswered = sessionAnswers[sessionQIndex] !== null && sessionAnswers[sessionQIndex] !== undefined;
            const totalQuestions = sessionMcqs.length;
            const ready      = totalQuestions > 0 && answered >= totalQuestions;
+           // After moving back, keep a forward-navigation path even if the
+           // current question has not been answered yet. The first question
+           // still requires an answer before moving forward.
+           const canGoForward = isAnswered || (sessionQIndex > 0 && sessionQIndex < totalQuestions - 1);
 
           return (
           <div className="p-4 max-w-xl mx-auto space-y-4">
@@ -579,14 +583,14 @@ export const RevisionHubScreen: React.FC<Props> = ({
                  <button
                    type="button"
                    onClick={handleNext}
-                   disabled={!isAnswered}
+                   disabled={!canGoForward}
                    className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3.5 font-black text-sm active:scale-[0.97] transition-all ${
-                     isAnswered
+                     canGoForward
                        ? 'border-indigo-500 bg-indigo-600 text-white shadow-md shadow-indigo-200'
                        : 'border-dashed border-slate-200 bg-white text-slate-400 cursor-not-allowed'
                    }`}
                  >
-                   {isAnswered
+                   {canGoForward
                      ? (sessionQIndex < sessionMcqs.length - 1
                        ? <>Agla <ChevronRight size={16} /></>
                        : <>✅ Finish</>)
