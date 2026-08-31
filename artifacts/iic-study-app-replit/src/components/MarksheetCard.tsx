@@ -561,6 +561,12 @@ export const MarksheetCard: React.FC<Props> = ({
   }, [initialView, result.ultraAnalysisReport]);
 
   useEffect(() => {
+    if (initialView === "ANALYSIS" && isAnalysisUnlocked) {
+      setActiveTab("ANALYSIS_TOPIC");
+    }
+  }, [initialView, isAnalysisUnlocked]);
+
+  useEffect(() => {
     getCategorizedVoices().then((v) => {
       setVoices(v);
       const preferred = v.hindi[0] || v.indianEnglish[0] || v.others[0];
@@ -1848,6 +1854,11 @@ export const MarksheetCard: React.FC<Props> = ({
   const renderFullReport = (marksheetId = "marksheet-style-1-print") => (
     <div className="p-8 bg-white max-w-7xl mx-auto space-y-8">
       {renderMarksheetStyle1(marksheetId)}
+      <div className="border-t-2 border-dashed border-slate-300 my-8"></div>
+      {renderAnalysisContent()}
+      {renderTopicBreakdown()}
+      {renderFullOMR()}
+      {renderDetailedSolutions()}
     </div>
   );
 
@@ -1877,8 +1888,8 @@ export const MarksheetCard: React.FC<Props> = ({
         {renderFullReport()}
       </div>
 
-        <div className="w-full max-w-7xl h-full sm:h-auto sm:max-h-[90vh] bg-white sm:rounded-3xl shadow-2xl flex flex-col relative overflow-hidden transition-all duration-300">
-        {/* Minimal header: the report is one page, so close is the only action. */}
+      <div className="w-full max-w-7xl h-full sm:h-auto sm:max-h-[90vh] bg-white sm:rounded-3xl shadow-2xl flex flex-col relative overflow-hidden transition-all duration-300">
+        {/* Header */}
         <div className="bg-white text-slate-800 border-b border-slate-100 flex justify-between items-center z-10 sticky top-0 shrink-0 px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
             {settings?.appLogo && (
@@ -1897,14 +1908,77 @@ export const MarksheetCard: React.FC<Props> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-rose-100 hover:text-rose-600 transition-colors shrink-0"
-            title="Close"
-            aria-label="Close marksheet"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={handleShare}
+              className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-green-100 hover:text-green-600 transition-colors"
+              title="Share Result"
+              aria-label="Share result"
+            >
+              <Share2 size={18} />
+            </button>
+
+            {activeTab === "OFFICIAL_MARKSHEET" ? (
+              <button
+                onClick={() =>
+                  downloadAsPDF("marksheet-style-1", `Marksheet_${user.name}`)
+                }
+                className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                title="Download Marksheet"
+                aria-label="Download marksheet"
+              >
+                <Download size={18} />
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  downloadAsPDF(
+                    "full-report-print-container",
+                    `Full_Analysis_${user.name}`,
+                  )
+                }
+                className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                title="Download Full Analysis"
+                aria-label="Download full analysis"
+              >
+                {isDownloadingAll ? (
+                  <span className="animate-spin text-xs">⏳</span>
+                ) : (
+                  <Download size={18} />
+                )}
+              </button>
+            )}
+
+            {activeTab !== "OFFICIAL_MARKSHEET" && (
+              <button
+                onClick={handleSaveOffline}
+                className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-800 hover:text-white transition-colors"
+                title="Save Offline"
+                aria-label="Save analysis offline"
+              >
+                <Download size={18} className="animate-bounce" />
+              </button>
+            )}
+
+            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+            <button
+              onClick={toggleFullScreen}
+              className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition-colors"
+              title="Full Screen"
+              aria-label="Toggle full screen"
+            >
+              <Maximize size={18} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-rose-100 hover:text-rose-600 transition-colors shrink-0"
+              title="Close"
+              aria-label="Close marksheet"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Comparison Alert */}
@@ -1921,15 +1995,186 @@ export const MarksheetCard: React.FC<Props> = ({
           </div>
         )}
 
+        {/* Report tabs */}
+        <div className="px-4 pt-2 pb-0 bg-white border-b border-slate-100 flex gap-2 overflow-x-auto shrink-0 scrollbar-hide items-center">
+          {(() => {
+            const access = checkFeatureAccess(
+              "MS_OFFICIAL",
+              user,
+              settings || {},
+            );
+            if (!access.hasAccess && access.cost === 0) return null;
+
+            return (
+              <button
+                onClick={() => setActiveTab("OFFICIAL_MARKSHEET")}
+                className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "OFFICIAL_MARKSHEET" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+              >
+                <FileText size={14} className="inline mr-1 mb-0.5" /> Official
+                Marksheet
+              </button>
+            );
+          })()}
+
+          <button
+            onClick={() => setActiveTab("SOLUTION")}
+            className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "SOLUTION" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+          >
+            <BookOpen size={14} className="inline mr-1 mb-0.5" /> Explanations
+          </button>
+
+          {!isAnalysisUnlocked ? (
+            <button
+              onClick={unlockFreeAnalysis}
+              className="px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-600 flex items-center gap-1 bg-slate-50/50 whitespace-nowrap"
+            >
+              <Lock size={12} /> Full Analysis (Locked)
+            </button>
+          ) : (
+            <>
+              {(() => {
+                const access = checkFeatureAccess(
+                  "MS_ANALYSIS",
+                  user,
+                  settings || {},
+                );
+                if (!access.hasAccess) return null;
+                return (
+                  <button
+                    onClick={() => setActiveTab("ANALYSIS_TOPIC")}
+                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "ANALYSIS_TOPIC" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <FileSearch size={14} className="inline mr-1 mb-0.5" /> Full
+                    Analysis
+                  </button>
+                );
+              })()}
+
+              {(() => {
+                const access = checkFeatureAccess(
+                  "MS_OMR",
+                  user,
+                  settings || {},
+                );
+                if (!access.hasAccess) return null;
+                return (
+                  <button
+                    onClick={() => setActiveTab("OMR")}
+                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "OMR" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Grid size={14} className="inline mr-1 mb-0.5" /> OMR
+                  </button>
+                );
+              })()}
+            </>
+          )}
+        </div>
+
         {/* Scrollable Content */}
         <div
           id="marksheet-content"
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50 relative"
         >
-          <div className="animate-in slide-in-from-bottom-4">
-            {renderMarksheetStyle1("marksheet-style-1")}
-          </div>
+          {activeTab === "OFFICIAL_MARKSHEET" && (
+            <div className="animate-in slide-in-from-bottom-4">
+              {renderMarksheetStyle1("marksheet-style-1")}
+              {!isAnalysisUnlocked && (
+                <div className="mt-6 bg-white p-6 rounded-2xl border-2 border-indigo-100 text-center shadow-lg">
+                  <Lock className="mx-auto text-indigo-400 mb-3" size={48} />
+                  <h3 className="text-xl font-black text-slate-800 mb-2">
+                    Analysis Locked
+                  </h3>
+                  <p className="text-slate-600 text-sm mb-6 max-w-xs mx-auto">
+                    Unlock detailed answers, OMR sheet, and weak concept
+                    analysis.
+                  </p>
+                  <button
+                    onClick={unlockFreeAnalysis}
+                    className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto"
+                  >
+                    <BrainCircuit size={20} /> Unlock Now (20 Coins)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "ANALYSIS_TOPIC" && isAnalysisUnlocked && (
+            <div className="animate-in slide-in-from-bottom-4">
+              <div className="mb-8">{renderGranularAnalysis()}</div>
+              <div className="text-center p-6 bg-indigo-50 border border-indigo-100 rounded-xl mt-6">
+                <p className="text-indigo-800 font-bold mb-3">
+                  Want to see the detailed question-by-question breakdown?
+                </p>
+                <button
+                  onClick={() => setActiveTab("SOLUTION")}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition font-bold text-sm"
+                >
+                  View Full Solutions
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "SOLUTION" && (
+            <div className="animate-in slide-in-from-bottom-4">
+              {questions && questions.length > 0 ? (
+                renderDetailedSolutions()
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+                  <BookOpen className="mx-auto text-slate-400 mb-3" size={32} />
+                  <p className="text-sm text-slate-600">
+                    No question data is available for this attempt.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "OMR" && isAnalysisUnlocked && (
+            <div className="animate-in slide-in-from-bottom-4">
+              {renderWeakAreasSummary()}
+              {renderTopicBreakdown()}
+              <div className="bg-white rounded-2xl p-6 shadow-xl border border-slate-200 mt-6 relative overflow-hidden" data-export-hide="true">
+                <h3 className="font-black text-slate-800 text-lg mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Grid size={20} className="text-blue-600" /> OMR Response
+                  Sheet
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
+                  {currentData.map((data) =>
+                    renderOMRRow(data.qIndex, data.selected, data.correct),
+                  )}
+                </div>
+                {hasOMR && (
+                  <div className="flex justify-between items-center mt-4">
+                    <button
+                      disabled={page === 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="p-2 rounded-lg bg-slate-100 disabled:opacity-50 hover:bg-slate-200"
+                      aria-label="Previous OMR page"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <span className="text-xs font-bold text-slate-600">
+                      Page {page} of {totalPages}
+                    </span>
+                    <button
+                      disabled={page === totalPages}
+                      onClick={() =>
+                        setPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      className="p-2 rounded-lg bg-slate-100 disabled:opacity-50 hover:bg-slate-200"
+                      aria-label="Next OMR page"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
