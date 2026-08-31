@@ -14415,7 +14415,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       ══════════════════════════════════════════════ */}
       {activeTab === 'COMPETITION_MCQ_MANAGER' && (
           <ErrorBoundary fallbackLabel="Competition MCQ Practice Manager" compact>
-            <AdminCompetitionMcqManager onBack={() => setActiveTab('DASHBOARD')} />
+            <AdminCompetitionMcqManager
+              settings={localSettings}
+              onBack={() => setActiveTab('DASHBOARD')}
+            />
           </ErrorBoundary>
       )}
 
