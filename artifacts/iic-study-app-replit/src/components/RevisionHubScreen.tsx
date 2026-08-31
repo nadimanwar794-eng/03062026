@@ -105,7 +105,6 @@ export const RevisionHubScreen: React.FC<Props> = ({
   const [sessionMcqs, setSessionMcqs]       = useState<any[]>([]);
   const [coinModal, setCoinModal] = useState<{ title: string; cost: number; onConfirm: () => void } | null>(null);
   const [pendingLesson, setPendingLesson] = useState<any | null>(null);
-  const autoAdvanceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to mcq_lessons from Firebase
   useEffect(() => {
@@ -296,25 +295,6 @@ export const RevisionHubScreen: React.FC<Props> = ({
       return next;
     });
 
-    // Move to the next MCQ automatically after the answer is registered.
-    // Keep the final question visible so the completed-session Submit button
-    // can be used after every question has been answered.
-    const answeredIndex = sessionQIndex;
-    const nextIndex = answeredIndex + 1;
-    if (nextIndex < sessionMcqs.length) {
-      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        autoAdvanceTimerRef.current = null;
-        setSessionQIndex(currentIndex => {
-          // Do not jump unexpectedly if the user navigated back during the
-          // brief answer-feedback window.
-          if (currentIndex !== answeredIndex) return currentIndex;
-          return nextIndex;
-        });
-        setSelectedOption(null);
-        setShowFeedback(false);
-      }, 350);
-    }
   }
 
   function handlePrev() {
@@ -594,14 +574,24 @@ export const RevisionHubScreen: React.FC<Props> = ({
                   <ArrowLeft size={15} /> Pichla
                 </button>
 
-                 {/* Questions advance automatically after an answer. */}
-                 <div className="flex-1 flex items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-3.5">
-                   <p className="text-[11px] text-slate-400 font-bold text-center">
-                     {isAnswered
-                       ? (sessionQIndex < sessionMcqs.length - 1 ? '✓ Agla sawaal aa raha hai…' : '✓ Saare sawaal complete')
-                       : '⬆ Ek option chunein'}
-                   </p>
-                 </div>
+                 {/* Manual next button — keep the selected answer visible until
+                     the student is ready to move on. */}
+                 <button
+                   type="button"
+                   onClick={handleNext}
+                   disabled={!isAnswered}
+                   className={`flex-1 flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3.5 font-black text-sm active:scale-[0.97] transition-all ${
+                     isAnswered
+                       ? 'border-indigo-500 bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                       : 'border-dashed border-slate-200 bg-white text-slate-400 cursor-not-allowed'
+                   }`}
+                 >
+                   {isAnswered
+                     ? (sessionQIndex < sessionMcqs.length - 1
+                       ? <>Agla <ChevronRight size={16} /></>
+                       : <>✅ Finish</>)
+                     : '⬆ Ek option chunein'}
+                 </button>
               </div>
 
               {/* Submit button */}

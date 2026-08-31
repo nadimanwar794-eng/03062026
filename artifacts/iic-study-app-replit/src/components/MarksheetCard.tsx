@@ -2014,15 +2014,7 @@ export const MarksheetCard: React.FC<Props> = ({
             );
           })()}
 
-          {/* Solutions Tab (Always Free) */}
-          <button
-            onClick={() => setActiveTab("SOLUTION")}
-            className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "SOLUTION" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
-          >
-            <BookOpen size={14} className="inline mr-1 mb-0.5" /> Explanations
-          </button>
-
-          {/* Analysis / OMR Tabs (Premium or Unlockable) */}
+          {/* Full Analysis (Premium or Unlockable) */}
           {!isAnalysisUnlocked ? (
             <button
               onClick={unlockFreeAnalysis}
@@ -2050,23 +2042,6 @@ export const MarksheetCard: React.FC<Props> = ({
                 );
               })()}
 
-              {/* OMR Tab */}
-              {(() => {
-                const access = checkFeatureAccess(
-                  "MS_OMR",
-                  user,
-                  settings || {},
-                );
-                if (!access.hasAccess && mcqMode !== "PREMIUM") return null;
-                return (
-                  <button
-                    onClick={() => setActiveTab("OMR")}
-                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === "OMR" ? "border-indigo-600 text-indigo-600 bg-indigo-50" : "border-transparent text-slate-600 hover:bg-slate-50"}`}
-                  >
-                    <Grid size={14} className="inline mr-1 mb-0.5" /> OMR
-                  </button>
-                );
-              })()}
             </>
           )}
         </div>
@@ -2087,8 +2062,7 @@ export const MarksheetCard: React.FC<Props> = ({
                     Analysis Locked
                   </h3>
                   <p className="text-slate-600 text-sm mb-6 max-w-xs mx-auto">
-                    Unlock detailed answers, OMR sheet, and weak concept
-                    analysis.
+                    Unlock detailed answers and weak concept analysis.
                   </p>
                   <button
                     onClick={unlockFreeAnalysis}
@@ -2104,18 +2078,6 @@ export const MarksheetCard: React.FC<Props> = ({
           {activeTab === "ANALYSIS_TOPIC" && isAnalysisUnlocked && (
             <div className="animate-in slide-in-from-bottom-4">
               <div className="mb-8">{renderGranularAnalysis()}</div>
-              {/* Prompt to view solutions */}
-              <div className="text-center p-6 bg-indigo-50 border border-indigo-100 rounded-xl mt-6">
-                <p className="text-indigo-800 font-bold mb-3">
-                  Want to see the detailed question-by-question breakdown?
-                </p>
-                <button
-                  onClick={() => setActiveTab("SOLUTION")}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition font-bold text-sm"
-                >
-                  View Full Solutions
-                </button>
-              </div>
             </div>
           )}
 
