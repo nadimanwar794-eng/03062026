@@ -1365,29 +1365,33 @@ export const FlashcardMcqView: React.FC<Props> = ({
               return acc;
             }, {} as Record<number, boolean>);
             return (
-              <McqAnalysisOverlay
-                questions={reviewSnapshot.questions}
-                answers={analysisAnswers}
-                submitted={analysisSubmitted}
-                title={title || 'MCQ Practice'}
-                subtitle={subtitle}
-                subject={subject || 'MCQ Practice'}
-                user={user}
-                settings={settings}
-                onClose={() => setProjectorShowReview(false)}
-                onRestart={() => {
-                  setProjectorQIndex(0);
-                  setProjectorReveal(false);
-                  setProjectorAnswered(new Set());
-                  setProjectorCorrect(0);
-                  setProjectorWrong(0);
-                  setProjectorSkipped(new Set());
-                  setProjectorNavigatorOpen(false);
-                  setProjectorSelections({});
-                  setProjectorShowReview(false);
-                  setIsProjectorMode(true);
-                }}
-              />
+              // MarksheetCard has its own z-index, so keep the review in a
+              // higher stacking context than the projector overlay (z-index 99999).
+              <div style={{ position: 'fixed', inset: 0, zIndex: 100000 }}>
+                <McqAnalysisOverlay
+                  questions={reviewSnapshot.questions}
+                  answers={analysisAnswers}
+                  submitted={analysisSubmitted}
+                  title={title || 'MCQ Practice'}
+                  subtitle={subtitle}
+                  subject={subject || 'MCQ Practice'}
+                  user={user}
+                  settings={settings}
+                  onClose={() => setProjectorShowReview(false)}
+                  onRestart={() => {
+                    setProjectorQIndex(0);
+                    setProjectorReveal(false);
+                    setProjectorAnswered(new Set());
+                    setProjectorCorrect(0);
+                    setProjectorWrong(0);
+                    setProjectorSkipped(new Set());
+                    setProjectorNavigatorOpen(false);
+                    setProjectorSelections({});
+                    setProjectorShowReview(false);
+                    setIsProjectorMode(true);
+                  }}
+                />
+              </div>
             );
           }
           const _total   = reviewSnapshot.answered.length;
