@@ -1855,10 +1855,7 @@ export const MarksheetCard: React.FC<Props> = ({
     <div className="p-8 bg-white max-w-7xl mx-auto space-y-8">
       {renderMarksheetStyle1(marksheetId)}
       <div className="border-t-2 border-dashed border-slate-300 my-8"></div>
-      {renderAnalysisContent()}
-      {renderTopicBreakdown()}
-      {renderFullOMR()}
-      {renderDetailedSolutions()}
+      {renderGranularAnalysis()}
     </div>
   );
 
