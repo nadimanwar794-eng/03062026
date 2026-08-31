@@ -75,13 +75,40 @@ function _seededShuffle<T>(arr: T[], seed: string): T[] {
   return result;
 }
 
+const matchesClassLevel = (value: unknown, classLevel: ClassLevel): boolean => {
+  if (Array.isArray(value)) {
+    return value.some(item => String(item) === String(classLevel));
+  }
+  return typeof value === 'string' && String(value) === String(classLevel);
+};
+
+/**
+ * Centrally stored MCQs are only safe for a class-scoped challenge when the
+ * source explicitly carries a matching class. Lesson MCQs get their class
+ * from the nst_content_* key, so they are filtered separately below.
+ */
+const isClassScopedQuestion = (question: any, classLevel: ClassLevel): boolean =>
+  matchesClassLevel(
+    question?.classLevel ?? question?.targetClass ?? question?.targetClasses,
+    classLevel,
+  );
+
+export const isContentKeyForClass = (
+  key: string,
+  classLevel: ClassLevel,
+  board?: Board | null,
+): boolean => {
+  if (!key.startsWith('nst_content_')) return false;
+  if (board && !key.startsWith(`nst_content_${board}_`)) return false;
+  return key.includes(`_${classLevel}_`) || key.includes(`_${classLevel}-`);
+};
+
 /**
  * buildAutoMixQuestions
  * ---------------------
- * Collects MCQs from two sources — without any AI call:
- *   1. Completed lesson content stored in `nst_content_*` localStorage keys
- *      (manualMcqData, weeklyTestMcqData, mcqData fields)
- *   2. Wrong-answer history in the Revision Hub (`nst_revision_tracker_v2`)
+ * Collects class-scoped MCQs without any AI call. Questions from sources
+ * without a class tag are intentionally excluded: a daily challenge must not
+ * mix another class's content into the selected class.
  *
  * Returns a shuffled, deduplicated pool trimmed to `totalTarget` questions.
  */
@@ -115,10 +142,9 @@ export const buildAutoMixQuestions = (
       const chId = parts[parts.length - 1];
       if (!selectedSet.has(chId)) continue;
     } else {
-      // Auto mode — match prefix (board-specific or all-boards)
-      if (!key.startsWith(autoPrefix)) continue;
-      // When scanning all boards, still filter by class level embedded in key
-      if (!board && !key.includes(`_${classLevel}_`) && !key.includes(`_${classLevel}-`)) continue;
+      // Auto mode — match class and, when supplied, the selected board.
+      if (!isContentKeyForClass(key, classLevel, board)) continue;
+      if (board && !key.startsWith(autoPrefix)) continue;
     }
 
     try {
@@ -150,8 +176,9 @@ export const buildAutoMixQuestions = (
         (bucket.wrongQuestions || []).forEach((wq: any) => {
           if (!wq.question) return;
           const qKey = wq.question.trim().toLowerCase();
-          if (usedQuestions.has(qKey)) return;
-          if (!wq.allOptions || wq.allOptions.length < 2) return;
+           if (usedQuestions.has(qKey)) return;
+           if (!isClassScopedQuestion(wq, classLevel)) return;
+           if (!wq.allOptions || wq.allOptions.length !== 4) return;
           const correctIdx = wq.allOptions.indexOf(wq.correctOption);
           if (correctIdx === -1) return;
           pool.push({
@@ -174,6 +201,7 @@ export const buildAutoMixQuestions = (
     if (!Array.isArray(questions)) return;
     questions.forEach((q: any) => {
       if (!q?.question) return;
+      if (!isClassScopedQuestion(q, classLevel)) return;
       const qKey = q.question.trim().toLowerCase();
       if (usedQuestions.has(qKey)) return;
       pool.push({ ...q, topic: q.topic || source });
@@ -183,12 +211,22 @@ export const buildAutoMixQuestions = (
   addConfiguredQuestions(settings?.globalChallengeMcq, 'Challenge of the Day');
   addConfiguredQuestions(settings?.competitionMcqs, 'Competition');
   (settings?.homework || []).forEach((item: any) => {
-    addConfiguredQuestions(item.parsedMcqs, item.title || 'Homework');
+    if (isClassScopedQuestion(item, classLevel)) {
+      addConfiguredQuestions(
+        (item.parsedMcqs || []).map((q: any) => ({ ...q, classLevel })),
+        item.title || 'Homework',
+      );
+    }
   });
   (settings?.lucentNotes || []).forEach((entry: any) => {
-    (entry.pages || []).forEach((page: any) => {
-      addConfiguredQuestions(page.mcqs, page.topicName || entry.lessonTitle || 'Lucent');
-    });
+    if (matchesClassLevel(entry.classLevel, classLevel)) {
+      (entry.pages || []).forEach((page: any) => {
+        addConfiguredQuestions(
+          (page.mcqs || []).map((q: any) => ({ ...q, classLevel })),
+          page.topicName || entry.lessonTitle || 'Lucent',
+        );
+      });
+    }
   });
 
   // ── 4. Question Bank ──────────────────────────────────────────────────────
@@ -196,8 +234,13 @@ export const buildAutoMixQuestions = (
     const bank = JSON.parse(localStorage.getItem('nst_question_bank') || '[]');
     if (Array.isArray(bank)) {
       bank
-        .filter((item: any) => item?.classLevel === classLevel || !item?.classLevel)
-        .forEach((item: any) => addConfiguredQuestions([item.question], item.subject || 'Question Bank'));
+        .filter((item: any) => matchesClassLevel(item?.classLevel, classLevel))
+        .forEach((item: any) =>
+          addConfiguredQuestions(
+            [{ ...item.question, classLevel: item.classLevel }],
+            item.subject || 'Question Bank',
+          )
+        );
     }
   } catch { /* ignore corrupt bank */ }
 
@@ -279,16 +322,17 @@ export const generateDailyChallengeQuestions = async (
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith('nst_content_')) {
+                if (!isContentKeyForClass(key, classLevel, board)) continue;
                 const parts = key.split('_');
                 const chId = parts[parts.length - 1];
                 if (selectedIds.has(chId)) sourceChapterKeys.push(key);
             }
         }
     } else {
-        // AUTO MODE — scan ALL nst_content_* keys (full syllabus, not just studied chapters)
+        // AUTO MODE — scan only this class's content (and selected board).
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith('nst_content_')) {
+            if (key && isContentKeyForClass(key, classLevel, board)) {
                 sourceChapterKeys.push(key);
             }
         }
@@ -322,22 +366,49 @@ export const generateDailyChallengeQuestions = async (
         if (!Array.isArray(questions)) return;
         sanitizeChallengeQuestions(questions).forEach(q => addQ(q, subjectName));
     };
-    addConfiguredBySubject(settings.globalChallengeMcq, 'Challenge of the Day');
-    addConfiguredBySubject(settings.competitionMcqs, 'Competition');
-    (settings.homework || []).forEach((item: any) =>
-        addConfiguredBySubject(item.parsedMcqs, item.targetSubject || item.title || 'Homework')
-    );
-    (settings.lucentNotes || []).forEach((entry: any) =>
+    // Only explicitly class-scoped central sources belong in this challenge.
+    // Generic/global, competition, or homework content without a target class
+    // is intentionally not mixed into a school-class routine challenge.
+    if (Array.isArray(settings.globalChallengeMcq)) {
+        addConfiguredBySubject(
+            settings.globalChallengeMcq.filter((q: any) => isClassScopedQuestion(q, classLevel)),
+            'Challenge of the Day',
+        );
+    }
+    if (Array.isArray(settings.competitionMcqs)) {
+        addConfiguredBySubject(
+            settings.competitionMcqs.filter((q: any) => isClassScopedQuestion(q, classLevel)),
+            'Competition',
+        );
+    }
+    (settings.homework || []).forEach((item: any) => {
+        if (isClassScopedQuestion(item, classLevel)) {
+            addConfiguredBySubject(
+                (item.parsedMcqs || []).map((q: any) => ({ ...q, classLevel })),
+                item.targetSubject || item.title || 'Homework',
+            );
+        }
+    });
+    (settings.lucentNotes || []).forEach((entry: any) => {
+        if (!matchesClassLevel(entry.classLevel, classLevel)) return;
         (entry.pages || []).forEach((page: any) =>
-            addConfiguredBySubject(page.mcqs, page.topicName || entry.lessonTitle || 'Lucent')
-        )
-    );
+            addConfiguredBySubject(
+                (page.mcqs || []).map((q: any) => ({ ...q, classLevel })),
+                page.topicName || entry.lessonTitle || 'Lucent',
+            )
+        );
+    });
     try {
         const bank = JSON.parse(localStorage.getItem('nst_question_bank') || '[]');
         if (Array.isArray(bank)) {
             bank
-                .filter((item: any) => item?.classLevel === classLevel || !item?.classLevel)
-                .forEach((item: any) => addConfiguredBySubject([item.question], item.subject || 'Question Bank'));
+                .filter((item: any) => matchesClassLevel(item?.classLevel, classLevel))
+                .forEach((item: any) =>
+                    addConfiguredBySubject(
+                        [{ ...item.question, classLevel: item.classLevel }],
+                        item.subject || 'Question Bank',
+                    )
+                );
         }
     } catch { /* ignore corrupt bank */ }
 

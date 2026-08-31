@@ -1600,6 +1600,7 @@ export interface Challenge20 {
     durationMinutes?: number; // NEW: Admin customized timer
     board?: Board;
     periodKey?: string; // Local date for daily, local Monday week key for weekly
+    routineClassLevel?: ClassLevel; // Auto challenges are scoped to the student's Routine class
 }
 
 export interface QuestionBankItem {

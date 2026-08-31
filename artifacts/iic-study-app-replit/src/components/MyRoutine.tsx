@@ -2057,6 +2057,7 @@ export const MyRoutine: React.FC<MyRoutineProps> = ({ user, lucentNotes = [], on
               };
               // Immediate Firebase sync — config change is important
               syncRoutineNow(userId, next);
+              window.dispatchEvent(new CustomEvent('iic-routine-updated'));
               return next;
             });
             setShowRoutineSetup(false);

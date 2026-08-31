@@ -2822,9 +2822,14 @@ const App: React.FC = () => {
       if (!state.user) return;
 
       const config = state.settings.dailyChallengeConfig || { rewardPercentage: 90, mode: 'AUTO', selectedChapterIds: [] };
+      const routineData = loadRoutineData(state.user.id);
+      const routineClass = routineData.enabled && routineData.selectedClass
+        ? routineData.selectedClass
+        : null;
+      const challengeClass = routineClass || state.user.classLevel || '10';
 
       const result = await generateDailyChallengeQuestions(
-          state.user.classLevel || '10',
+          challengeClass,
           state.user.board || 'BSEB',
           state.user.stream || null,
           state.settings,
@@ -2841,9 +2846,9 @@ const App: React.FC = () => {
       const test: WeeklyTest = {
           id: result.id,
           name: result.name,
-          description: "Aaj ke sawaal — syllabus ke sabhi chapters se!",
+          description: `Aaj ke Class ${challengeClass} Routine ke sawaal!`,
           isActive: true,
-          classLevel: state.user.classLevel || '10',
+          classLevel: challengeClass,
           questions: result.questions,
           totalQuestions: result.questions.length,
           passingScore: Math.ceil((config.rewardPercentage / 100) * result.questions.length),
