@@ -4,7 +4,7 @@ import { Challenge20, ClassLevel, MCQItem, Subject, SystemSettings } from '../..
 import { fetchLessonContent } from '../../services/groq';
 import { parseMCQText } from '../../utils/mcqParser';
 import { saveChallenge20, saveQuestionsToBank, getAllChallenges, deleteChallenge20 } from '../../services/questionBank';
-import { buildAutoMixQuestions, getChallengeDateKey, getChallengeTitle, getChallengeWeekKey } from '../../utils/challengeGenerator';
+import { buildAutoMixQuestions, getChallengeDateKey, getChallengeExpiryDate, getChallengeTitle, getChallengeWeekKey } from '../../utils/challengeGenerator';
 import { sanitizeChallengeQuestions } from '../../utils/challengeMcq';
 import { DEFAULT_SUBJECTS, getSubjectsList } from '../../constants';
 import { Sparkles, Trophy, Calendar, Save, RefreshCw, Plus, Layers, Trash2, History } from 'lucide-react';
@@ -41,7 +41,7 @@ export const ChallengeCreator20: React.FC<Props> = ({
   const [aiCount, setAiCount] = useState(10);
   
   // Auto Mode State
-  const [autoCount, setAutoCount] = useState(20);
+  const [autoCount, setAutoCount] = useState(100);
 
   // Import Mode State
   const [importText, setImportText] = useState('');
@@ -213,7 +213,9 @@ export const ChallengeCreator20: React.FC<Props> = ({
               classLevel,
               null,   // null = scan all boards for this class level
               null,
-              type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY'
+              type === 'DAILY_CHALLENGE' ? 'DAILY' : 'WEEKLY',
+              [],
+              settings
           );
 
           // Override count with admin-chosen autoCount
@@ -243,7 +245,7 @@ export const ChallengeCreator20: React.FC<Props> = ({
       const now = new Date();
       const periodKey = type === 'DAILY_CHALLENGE' ? getChallengeDateKey(now) : getChallengeWeekKey(now);
       const expiryDate = type === 'DAILY_CHALLENGE'
-        ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        ? getChallengeExpiryDate(now)
         : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const newChallenge: Challenge20 = {
           id: `${type === 'DAILY_CHALLENGE' ? 'daily' : 'weekly'}-${classLevel}-${periodKey}`,

@@ -2644,7 +2644,11 @@ const App: React.FC = () => {
     localStorage.setItem(key, JSON.stringify(attempts));
     window.dispatchEvent(new CustomEvent('iic-test-completed'));
 
-    await saveTestResult(state.user.id, attempt);
+    // Do not hold the result screen behind a remote write. The local attempt
+    // is already durable; Firebase sync can finish in the background.
+    void saveTestResult(state.user.id, attempt).catch((error) => {
+        console.warn('Test result sync failed:', error);
+    });
 
     const isChallenge20Daily = isDailyChallenge20(activeWeeklyTest);
     const isDailyChallengeAttempt = isChallenge20Daily || activeWeeklyTest.id.startsWith('weekly-auto-');
@@ -2721,7 +2725,9 @@ const App: React.FC = () => {
 
     if (!state.originalAdmin) {
         localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
-        await saveUserToLive(updatedUser);
+         void saveUserToLive(updatedUser).catch((error) => {
+             console.warn('Challenge result user sync failed:', error);
+         });
     }
     setState(prev => ({...prev, user: updatedUser}));
     if (rewardMsg) setAlertConfig({isOpen: true, message: rewardMsg});

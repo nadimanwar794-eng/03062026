@@ -22,7 +22,7 @@ import { getMistakeSessions } from '../utils/mistakeAnalytics';
 import { tryEarnScore, getDailyScoreEarned } from '../utils/scoreSystem';
 import type { User, SystemSettings, Challenge20 } from '../types';
 import type { MistakeEntry } from '../utils/mistakeBank';
-import { isDailyChallenge20 } from '../utils/challengeGenerator';
+import { getChallengeDateKey, isDailyChallenge20 } from '../utils/challengeGenerator';
 
 interface Props {
   user: User;
@@ -102,10 +102,10 @@ export const DailyEventPage: React.FC<Props> = ({
   user, settings, onBack, onOpenRoutine, onOpenRevisionHub, onPracticeMistakes, onOpenSubjects, onOpenTracking, onOpenLesson,
   onUpdateUser, challenge20s = [], onStartChallenge20, onClaimChallenge20,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getChallengeDateKey();
   const yesterdayStr = useMemo(() => {
     const d = new Date(); d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
+    return getChallengeDateKey(d);
   }, []);
   const lucentNotes = useMemo(() => (settings?.lucentNotes || []) as any[], [settings]);
 
