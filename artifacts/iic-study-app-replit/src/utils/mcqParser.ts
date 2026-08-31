@@ -274,7 +274,7 @@ function parseSimpleFormatBlock(block: string, topic: string): Partial<MCQItem> 
             const optionLetter = (optionMatch[2] || optionMatch[3]).toUpperCase();
             const idx = optionLetter.charCodeAt(0) - 65;
             if (idx >= 0 && idx < 4) {
-                optionMap[idx] = optionMatch[3].trim();
+                optionMap[idx] = optionMatch[4].trim();
                 if (isCorrect) starCorrects.push(idx);
             }
             continue;
