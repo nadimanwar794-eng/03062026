@@ -1167,7 +1167,9 @@ export const FlashcardMcqView: React.FC<Props> = ({
                   questionNumber={pq.questionNumber ?? projectorQIndex + 1}
                   selectedOption={projectorCurrentSelection}
                   answered={projectorCurrentSelection !== null}
-                  showResult={projectorShowReview}
+                   // Premium MCQ gives instant feedback after each selection.
+                   // The final submit still opens the Full Analysis overlay below.
+                   showResult={projectorCurrentSelection !== null}
                   variant="projector"
                   fontSize={projectorFontSize}
                   onSelect={(oi) => {
@@ -1226,7 +1228,7 @@ export const FlashcardMcqView: React.FC<Props> = ({
                 />
               </div>
               {/* Explanation after answering */}
-              {projectorShowReview && projectorCurrentSelection !== null && pq.explanation && (
+              {projectorCurrentSelection !== null && pq.explanation && (
                 <div style={{ background:'#fefce8', border:'2px solid #fde047', borderRadius:12, padding:'14px 18px', fontSize: projectorFontSize, color:'#713f12', lineHeight:1.5, flexShrink:0 }}>
                   💡 <strong>Explanation:</strong> <span dangerouslySetInnerHTML={{ __html: formatExplanationHtml(pq.explanation) }} />
                 </div>
