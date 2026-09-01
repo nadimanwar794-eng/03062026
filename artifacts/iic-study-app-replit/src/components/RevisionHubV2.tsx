@@ -466,6 +466,14 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     }
   };
 
+  const handlePracticeAnswer = (optionIdx: number) => {
+    // Keep the current question visible after an answer so the student can
+    // review the result and explanation before explicitly moving to the next.
+    if (practiceRevealed) return;
+    setPracticeSelected(optionIdx);
+    setPracticeRevealed(true);
+  };
+
   const finishPracticeSession = async (
     scores: Record<string, { got: number; total: number }> = practiceScores,
   ) => {
@@ -911,10 +919,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                               key={oi}
                               disabled={showResult}
                               onClick={() => {
-                                // Move forward immediately after the option is
-                                // chosen; the answer is passed directly so the
-                                // score does not depend on async state updates.
-                                handlePracticeRate(oi === correctIdx);
+                                handlePracticeAnswer(oi);
                               }}
                               className={`w-full flex items-start gap-3 border-2 rounded-2xl px-4 py-3.5 text-left transition-all active:scale-[0.99] ${optClass} ${showResult ? 'cursor-default' : 'hover:border-indigo-300 hover:bg-indigo-50/60'}`}
                             >
