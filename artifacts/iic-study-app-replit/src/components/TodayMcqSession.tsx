@@ -16,6 +16,7 @@ import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/sc
 import { hapticCorrect, hapticWrong } from '../utils/haptic';
 import { loadRoutineData } from '../utils/routineStorage';
 import { deferStudyCoins } from '../utils/studyRewards';
+import McqQuestionNavigator from './McqQuestionNavigator';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
@@ -790,10 +791,23 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             {/* Sidebar */}
             {showSidebar && (
                 <div className="fixed inset-0 bg-black/50 z-[110]" onClick={() => setShowSidebar(false)}>
-                    <div className="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-2xl p-4 overflow-y-auto animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
+                    <div className="absolute right-0 top-0 bottom-0 w-80 max-w-[calc(100%-1rem)] bg-slate-50 shadow-2xl p-4 overflow-y-auto animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-slate-800">Topics</h3>
+                            <h3 className="font-black text-slate-800">Question Switch</h3>
                             <button onClick={() => setShowSidebar(false)}><X size={20}/></button>
+                        </div>
+                        <McqQuestionNavigator
+                            total={interleavedQuestions.length}
+                            currentIndex={qIndex}
+                            answers={answers}
+                            onJump={(index) => {
+                                setQIndex(index);
+                                setShowSidebar(false);
+                            }}
+                            className="mb-4"
+                        />
+                        <div className="px-1 mb-2">
+                            <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Topic Progress</p>
                         </div>
                         <div className="space-y-3">
                             {topics.map((t, idx) => {
