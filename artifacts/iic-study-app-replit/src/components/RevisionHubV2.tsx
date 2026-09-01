@@ -38,8 +38,6 @@ import {
 import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { searchNotesByWords, type NoteSearchResult } from '../utils/noteSearcher';
 import { loadRoutineData } from '../utils/routineStorage';
-import McqQuestionDisplay from './McqQuestionDisplay';
-import { normalizeMcqForTracking } from '../utils/mcqStructure';
 
 interface Props {
   user: User;
@@ -58,25 +56,6 @@ interface Props {
 }
 
 type ActiveTab = 'daily' | 'results';
-
-function trackedQuestionAsMcq(q: any): any {
-  const normalized = normalizeMcqForTracking({
-    question: q.question,
-    questionNumber: q.questionNumber,
-    statements: q.statements,
-    options: q.allOptions,
-    correctAnswer: q.correctAnswer,
-    explanation: q.explanation,
-  });
-  return {
-    question: normalized.question,
-    questionNumber: normalized.questionNumber,
-    statements: normalized.statements,
-    options: normalized.allOptions,
-    correctAnswer: normalized.correctAnswer,
-    explanation: normalized.explanation,
-  };
-}
 
 function daysUntil(ts: number): string {
   const diff = ts - Date.now();
@@ -197,17 +176,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   }, [revMcqSessionActive]);
 
   // ── Inline "Practice All" MCQ session state ──────────────────────────────
-  type PracticeQ = {
-    question: string;
-    questionNumber?: string;
-    statements?: string[];
-    correctOption: string;
-    correctAnswer?: number;
-    allOptions?: string[];
-    explanation?: string;
-    topic: string;
-    bucketKey: string;
-  };
+  type PracticeQ = { question: string; correctOption: string; allOptions?: string[]; topic: string; bucketKey: string };
   const [practiceActive, setPracticeActive] = useState(false);
   const [practiceQs, setPracticeQs] = useState<PracticeQ[]>([]);
   const [practiceIdx, setPracticeIdx] = useState(0);
@@ -215,8 +184,6 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   const [practiceSelected, setPracticeSelected] = useState<number | null>(null);
   const [practiceScores, setPracticeScores] = useState<Record<string, { got: number; total: number }>>({});
   const [practiceDone, setPracticeDone] = useState(false);
-  const [practiceSaved, setPracticeSaved] = useState(false);
-  const [practiceSaving, setPracticeSaving] = useState(false);
 
   // Live clock — ticks every second for countdown timers
   const [now, setNow] = useState(Date.now());
@@ -338,7 +305,6 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     const topics: TopicItem[] = dueMcq.map(b => ({
       id: `${b.chapterId}_${b.topic}`,
       chapterId: b.chapterId,
-    pageKey: b.pageKey,
       chapterName: b.chapterTitle || b.chapterId,
       name: b.topic,
       score: 0,
@@ -364,17 +330,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
       const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
       const qs: PracticeQ[] = b.wrongQuestions
         .filter(q => q.question && q.correctOption)
-        .map(q => ({
-          question: q.question,
-          questionNumber: q.questionNumber,
-          statements: q.statements,
-          correctOption: q.correctOption!,
-          correctAnswer: q.correctAnswer,
-          allOptions: q.allOptions,
-          explanation: q.explanation,
-          topic: b.topic,
-          bucketKey: bk,
-        }));
+        .map(q => ({ question: q.question, correctOption: q.correctOption!, allOptions: q.allOptions, topic: b.topic, bucketKey: bk }));
       // Fisher-Yates shuffle within each topic bucket
       for (let i = qs.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -397,8 +353,6 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeRevealed(false);
     setPracticeScores({});
     setPracticeDone(false);
-    setPracticeSaved(false);
-    setPracticeSaving(false);
     setPracticeActive(true);
   };
 
@@ -406,24 +360,13 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
     const topicQs: PracticeQ[] = b.wrongQuestions
       .filter(q => q.question && q.correctOption)
-      .map(q => ({
-        question: q.question,
-        questionNumber: q.questionNumber,
-        statements: q.statements,
-        correctOption: q.correctOption!,
-        correctAnswer: q.correctAnswer,
-        allOptions: q.allOptions,
-        explanation: q.explanation,
-        topic: b.topic,
-        bucketKey: bk,
-      }));
+      .map(q => ({ question: q.question, correctOption: q.correctOption!, allOptions: q.allOptions, topic: b.topic, bucketKey: bk }));
     if (topicQs.length === 0) return;
     setPracticeQs(topicQs);
     setPracticeIdx(0);
     setPracticeRevealed(false);
     setPracticeScores({});
     setPracticeDone(false);
-    setPracticeSaved(false);
     setPracticeActive(true);
   };
 
@@ -442,15 +385,9 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     // Award XP for school revision hub MCQ answer; respect gate (returns false if daily limit hit)
     if (onMcqAnswer) { if (!onMcqAnswer(got)) return; }
     const q = practiceQs[practiceIdx];
-    const nextScores = (() => {
-      const current = practiceScores[q.bucketKey] || { got: 0, total: 0 };
-      return {
-        ...practiceScores,
-        [q.bucketKey]: { got: current.got + (got ? 1 : 0), total: current.total + 1 },
-      };
-    })();
-    setPracticeScores(() => {
-      return nextScores;
+    setPracticeScores(prev => {
+      const cur = prev[q.bucketKey] || { got: 0, total: 0 };
+      return { ...prev, [q.bucketKey]: { got: cur.got + (got ? 1 : 0), total: cur.total + 1 } };
     });
     const next = practiceIdx + 1;
     if (next >= practiceQs.length) {
@@ -462,104 +399,20 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     }
   };
 
-  const handlePracticeAnswer = (optionIdx: number) => {
-    // Keep the current question visible after an answer so the student can
-    // review the result and explanation before explicitly moving to the next.
-    if (practiceRevealed) return;
-    setPracticeSelected(optionIdx);
-    setPracticeRevealed(true);
-  };
-
-  const finishPracticeSession = async (
-    scores: Record<string, { got: number; total: number }> = practiceScores,
-  ) => {
-    if (practiceSaved || practiceSaving) return;
-    setPracticeSaving(true);
-
-    const completedAt = new Date().toISOString();
-    const savedEntries = dueMcq.flatMap((b) => {
-      const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
-      const sc = scores[bk];
-      if (!sc || sc.total <= 0) return [];
-
-      const accuracy = sc.got / sc.total;
-      const topicQuestions = practiceQs
-        .filter(q => q.bucketKey === bk)
-        .map(q => trackedQuestionAsMcq(q));
-
-      return [{
-        id: `revision-practice-${Date.now()}-${b.subjectId}-${b.chapterId}-${b.topic}`,
-        testId: `revision-practice-${Date.now()}-${b.subjectId}-${b.chapterId}-${b.topic}`,
-        userId: user.id,
-        chapterId: b.chapterId,
-        chapterTitle: b.chapterTitle || b.chapterId,
-        subjectId: b.subjectId,
-        subjectName: b.subjectName || b.subjectId,
-        topic: b.topic,
-        date: completedAt,
-        createdAt: completedAt,
-        score: sc.got,
-        totalQuestions: sc.total,
-        correctCount: sc.got,
-        wrongCount: sc.total - sc.got,
-        performanceTag: accuracy >= 0.8 ? 'EXCELLENT' : accuracy >= 0.5 ? 'GOOD' : 'BAD',
-        questions: topicQuestions,
-        userAnswers: {},
-        omrData: [],
-        wrongQuestions: [],
-        topicAnalysis: {
-          [b.topic]: {
-            correct: sc.got,
-            total: sc.total,
-            percentage: Math.round(accuracy * 100),
-          },
-        },
-      }];
-    });
-
+  const finishPracticeSession = () => {
     dueMcq.forEach(b => {
       const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
-      const sc = scores[bk];
+      const sc = practiceScores[bk];
       if (sc) {
         const acc = sc.total > 0 ? sc.got / sc.total : 0;
         markMcqDone(bk, acc, revisionConfig);
       }
     });
     syncRevisionProgress();
-
-    // The inline practice flow previously updated only the revision tracker.
-    // Persist an aggregated per-topic result as well, so Performance/History
-    // and a fresh device can see this completed Today MCQ attempt.
-    if (onUpdateUser && savedEntries.length > 0) {
-      try {
-        const latestUser = (window as any).__dashUserRef?.current ?? user;
-        const existingHistory = Array.isArray(latestUser.mcqHistory)
-          ? latestUser.mcqHistory
-          : [];
-        const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
-        const newEntries = savedEntries.filter((entry: any) => !existingIds.has(entry.id));
-        if (newEntries.length > 0) {
-          const saveResult = await Promise.resolve(onUpdateUser({
-            ...latestUser,
-            mcqHistory: [...newEntries, ...existingHistory],
-          }));
-          if (saveResult === false) {
-            setPracticeSaving(false);
-            toast.error('Performance save nahi ho paya. Please internet check karke dobara try karein.');
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('[RevisionHubV2] Automatic performance save failed:', error);
-        setPracticeSaving(false);
-        toast.error('Performance save nahi ho paya. Please internet check karke dobara try karein.');
-        return;
-      }
-    }
-
-    setPracticeSaved(true);
-    setPracticeSaving(false);
+    setPracticeActive(false);
+    setPracticeDone(false);
     reload();
+    setActiveTab('results');
   };
 
   const resetPractice = () => {
@@ -570,8 +423,6 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeRevealed(false);
     setPracticeSelected(null);
     setPracticeScores({});
-    setPracticeSaved(false);
-    setPracticeSaving(false);
   };
 
   // ── MCQ open + self-rating ────────────────────────────────────────────────
@@ -669,11 +520,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
           <div className="mt-2 space-y-1.5">
             {b.wrongQuestions.slice(0, 2).map((q, i) => (
               <div key={i} className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2">
-                <McqQuestionDisplay
-                  q={trackedQuestionAsMcq(q)}
-                  showQuestionNumber
-                  questionClassName="text-[11px] text-slate-700"
-                />
+                <p className="text-[11px] text-slate-700" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
                 {q.correctOption && (
                   <p className="text-[10px] text-emerald-700 font-bold mt-0.5">✓ <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.correctOption) }} /></p>
                 )}
@@ -799,27 +646,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
           settings={settings}
           onUpdateUser={onUpdateUser}
           onClose={() => setRevMcqSessionActive(false)}
-          onComplete={(results) => {
-            // Today MCQ already updates the revision tracker and testResults
-            // inside TodayMcqSession. Keep a durable aggregated copy too, so
-            // Performance/History can see the attempt after the overlay closes.
-            // Read the latest dashboard user to avoid overwriting a newer
-            // account snapshot with the prop captured before the session.
-            if (onUpdateUser && Array.isArray(results) && results.length > 0) {
-              const latestUser = (window as any).__dashUserRef?.current ?? user;
-              const existingHistory = Array.isArray(latestUser.mcqHistory)
-                ? latestUser.mcqHistory
-                : [];
-              const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
-              const newResults = results.filter((result: any) => result?.id && !existingIds.has(result.id));
-
-              if (newResults.length > 0) {
-                onUpdateUser({
-                  ...latestUser,
-                  mcqHistory: [...newResults, ...existingHistory],
-                });
-              }
-            }
+          onComplete={(_results) => {
             setRevMcqSessionActive(false);
             reload();
             setActiveTab('results');
@@ -843,13 +670,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
               {practiceDone ? (
                 <>
                   <h1 className="text-base font-black text-slate-800 leading-none">Session Complete!</h1>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {practiceSaving
-                      ? 'Performance save ho raha hai…'
-                      : practiceSaved
-                        ? 'Performance save ho gaya ✓'
-                        : 'Performance save karne ke liye button dabayein'}
-                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Performance save ho raha hai…</p>
                 </>
               ) : (
                 <>
@@ -891,18 +712,12 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
 
                   {/* Question card */}
                   <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm p-5">
-                    <McqQuestionDisplay
-                      q={trackedQuestionAsMcq(q)}
-                      showQuestionNumber
-                      questionClassName="font-bold text-slate-800 text-sm leading-relaxed"
-                    />
+                    <p className="font-bold text-slate-800 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMathInHtml(q.question) }} />
                   </div>
 
                   {/* Options — A/B/C/D if available, else reveal-only */}
                   {q.allOptions && q.allOptions.length > 0 ? (() => {
-                    const correctIdx = Number.isInteger(q.correctAnswer)
-                      ? q.correctAnswer!
-                      : q.allOptions.findIndex(o => o === q.correctOption);
+                    const correctIdx = q.allOptions.findIndex(o => o === q.correctOption);
                     return (
                       <div className="space-y-2.5">
                         {q.allOptions.map((opt, oi) => {
@@ -919,7 +734,8 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                               key={oi}
                               disabled={showResult}
                               onClick={() => {
-                                handlePracticeAnswer(oi);
+                                setPracticeSelected(oi);
+                                setPracticeRevealed(true);
                               }}
                               className={`w-full flex items-start gap-3 border-2 rounded-2xl px-4 py-3.5 text-left transition-all active:scale-[0.99] ${optClass} ${showResult ? 'cursor-default' : 'hover:border-indigo-300 hover:bg-indigo-50/60'}`}
                             >
@@ -1066,39 +882,18 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                   {/* Info */}
                   <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2.5 text-xs text-indigo-700 flex gap-2">
                     <span>📅</span>
-                    <span>
-                      {practiceSaved
-                        ? <>Performance save ho gaya. <strong>Performance</strong> tab mein dekho.</>
-                        : <>Score save karne ke liye neeche <strong>Performance Save Karo</strong> button dabayein.</>}
-                    </span>
+                    <span>Performance save ho gaya. <strong>Performance</strong> tab mein dekho.</span>
                   </div>
 
-                  {/* Save performance explicitly after the student reviews results. */}
+                  {/* Submit + reset */}
                   <button
-                    type="button"
-                    onClick={() => void finishPracticeSession()}
-                    disabled={practiceSaved || practiceSaving}
-                    className={`w-full flex items-center justify-center gap-2 font-black py-3.5 rounded-2xl transition-all shadow-md ${
-                      practiceSaved
-                        ? 'bg-emerald-100 text-emerald-700 cursor-default'
-                        : practiceSaving
-                          ? 'bg-emerald-500 text-white cursor-wait'
-                          : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-emerald-200'
-                    }`}
+                    onClick={finishPracticeSession}
+                    className="w-full flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl text-base transition-all shadow-lg active:scale-[0.99] bg-emerald-600"
                   >
-                    <Trophy size={18} />
-                    {practiceSaving
-                      ? 'Performance Save Ho Raha Hai…'
-                      : practiceSaved
-                        ? 'Performance Save Ho Gaya ✓'
-                        : 'Performance Save Karo'}
+                    <Trophy size={20} /> Performance Save Karo
                   </button>
-
                   <button
-                    onClick={() => {
-                      resetPractice();
-                      setActiveTab('results');
-                    }}
+                    onClick={resetPractice}
                     className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-2xl transition-all"
                   >
                     <RotateCcw size={16} /> Wapas Jao
