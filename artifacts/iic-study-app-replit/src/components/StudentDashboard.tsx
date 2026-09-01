@@ -255,7 +255,7 @@ import { shouldShowMcqOptions } from "../utils/mcqRender";
 import McqQuestionDisplay from "./McqQuestionDisplay";
 import McqPracticeCard from "./McqPracticeCard";
 import McqQuestionNavigator from "./McqQuestionNavigator";
-import { deferStudyCoins } from "../utils/studyRewards";
+import { deferStudyCoins, deferMcqCreditsFromXp } from "../utils/studyRewards";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
 import { WriteModeCorrection } from "./WriteModeCorrection";
 import { CompareView } from "./CompareView";
@@ -1441,7 +1441,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const earned = tryEarnScore(freshUser.id, 1, freshUser.subscriptionLevel, freshUser.isPremium, boost, 'MCQ_WRONG', limitBoost, limitBoostExpiry);
         if (earned > 0) {
           const routineOn = loadRoutineData(freshUser.id).enabled;
-          deferStudyCoins(freshUser.id, Math.max(1, Math.floor(earned * (routineOn ? 1 / 6 : 1 / 8))));
+          deferMcqCreditsFromXp(freshUser.id, earned, routineOn);
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + earned });
         }
       } else {
@@ -1464,7 +1464,7 @@ export const StudentDashboard: React.FC<Props> = ({
         const totalEarned = baseEarned + totalBonus;
         if (totalEarned > 0) {
           const routineOn = loadRoutineData(freshUser.id).enabled;
-          deferStudyCoins(freshUser.id, Math.max(1, Math.floor(totalEarned * (routineOn ? 1 / 6 : 1 / 8))));
+          deferMcqCreditsFromXp(freshUser.id, totalEarned, routineOn);
           handleUserUpdate({ ...freshUser, totalScore: (freshUser.totalScore || 0) + totalEarned });
         }
       }
@@ -16298,7 +16298,7 @@ export const StudentDashboard: React.FC<Props> = ({
              .map((value: string) => new Date(value).getTime())
              .filter((value: number) => !isNaN(value));
 
-           const result: import('../types').MCQResult = {
+            const result: import('../types').MCQResult = {
              id: `custom-mcq-analysis-${Date.now()}`,
              userId: user.id,
              chapterId: 'custom-mcq-set',
@@ -16326,7 +16326,11 @@ export const StudentDashboard: React.FC<Props> = ({
              },
            };
 
-           handleUserUpdate({ ...user, mcqHistory: [result, ...(user.mcqHistory || [])] });
+            // Answer scoring updates the user asynchronously. Always merge the
+            // analysis into the freshest user snapshot so saving the report
+            // cannot overwrite the XP earned on the last answer.
+            const latestUser = (window as any).__dashUserRef?.current ?? user;
+            handleUserUpdate({ ...latestUser, mcqHistory: [result, ...(latestUser.mcqHistory || [])] });
          };
 
         return (

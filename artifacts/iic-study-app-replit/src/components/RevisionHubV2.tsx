@@ -701,7 +701,27 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
           settings={settings}
           onUpdateUser={onUpdateUser}
           onClose={() => setRevMcqSessionActive(false)}
-          onComplete={(_results) => {
+          onComplete={(results) => {
+            // Today MCQ already updates the revision tracker and testResults
+            // inside TodayMcqSession. Keep a durable aggregated copy too, so
+            // Performance/History can see the attempt after the overlay closes.
+            // Read the latest dashboard user to avoid overwriting a newer
+            // account snapshot with the prop captured before the session.
+            if (onUpdateUser && Array.isArray(results) && results.length > 0) {
+              const latestUser = (window as any).__dashUserRef?.current ?? user;
+              const existingHistory = Array.isArray(latestUser.mcqHistory)
+                ? latestUser.mcqHistory
+                : [];
+              const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
+              const newResults = results.filter((result: any) => result?.id && !existingIds.has(result.id));
+
+              if (newResults.length > 0) {
+                onUpdateUser({
+                  ...latestUser,
+                  mcqHistory: [...newResults, ...existingHistory],
+                });
+              }
+            }
             setRevMcqSessionActive(false);
             reload();
             setActiveTab('results');
