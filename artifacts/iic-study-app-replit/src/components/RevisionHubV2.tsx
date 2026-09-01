@@ -216,6 +216,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   const [practiceScores, setPracticeScores] = useState<Record<string, { got: number; total: number }>>({});
   const [practiceDone, setPracticeDone] = useState(false);
   const [practiceSaved, setPracticeSaved] = useState(false);
+  const [practiceSaving, setPracticeSaving] = useState(false);
 
   // Live clock — ticks every second for countdown timers
   const [now, setNow] = useState(Date.now());
@@ -396,6 +397,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeScores({});
     setPracticeDone(false);
     setPracticeSaved(false);
+    setPracticeSaving(false);
     setPracticeActive(true);
   };
 
@@ -439,13 +441,23 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     // Award XP for school revision hub MCQ answer; respect gate (returns false if daily limit hit)
     if (onMcqAnswer) { if (!onMcqAnswer(got)) return; }
     const q = practiceQs[practiceIdx];
-    setPracticeScores(prev => {
-      const cur = prev[q.bucketKey] || { got: 0, total: 0 };
-      return { ...prev, [q.bucketKey]: { got: cur.got + (got ? 1 : 0), total: cur.total + 1 } };
+    const nextScores = (() => {
+      const current = practiceScores[q.bucketKey] || { got: 0, total: 0 };
+      return {
+        ...practiceScores,
+        [q.bucketKey]: { got: current.got + (got ? 1 : 0), total: current.total + 1 },
+      };
+    })();
+    setPracticeScores(() => {
+      return nextScores;
     });
     const next = practiceIdx + 1;
     if (next >= practiceQs.length) {
       setPracticeDone(true);
+      // Save immediately with the final answer included. React state updates are
+      // asynchronous, so pass the calculated snapshot instead of reading the
+      // still-stale practiceScores value inside finishPracticeSession.
+      void finishPracticeSession(nextScores);
     } else {
       setPracticeIdx(next);
       setPracticeRevealed(false);
@@ -453,13 +465,16 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     }
   };
 
-  const finishPracticeSession = () => {
-    if (practiceSaved) return;
+  const finishPracticeSession = async (
+    scores: Record<string, { got: number; total: number }> = practiceScores,
+  ) => {
+    if (practiceSaved || practiceSaving) return;
+    setPracticeSaving(true);
 
     const completedAt = new Date().toISOString();
     const savedEntries = dueMcq.flatMap((b) => {
       const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
-      const sc = practiceScores[bk];
+      const sc = scores[bk];
       if (!sc || sc.total <= 0) return [];
 
       const accuracy = sc.got / sc.total;
@@ -499,7 +514,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
 
     dueMcq.forEach(b => {
       const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
-      const sc = practiceScores[bk];
+      const sc = scores[bk];
       if (sc) {
         const acc = sc.total > 0 ? sc.got / sc.total : 0;
         markMcqDone(bk, acc, revisionConfig);
@@ -511,25 +526,35 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     // Persist an aggregated per-topic result as well, so Performance/History
     // and a fresh device can see this completed Today MCQ attempt.
     if (onUpdateUser && savedEntries.length > 0) {
-      const latestUser = (window as any).__dashUserRef?.current ?? user;
-      const existingHistory = Array.isArray(latestUser.mcqHistory)
-        ? latestUser.mcqHistory
-        : [];
-      const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
-      const newEntries = savedEntries.filter((entry: any) => !existingIds.has(entry.id));
-      if (newEntries.length > 0) {
-        onUpdateUser({
-          ...latestUser,
-          mcqHistory: [...newEntries, ...existingHistory],
-        });
+      try {
+        const latestUser = (window as any).__dashUserRef?.current ?? user;
+        const existingHistory = Array.isArray(latestUser.mcqHistory)
+          ? latestUser.mcqHistory
+          : [];
+        const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
+        const newEntries = savedEntries.filter((entry: any) => !existingIds.has(entry.id));
+        if (newEntries.length > 0) {
+          const saveResult = await Promise.resolve(onUpdateUser({
+            ...latestUser,
+            mcqHistory: [...newEntries, ...existingHistory],
+          }));
+          if (saveResult === false) {
+            setPracticeSaving(false);
+            toast.error('Performance save nahi ho paya. Please internet check karke dobara try karein.');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('[RevisionHubV2] Automatic performance save failed:', error);
+        setPracticeSaving(false);
+        toast.error('Performance save nahi ho paya. Please internet check karke dobara try karein.');
+        return;
       }
     }
 
     setPracticeSaved(true);
-    setPracticeActive(false);
-    setPracticeDone(false);
+    setPracticeSaving(false);
     reload();
-    setActiveTab('results');
   };
 
   const resetPractice = () => {
@@ -541,6 +566,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeSelected(null);
     setPracticeScores({});
     setPracticeSaved(false);
+    setPracticeSaving(false);
   };
 
   // ── MCQ open + self-rating ────────────────────────────────────────────────
@@ -812,7 +838,9 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
               {practiceDone ? (
                 <>
                   <h1 className="text-base font-black text-slate-800 leading-none">Session Complete!</h1>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Performance save ho raha hai…</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {practiceSaving ? 'Performance save ho raha hai…' : 'Performance automatically save ho gaya ✓'}
+                  </p>
                 </>
               ) : (
                 <>
@@ -1035,20 +1063,11 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                     <span>Performance save ho gaya. <strong>Performance</strong> tab mein dekho.</span>
                   </div>
 
-                  {/* Submit + reset */}
                   <button
-                    onClick={finishPracticeSession}
-                    disabled={practiceSaved}
-                    className={`w-full flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl text-base transition-all shadow-lg ${
-                      practiceSaved
-                        ? 'bg-emerald-500 opacity-80 cursor-default'
-                        : 'active:scale-[0.99] bg-emerald-600'
-                    }`}
-                  >
-                    <Trophy size={20} /> {practiceSaved ? 'Performance Saved ✓' : 'Performance Save Karo'}
-                  </button>
-                  <button
-                    onClick={resetPractice}
+                    onClick={() => {
+                      resetPractice();
+                      setActiveTab('results');
+                    }}
                     className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-2xl transition-all"
                   >
                     <RotateCcw size={16} /> Wapas Jao
