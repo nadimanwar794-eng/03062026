@@ -21639,7 +21639,13 @@ RULES:
                                 // Mark the page complete immediately; no
                                 // minimum-time gate or rushed-answer popup.
                                 try {
-                                  if (isRoutineMcqDone(entry.id)) markRoutinePageMcqDone(entry.id, safeIndex);
+                                  // Submit & Review is the completion boundary for
+                                  // this page. Do not gate the page marker on the
+                                  // lesson-level marker: older sessions and
+                                  // restored state may have the two maps out of
+                                  // sync, which leaves the page permanently
+                                  // incomplete even after a submitted MCQ.
+                                  markRoutinePageMcqDone(entry.id, safeIndex);
                                   const _fu = (window as any).__dashUserRef?.current ?? userRef.current;
                                   const _rd = loadRoutineData(_fu.id);
                                   const _td = new Date().toISOString().split('T')[0];

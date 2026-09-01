@@ -1761,6 +1761,7 @@ export type TopicStatus = 'WEAK' | 'AVERAGE' | 'STRONG' | 'EXCELLENT';
 export interface TopicItem {
     id: string; // Unique ID for list rendering (e.g. chapterId_subTopic)
     chapterId: string;
+    pageKey?: string; // Revision tracker page key; falls back to chapterId
     chapterName: string; // Name of the parent chapter
     name: string; // Sub-topic name (or Chapter name if no sub-topics)
     score: number; // Inherited or Specific Score

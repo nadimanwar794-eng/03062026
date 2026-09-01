@@ -3,3 +3,4 @@
 - [MCQ structure tracking](mcq-structure-tracking.md) — Keep question number, labeled statements, four options, answer, and explanation together across parser, tracker, and views.
 - [Challenge scheduling and format](challenge-scheduling-and-format.md) — Shared period keys keep manual and automatic challenges consistent; Challenge 2.0 preserves the Class 6–12 structured MCQ shape.
 - [Imported workspace preview setup](imported-workspace-preview.md) — Install the lockfile dependencies and use the registered artifact workflow for proxied previews.
+- [Revision tracker key consistency](revision-tracker-key-consistency.md) — Today MCQ must preserve the launching bucket's canonical topic and page key when recording results.

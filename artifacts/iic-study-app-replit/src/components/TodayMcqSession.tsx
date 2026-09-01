@@ -9,6 +9,7 @@ import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../f
 import { storage } from '../utils/storage';
 import { generateAnalysisJson } from '../utils/analysisUtils';
 import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey, getTrackerMap } from '../utils/revisionTrackerV2';
+import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
@@ -26,6 +27,7 @@ interface InterleavedQ extends MCQItem {
     _topicIndex: number;
     _topicName: string;
     _chapterId: string;
+    _pageKey: string;
     _chapterName: string;
     _subjectId: string;
     _subjectName: string;
@@ -169,6 +171,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         _topicIndex: i,
                         _topicName: topic.name,
                         _chapterId: topic.chapterId,
+                        _pageKey: topic.pageKey || topic.chapterId,
                         _chapterName: topic.chapterName,
                         _subjectId: topic.subjectId || 'REVISION',
                         _subjectName: topic.subjectName || 'Revision',
@@ -392,17 +395,26 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             // Revision tracker
             try {
                 const userAnswersArr = qs.map((_, localIdx) => ans[localIdx] ?? null);
+                // The question payload can carry a label from the source book
+                // (or "General"), but the Revision Hub bucket is keyed by the
+                // topic that launched this session. Always use that canonical
+                // topic/page pair so the existing due bucket is updated rather
+                // than creating a second bucket that remains due today.
+                const trackerQuestions = qs.map(q => ({
+                    ...q,
+                    topic: meta._topicName,
+                }));
                 recordRevisionAttempt({
                     subjectId: meta._subjectId,
                     subjectName: meta._subjectName,
                     chapterId: meta._chapterId,
                     chapterTitle: meta._chapterName,
-                    pageKey: meta._chapterId,
-                    questions: qs,
+                    pageKey: meta._pageKey || meta._chapterId,
+                    questions: trackerQuestions,
                     userAnswers: userAnswersArr,
                 });
                 if (topic) {
-                    const bk = bucketKey(meta._subjectId, meta._chapterId, meta._chapterId, meta._topicName);
+                    const bk = bucketKey(meta._subjectId, meta._chapterId, meta._pageKey || meta._chapterId, meta._topicName);
                     applyInitialSchedule(bk, accuracy, settings?.revisionConfig);
                 }
             } catch (_) {}
@@ -436,6 +448,13 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             saveTestResult(user.id, result);
             sessionResults.push(result);
         });
+
+        // Keep the corrected schedule available after a fresh device/login.
+        // The tracker itself is local-first, so this explicit bulk sync is the
+        // durable save point for a multi-topic Today MCQ session.
+        try {
+            syncAllRevisionBuckets(user.id, getTrackerMap());
+        } catch (_) {}
 
         // ── Mega combined result ──────────────────────────────────────────
         let totalQ = 0, totalScore = 0, totalCorrect = 0, totalWrong = 0;
@@ -495,7 +514,17 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             const trackerMap = getTrackerMap();
             topicSummary.forEach((item: any) => {
                 if (item._subjectId && item._chapterId) {
-                    const bk = bucketKey(item._subjectId, item._chapterId, item._chapterId, item.topicName);
+                    const topicMeta = interleavedQuestions.find(q =>
+                        q._subjectId === item._subjectId &&
+                        q._chapterId === item._chapterId &&
+                        q._topicName === item.topicName
+                    );
+                    const bk = bucketKey(
+                        item._subjectId,
+                        item._chapterId,
+                        topicMeta?._pageKey || item._chapterId,
+                        item.topicName,
+                    );
                     item.sessionHistory = trackerMap[bk]?.sessionHistory;
                 }
             });

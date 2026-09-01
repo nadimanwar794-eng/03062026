@@ -338,6 +338,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     const topics: TopicItem[] = dueMcq.map(b => ({
       id: `${b.chapterId}_${b.topic}`,
       chapterId: b.chapterId,
+    pageKey: b.pageKey,
       chapterName: b.chapterTitle || b.chapterId,
       name: b.topic,
       score: 0,
