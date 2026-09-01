@@ -2,32 +2,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, MCQItem, MCQResult, TopicItem, SystemSettings } from '../types';
-import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, ChevronLeft, SkipForward, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
+import { X, CheckCircle, ArrowRight, Loader2, BrainCircuit, AlertCircle, List, Tag, Trophy, TrendingDown, Minus, TrendingUp, Star, Calendar, ChevronRight, Tv, RotateCw, Maximize2, Minimize2 } from 'lucide-react';
 import { renderMathInHtml, formatExplanationHtml } from '../utils/mathUtils';
 import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
 import { storage } from '../utils/storage';
 import { generateAnalysisJson } from '../utils/analysisUtils';
 import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey, getTrackerMap } from '../utils/revisionTrackerV2';
-import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
 import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
 import { hapticCorrect, hapticWrong } from '../utils/haptic';
 import { loadRoutineData } from '../utils/routineStorage';
-import { deferMcqCreditsFromXp } from '../utils/studyRewards';
-import McqQuestionDisplay from './McqQuestionDisplay';
-import McqPracticeCard from './McqPracticeCard';
-import { getMcqOptions, normalizeMcqForTracking } from '../utils/mcqStructure';
-import { parseMcqQuestion } from '../utils/mcqRender';
-import McqQuestionNavigator from './McqQuestionNavigator';
+import { deferStudyCoins } from '../utils/studyRewards';
 
 interface InterleavedQ extends MCQItem {
     _topicIndex: number;
     _topicName: string;
     _chapterId: string;
-    _pageKey: string;
     _chapterName: string;
     _subjectId: string;
     _subjectName: string;
@@ -73,7 +66,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
     const [interleavedQuestions, setInterleavedQuestions] = useState<InterleavedQ[]>([]);
     const [qIndex, setQIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, number>>({});
-    const [skipped, setSkipped] = useState<Set<number>>(new Set());
     const [showSidebar, setShowSidebar] = useState(false);
     const [totalTime, setTotalTime] = useState(0);
     const [noMcqTopics, setNoMcqTopics] = useState<string[]>([]);
@@ -171,7 +163,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         _topicIndex: i,
                         _topicName: topic.name,
                         _chapterId: topic.chapterId,
-                        _pageKey: topic.pageKey || topic.chapterId,
                         _chapterName: topic.chapterName,
                         _subjectId: topic.subjectId || 'REVISION',
                         _subjectName: topic.subjectName || 'Revision',
@@ -212,10 +203,70 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
 
     // ── Answer handler ────────────────────────────────────────────────────
     const handleAnswer = (optionIdx: number) => {
-        setAnswers(prev => ({ ...prev, [qIndex]: optionIdx }));
-        setSkipped(prev => { const next = new Set(prev); next.delete(qIndex); return next; });
-        // Keep the answered question visible so the student can review the
-        // selected option before moving on with the explicit "Agla" button.
+        if (answers[qIndex] !== undefined) return;
+
+        // Today Revision Hub MCQs — NO daily MCQ limit applies here
+        const isCorrect = interleavedQuestions[qIndex]?.correctAnswer === optionIdx;
+        if (onTrackAnswer) {
+            if (!onTrackAnswer(isCorrect)) return;
+        }
+
+        // ── MCQ Scoring: +2 correct, -1 wrong, streak bonuses ─────────────────
+        if (user.id) {
+            const _subValid = SubscriptionEngine.isPremium(user);
+            const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
+                          _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
+            if (isCorrect) {
+                hapticCorrect();
+                const newStreak = mcqStreak + 1;
+                setMcqStreak(newStreak);
+                const pts = tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
+                const bonus = getMcqStreakBonus(newStreak);
+                const bonusPts = bonus > 0 ? tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${newStreak}`) : 0;
+                const totalPts = pts + bonusPts;
+                // Credits = ⅙ (routine on) ya ⅛ (routine off) of pts earned
+                const _routineOn = loadRoutineData(user.id).enabled;
+                const _creditRatio = _routineOn ? (1 / 6) : (1 / 8);
+                const _creditsEarned = totalPts > 0 ? Math.max(1, Math.floor(totalPts * _creditRatio)) : 0;
+                if (totalPts > 0) {
+                    const _u = userRef.current;
+                    if (_u && onUpdateUser) {
+                        deferStudyCoins(_u.id, _creditsEarned);
+                        const updated = {
+                            ..._u,
+                            totalScore: (_u.totalScore || 0) + totalPts,
+                        };
+                        onUpdateUser(updated);
+                        saveUserToLive(updated);
+                        // Home-sync key update — yahi pts ab credit sync se skip honge
+                        try { localStorage.setItem(`nst_credit_sync_score_${_u.id}`, String((_u.totalScore || 0) + totalPts)); } catch {}
+                    }
+                    showMcqScore(totalPts, _creditsEarned);
+                }
+            } else {
+                hapticWrong();
+                setMcqStreak(0);
+                subtractDailyScore(user.id, 1);
+                const _u = userRef.current;
+                if (_u && onUpdateUser) {
+                    const updated = { ..._u, totalScore: Math.max(0, (_u.totalScore || 0) - 1) };
+                    onUpdateUser(updated);
+                    saveUserToLive(updated);
+                }
+                showMcqScore(-1);
+            }
+        }
+
+        const newAnswers = { ...answers, [qIndex]: optionIdx };
+        setAnswers(newAnswers);
+
+        setTimeout(() => {
+            if (qIndex < interleavedQuestions.length - 1) {
+                setQIndex(prev => prev + 1);
+            } else {
+                finishSession(newAnswers);
+            }
+        }, 500);
     };
 
     // ── Finish: reconstruct per-topic results + mega result ───────────────
@@ -223,46 +274,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
         if (interleavedQuestions.length === 0) {
             onClose();
             return;
-        }
-
-        // Score once, from the final answer map, so changing an answer never
-        // awards points twice or leaves the result different from the UI.
-        if (user.id) {
-            let earnedPoints = 0;
-            let streak = 0;
-            const _subValid = SubscriptionEngine.isPremium(user);
-            const _tier = _subValid && user.subscriptionLevel === 'ULTRA' ? 'ULTRA' :
-                          _subValid && user.subscriptionLevel === 'BASIC' ? 'BASIC' : 'FREE';
-            interleavedQuestions.forEach((q, index) => {
-                const selected = finalAnswers[index];
-                if (selected === undefined) return;
-                const isCorrect = selected === q.correctAnswer;
-                onTrackAnswer?.(isCorrect);
-                if (isCorrect) {
-                    streak += 1;
-                    earnedPoints += tryEarnScore(user.id, 2, _tier, _subValid, 0, 'REVISION_MCQ_CORRECT');
-                    const bonus = getMcqStreakBonus(streak);
-                    if (bonus > 0) earnedPoints += tryEarnScore(user.id, bonus, _tier, _subValid, 0, `REVISION_MCQ_STREAK_${streak}`);
-                } else {
-                    streak = 0;
-                    subtractDailyScore(user.id, 1);
-                }
-            });
-            setMcqStreak(streak);
-            if (earnedPoints > 0) {
-                const _routineOn = loadRoutineData(user.id).enabled;
-                const _u = userRef.current;
-                if (_u && onUpdateUser) {
-                    deferMcqCreditsFromXp(_u.id, earnedPoints, _routineOn);
-                    const updated = { ..._u, totalScore: (_u.totalScore || 0) + earnedPoints };
-                    onUpdateUser(updated);
-                    saveUserToLive(updated);
-                }
-                // Credits are deferred cumulatively and shown on Home payout.
-                // Do not reference a per-session `credits` value here because
-                // the conversion may produce only a carry remainder.
-                showMcqScore(earnedPoints);
-            }
         }
 
         const thresholds = settings?.revisionConfig?.thresholds ?? { strong: 65, average: 50, mastery: 80 };
@@ -312,11 +323,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     topicAnalysis[t].correct += 1;
                     removeMistakeByQuestion(q.question, q.correctAnswer);
                 } else if (selected !== -1) {
-                    const tracked = normalizeMcqForTracking(q, localIdx);
-                    wrongQuestions.push({
-                        ...tracked,
-                        qIndex: localIdx,
-                    });
+                    wrongQuestions.push({ question: q.question, qIndex: localIdx, explanation: q.explanation, correctAnswer: q.correctAnswer });
                 }
             });
 
@@ -366,14 +373,11 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     .map((q, localIdx) => {
                         const selected = ans[localIdx];
                         if (selected !== undefined && selected !== q.correctAnswer) {
-                            const tracked = normalizeMcqForTracking(q, localIdx);
                             return {
-                                question: tracked.question,
-                                questionNumber: tracked.questionNumber,
-                                statements: tracked.statements,
-                                options: tracked.allOptions,
-                                correctAnswer: tracked.correctAnswer,
-                                explanation: tracked.explanation,
+                                question: q.question,
+                                options: q.options || [],
+                                correctAnswer: q.correctAnswer,
+                                explanation: q.explanation,
                                 topic: q.topic || meta._topicName,
                                 chapterTitle: meta._chapterName,
                                 subjectName: meta._subjectName,
@@ -391,26 +395,17 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             // Revision tracker
             try {
                 const userAnswersArr = qs.map((_, localIdx) => ans[localIdx] ?? null);
-                // The question payload can carry a label from the source book
-                // (or "General"), but the Revision Hub bucket is keyed by the
-                // topic that launched this session. Always use that canonical
-                // topic/page pair so the existing due bucket is updated rather
-                // than creating a second bucket that remains due today.
-                const trackerQuestions = qs.map(q => ({
-                    ...q,
-                    topic: meta._topicName,
-                }));
                 recordRevisionAttempt({
                     subjectId: meta._subjectId,
                     subjectName: meta._subjectName,
                     chapterId: meta._chapterId,
                     chapterTitle: meta._chapterName,
-                    pageKey: meta._pageKey || meta._chapterId,
-                    questions: trackerQuestions,
+                    pageKey: meta._chapterId,
+                    questions: qs,
                     userAnswers: userAnswersArr,
                 });
                 if (topic) {
-                    const bk = bucketKey(meta._subjectId, meta._chapterId, meta._pageKey || meta._chapterId, meta._topicName);
+                    const bk = bucketKey(meta._subjectId, meta._chapterId, meta._chapterId, meta._topicName);
                     applyInitialSchedule(bk, accuracy, settings?.revisionConfig);
                 }
             } catch (_) {}
@@ -432,8 +427,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 totalTimeSeconds: totalTime,
                 averageTimePerQuestion: totalTime / (total || 1),
                 performanceTag: percentage >= 80 ? 'EXCELLENT' : percentage >= 50 ? 'GOOD' : 'BAD',
-                 questions: qs,
-                 userAnswers: ans,
                 ultraAnalysisReport: analysisJson,
                 topicAnalysis,
                 omrData,
@@ -444,13 +437,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             saveTestResult(user.id, result);
             sessionResults.push(result);
         });
-
-        // Keep the corrected schedule available after a fresh device/login.
-        // The tracker itself is local-first, so this explicit bulk sync is the
-        // durable save point for a multi-topic Today MCQ session.
-        try {
-            syncAllRevisionBuckets(user.id, getTrackerMap());
-        } catch (_) {}
 
         // ── Mega combined result ──────────────────────────────────────────
         let totalQ = 0, totalScore = 0, totalCorrect = 0, totalWrong = 0;
@@ -497,8 +483,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             totalTimeSeconds: totalTime,
             averageTimePerQuestion: totalTime / (totalQ || 1),
             performanceTag: totalQ > 0 && (totalCorrect / totalQ) >= 0.8 ? 'EXCELLENT' : totalQ > 0 && (totalCorrect / totalQ) >= 0.5 ? 'GOOD' : 'BAD',
-             questions: interleavedQuestions,
-             userAnswers: answers,
             topicAnalysis: megaTopicAnalysis,
             omrData: megaOmrData,
             wrongQuestions: megaWrongQuestions,
@@ -510,17 +494,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             const trackerMap = getTrackerMap();
             topicSummary.forEach((item: any) => {
                 if (item._subjectId && item._chapterId) {
-                    const topicMeta = interleavedQuestions.find(q =>
-                        q._subjectId === item._subjectId &&
-                        q._chapterId === item._chapterId &&
-                        q._topicName === item.topicName
-                    );
-                    const bk = bucketKey(
-                        item._subjectId,
-                        item._chapterId,
-                        topicMeta?._pageKey || item._chapterId,
-                        item.topicName,
-                    );
+                    const bk = bucketKey(item._subjectId, item._chapterId, item._chapterId, item.topicName);
                     item.sessionHistory = trackerMap[bk]?.sessionHistory;
                 }
             });
@@ -899,58 +873,49 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 />
             </div>
 
-            {/* Question palette + current question */}
-            <div className="flex-1 overflow-y-auto p-4 pb-24">
-                <McqQuestionNavigator
-                    total={interleavedQuestions.length}
-                    currentIndex={qIndex}
-                    answers={answers}
-                    skipped={skipped}
-                    onJump={setQIndex}
-                    className="mb-4"
-                />
+            {/* Question */}
+            <div className="flex-1 overflow-y-auto p-6 pb-24">
                 {/* Topic badge */}
                 <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold mb-4 ${topicColor}`}>
                     <Tag size={10} />
                     {question._topicName}
                 </div>
 
-                <McqPracticeCard
-                    q={question}
-                    questionNumber={question.questionNumber ?? qIndex + 1}
-                    selectedOption={answers[qIndex] ?? null}
-                    answered={answers[qIndex] !== undefined}
-                    onSelect={handleAnswer}
-                />
-                <div className="mt-4 flex items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setQIndex(index => Math.max(0, index - 1))}
-                        disabled={qIndex === 0}
-                        className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:opacity-30"
-                    >
-                        <ChevronLeft size={15} /> Pichla
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (qIndex >= interleavedQuestions.length - 1) return;
-                            setSkipped(prev => answers[qIndex] === undefined ? new Set(prev).add(qIndex) : prev);
-                            setQIndex(index => Math.min(interleavedQuestions.length - 1, index + 1));
-                        }}
-                        disabled={qIndex >= interleavedQuestions.length - 1}
-                        className="flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700 disabled:opacity-30"
-                    >
-                        Skip <SkipForward size={15} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setQIndex(index => Math.min(interleavedQuestions.length - 1, index + 1))}
-                        disabled={qIndex >= interleavedQuestions.length - 1}
-                        className="flex items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-white disabled:opacity-30"
-                    >
-                        Agla <ChevronRight size={15} />
-                    </button>
+                <div className="text-lg font-bold text-slate-800 mb-8 leading-relaxed">
+                    <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(question.question) }} />
+                    {question.statements && question.statements.length > 0 && (
+                        <div className="mt-3 mb-2 flex flex-col space-y-1">
+                            {question.statements.map((stmt: string, sIdx: number) => (
+                                <div key={sIdx} className="text-slate-800 text-base font-medium leading-snug" dangerouslySetInnerHTML={{ __html: renderMathInHtml(stmt) }} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    {question.options.map((opt: string, idx: number) => {
+                        const isSelected = answers[qIndex] === idx;
+                        const answered = answers[qIndex] !== undefined;
+                        let bg = 'bg-slate-50'; let border = 'border-slate-200'; let text = 'text-slate-800';
+                        let radioBorder = 'border-slate-400'; let radioFill = false;
+                        if (answered) {
+                            if (isSelected) { bg = 'bg-blue-50'; border = 'border-blue-400'; text = 'text-blue-800'; radioBorder = 'border-blue-500'; radioFill = true; }
+                            else { bg = 'bg-white'; border = 'border-slate-100'; text = 'text-slate-400'; }
+                        }
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => handleAnswer(idx)}
+                                disabled={answered}
+                                className={`w-full px-4 py-3 rounded-xl border text-left font-medium transition-all flex items-center gap-3 ${bg} ${border} ${text}`}
+                            >
+                                <span className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${radioBorder} ${radioFill ? 'bg-blue-500' : 'bg-transparent'}`}>
+                                    {radioFill && <span className="w-2 h-2 rounded-full bg-white" />}
+                                </span>
+                                <span className="flex-1" dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -958,7 +923,6 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             {isProjectorMode && interleavedQuestions.length > 0 && createPortal((() => {
                 const pq = interleavedQuestions[projectorQIdx];
                 if (!pq) return null;
-                const parsedProjectorQuestion = parseMcqQuestion(pq);
                 const total = interleavedQuestions.length;
                 const optionLetters = ['A','B','C','D','E'];
                 const overlayStyle: React.CSSProperties = {
@@ -1003,26 +967,38 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                                 </div>
                             </div>
                         )}
-                        <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px' : '18px 24px 12px', minHeight:0 }}>
-                            <div style={{ maxWidth: 980, margin: '0 auto' }}>
-                                <McqPracticeCard
-                                    q={{ ...pq, options: getMcqOptions(pq) } as any}
-                                    questionNumber={pq.questionNumber ?? projectorQIdx + 1}
-                                    selectedOption={projectorSelected}
-                                    answered={projectorSelected !== null}
-                                    showResult={projectorSelected !== null}
-                                    variant="projector"
-                                    fontSize={projectorFocused ? 28 : 20}
-                                    onSelect={(oi) => {
-                                        if (projectorSelected !== null || projectorAnswered.has(projectorQIdx)) return;
-                                        setProjectorSelected(oi);
-                                        const newA = new Set(projectorAnswered);
-                                        newA.add(projectorQIdx);
-                                        setProjectorAnswered(newA);
-                                        if (pq.correctAnswer === oi) setProjectorCorrect(c => c + 1);
-                                        else setProjectorWrong(w => w + 1);
-                                    }}
-                                />
+                        <div style={{ flex:1, overflowY:'auto', padding: projectorFocused ? '24px' : '18px 24px 12px', display:'flex', flexDirection:'column', gap:14, minHeight:0 }}>
+                            <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
+                                <span style={{ background:'#3b82f6', color:'#fff', borderRadius:999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:900, flexShrink:0 }}>{projectorQIdx + 1}</span>
+                                <p style={{ fontSize:20, fontWeight:800, color:'#1e293b', lineHeight:1.45, flex:1 }} dangerouslySetInnerHTML={{ __html: renderMathInHtml(pq.question) }} />
+                            </div>
+                            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                                {pq.options.map((opt: string, oi: number) => {
+                                    const isCorrect = pq.correctAnswer === oi;
+                                    const isSelected = projectorSelected === oi;
+                                    const answered = projectorSelected !== null;
+                                    let bg = '#f8fafc'; let borderCol = '#e2e8f0'; let color = '#1e293b';
+                                    let radioBorder = '#94a3b8'; let radioFill = 'transparent';
+                                    if (answered) {
+                                        if (isCorrect) { bg='#f0fdf4'; borderCol='#4ade80'; color='#166534'; radioBorder='#4ade80'; radioFill='#4ade80'; }
+                                        else if (isSelected) { bg='#fef2f2'; borderCol='#f87171'; color='#991b1b'; radioBorder='#f87171'; radioFill='#f87171'; }
+                                    } else if (isSelected) { bg='#eff6ff'; borderCol='#3b82f6'; radioBorder='#3b82f6'; radioFill='#3b82f6'; }
+                                    return (
+                                        <button key={oi}
+                                            onClick={() => {
+                                                if (answered || projectorAnswered.has(projectorQIdx)) return;
+                                                setProjectorSelected(oi);
+                                                const newA = new Set(projectorAnswered); newA.add(projectorQIdx); setProjectorAnswered(newA);
+                                                if (isCorrect) setProjectorCorrect(c => c + 1); else setProjectorWrong(w => w + 1);
+                                            }}
+                                            style={{ textAlign:'left', padding:'12px 16px', borderRadius:14, border:`1px solid ${borderCol}`, background:bg, color, fontSize:17, fontWeight:500, cursor: answered ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:12, transition:'all 0.15s' }}>
+                                            <span style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${radioBorder}`, background: radioFill, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                                {radioFill !== 'transparent' && <span style={{ width:10, height:10, borderRadius:'50%', background:'#fff' }} />}
+                                            </span>
+                                            <span dangerouslySetInnerHTML={{ __html: renderMathInHtml(opt) }} />
+                                        </button>
+                                    );
+                                })}
                             </div>
                             {pq.explanation && projectorSelected !== null && (
                                 <div style={{ fontSize:14, color:'#64748b', marginTop:4 }} dangerouslySetInnerHTML={{ __html: formatExplanationHtml(pq.explanation) }} />
