@@ -455,10 +455,6 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     const next = practiceIdx + 1;
     if (next >= practiceQs.length) {
       setPracticeDone(true);
-      // Save immediately with the final answer included. React state updates are
-      // asynchronous, so pass the calculated snapshot instead of reading the
-      // still-stale practiceScores value inside finishPracticeSession.
-      void finishPracticeSession(nextScores);
     } else {
       setPracticeIdx(next);
       setPracticeRevealed(false);
@@ -848,7 +844,11 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                 <>
                   <h1 className="text-base font-black text-slate-800 leading-none">Session Complete!</h1>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {practiceSaving ? 'Performance save ho raha hai…' : 'Performance automatically save ho gaya ✓'}
+                    {practiceSaving
+                      ? 'Performance save ho raha hai…'
+                      : practiceSaved
+                        ? 'Performance save ho gaya ✓'
+                        : 'Performance save karne ke liye button dabayein'}
                   </p>
                 </>
               ) : (
@@ -1066,8 +1066,33 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                   {/* Info */}
                   <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2.5 text-xs text-indigo-700 flex gap-2">
                     <span>📅</span>
-                    <span>Performance save ho gaya. <strong>Performance</strong> tab mein dekho.</span>
+                    <span>
+                      {practiceSaved
+                        ? <>Performance save ho gaya. <strong>Performance</strong> tab mein dekho.</>
+                        : <>Score save karne ke liye neeche <strong>Performance Save Karo</strong> button dabayein.</>}
+                    </span>
                   </div>
+
+                  {/* Save performance explicitly after the student reviews results. */}
+                  <button
+                    type="button"
+                    onClick={() => void finishPracticeSession()}
+                    disabled={practiceSaved || practiceSaving}
+                    className={`w-full flex items-center justify-center gap-2 font-black py-3.5 rounded-2xl transition-all shadow-md ${
+                      practiceSaved
+                        ? 'bg-emerald-100 text-emerald-700 cursor-default'
+                        : practiceSaving
+                          ? 'bg-emerald-500 text-white cursor-wait'
+                          : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-emerald-200'
+                    }`}
+                  >
+                    <Trophy size={18} />
+                    {practiceSaving
+                      ? 'Performance Save Ho Raha Hai…'
+                      : practiceSaved
+                        ? 'Performance Save Ho Gaya ✓'
+                        : 'Performance Save Karo'}
+                  </button>
 
                   <button
                     onClick={() => {
