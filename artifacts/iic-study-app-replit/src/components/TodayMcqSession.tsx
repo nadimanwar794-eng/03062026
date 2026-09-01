@@ -8,7 +8,8 @@ import { rotateScreen } from '../utils/displayPrefs';
 import { getChapterData, saveUserToLive, saveTestResult, saveDemand } from '../firebase';
 import { storage } from '../utils/storage';
 import { generateAnalysisJson } from '../utils/analysisUtils';
-import { recordAttempt as recordRevisionAttempt, applyInitialSchedule, bucketKey, getTrackerMap } from '../utils/revisionTrackerV2';
+import { recordAttempt as recordRevisionAttempt, markMcqDone, bucketKey, getTrackerMap } from '../utils/revisionTrackerV2';
+import { syncAllRevisionBuckets } from '../utils/revisionFirebase';
 import { addMistakes, removeMistakeByQuestion } from '../utils/mistakeBank';
 import { getEffectiveDailyLimit, getLevelInfo, UNLIMITED } from '../utils/levelSystem';
 import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
@@ -21,6 +22,7 @@ interface InterleavedQ extends MCQItem {
     _topicIndex: number;
     _topicName: string;
     _chapterId: string;
+    _pageKey: string;
     _chapterName: string;
     _subjectId: string;
     _subjectName: string;
@@ -44,6 +46,7 @@ interface TopicSessionResult {
     // Internal fields used to enrich results post-loop
     _subjectId?: string;
     _chapterId?: string;
+    _pageKey?: string;
     // sessionHistory[0] = current (just completed), [1] = previous, [2] = 2 back
     sessionHistory?: AttemptHistoryEntry[];
 }
@@ -199,6 +202,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         _topicIndex: i,
                         _topicName: topic.name,
                         _chapterId: topic.chapterId,
+                        _pageKey: topic.pageKey || topic.chapterId,
                         _chapterName: topic.chapterName,
                         _subjectId: topic.subjectId || 'REVISION',
                         _subjectName: topic.subjectName || 'Revision',
@@ -401,6 +405,7 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                 nextRevisionDays,
                 _subjectId: meta._subjectId,
                 _chapterId: meta._chapterId,
+                _pageKey: meta._pageKey,
             });
 
             // Mistake bank
@@ -431,19 +436,28 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             // Revision tracker
             try {
                 const userAnswersArr = qs.map((_, localIdx) => ans[localIdx] ?? null);
+                // The topic/page that launched this session is authoritative.
+                // MCQ payloads can carry a different topic label, which would
+                // otherwise create a second bucket and leave the original
+                // Today MCQ item due.
+                const pageKey = topic?.pageKey || meta._pageKey || meta._chapterId;
+                const trackedQuestions = qs.map(q => ({
+                    ...q,
+                    topic: meta._topicName,
+                }));
                 recordRevisionAttempt({
                     subjectId: meta._subjectId,
                     subjectName: meta._subjectName,
                     chapterId: meta._chapterId,
                     chapterTitle: meta._chapterName,
-                    pageKey: meta._chapterId,
-                    questions: qs,
+                    pageKey,
+                    questions: trackedQuestions,
                     userAnswers: userAnswersArr,
                 });
-                if (topic) {
-                    const bk = bucketKey(meta._subjectId, meta._chapterId, meta._chapterId, meta._topicName);
-                    applyInitialSchedule(bk, accuracy, settings?.revisionConfig);
-                }
+                const bk = bucketKey(meta._subjectId, meta._chapterId, pageKey, meta._topicName);
+                // This is a rerun of an already-due MCQ bucket. Move the same
+                // bucket to its next NOTES date using the scored tier.
+                markMcqDone(bk, accuracy, settings?.revisionConfig);
             } catch (_) {}
 
             const analysisJson = generateAnalysisJson(qs, ans, user.mcqHistory, meta._chapterId);
@@ -473,6 +487,11 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             saveTestResult(user.id, result);
             sessionResults.push(result);
         });
+
+        // Persist the result-based schedule after every topic in this session
+        // has updated the local tracker. This keeps all Today MCQ launch paths
+        // consistent across reloads and devices.
+        syncAllRevisionBuckets(user.id, getTrackerMap());
 
         // ── Mega combined result ──────────────────────────────────────────
         let totalQ = 0, totalScore = 0, totalCorrect = 0, totalWrong = 0;
@@ -525,12 +544,12 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
         };
 
         // Enrich topicSummary with sessionHistory from revision tracker
-        // (applyInitialSchedule above has already written sessionHistory[0] = current attempt)
+        // markMcqDone above has already written sessionHistory[0] = current attempt
         try {
             const trackerMap = getTrackerMap();
             topicSummary.forEach((item: any) => {
                 if (item._subjectId && item._chapterId) {
-                    const bk = bucketKey(item._subjectId, item._chapterId, item._chapterId, item.topicName);
+                    const bk = bucketKey(item._subjectId, item._chapterId, item._pageKey || item._chapterId, item.topicName);
                     item.sessionHistory = trackerMap[bk]?.sessionHistory;
                 }
             });
