@@ -255,7 +255,7 @@ import { shouldShowMcqOptions } from "../utils/mcqRender";
 import McqQuestionDisplay from "./McqQuestionDisplay";
 import McqPracticeCard from "./McqPracticeCard";
 import McqQuestionNavigator from "./McqQuestionNavigator";
-import { deferStudyCoins, deferMcqCreditsFromXp } from "../utils/studyRewards";
+import { deferStudyCoins, deferCreditsFromXp, deferMcqCreditsFromXp } from "../utils/studyRewards";
 import { ChunkedNotesReader } from "./ChunkedNotesReader";
 import { WriteModeCorrection } from "./WriteModeCorrection";
 import { CompareView } from "./CompareView";
@@ -3105,15 +3105,11 @@ export const StudentDashboard: React.FC<Props> = ({
         const earned = tryEarnScore(freshU.id, tiers * basePerTick, freshU.subscriptionLevel, freshU.isPremium, getCombinedBoost(freshU, settings), activityType, (freshU as any).scoreLimitBoostPercent, (freshU as any).scoreLimitBoostExpiry);
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
-          // Coin earn: routine ON = pts÷2, OFF = pts÷4
+           // Credit earn: routine ON = pts÷6, OFF = pts÷8, with carry-forward.
           const _rdCoin = loadRoutineData(freshU.id);
-          const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
-          const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
-          const _prevCR = getTotalCredits(freshU);
-          const _newCR  = _prevCR + _coinEarned;
           const _prevXP = freshU.totalScore || 0;
           const _newXP  = _prevXP + earned;
-          deferStudyCoins(freshU.id, _coinEarned);
+           deferCreditsFromXp(freshU.id, earned, _rdCoin.enabled, 'study');
           handleUserUpdate({ ...freshU, totalScore: _newXP });
           // Always show top banner for timer coin earn (guaranteed, doesn't rely on handleUserUpdate diff)
           // Muted timer rewards: accumulated via deferStudyCoins for Home payout.
@@ -3409,13 +3405,9 @@ export const StudentDashboard: React.FC<Props> = ({
         if (earned > 0) {
           logScoreActivity(freshU.id, activityType, earned);
           const _rdCoin = loadRoutineData(freshU.id);
-          const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
-          const _coinEarned = Math.max(1, Math.floor(earned * _coinMult));
-          const _prevCR = getTotalCredits(freshU);
-          const _newCR  = _prevCR + _coinEarned;
           const _prevXP2 = freshU.totalScore || 0;
           const _newScore = _prevXP2 + earned;
-          deferStudyCoins(freshU.id, _coinEarned);
+           deferCreditsFromXp(freshU.id, earned, _rdCoin.enabled, 'study');
           handleUserUpdate({ ...freshU, totalScore: _newScore });
           // Update credit-sync key so HOME-tab sync does NOT double-convert these pts to credits
           try { localStorage.setItem(`nst_credit_sync_score_${freshU.id}`, String(_newScore)); } catch {}
@@ -9035,9 +9027,7 @@ export const StudentDashboard: React.FC<Props> = ({
                                   if (_hwEarned > 0) {
                                     logScoreActivity(_freshU.id, 'MCQ_CORRECT', _hwEarned);
                                     const _rdCoin = loadRoutineData(_freshU.id);
-                                    const _coinMult = _rdCoin.enabled ? (1 / 6) : 0.125;
-                                    const _coinEarned = Math.max(1, Math.floor(_hwEarned * _coinMult));
-                                    deferStudyCoins(_freshU.id, _coinEarned);
+                                     deferMcqCreditsFromXp(_freshU.id, _hwEarned, _rdCoin.enabled);
                                     handleUserUpdate({ ..._freshU, totalScore: (_freshU.totalScore || 0) + _hwEarned });
                                     triggerRewardEffect(_hwEarned, `+${_hwEarned} pts 🧠 Competition MCQ!`);
                                   }

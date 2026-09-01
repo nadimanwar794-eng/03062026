@@ -15,7 +15,7 @@ import { SubscriptionEngine } from '../utils/engines/subscriptionEngine';
 import { tryEarnScore, subtractDailyScore, getMcqStreakBonus } from '../utils/scoreSystem';
 import { hapticCorrect, hapticWrong } from '../utils/haptic';
 import { loadRoutineData } from '../utils/routineStorage';
-import { deferStudyCoins } from '../utils/studyRewards';
+import { deferMcqCreditsFromXp } from '../utils/studyRewards';
 import McqQuestionDisplay from './McqQuestionDisplay';
 import McqPracticeCard from './McqPracticeCard';
 import { getMcqOptions, normalizeMcqForTracking } from '../utils/mcqStructure';
@@ -252,10 +252,9 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
             setMcqStreak(streak);
             if (earnedPoints > 0) {
                 const _routineOn = loadRoutineData(user.id).enabled;
-                const credits = Math.max(1, Math.floor(earnedPoints * (_routineOn ? 1 / 6 : 1 / 8)));
                 const _u = userRef.current;
                 if (_u && onUpdateUser) {
-                    deferStudyCoins(_u.id, credits);
+                    deferMcqCreditsFromXp(_u.id, earnedPoints, _routineOn);
                     const updated = { ..._u, totalScore: (_u.totalScore || 0) + earnedPoints };
                     onUpdateUser(updated);
                     saveUserToLive(updated);
