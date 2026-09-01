@@ -142,6 +142,42 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                         }
                     }
 
+                    // A Daily/Lucent/custom question can be tracked even when
+                    // its original chapter is no longer available locally.
+                    // Rehydrate the saved wrong-question payload so Revision
+                    // Hub can still launch the Today session instead of
+                    // reporting a missing-MCQ demand.
+                    if (mcqs.length === 0) {
+                        const trackerKey = bucketKey(
+                            topic.subjectId || 'REVISION',
+                            topic.chapterId,
+                            topic.pageKey || topic.chapterId,
+                            topic.name,
+                        );
+                        const trackedWrongQuestions = getTrackerMap()[trackerKey]?.wrongQuestions || [];
+                        mcqs = trackedWrongQuestions
+                            .map((wrong: any, index: number) => {
+                                const tracked = normalizeMcqForTracking({
+                                    question: wrong.question,
+                                    questionNumber: wrong.questionNumber,
+                                    statements: wrong.statements,
+                                    options: wrong.allOptions || wrong.options,
+                                    correctAnswer: wrong.correctAnswer,
+                                    explanation: wrong.explanation,
+                                }, index);
+                                return {
+                                    question: tracked.question,
+                                    questionNumber: tracked.questionNumber,
+                                    statements: tracked.statements,
+                                    options: tracked.allOptions,
+                                    correctAnswer: tracked.correctAnswer,
+                                    explanation: tracked.explanation,
+                                    topic: topic.name,
+                                } as MCQItem;
+                            })
+                            .filter((q: MCQItem) => q.question && q.options.some(Boolean));
+                    }
+
                     if (mcqs.length === 0) {
                         skipped.push(topic.name);
                         saveDemand(user.id, `Missing MCQs for Revision: ${topic.name} (${topic.chapterName})`);

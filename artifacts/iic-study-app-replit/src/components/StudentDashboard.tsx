@@ -92,6 +92,13 @@ import {
   recordStudyMetric,
   type StudyActivityMode,
 } from "../utils/activityTracker";
+import {
+  recordAttempt as recordRevisionAttempt,
+  applyInitialSchedule,
+  bucketKey,
+  getTrackerMap,
+} from "../utils/revisionTrackerV2";
+import { syncRevisionBucket } from "../utils/revisionFirebase";
 import { StudyCardExpandable, StudyModeButtons, StudyStatsPanel, type StudyCardMode } from "./StudyModeCardTools";
 import { generateMorningInsight } from "../services/morningInsight";
 import { LessonActionModal } from "./LessonActionModal";
@@ -1497,6 +1504,52 @@ export const StudentDashboard: React.FC<Props> = ({
       fireCreditNotify({ type: 'REWARD', message: `🎯 MCQ Prize! ${applicableRule.label}` });
     } catch (err) { console.warn('MCQ tracking failed:', err); }
     return true;
+  };
+
+  // Daily/Lucent/Homework MCQs use the same per-topic tracker as Revision Hub.
+  // Keep this opt-in instead of putting it inside trackDailyMcqAnswer: that
+  // helper is also used by flows whose existing lesson-wise tracking must stay
+  // unchanged.
+  const recordDailyRevisionAttempt = (
+    question: MCQItem,
+    answer: number,
+    metadata: {
+      subjectId: string;
+      subjectName: string;
+      chapterId: string;
+      chapterTitle: string;
+      pageKey?: string;
+      topic: string;
+    },
+  ) => {
+    try {
+      const freshUser = (window as any).__dashUserRef?.current ?? user;
+      const pageKey = metadata.pageKey || metadata.chapterId;
+      const topic = metadata.topic.trim() || 'General';
+      const trackedQuestion = { ...question, topic };
+      const key = bucketKey(metadata.subjectId, metadata.chapterId, pageKey, topic);
+      const isCorrect = answer === Number(question.correctAnswer);
+
+      recordRevisionAttempt({
+        subjectId: metadata.subjectId,
+        subjectName: metadata.subjectName,
+        chapterId: metadata.chapterId,
+        chapterTitle: metadata.chapterTitle,
+        pageKey,
+        questions: [trackedQuestion],
+        userAnswers: [answer],
+      });
+      applyInitialSchedule(
+        key,
+        isCorrect ? 1 : 0,
+        settings?.revisionConfig,
+      );
+
+      const bucket = getTrackerMap()[key];
+      if (bucket) syncRevisionBucket(freshUser.id, key, bucket);
+    } catch (error) {
+      console.warn('Daily MCQ revision tracking failed:', error);
+    }
   };
 
   // --- DAILY GATE HELPER (video / pdf / tts) ---
@@ -9101,6 +9154,14 @@ export const StudentDashboard: React.FC<Props> = ({
                                 if (pendingOpt !== undefined) {
                                   const isCorrect = mcq.correctAnswer === pendingOpt;
                                   if (!trackDailyMcqAnswer(isCorrect)) return;
+                                  recordDailyRevisionAttempt(mcq, pendingOpt, {
+                                    subjectId: (activeHw as any).targetSubject || 'HOMEWORK',
+                                    subjectName: (activeHw as any).targetSubject || 'Homework',
+                                    chapterId: `homework_${hwKey}`,
+                                    chapterTitle: activeHw.title || 'Homework',
+                                    pageKey: hwKey,
+                                    topic: (mcq as any).topic || activeHw.title || 'Homework MCQs',
+                                  });
                                   setHwAnswers(prev => ({ ...prev, [ansKey]: pendingOpt }));
                                   setHwPendingAnswers(prev => { const n = { ...prev }; delete n[ansKey]; return n; });
                                 }
@@ -14993,6 +15054,14 @@ export const StudentDashboard: React.FC<Props> = ({
                             const isCorrect = i === mcq.correctAnswer;
                             // Track daily MCQ for prize system — block if limit reached
                             if (!trackDailyMcqAnswer(isCorrect)) return;
+                            recordDailyRevisionAttempt(mcq, i, {
+                              subjectId: (mcq as any).subjectId || 'DAILY_CHALLENGE',
+                              subjectName: (mcq as any).subjectName || 'Daily Challenge',
+                              chapterId: 'daily-challenge',
+                              chapterTitle: 'Challenge of the Day',
+                              pageKey: 'daily-challenge',
+                              topic: (mcq as any).topic || 'Daily Challenge',
+                            });
                             // ── MY MISTAKE BANK ──────────────────────────
                             // Challenge of the Day auto-submits on tap (no
                             // Submit button) — user reported wrong answers
@@ -16619,7 +16688,17 @@ export const StudentDashboard: React.FC<Props> = ({
                                   key={oi}
                                   disabled={showResult}
                                   onClick={() => {
-                                    if (compHubAnswers[safeIdx] === undefined && !trackDailyMcqAnswer(oi === current.correctAnswer)) return;
+                                    if (compHubAnswers[safeIdx] === undefined) {
+                                      if (!trackDailyMcqAnswer(oi === current.correctAnswer)) return;
+                                      recordDailyRevisionAttempt(current, oi, {
+                                        subjectId: (current as any)._src === 'user' ? 'CUSTOM_MCQ' : 'COMPETITION_MCQ',
+                                        subjectName: (current as any)._src === 'user' ? 'User-created MCQs' : 'Competition MCQs',
+                                        chapterId: (current as any)._src === 'user' ? 'custom-mcq-set' : 'competition-mcq-set',
+                                        chapterTitle: (current as any)._src === 'user' ? 'User-created MCQs' : 'Competition MCQs',
+                                        pageKey: (current as any)._src === 'user' ? 'custom-mcq-set' : 'competition-mcq-set',
+                                        topic: (current as any)._src === 'user' ? 'User-created MCQs' : ((current as any).topic || 'Competition MCQs'),
+                                      });
+                                    }
                                     setCompHubAnswers(prev => ({ ...prev, [safeIdx]: oi }));
                                     setCompMcqSelected(oi);
                                     setCompHubSkipped(prev => {
@@ -21413,6 +21492,14 @@ RULES:
                         }
                         const isCorrectAns = oi === cq.correctAnswer;
                         if (!trackDailyMcqAnswer(isCorrectAns)) return;
+                        recordDailyRevisionAttempt(cq, oi, {
+                          subjectId: (entry as any).subject || 'LUCENT',
+                          subjectName: (entry as any).subject || 'Lucent',
+                          chapterId: entry.id,
+                          chapterTitle: entry.lessonTitle || 'Lucent Lesson',
+                          pageKey,
+                          topic: (currentPage?.topicName || cq.topic || entry.lessonTitle || 'General').trim(),
+                        });
 
                         // ── Track per-question elapsed time ──
                         const _qElapsed = (Date.now() - (lucentMcqQStartTsRef.current[pageKey] ?? Date.now())) / 1000;
