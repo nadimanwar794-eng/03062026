@@ -259,7 +259,10 @@ export const TodayMcqSession: React.FC<Props> = ({ user, topics, onClose, onComp
                     onUpdateUser(updated);
                     saveUserToLive(updated);
                 }
-                showMcqScore(earnedPoints, credits);
+                // Credits are deferred cumulatively and shown on Home payout.
+                // Do not reference a per-session `credits` value here because
+                // the conversion may produce only a carry remainder.
+                showMcqScore(earnedPoints);
             }
         }
 

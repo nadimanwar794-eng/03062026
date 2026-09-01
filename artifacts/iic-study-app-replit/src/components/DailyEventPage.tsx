@@ -1375,7 +1375,24 @@ export const DailyEventPage: React.FC<Props> = ({
           settings={settings}
           onUpdateUser={onUpdateUser}
           onClose={() => setRevMcqSessionActive(false)}
-          onComplete={(_results) => {
+          onComplete={(results) => {
+            // Keep the Today MCQ result in the live user snapshot too.
+            // saveTestResult writes the per-session Firestore record, but the
+            // dashboard Performance tab reads mcqHistory.
+            if (onUpdateUser && Array.isArray(results) && results.length > 0) {
+              const latestUser = (window as any).__dashUserRef?.current ?? user;
+              const existingHistory = Array.isArray(latestUser.mcqHistory)
+                ? latestUser.mcqHistory
+                : [];
+              const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
+              const newResults = results.filter((result: any) => result?.id && !existingIds.has(result.id));
+              if (newResults.length > 0) {
+                onUpdateUser({
+                  ...latestUser,
+                  mcqHistory: [...newResults, ...existingHistory],
+                });
+              }
+            }
             setRevMcqSessionActive(false);
             reloadRevision();
           }}

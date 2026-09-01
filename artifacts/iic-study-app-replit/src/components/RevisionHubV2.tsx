@@ -215,6 +215,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   const [practiceSelected, setPracticeSelected] = useState<number | null>(null);
   const [practiceScores, setPracticeScores] = useState<Record<string, { got: number; total: number }>>({});
   const [practiceDone, setPracticeDone] = useState(false);
+  const [practiceSaved, setPracticeSaved] = useState(false);
 
   // Live clock — ticks every second for countdown timers
   const [now, setNow] = useState(Date.now());
@@ -394,6 +395,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeRevealed(false);
     setPracticeScores({});
     setPracticeDone(false);
+    setPracticeSaved(false);
     setPracticeActive(true);
   };
 
@@ -418,6 +420,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeRevealed(false);
     setPracticeScores({});
     setPracticeDone(false);
+    setPracticeSaved(false);
     setPracticeActive(true);
   };
 
@@ -451,6 +454,49 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
   };
 
   const finishPracticeSession = () => {
+    if (practiceSaved) return;
+
+    const completedAt = new Date().toISOString();
+    const savedEntries = dueMcq.flatMap((b) => {
+      const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
+      const sc = practiceScores[bk];
+      if (!sc || sc.total <= 0) return [];
+
+      const accuracy = sc.got / sc.total;
+      const topicQuestions = practiceQs
+        .filter(q => q.bucketKey === bk)
+        .map(q => trackedQuestionAsMcq(q));
+
+      return [{
+        id: `revision-practice-${Date.now()}-${b.subjectId}-${b.chapterId}-${b.topic}`,
+        testId: `revision-practice-${Date.now()}-${b.subjectId}-${b.chapterId}-${b.topic}`,
+        userId: user.id,
+        chapterId: b.chapterId,
+        chapterTitle: b.chapterTitle || b.chapterId,
+        subjectId: b.subjectId,
+        subjectName: b.subjectName || b.subjectId,
+        topic: b.topic,
+        date: completedAt,
+        createdAt: completedAt,
+        score: sc.got,
+        totalQuestions: sc.total,
+        correctCount: sc.got,
+        wrongCount: sc.total - sc.got,
+        performanceTag: accuracy >= 0.8 ? 'EXCELLENT' : accuracy >= 0.5 ? 'GOOD' : 'BAD',
+        questions: topicQuestions,
+        userAnswers: {},
+        omrData: [],
+        wrongQuestions: [],
+        topicAnalysis: {
+          [b.topic]: {
+            correct: sc.got,
+            total: sc.total,
+            percentage: Math.round(accuracy * 100),
+          },
+        },
+      }];
+    });
+
     dueMcq.forEach(b => {
       const bk = bucketKey(b.subjectId, b.chapterId, b.pageKey, b.topic);
       const sc = practiceScores[bk];
@@ -460,6 +506,26 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
       }
     });
     syncRevisionProgress();
+
+    // The inline practice flow previously updated only the revision tracker.
+    // Persist an aggregated per-topic result as well, so Performance/History
+    // and a fresh device can see this completed Today MCQ attempt.
+    if (onUpdateUser && savedEntries.length > 0) {
+      const latestUser = (window as any).__dashUserRef?.current ?? user;
+      const existingHistory = Array.isArray(latestUser.mcqHistory)
+        ? latestUser.mcqHistory
+        : [];
+      const existingIds = new Set(existingHistory.map((entry: any) => entry?.id).filter(Boolean));
+      const newEntries = savedEntries.filter((entry: any) => !existingIds.has(entry.id));
+      if (newEntries.length > 0) {
+        onUpdateUser({
+          ...latestUser,
+          mcqHistory: [...newEntries, ...existingHistory],
+        });
+      }
+    }
+
+    setPracticeSaved(true);
     setPracticeActive(false);
     setPracticeDone(false);
     reload();
@@ -474,6 +540,7 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
     setPracticeRevealed(false);
     setPracticeSelected(null);
     setPracticeScores({});
+    setPracticeSaved(false);
   };
 
   // ── MCQ open + self-rating ────────────────────────────────────────────────
@@ -971,9 +1038,14 @@ export const RevisionHubV2: React.FC<Props> = (props) => {
                   {/* Submit + reset */}
                   <button
                     onClick={finishPracticeSession}
-                    className="w-full flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl text-base transition-all shadow-lg active:scale-[0.99] bg-emerald-600"
+                    disabled={practiceSaved}
+                    className={`w-full flex items-center justify-center gap-2 text-white font-black py-4 rounded-2xl text-base transition-all shadow-lg ${
+                      practiceSaved
+                        ? 'bg-emerald-500 opacity-80 cursor-default'
+                        : 'active:scale-[0.99] bg-emerald-600'
+                    }`}
                   >
-                    <Trophy size={20} /> Performance Save Karo
+                    <Trophy size={20} /> {practiceSaved ? 'Performance Saved ✓' : 'Performance Save Karo'}
                   </button>
                   <button
                     onClick={resetPractice}
